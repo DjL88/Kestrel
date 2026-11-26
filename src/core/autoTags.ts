@@ -1,5 +1,5 @@
 import { rankSpecies, type SpeciesLabel, type Suggestion } from './speciesMatch';
-import { addTags, type SubjectKind } from './subjectTags';
+import { STARTER_TAGS, addTags, type SubjectKind } from './subjectTags';
 
 /** Tags the app added by itself, and names the user has removed so they are never added again to that photo. */
 export interface AutoState {
@@ -10,11 +10,20 @@ export interface AutoState {
 export const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const has = (list: readonly string[] | undefined, name: string) => (list ?? []).some((entry) => sameName(entry, name));
 
-/** Only a photo with no tags yet is tagged automatically, and never with a name the user removed from it before. */
+/**
+ * The wildlife quick-add words (Bird, Mammal, In flight, Perched...). They say what kind of photo it is, not which
+ * animal, so a photo tagged only "Bird" (by hand, or from Lightroom keywords) still gets its species looked up.
+ */
+const kindWords = (tags: readonly string[] | undefined) => (tags ?? []).every((tag) => has(STARTER_TAGS.wildlife, tag));
+
+/**
+ * Only a photo with no tags of its own yet (the wildlife quick-add words aside) is tagged automatically, and never with
+ * a name the user removed from it before.
+ */
 export function mayAutoTag(photo: { tags?: readonly string[]; subjectNames?: readonly string[]; subjectDisputed?: boolean } & AutoState, name: string): boolean {
   // When two readings of the photo disagree about what it is, no name is added by itself.
   if (photo.subjectDisputed) return false;
-  return !(photo.tags?.length) && !(photo.subjectNames?.length) && !has(photo.declinedTags, name);
+  return kindWords(photo.tags) && !(photo.subjectNames?.length) && !has(photo.declinedTags, name);
 }
 
 /** The photo's data after the app adds a name by itself. */
@@ -130,7 +139,7 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
   // landscape or other are never scanned.
   return frames.filter((frame) => frame.removedAt == null && !frame.speciesChecked &&
     (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
-    !(frame.tags?.length) && !(frame.subjectNames?.length));
+    kindWords(frame.tags) && !(frame.subjectNames?.length));
 }
 
 /**
@@ -158,8 +167,9 @@ export function speciesShown(frame: { autoTags?: readonly string[]; tags?: reado
     return own ? { name: own, auto: false } : null;
   }
   if (frame.autoTags?.length) return { name: frame.autoTags[0], auto: true };
-  if (frame.tags?.length) return { name: frame.tags[0], auto: false };
-  return null;
+  // A name of the person's own comes before a quick-add word such as "Bird".
+  const own = frame.tags?.find((tag) => !has(STARTER_TAGS.wildlife, tag)) ?? frame.tags?.[0];
+  return own ? { name: own, auto: false } : null;
 }
 
 /**

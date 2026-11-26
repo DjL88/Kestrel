@@ -57,6 +57,16 @@ export interface AppOptions {
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
+  /** Where the pricing matrix is kept (the commerce ledger). Absent: kept in memory, for development and tests. */
+  priceMatrix?: { get(): Promise<unknown>; save(matrix: import('../../../src/core/pricingMatrix.ts').PricingMatrix): Promise<void> };
+  /** The Pro subscription prices in Paddle, to check them against the matrix and set them from it. */
+  paddlePrices?: {
+    priceIds: Partial<Record<'monthly' | 'annual', string>>;
+    get(priceId: string): Promise<import('../../../src/core/pricingMatrix.ts').PaddlePriceView>;
+    update(priceId: string, body: ReturnType<typeof import('../../../src/core/pricingMatrix.ts').paddlePriceUpdate>): Promise<unknown>;
+  };
+  /** Today's ECB reference rates per £1 (commerce/priceReview.ts). */
+  ecbRates?: () => Promise<{ date: string; perGbp: Record<string, number> }>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]>; listTransactionsForMonth?(month: string): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
@@ -75,6 +85,8 @@ export interface AppOptions {
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
+  /** Server-owned Paddle checkout for cloud top-ups (commerce/topUpCheckout.ts); off until 'cloud-top-ups' is switched on. */
+  topUpCheckout?: Pick<ReturnType<typeof import('./commerce/topUpCheckout.ts').paddleTopUps>, 'start' | 'status' | 'amounts'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -171,6 +183,7 @@ export const SWITCHES = [
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
   { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can subscribe to Pro (monthly or annual) through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'cloud-top-ups', label: 'Cloud top-ups (Paddle)', note: 'People can add £5, £10 or £20 to their prepaid cloud balance through Paddle\'s checkout. Switching off stops new top-ups only; payments already made are still verified and credited.' },
   { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
   { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
   { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
@@ -187,6 +200,7 @@ export const Schemas = {
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
   // Pro is a subscription, monthly or annual; older apps send no plan and get monthly, the smallest commitment.
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
+  TopUpCheckoutRequest: z.object({ pence: z.union([z.literal(500), z.literal(1000), z.literal(2000)]) }).strict(),
   ProCheckoutRequest: z.object({ plan: z.enum(PRO_PLANS).default('monthly'), country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
@@ -279,8 +293,20 @@ export const Schemas = {
      * `userConsent` flag every /v1/ai/* call still carries: this is what lets the app stop asking every time.
      */
     aiConsent: z.boolean(),
+    /** True while the account holds a usable contributor grant: the app then offers "Feedback on this". */
+    contributor: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
+  ContributorFeedback: z.object({
+    comment: z.string().trim().min(1).max(2000),
+    /** What was right-clicked, described by the app: its role and name, never page HTML. */
+    target: z.string().trim().max(300).default(''),
+    /** The words shown on that part of the app, so a translation fix can find the string. */
+    text: z.string().trim().max(500).default(''),
+    screen: z.string().trim().max(120).default(''),
+    language: z.string().trim().max(16).regex(/^[A-Za-z-]*$/).default(''),
+    appVersion: z.string().trim().max(40).default(''),
+  }).strict(),
   CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean(), inputKind: z.enum(RECIPE_INPUT_KINDS).optional() }).strict(),
   LearningSignal: z.object({
     source: z.enum(LEARNING_SOURCES), capability: z.enum(LEARNING_CAPABILITIES), action: z.enum(LEARNING_ACTIONS),
@@ -308,6 +334,7 @@ export const Schemas = {
     plan: z.enum(['paid', 'subscriber']).default('paid'),
     majorVersion: z.number().int().min(1).max(99).default(1),
     managedAi: z.boolean().default(false),
+    contributor: z.boolean().default(false).describe('A translation contributor: free Pro plus "Feedback on this" in the app.'),
     note: z.string().trim().max(200).optional().describe('Why this was given, e.g. "Camera club prize". Admin-only.'),
     validDays: z.number().int().min(1).max(3650).optional(),
   }).strict(),
@@ -338,6 +365,8 @@ export const Schemas = {
   AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
   AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
+  /** Quick setup's answers; the route keeps only the fields it knows (src/core/quickSetup.ts). */
+  PreferencesRequest: z.object({ setup: z.record(z.string(), z.unknown()) }).strict(),
 };
 
 // ---- Small helpers -----------------------------------------------------------

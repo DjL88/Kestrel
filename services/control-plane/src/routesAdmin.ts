@@ -343,7 +343,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     },
   },
   {
-    method: 'GET', path: '/v1/admin/messages', summary: 'Contact form messages, newest first', auth: 'admin',
+    method: 'GET', path: '/v1/admin/messages', summary: 'Contact form messages and contributor feedback, newest first', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'messages.read');
       const messages = await store.listContactMessages(200);
@@ -444,12 +444,13 @@ export function adminRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.AdminGrant, req.rawBody);
       const existing = await store.findAccountByEmailHash(emailHashOf(body.email));
       const record = giftEntitlement({
-        email: body.email, plan: body.plan, majorVersion: body.majorVersion, managedAi: body.managedAi, note: body.note ?? null,
+        email: body.email, plan: body.plan, majorVersion: body.majorVersion, managedAi: body.managedAi, contributor: body.contributor,
+        note: body.note ?? (body.contributor ? 'Contributor' : null),
         validUntilMs: body.validDays ? now() + body.validDays * DAY_MS : null, accountId: existing?.accountId ?? null,
       }, now());
       const result = await store.grantLicence(record);
       // The address is never written to the audit log, only a short hash, like the admin sign-in entries.
-      return adminDone(claims, 'licence.grant', `${record.licenceId} plan=${body.plan} v${body.majorVersion}${result.created ? '' : ' (already granted)'}`,
+      return adminDone(claims, 'licence.grant', `${record.licenceId} plan=${body.plan} v${body.majorVersion}${body.contributor ? ' contributor' : ''}${result.created ? '' : ' (already granted)'}`,
         { licenceId: record.licenceId, created: result.created, attachedNow: result.licence.accountId !== null });
     },
   },

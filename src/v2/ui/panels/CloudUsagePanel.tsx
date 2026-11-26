@@ -6,7 +6,13 @@ import { STRINGS } from '../strings';
  * Settings → Account: this month's cloud allowances, what is charged beyond them and the cloud balance.
  * Display only: the control plane meters and authorises every cloud request. Local editing never uses any of this.
  */
-export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage; onTopUp?: (pence: number) => void }) {
+export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, topUpNote = null }: {
+  usage: CloudUsage;
+  /** Starts a Paddle checkout for a prepaid top-up (useCloudTopUp). Absent: top-ups are not open on this build. */
+  onTopUp?: (pence: number) => void;
+  topUpBusy?: boolean;
+  topUpNote?: { text: string; good: boolean } | null;
+}) {
   const words = STRINGS.cloudUsage;
   const summary = usageSummary(usage);
   const resets = new Date(summary.resetsAtMs).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -49,7 +55,7 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
             <button
               key={pence}
               type="button"
-              disabled={!onTopUp}
+              disabled={!onTopUp || topUpBusy}
               onClick={() => onTopUp?.(pence)}
               className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -58,6 +64,7 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
           ))}
         </div>
         {!onTopUp && <p className="text-xs text-[var(--text-muted)]">{words.topUpSoon}</p>}
+        {topUpNote && <p role={topUpNote.good ? 'status' : 'alert'} data-testid="cloud-top-up-note" className="break-all text-xs text-[var(--text-primary)]">{topUpNote.text}</p>}
         {STORAGE_PLANS.filter((p) => !p.available).map((p) => (
           <p key={p.id} data-testid="cloud-storage-plan" className="text-xs text-[var(--text-muted)]">{words.storagePlanSoon(formatBytes(p.bytes), formatPence(p.monthlyPence))} {holds(p.bytes)}</p>
         ))}

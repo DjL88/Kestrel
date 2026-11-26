@@ -456,7 +456,7 @@ export default function ExportDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 sm:px-6 sm:py-3.5">
           <span className="text-xs text-[var(--text-secondary)] tabular-nums">
             {selectedPhotoIds.length || 1} {(selectedPhotoIds.length || 1) === 1 ? 'photo' : 'photos'} · {selectedSizeIds.length}{' '}
             {selectedSizeIds.length === 1 ? 'format' : 'formats'} · {photoIds.length > 1 ? 1 : selectedGroupIds.length}{' '}

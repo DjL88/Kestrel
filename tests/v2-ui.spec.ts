@@ -772,6 +772,7 @@ test('?v2 Settings storage uses the shared connections (NAS, cloud drives and th
   const kinds = root.getByRole('radiogroup', { name: 'Kind of place' });
   for (const name of ['Synology', 'QNAP', 'Nextcloud', 'Backblaze B2', 'Cloudflare R2']) await expect(kinds.getByText(name, { exact: true })).toBeVisible();
   await expect(kinds.getByText(/Dropbox/).first()).toBeVisible();
+  await expect(kinds.getByText(/SharePoint or a Microsoft Teams library/)).toBeVisible();
   // Dropbox and Google Drive draw their marks (an svg), next to their written names.
   expect(await kinds.locator('svg').count()).toBeGreaterThan(3);
   // OneDrive shows Microsoft's own logo as a picture, not a plain cloud.

@@ -1,5 +1,5 @@
 import { Sha256Stream } from '../core/sha256';
-import { optionalModelBytes, optionalModelConfigured, type OptionalModel, type OptionalModelFile } from '../core/optionalModels';
+import { BUNDLED_PACK_IDS, optionalModelBytes, optionalModelConfigured, type OptionalModel, type OptionalModelFile } from '../core/optionalModels';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { modelSource } from './modelUpdater';
 import { packUrlResolver, type PackUrlResolver } from './packManifest';
@@ -25,11 +25,16 @@ export interface PackDeps {
   fetch: typeof fetch;
   /** Where a file comes from when it has no address of its own: the signed model manifest, read at download time. */
   resolveUrl?: PackUrlResolver;
+  /** Packs this installer carries in its own files, read from `/models/<file>` and checked like a download. */
+  bundled?: ReadonlySet<string>;
 }
 // Only a build with the models bucket and its pinned key reads addresses from the manifest; others offer no pack.
 const manifestUrls = modelSource.baseUrl && Object.keys(modelSource.keys).length ? packUrlResolver({ ...modelSource, fetch: (...args) => fetch(...args) }) : undefined;
-const defaults = (): PackDeps => ({ store: deviceStore, fetch: (...args) => fetch(...args), ...(manifestUrls ? { resolveUrl: manifestUrls } : {}) });
-const offered = (model: OptionalModel, deps: PackDeps) => optionalModelConfigured(model, deps.resolveUrl !== undefined);
+const defaults = (): PackDeps => ({ store: deviceStore, fetch: (...args) => fetch(...args), bundled: BUNDLED_PACK_IDS, ...(manifestUrls ? { resolveUrl: manifestUrls } : {}) });
+/** The pack ships inside this installer: every file has a published name to be served under. */
+export const isBundledPack = (model: OptionalModel, deps: Pick<PackDeps, 'bundled'> = defaults()) =>
+  Boolean(deps.bundled?.has(model.id)) && Object.values(model.files).every((file) => Boolean(file.file));
+const offered = (model: OptionalModel, deps: PackDeps) => isBundledPack(model, deps) || optionalModelConfigured(model, deps.resolveUrl !== undefined);
 
 /** A kept file is known by its pack, role and SHA-256, wherever it was downloaded from. */
 const keyOf = (model: OptionalModel, role: string, file: OptionalModelFile) => `${model.id}/${role}#${file.sha256}`;
@@ -45,6 +50,7 @@ async function findKey(store: PackStore, model: OptionalModel, role: string, fil
 
 export async function optionalModelStatus(model: OptionalModel, deps: PackDeps = defaults()): Promise<OptionalModelStatus> {
   if (!offered(model, deps)) return 'unavailable';
+  if (isBundledPack(model, deps)) return 'ready';
   try {
     const present = await Promise.all(Object.entries(model.files).map(([role, file]) => findKey(deps.store, model, role, file)));
     return present.every((key) => key !== null) ? 'ready' : 'not-downloaded';
@@ -104,6 +110,8 @@ export async function downloadOptionalModel(
 }
 
 export async function removeOptionalModel(model: OptionalModel, deps: PackDeps = defaults()): Promise<void> {
+  // A pack that came with the installer is part of the app; there is no separate copy to remove.
+  if (isBundledPack(model, deps)) return;
   for (const [role, file] of Object.entries(model.files)) {
     await deps.store.remove(model.cache, keyOf(model, role, file));
     const legacy = legacyKeyOf(file);
@@ -115,6 +123,16 @@ export async function removeOptionalModel(model: OptionalModel, deps: PackDeps =
 export async function readOptionalModelFile(model: OptionalModel, name: string, deps: PackDeps = defaults()): Promise<Uint8Array> {
   const file = model.files[name];
   if (!file || !offered(model, deps)) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
+  if (isBundledPack(model, deps)) {
+    const response = await deps.fetch(`/models/${file.file}`);
+    if (!response.ok) throw new Error(`${model.name} is missing from this copy of InFlight. Reinstall InFlight to restore it.`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const check = digest([bytes]);
+    if (check.bytes !== file.bytes || check.sha256 !== file.sha256) {
+      throw new Error(`${model.name} in this copy of InFlight failed its integrity check, so it was not used. Reinstall InFlight to restore it.`);
+    }
+    return bytes;
+  }
   const key = await findKey(deps.store, model, name, file);
   const blob = key ? await deps.store.get(model.cache, key) : undefined;
   if (!key || !blob) throw new Error(`${model.name} has not been downloaded.`);

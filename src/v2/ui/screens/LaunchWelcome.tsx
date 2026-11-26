@@ -10,6 +10,10 @@ import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow }
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import { isSignInServiceError } from '../../../providers/firebaseAuth';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
+import QuickSetup from './QuickSetup';
+import { setupFinished } from '../../../core/quickSetup';
+import { readSetup, syncSetupWithAccount } from '../../../providers/quickSetupMemory';
+import { applyAccountSetup } from '../../setupBridge';
 
 const t = STRINGS.welcome;
 
@@ -110,6 +114,11 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   const skipId = useId();
   const panelBack = useRef<(() => void) | null>(null);
   const onKeyDown = useWelcomeKeys(rootRef, panelBack);
+  // Quick setup at first run: after Continue as guest, or after signing in when the account has no answers yet. It
+  // carries on here after the language step restarts the app.
+  const [setup, setSetup] = useState(() => state === 'first' && readSetup()?.status === 'in-progress');
+  const [setupSignIn, setSetupSignIn] = useState(false);
+  const setupWanted = () => state === 'first' && !setupFinished(readSetup());
 
   // Welcome back shows a few of their own flagged photos behind it, read from this device after the welcome has painted.
   const reduced = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)[0];
@@ -133,7 +142,11 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
 
   const openProject = () => { if (lastProject) onDone({ kind: 'project', id: lastProject.id }); };
   const goToProjects = () => onDone({ kind: 'projects' });
-  const continueAsGuest = () => { markLaunched(); onDone({ kind: 'projects' }); };
+  const continueAsGuest = () => {
+    if (setupWanted()) { setSetup(true); return; }
+    markLaunched(); onDone({ kind: 'projects' });
+  };
+  const setupDone = () => { markLaunched(); onDone({ kind: 'projects' }); };
 
   const closePanel = () => { returnToSignIn.current = true; setSigningIn(false); };
   const signedIn = (note: string, pro: boolean) => {
@@ -142,6 +155,17 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
     setOutcome(note);
     setSigningIn(false);
     setView('signedIn');
+    const fromSetup = setupSignIn;
+    setSetupSignIn(false);
+    // The account's own answers (from another device or an earlier sign-in) are applied instead of asking again.
+    void syncSetupWithAccount().then(async (fromAccount) => {
+      if (fromAccount) {
+        setSetup(false);
+        setOutcome(`${note} ${STRINGS.setup.appliedFromAccount}`.trim());
+        await applyAccountSetup(fromAccount);
+      // A new account, or a first sign-in with nothing saved on the account or here: setup runs, as after Continue as guest.
+      } else if (fromAccount === null && !fromSetup && !setupFinished(readSetup())) setSetup(true);
+    });
   };
 
   async function notYou() {
@@ -162,6 +186,23 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
 
   const name = who?.displayName ?? null;
   const title = signingIn ? t.signInOrCreate : view === 'first' ? t.firstTitle : view === 'signedIn' && name ? t.welcomeBackName(name) : t.welcomeBack;
+
+  if (setup) {
+    return (
+      <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state="setup"
+        data-v2-theme={light ? 'light' : 'dark'}
+        className="inflight-v2 relative flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
+        <div className="flex w-full max-w-[24rem] flex-1 flex-col items-center">
+          {setupSignIn && <LaunchSignInPanel online={online} onClose={() => setSetupSignIn(false)} onSignedIn={signedIn} backRef={panelBack} />}
+          {/* Kept mounted while signing in, so the answers so far are not lost. */}
+          <div hidden={setupSignIn} className="w-full">
+            <QuickSetup online={online} signedInName={view === 'signedIn' ? (who?.displayName ?? '') : null}
+              onSignIn={() => setSetupSignIn(true)} onClose={setupDone} />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>

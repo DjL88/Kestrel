@@ -119,6 +119,17 @@ export class FirestoreStore implements Store {
       if ((await tx.get(ref)).exists) tx.update(ref, { status });
     });
   }
+  async getPreferences(accountId: string): Promise<Record<string, unknown> | undefined> {
+    const snap = await this.ref(C.accounts, accountId).get();
+    const value = snap.exists ? (snap.data() as Record<string, unknown>).preferences : undefined;
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  }
+  async setPreferences(accountId: string, preferences: Record<string, unknown>): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.accounts, accountId);
+      if ((await tx.get(ref)).exists) tx.update(ref, { preferences });
+    });
+  }
   async setAiConsent(accountId: string, consent: boolean): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.accounts, accountId);

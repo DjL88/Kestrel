@@ -114,7 +114,7 @@ test('a full plan lists problems, owner approvals and the commands without runni
   assert.ok(plan.commands.some((c) => c.includes('-Installers InFlight_26.11.4_aarch64.dmg')));
   assert.ok(plan.commands.some((c) => c.includes('--allow-large')));
   assert.ok(plan.approvals.some((a) => /Say go/.test(a)));
-  assert.ok(plan.approvals.some((a) => /BioCLIP 2/.test(a)));
+  assert.ok(plan.approvals.some((a) => /Species second opinion/.test(a)));
 
   const bad = planPublish(base({ buildEnv: {}, commit: { sha: 'f'.repeat(40), onMain: false, dirty: true } }));
   assert.ok(bad.problems.some((p) => /not on origin\/main/.test(p)));

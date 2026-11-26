@@ -24,12 +24,8 @@ async function importPhoto(page: Page) {
   await studio.getByRole('button', { name: 'Import', exact: true }).tap();
   await (await picker).setFiles(Array.from({ length: 5 }, (_, i) => ({ name: `phone-test-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(5);
-  // Co-pilot (the default) offers Auto pick once the import finishes, which is after the photos appear. The message sits
-  // over the filmstrip on a phone, so wait for it and close it as a person would.
-  const offer = studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' });
-  await expect(offer).toBeVisible();
-  await offer.getByRole('button', { name: 'Dismiss message' }).tap();
-  await expect(offer).toHaveCount(0);
+  // Auto pick is only offered for an import of more than 20 photos, so this small import gets no offer over the filmstrip.
+  await expect(studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' })).toHaveCount(0);
   return studio;
 }
 

@@ -1,4 +1,4 @@
-import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
+import { LANGUAGES, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { AiProviderSetup } from './AiProviderSetup';
 import { StorageConnections } from './StorageConnections';
@@ -8,6 +8,8 @@ import { aiProviderControl, cacheCapControl } from '../../engineClient/realSetti
 import CloudUsagePanel from '../panels/CloudUsagePanel';
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
+import { restartSetup } from '../../../providers/quickSetupMemory';
+import { requestSetupAgain } from '../../setupBridge';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
 import HomeRegionSetting from './HomeRegionSetting';
@@ -69,6 +71,8 @@ interface SettingsDialogProps {
   proChoiceOffered?: boolean;
   /** This month's cloud usage from the control plane, when signed in. Wins over the sample workspace's figures. */
   cloudUsage?: import('../../../core/cloudPlan').CloudUsage;
+  /** Buy a prepaid cloud top-up (useCloudTopUp). Absent: the top-up buttons stay off. */
+  cloudTopUp?: { topUp: (pence: number) => void; busy: boolean; note: { text: string; good: boolean } | null };
 }
 
 const CALM_PARTS: Array<{ key: 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts'; label: string; desc: string }> = [
@@ -110,6 +114,7 @@ export default function SettingsDialog({
   onEraseDeviceData,
   proChoiceOffered = false,
   cloudUsage,
+  cloudTopUp,
 }: SettingsDialogProps) {
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
@@ -363,7 +368,7 @@ export default function SettingsDialog({
             )}
 
             {activeTab === 'account' && (cloudUsage ?? settings.account.cloud) && (
-              <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} /></div>
+              <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} onTopUp={cloudTopUp?.topUp} topUpBusy={cloudTopUp?.busy} topUpNote={cloudTopUp?.note ?? null} /></div>
             )}
             {activeTab === 'account' && (
               accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">
@@ -464,6 +469,20 @@ export default function SettingsDialog({
                     </form>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Quick setup can be run again at any time, keeping the earlier answers as the starting point. */}
+            {activeTab === 'account' && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3" data-testid="settings-run-setup">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.setup.title}</h3>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{STRINGS.setup.runAgainDesc}</p>
+                </div>
+                <button type="button" onClick={() => { restartSetup(); requestSetupAgain(); }}
+                  className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)]">
+                  {STRINGS.setup.runAgain}
+                </button>
               </div>
             )}
 
@@ -740,13 +759,10 @@ export default function SettingsDialog({
                 >
                   {LANGUAGES.map((option) => (
                     <option key={option.code} value={option.code}>
-                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : option.status === 'draft' ? STRINGS.settings.language.draftSuffix : ''}
+                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : ''}
                     </option>
                   ))}
                 </select>
-                {languageOption(language).status === 'draft' && (
-                  <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.language.draftNote}</p>
-                )}
               </div>
             )}
           </div>

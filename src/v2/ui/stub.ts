@@ -887,6 +887,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
+    forkEditVersion: (photoId, cursor, name) => { logAction('forkEditVersion', { photoId, cursor, name }); },
     switchEditVersion: (photoId, versionId) => { logAction('switchEditVersion', { photoId, versionId }); },
     renameEditVersion: (photoId, versionId, name) => { logAction('renameEditVersion', { photoId, versionId, name }); },
     saveEditCheckpoint: (photoId, name) => { logAction('saveEditCheckpoint', { photoId, name }); },

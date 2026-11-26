@@ -302,3 +302,20 @@ test('without measured capacity a higher plan limit still runs one heavy job at 
   assert.deepEqual(started, ['first']);
   gates.forEach((release) => release());
 });
+
+test('without measured capacity Select subject starts beside a shoot-wide Auto pick that cannot pause', async () => {
+  const { scheduler } = build();
+  const started: string[] = [];
+  const gates: Array<() => void> = [];
+  const hold = (name: string) => async () => { started.push(name); await new Promise<void>((resolve) => gates.push(resolve)); };
+  await scheduler.submit(batch('Auto pick 1200 photos', 1, hold('cull'), { kind: 'cull', priority: 5, pauseable: false }));
+  await until(() => started.length === 1, 'auto pick starts');
+  await scheduler.submit(batch('Find subject', 1, hold('mask'), { kind: 'mask', resource: 'gpu', priority: 18, interactive: true }));
+  await scheduler.submit(batch('Deep look', 1, hold('vision'), { kind: 'vision', resource: 'gpu', priority: 15, interactive: true }));
+  await scheduler.submit(batch('Background develop', 1, hold('develop'), { kind: 'raw', resource: 'gpu', priority: 2 }));
+  await until(() => started.length === 2, 'the mask starts while auto pick runs');
+  await pause(10);
+  // Only one interactive job beside the background one, and no further background work on top.
+  assert.deepEqual(started, ['cull', 'mask']);
+  gates.forEach((release) => release());
+});

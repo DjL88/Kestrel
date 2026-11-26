@@ -337,16 +337,40 @@ export class LicenceSync {
 
   /** Has this checkout been paid and verified with Paddle? Network trouble or an expired session is "retry", never "paid". */
   async proCheckoutStatus(idToken: string, checkoutId: string): Promise<CheckoutPoll> {
+    return this.checkoutStatus('pro', idToken, checkoutId);
+  }
+
+  /** A prepaid cloud top-up (500, 1000 or 2000 pence) through the same server-owned Paddle checkout as Pro. */
+  async startTopUpCheckout(idToken: string, pence: number): Promise<CheckoutStart> {
+    if (!this.configured) return { ok: false, code: 'NOT_SET_UP', message: checkoutErrorText('NOT_SET_UP') };
+    const checkId = this.accountCheck;
+    try {
+      const bearer = await this.checkoutBearer(idToken, true);
+      if (!bearer || checkId !== this.accountCheck) return { ok: false, code: 'ACCOUNT_UNVERIFIED', message: checkoutErrorText('ACCOUNT_UNVERIFIED') };
+      const reply = await this.post('/v1/me/checkout/topup', { pence }, bearer);
+      if (checkId !== this.accountCheck) return { ok: false, code: 'NOT_SIGNED_IN', message: checkoutErrorText('NOT_SIGNED_IN') };
+      return parseCheckoutStart(reply.status, reply.json);
+    } catch {
+      return { ok: false, code: 'UNREACHABLE', message: checkoutErrorText('UNREACHABLE') };
+    }
+  }
+
+  /** Has this top-up been paid, verified with Paddle and credited? Unclear answers are "retry", never "paid". */
+  async topUpCheckoutStatus(idToken: string, checkoutId: string): Promise<CheckoutPoll> {
+    return this.checkoutStatus('topup', idToken, checkoutId);
+  }
+
+  private async checkoutStatus(kind: 'pro' | 'topup', idToken: string, checkoutId: string): Promise<CheckoutPoll> {
     if (!this.configured || !CHECKOUT_ID.test(checkoutId)) return 'gone';
     const checkId = this.accountCheck;
     try {
       let bearer = await this.checkoutBearer(idToken, false);
       if (!bearer) return 'retry';
-      let reply = await this.get(`/v1/me/checkout/pro/${encodeURIComponent(checkoutId)}`, bearer);
+      let reply = await this.get(`/v1/me/checkout/${kind}/${encodeURIComponent(checkoutId)}`, bearer);
       if (reply.status === 401) {
         bearer = await this.checkoutBearer(idToken, true);
         if (!bearer) return 'retry';
-        reply = await this.get(`/v1/me/checkout/pro/${encodeURIComponent(checkoutId)}`, bearer);
+        reply = await this.get(`/v1/me/checkout/${kind}/${encodeURIComponent(checkoutId)}`, bearer);
       }
       if (checkId !== this.accountCheck) return 'gone';
       return parseCheckoutPoll(reply.status, reply.json);

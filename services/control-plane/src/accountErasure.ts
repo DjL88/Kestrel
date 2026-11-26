@@ -75,7 +75,7 @@ export class ErasureRefusal extends Error {
 
 export interface ErasureDependencies {
   db: FirestoreLike;
-  store: Pick<Store, 'getAccount' | 'listLicencesForAccount' | 'listActivationsForLicence' | 'eraseAccount' | 'audit'>;
+  store: Pick<Store, 'getAccount' | 'listLicencesForAccount' | 'listActivationsForLicence' | 'eraseAccount' | 'audit'> & Partial<Pick<Store, 'getPreferences'>>;
   collab?: Pick<CollabStore, 'myProjects' | 'soleOwnerOf' | 'commentsBy' | 'eraseAccount'>;
   cloudPhotos?: Pick<CloudPhotoStore, 'records' | 'removeProject'>;
   gallery?: Pick<GalleryStore, 'list' | 'revoke'>;
@@ -181,6 +181,7 @@ export function accountErasure(d: ErasureDependencies) {
       format: EXPORT_FORMAT,
       generatedAt: iso(d.now()),
       account: { accountId, createdAt: iso(account.createdAtMs), role: account.role, status: account.status, standingAiConsent: account.aiConsent, emailHash: account.emailHash },
+      appPreferences: (await d.store.getPreferences?.(accountId)) ?? null,
       licences: licences.map((l) => ({ licenceId: l.licenceId, plan: l.plan, status: l.status, source: l.source, paid: l.paid, majorVersion: l.majorVersion, maxDevices: l.maxDevices, validUntil: iso(l.validUntilMs), updatedAt: iso(l.updatedAtMs) })),
       devices: devices.map((a) => ({ licenceId: a.licenceId, platform: a.platform, appVersion: a.appVersion, deviceHash: a.deviceHash, lastSeen: iso(a.lastSeenMs) })),
       sharedProjects: projects.map((p) => ({ projectId: p.projectId, name: p.name, role: p.role })),

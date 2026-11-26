@@ -71,3 +71,12 @@ test('Manage or cancel Pro: only Paddle portal links survive, and every state sa
   assert.match(!none.ok ? none.message : '', /no Pro subscription/);
   assert.equal(parseSubscriptionManage(200, { plan: 'lifetime', state: 'renewing' }).ok, false);
 });
+
+test('plan choices show the matrix price in the currency Paddle charges for the country', async () => {
+  const { proPlanChoices } = await import('./proCheckout.ts');
+  const { DEFAULT_PRICING, publicPricing, parsePricingMatrix } = await import('./pricingMatrix.ts');
+  const gbp = proPlanChoices(publicPricing(DEFAULT_PRICING), 'FR');
+  assert.deepEqual(gbp.map((c) => c.price), ['£2.99 a month', '£29 a year'], 'no euro price until the matrix has one');
+  const matrix = parsePricingMatrix({ ...DEFAULT_PRICING, rates: { date: '2026-11-25', perGbp: { EUR: 1.17 } }, currencies: { EUR: { rounding: 'charm', overrides: { 'pro.monthly': 349 } } } });
+  assert.deepEqual(proPlanChoices(publicPricing(matrix), 'FR').map((c) => c.price), ['€3.49 a month', '€34 a year']);
+});

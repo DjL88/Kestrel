@@ -26,3 +26,21 @@ test('upload commands never overwrite and mark the files immutable', () => {
   assert.match(command, /cp -n public\/models\/dinov2-small-fp16\.onnx gs:\/\/kestrel-hosting-kestrel-models\/bundled\/a{64}\/dinov2-small-fp16\.onnx/);
   assert.match(command, /immutable/);
 });
+
+test('the desktop pack list is valid, and a pack is bundled only when every one of its files is in place', async () => {
+  const { completePacks } = await import('./fetch-bundled-models.mjs');
+  const packs = readList(readFileSync(new URL('../models/desktop-packs.json', import.meta.url), 'utf8'));
+  assert.ok(packs.every((e) => typeof e.pack === 'string'));
+  const encoder = packs.find((e) => e.file.includes('encoder'));
+  const present = new Set(packs.map((e) => e.file).filter((file) => file !== encoder.file));
+  const bundled = completePacks(packs, present);
+  assert.ok(!bundled.includes('efficientsam-ti-fp16'), 'tap select needs both halves');
+  assert.ok(bundled.includes('nafnet-sidd-w32-w16'));
+});
+
+test('the desktop pack pins match the app\'s own pins', async () => {
+  const source = readFileSync(new URL('../src/core/optionalModels.ts', import.meta.url), 'utf8');
+  for (const entry of readList(readFileSync(new URL('../models/desktop-packs.json', import.meta.url), 'utf8'))) {
+    assert.ok(source.includes(`'${entry.file}', '${entry.sha256}', ${entry.bytes}`), `${entry.file} pin differs from src/core/optionalModels.ts`);
+  }
+});

@@ -209,16 +209,22 @@ const GRAPH = 'https://graph.microsoft.com/v1.0/me/drive/special/approot';
 const SMALL_UPLOAD = 4 * 1024 * 1024;
 const CHUNK = 320 * 1024 * 10; // a multiple of 320 KiB, as Graph requires
 
-export function oneDriveConnector(deps: CloudDeps): StorageConnector {
-  const send = sender('OneDrive', deps);
-  const at = (path: string) => `${GRAPH}:/${path.split('/').filter(Boolean).map(encodeURIComponent).join('/')}`;
+/** Where a Microsoft drive keeps InFlight's files: OneDrive's app folder, or an InFlight folder in a SharePoint library. */
+interface GraphPlace { name: string; root: string; at: (encodedPath: string) => string }
+const encodePath = (path: string) => path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+const ONEDRIVE_PLACE: GraphPlace = { name: 'OneDrive', root: GRAPH, at: (encoded) => `${GRAPH}:/${encoded}` };
+
+export function oneDriveConnector(deps: CloudDeps, place: GraphPlace = ONEDRIVE_PLACE): StorageConnector {
+  const name = place.name;
+  const send = sender(name, deps);
+  const at = (path: string) => place.at(encodePath(path));
   return {
     kind: 'folder',
-    test: () => testWith('OneDrive', () => send(GRAPH)),
+    test: () => testWith(name, () => send(place.root)),
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new CloudError('Path is outside the InFlight folder in OneDrive.');
+      if (!isWritablePath(path)) throw new CloudError(`Path is outside the InFlight folder in ${name}.`);
       const behaviour = isInsideExportRoot(path) ? 'fail' : 'replace';
-      const fail = (response: Response) => response.status === 409 && behaviour === 'fail' ? new CloudError('An export already exists at this destination. The file was not replaced.', 409) : failed('OneDrive', response);
+      const fail = (response: Response) => response.status === 409 && behaviour === 'fail' ? new CloudError('An export already exists at this destination. The file was not replaced.', 409) : failed(name, response);
       if (bytes.byteLength <= SMALL_UPLOAD) {
         const response = await send(`${at(path)}:/content?@microsoft.graph.conflictBehavior=${behaviour}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes as unknown as BodyInit });
         if (!response.ok) throw fail(response);
@@ -233,19 +239,19 @@ export function oneDriveConnector(deps: CloudDeps): StorageConnector {
         const fetchImpl = deps.fetchImpl ?? plainFetch;
         let response: Response;
         try { response = await fetchImpl(uploadUrl, { method: 'PUT', headers: { 'Content-Range': `bytes ${start}-${end - 1}/${bytes.byteLength}` }, body: bytes.slice(start, end) as unknown as BodyInit }); }
-        catch { throw new CloudError('Could not reach OneDrive. Check your connection; your work is safe here.'); }
-        if (!response.ok) throw failed('OneDrive', response);
+        catch { throw new CloudError(`Could not reach ${name}. Check your connection; your work is safe here.`); }
+        if (!response.ok) throw failed(name, response);
       }
     },
     async get(path) {
-      guardPath(path, 'OneDrive');
+      guardPath(path, name);
       const response = await send(`${at(path)}:/content`);
       if (response.status === 404) return null;
-      if (!response.ok) throw failed('OneDrive', response);
+      if (!response.ok) throw failed(name, response);
       return new Uint8Array(await response.arrayBuffer());
     },
     async list(prefix) {
-      guardPath(prefix, 'OneDrive');
+      guardPath(prefix, name);
       const root = prefix.replace(/\/+$/, '');
       const files: string[] = [];
       const queue = [root];
@@ -255,7 +261,7 @@ export function oneDriveConnector(deps: CloudDeps): StorageConnector {
         while (next) {
           const response: Response = await send(next);
           if (response.status === 404) break;
-          if (!response.ok) throw failed('OneDrive', response);
+          if (!response.ok) throw failed(name, response);
           const page = await response.json() as { value: { name: string; folder?: unknown }[]; '@odata.nextLink'?: string };
           for (const item of page.value) { if (item.folder) queue.push(`${folder}/${item.name}`); else files.push(`${folder}/${item.name}`); }
           next = page['@odata.nextLink'];
@@ -264,9 +270,49 @@ export function oneDriveConnector(deps: CloudDeps): StorageConnector {
       return files.sort();
     },
     async remove(path) {
-      guardPath(path, 'OneDrive');
+      guardPath(path, name);
       const response = await send(at(path), { method: 'DELETE' });
-      if (!response.ok && response.status !== 404) throw failed('OneDrive', response);
+      if (!response.ok && response.status !== 404) throw failed(name, response);
     },
   };
+}
+
+// ---------------------------------------------------------------- SharePoint (an InFlight folder in one document library)
+
+const GRAPH_V1 = 'https://graph.microsoft.com/v1.0';
+/** The folder InFlight keeps its files in, inside the library the person chose. */
+export const SHAREPOINT_FOLDER = 'InFlight';
+
+/** A SharePoint library InFlight may use, found from a pasted link. Only ids and names: nothing secret. */
+export interface SharePointLibrary { driveId: string; siteName: string; libraryName: string; webUrl: string }
+
+export function sharePointConnector(deps: CloudDeps, library: Pick<SharePointLibrary, 'driveId'>): StorageConnector {
+  if (!/^[A-Za-z0-9!_-]+$/.test(library.driveId)) throw new CloudError('That SharePoint library is not valid. Add it again.');
+  const drive = `${GRAPH_V1}/drives/${library.driveId}`;
+  return oneDriveConnector(deps, { name: 'SharePoint', root: `${drive}/root`, at: (encoded) => `${drive}/root:/${SHAREPOINT_FOLDER}/${encoded}` });
+}
+
+/** Plain words for why a library could not be opened, including the admin step Sites.Selected needs. */
+export function explainSharePointFailure(status: number): string {
+  if (status === 403) return 'Your organisation has not given InFlight access to this site yet. Ask your Microsoft 365 admin to grant InFlight access to it, then try again.';
+  if (status === 404) return 'SharePoint could not find that site or library. Copy the link from the library’s address bar and try again.';
+  return explainCloudFailure('SharePoint', status);
+}
+
+/** Find the site and library a pasted link names. The library is matched by name or address, or the site's main one is used. */
+export async function resolveSharePointLibrary(link: import('../core/cloudDrive').SharePointLink, deps: CloudDeps): Promise<SharePointLibrary> {
+  const send = sender('SharePoint', deps);
+  const siteUrl = `${GRAPH_V1}/sites/${link.host}${link.sitePath ? `:${link.sitePath.split('/').map(encodeURIComponent).join('/')}:` : ''}`;
+  const site = await send(`${siteUrl}?$select=id,displayName,webUrl`);
+  if (!site.ok) throw new CloudError(explainSharePointFailure(site.status), site.status);
+  const { id, displayName, webUrl: siteWeb } = await site.json() as { id: string; displayName?: string; webUrl?: string };
+  const drives = await send(`${GRAPH_V1}/sites/${encodeURIComponent(id)}/drives?$select=id,name,webUrl`);
+  if (!drives.ok) throw new CloudError(explainSharePointFailure(drives.status), drives.status);
+  const list = (await drives.json() as { value: { id: string; name: string; webUrl: string }[] }).value ?? [];
+  const wanted = link.library?.toLowerCase();
+  const tail = (url: string) => { try { return decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() ?? '').toLowerCase(); } catch { return ''; } };
+  const chosen = (wanted && list.find((d) => d.name.toLowerCase() === wanted || tail(d.webUrl) === wanted))
+    ?? (!wanted ? list.find((d) => /^(documents|shared documents)$/i.test(d.name) || tail(d.webUrl) === 'shared documents') ?? list[0] : undefined);
+  if (!chosen) throw new CloudError(wanted ? 'That site has no library with that name. Copy the link from the library’s address bar and try again.' : 'That site has no document library InFlight can use.');
+  return { driveId: chosen.id, siteName: displayName || link.sitePath.split('/').pop() || link.host, libraryName: chosen.name, webUrl: chosen.webUrl || siteWeb || '' };
 }

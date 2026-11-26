@@ -1149,6 +1149,8 @@ export interface WorkspaceActions {
   setBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   /** Restore a photo to how it was after this many edit steps (0 is the original). Later steps stay available. */
   jumpToEditStep: (photoId: string, cursor: number) => void;
+  /** Start a new, named editing version from this step; the current version and all its later steps are kept. */
+  forkEditVersion: (photoId: string, cursor: number, name: string) => void;
   /** Switch between independent checkpoint-forked versions without touching the source file. */
   switchEditVersion: (photoId: string, versionId: string) => void;
   /** Give an editing version a name of the person's choosing. */

@@ -460,7 +460,7 @@ export function generalRoutes(ctx: AppContext): Route[] {
   {
     method: 'GET', path: '/v1/billing/paddle/config', summary: 'Paddle.js settings for the checkout page: environment and client-side token (public by design)', auth: 'none',
     handler: async () => {
-      if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet.');
+      if (!options.paddleClient || !(options.proCheckout || options.topUpCheckout)) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Paying online is not open yet.');
       return { status: 200, headers: { 'cache-control': 'no-store' }, body: options.paddleClient };
     },
   },

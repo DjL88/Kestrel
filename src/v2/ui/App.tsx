@@ -1,6 +1,7 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
 import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
+import { CloudStatus, type CloudStatusState } from './shell/CloudStatus';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import type { EnlargementPreviewResult } from '../engineClient/enlargementPreview';
@@ -50,7 +51,16 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { useCloudTopUp } from './useCloudTopUp';
+import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
+import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
+import { setupFinished } from '../../core/quickSetup';
+import { launchedBefore } from '../../providers/launchMemory';
+const QuickSetup = React.lazy(() => import('./screens/QuickSetup'));
 import type { MenuAction } from './commands/menuMap';
+import type { FeedbackRequest } from './shell/ContributorFeedback';
+import { describeFeedbackScreen, describeFeedbackTarget } from '../../core/feedbackTarget';
+import { activeLanguage } from '../../core/locale';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
 // the background once the list has drawn (preloadEditorParts), so opening a project does not wait for it either.
@@ -87,6 +97,7 @@ const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
 const KeyboardSettings = lazyPart(() => import('./dialogs/KeyboardSettings'));
 const GamepadSettings = lazyPart(() => import('./dialogs/GamepadSettings'));
 const LightroomOfferDialog = lazyPart(() => import('./dialogs/LightroomOfferDialog'));
+const ContributorFeedback = lazyPart(() => import('./shell/ContributorFeedback'));
 const QuickStartCard = lazyPart(() => import('./panels/QuickStartCard'));
 const SpeciesPlacePrompt = lazyPart(() => import('./panels/SpeciesPlacePrompt'));
 const CloudOriginalPrompt = lazyPart(() => import('./dialogs/CloudOriginalPrompt'));
@@ -167,6 +178,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     sharing.usage().then((body) => { if (live) setCloudUsage(usageFromServer(body, Date.now()) ?? undefined); }).catch(() => { if (live) setCloudUsage(undefined); });
     return () => { live = false; };
   }, [sharing, store.settingsOpen, store.settingsTab, store.activePanel]);
+  // A paid top-up: read the balance again once the server has credited it. Mobile app stores handle their own purchases later.
+  const rereadUsage = React.useCallback(() => { sharing.usage().then((body) => setCloudUsage(usageFromServer(body, Date.now()) ?? undefined)).catch(() => undefined); }, [sharing]);
+  const cloudTopUp = useCloudTopUp(rereadUsage);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -180,9 +194,63 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
     return () => { live = false; };
   }, [accountPanel, signedInName, store.settingsOpen]);
+  // Contributors (owner, 26 Nov 2026): an admin-granted free Pro whose holders get "Feedback on this" on right-click.
+  // Asked of the server once signed in, and again when Settings closes (where sign-in happens). Offline: not offered.
+  const [contributor, setContributor] = React.useState(false);
+  const [feedbackRequest, setFeedbackRequest] = React.useState<FeedbackRequest | null>(null);
+  React.useEffect(() => {
+    if (!isSignInConfigured() || store.settingsOpen || !accountName) { if (!accountName) setContributor(false); return; }
+    let live = true;
+    void (async () => {
+      const [{ parseControlPlaneUrl }, { readContributorStatus }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
+      const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
+      const token = await firebaseAuth.idToken().catch(() => null);
+      const yes = origin && token ? await readContributorStatus(origin, token) : false;
+      if (live) setContributor(yes);
+    })().catch(() => undefined);
+    return () => { live = false; };
+  }, [accountName, store.settingsOpen]);
+  const closeFeedback = React.useCallback(() => setFeedbackRequest(null), []);
+  const sendFeedback = React.useCallback(async (request: FeedbackRequest, comment: string) => {
+    const [{ parseControlPlaneUrl }, { sendContributorFeedback }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
+    const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
+    const token = await firebaseAuth.idToken().catch(() => null);
+    await sendContributorFeedback(origin, token, {
+      comment, target: request.target, text: request.text, screen: request.screen, language: request.language,
+      appVersion: import.meta.env.VITE_KESTREL_BUILD_REVISION?.slice(0, 40) ?? '',
+    });
+  }, []);
   const accountButton = accountPanel && isSignInConfigured()
     ? <AccountButton name={accountName} onOpen={() => actions.setSettingsOpen(true, 'account')} />
     : undefined;
+  // Quick setup (src/core/quickSetup.ts): apply what it chose, open Settings at Pro or Storage when asked, run it again
+  // from Settings (and carry on after its language step restarts the app), and, once signed in, pick up the answers
+  // saved on the account (another device, an earlier sign-in) instead of asking again.
+  const [setupOpen, setSetupOpen] = React.useState(() => launchedBefore() && readSetup()?.status === 'in-progress');
+  const setupActions = React.useRef(actions);
+  setupActions.current = actions;
+  React.useEffect(() => {
+    const consume = () => {
+      const result = takeSetupResult();
+      if (result) {
+        if (Object.keys(result.settings).length > 0) setupActions.current.updateSettings(result.settings);
+        if (result.openTab) setupActions.current.setSettingsOpen(true, result.openTab);
+      }
+      if (takeSetupAgain()) { setupActions.current.setSettingsOpen(false); setSetupOpen(true); }
+    };
+    consume();
+    return onSetupBridge(consume);
+  }, []);
+  const setupSynced = React.useRef(false);
+  React.useEffect(() => {
+    if (!accountName || setupSynced.current) return;
+    setupSynced.current = true;
+    // Saved answers on the account are applied; signed in (from Settings too) with none anywhere, setup is offered once.
+    void syncSetupWithAccount().then((answers) => {
+      if (answers) void applyAccountSetup(answers);
+      else if (answers === null && !setupFinished(readSetup())) setSetupOpen(true);
+    });
+  }, [accountName]);
   // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
@@ -204,7 +272,18 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
-  const serviceLabel = service.state === 'reachable' ? health.ok : service.state === 'unreachable' ? health.error : health.unknown;
+  // A small cloud beside the account button replaces the old full-width "InFlight API" bar (owner, 26 Nov 2026).
+  const cloudState: CloudStatusState = connectivity === 'offline' ? 'offline'
+    : service.state === 'reachable' ? 'reachable' : service.state === 'unreachable' ? 'unreachable'
+    : service.state === 'checking' ? 'checking' : 'unknown';
+  const cloudLabel = cloudState === 'offline' ? health.offline : cloudState === 'reachable' ? health.ok
+    : cloudState === 'unreachable' ? health.error : health.unknown;
+  const cloudStatus = connectivity === 'offline' || serviceBase ? (
+    <CloudStatus state={cloudState} label={cloudLabel}
+      detail={cloudState === 'offline' ? `${health.offline}. ${projectsText.connections.advice.offline}`
+        : `InFlight service: ${cloudLabel}.${cloudState === 'reachable' || cloudState === 'checking' ? '' : ` ${projectsText.connections.check}`}`}
+      onCheck={serviceBase ? service.check : undefined} />
+  ) : null;
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -831,8 +910,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
-          onRenameVersion={actions.renameEditVersion} onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onGoToStep={actions.jumpToEditStep} onForkVersion={editLocked ? undefined : actions.forkEditVersion} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
+          onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
           onDeleteCheckpoint={actions.deleteEditCheckpoint} onRestoreFormatCrop={actions.restoreFormatCrop} />;
       case 'info':
         return (
@@ -922,7 +1001,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <FeaturePlanContext.Provider value={store.featurePlan}>
       <HiddenProContext.Provider value={hiddenPro}>
     <div
-      className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
+      className="inflight-v2 v2-safe-root fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
@@ -942,26 +1021,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         // Suppress native browser context menu inside the studio workspace
         const target = e.target as HTMLElement | null;
         if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+        // A part with its own menu (filmstrip, rail, collage) has already handled it; elsewhere a contributor gets
+        // "Feedback on this" (Shift+F10 or the menu key opens it from the keyboard, on the focused element).
+        if (contributor && !feedbackRequest && !e.defaultPrevented) {
+          setFeedbackRequest({
+            ...describeFeedbackTarget(target), x: e.clientX, y: e.clientY, language: activeLanguage(),
+            screen: describeFeedbackScreen({ screen: store.screen, activePanel: store.activePanel, settingsOpen: store.settingsOpen, settingsTab: store.settingsTab }),
+          });
+        }
         e.preventDefault();
       }}
     >
-      {connectivity === 'offline' && (
-        <div role="status" data-testid="offline-status" className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          <BrandIcon name="alert" size={14} />
-          <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
-        </div>
-      )}
-      {serviceBase && connectivity !== 'offline' && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          <span role="status" data-testid="service-reachability">
-            {['InFlight API', serviceLabel].join(' · ')}
-          </span>
-          <button type="button" disabled={service.state === 'checking'} aria-busy={service.state === 'checking'}
-            onClick={service.check} className="rounded px-2 py-1 hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
-            {projectsText.connections.check}
-          </button>
-        </div>
-      )}
       {store.screen === 'hub' ? (
         <ProjectsHub
           projects={store.projects}
@@ -980,7 +1050,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProjectForever={actions.deleteProjectForever}
           onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
-          account={accountButton}
+          account={<>{cloudStatus}{accountButton}</>}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
           }
@@ -1048,6 +1118,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
               <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
+              {cloudStatus}
               {accountButton}
             </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
@@ -1331,7 +1402,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-0 z-40 flex w-[calc(4.5rem+env(safe-area-inset-right))] flex-col items-stretch gap-1 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-1 pr-[calc(0.25rem+env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))]'
-                : 'flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]'}
+                : 'v2-safe-bottom-fill flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1'}
             >
               {phoneLandscape && (
                 <button type="button" onClick={() => actions.setExportOpen(true)}
@@ -1391,7 +1462,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.moreTools}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-40 grid w-64 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto border-l border-[var(--border-default)] bg-[var(--bg-surface)] p-3 pt-[max(0.75rem,env(safe-area-inset-top))]'
-                : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
             >
               {(
                 [
@@ -1430,8 +1501,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
               : tabletPortrait
-                ? "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
-                : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
+                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1529,6 +1600,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         <React.Suspense fallback={null}><SpeciesPlacePrompt place={store.speciesPlace} onChoose={actions.setSpeciesArea} /></React.Suspense>
       )}
 
+      {contributor && feedbackRequest && <React.Suspense fallback={null}><ContributorFeedback request={feedbackRequest} onClose={closeFeedback} onSend={sendFeedback} /></React.Suspense>}
+
       <React.Suspense fallback={null}><LightroomOfferDialog
         offer={store.screen === 'editor' ? store.lightroomOffer : null}
         onChooseFolder={() => actions.chooseLightroomFolder?.()}
@@ -1549,6 +1622,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onClose={() => actions.setRemovedOpen(false)}
       /></React.Suspense>
 
+      {setupOpen && (
+        <div role="dialog" aria-modal="true" aria-label={STRINGS.setup.title} data-testid="quick-setup-dialog"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)]">
+            <React.Suspense fallback={null}>
+              <QuickSetup online={typeof navigator === 'undefined' || navigator.onLine} signedInName={accountName}
+                onSignIn={() => { setSetupOpen(false); actions.setSettingsOpen(true, 'account'); }} onClose={() => setSetupOpen(false)} />
+            </React.Suspense>
+          </div>
+        </div>
+      )}
       <React.Suspense fallback={null}><SettingsDialog
         open={store.settingsOpen}
         activeTab={store.settingsTab}
@@ -1560,6 +1644,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
+        cloudTopUp={cloudUsage && !isMobileShell() ? cloudTopUp : undefined}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}
@@ -1596,9 +1681,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onMouseLeave={() => setNoticePaused(false)}
           onFocus={() => setNoticePaused(true)}
           onBlur={() => setNoticePaused(false)}
-          className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
+          className={`${phoneLandscape ? '' : 'v2-safe-right '}fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile || isTabletPortrait ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
+          } ${isMobile || isTabletPortrait ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
           style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : (isMobile || isTabletPortrait) && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >

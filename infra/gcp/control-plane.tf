@@ -184,14 +184,6 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = google_firestore_database.default.name
       }
       env {
-        name  = "KCP_DEMO_PRIVATE_BUCKET"
-        value = google_storage_bucket.demo_drafts.name
-      }
-      env {
-        name  = "KCP_DEMO_PUBLIC_BUCKET"
-        value = google_storage_bucket.demo_published.name
-      }
-      env {
         name  = "KCP_SIGNING_KEY_ID"
         value = var.control_plane_signing_key_id
       }
@@ -326,6 +318,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
           var.phase5_paddle_promo_discount_id != "" ? { KCP_PADDLE_PROMO_DISCOUNT_ID = var.phase5_paddle_promo_discount_id } : {},
           var.phase5_paddle_monthly_price_id != "" ? { KCP_PADDLE_MONTHLY_PRICE_ID = var.phase5_paddle_monthly_price_id } : {},
           var.phase5_paddle_annual_price_id != "" ? { KCP_PADDLE_ANNUAL_PRICE_ID = var.phase5_paddle_annual_price_id } : {},
+          length(var.phase5_paddle_topup_price_ids) > 0 ? { KCP_PADDLE_TOPUP_PRICE_IDS = jsonencode(var.phase5_paddle_topup_price_ids) } : {},
         ) : {}
         content {
           name  = env.key
@@ -386,8 +379,6 @@ resource "google_cloud_run_v2_service" "control_plane" {
   depends_on = [
     google_project_service.control_plane,
     google_project_iam_member.control_plane_firestore,
-    google_storage_bucket_iam_member.demo_drafts_service,
-    google_storage_bucket_iam_member.demo_published_service,
     google_secret_manager_secret_iam_member.control_plane,
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,

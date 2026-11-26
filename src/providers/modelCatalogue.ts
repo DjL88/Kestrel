@@ -9,7 +9,7 @@ import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 import { hasModel } from './modelStore';
-import { optionalModelStatus } from './optionalModels';
+import { isBundledPack, optionalModelStatus } from './optionalModels';
 import { MARKING_PACK, markingReaderReady } from './markingReader';
 import { LOCAL_VISION_ID } from '../core/localVisionMetrics';
 import modelManifest from '../../scripts/models/manifest.json';
@@ -22,7 +22,7 @@ import modelManifest from '../../scripts/models/manifest.json';
  */
 export type ModelPlace = 'built-in' | 'downloaded' | 'not-downloaded' | 'not-offered';
 
-export type ModelRole = 'detector' | 'detectorTandem' | 'mask' | 'tapSelect' | 'species' | 'gate' | 'similarity' | 'photoCheck' | 'markings' | 'denoise' | 'search';
+export type ModelRole = 'detector' | 'detectorTandem' | 'mask' | 'fineEdges' | 'tapSelect' | 'species' | 'speciesCheck' | 'gate' | 'similarity' | 'photoCheck' | 'markings' | 'denoise' | 'search';
 
 export interface CatalogueFile {
   /** The id its timings are recorded under (modelStats). */
@@ -34,6 +34,7 @@ export interface CatalogueFile {
 
 export interface CatalogueEntry {
   id: string;
+  /** The model's own name, shown only under Technical details. People see what it does (its role) instead. */
   name: string;
   role: ModelRole;
   /** The exact upstream release or revision, when it is recorded. Null when only the checksum identifies it. */
@@ -67,6 +68,7 @@ const packFiles = (model: OptionalModel): CatalogueFile[] => {
 };
 
 const packPlace = async (model: OptionalModel): Promise<ModelPlace> => {
+  if (isBundledPack(model)) return 'built-in';
   if (!optionalModelConfigured(model)) return 'not-offered';
   return (await optionalModelStatus(model)) === 'ready' ? 'downloaded' : 'not-downloaded';
 };
@@ -156,7 +158,7 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     measure: async (picture) => { const { readText } = await import('./markingReader'); await readText(picture); },
   },
   {
-    id: RFDETR_NANO.id, name: RFDETR_NANO.name, role: 'detectorTandem', version: '9f201577', licence: RFDETR_NANO.licence,
+    id: RFDETR_NANO.id, name: 'RF-DETR Nano', role: 'detectorTandem', version: '9f201577', licence: RFDETR_NANO.licence,
     files: packFiles(RFDETR_NANO), peakMemory: { megabytes: 432, where: LAPTOP },
     place: () => packPlace(RFDETR_NANO),
     pack: {
@@ -184,9 +186,9 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
   },
   {
     // Peak memory was measured with native onnxruntime on a GitHub runner (1.14 GB), not the app's runtime, so it is not shown here.
-    id: BIREFNET_LITE.id, name: 'BiRefNet-lite', role: 'mask', version: 'aa62cd87', licence: BIREFNET_LITE.licence,
+    id: BIREFNET_LITE.id, name: 'BiRefNet-lite', role: 'fineEdges', version: 'aa62cd87', licence: BIREFNET_LITE.licence,
     files: packFiles(BIREFNET_LITE), peakMemory: null,
-    place: async () => { const { fineEdgeStatus } = await import('./fineEdgeMask'); const status = await fineEdgeStatus(); return status === 'ready' ? 'downloaded' : status === 'not-downloaded' ? 'not-downloaded' : 'not-offered'; },
+    place: async () => { if (isBundledPack(BIREFNET_LITE)) return 'built-in'; const { fineEdgeStatus } = await import('./fineEdgeMask'); const status = await fineEdgeStatus(); return status === 'ready' ? 'downloaded' : status === 'not-downloaded' ? 'not-downloaded' : 'not-offered'; },
     pack: {
       model: BIREFNET_LITE,
       download: async (onProgress, signal) => (await import('./fineEdgeMask')).downloadFineEdge(onProgress, signal),
@@ -213,7 +215,7 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
   {
     // Desktop second opinion on species. Peak memory was measured only with native ONNX Runtime (1.95 GB, docs/models.md),
     // not with the app's WebAssembly runtime, so it is not shown; timing needs a species to check, so it is not offered here.
-    id: BIOCLIP2.id, name: 'BioCLIP 2', role: 'species', version: '2957b322', licence: BIOCLIP2.licence,
+    id: BIOCLIP2.id, name: 'BioCLIP 2', role: 'speciesCheck', version: '2957b322', licence: BIOCLIP2.licence,
     files: packFiles(BIOCLIP2), peakMemory: null,
     place: () => packPlace(BIOCLIP2),
     pack: {

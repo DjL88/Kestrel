@@ -32,6 +32,16 @@ variable "phase5_paddle_monthly_price_id" {
     error_message = "phase5_paddle_monthly_price_id is empty or a Paddle price ID (pri_...)."
   }
 }
+# Cloud top-up prices (one-off pri_..., made in Paddle → Catalog), keyed by the amount in pence: "500", "1000", "2000".
+# Not secrets. Top-ups open only when at least one is set and the admin switches "Cloud top-ups (Paddle)" on.
+variable "phase5_paddle_topup_price_ids" {
+  type    = map(string)
+  default = {}
+  validation {
+    condition = alltrue([for k, v in var.phase5_paddle_topup_price_ids : contains(["500", "1000", "2000"], k) && can(regex("^pri_[a-z0-9]{10,60}$", v))])
+    error_message = "phase5_paddle_topup_price_ids maps \"500\", \"1000\" or \"2000\" to a Paddle price ID (pri_...)."
+  }
+}
 variable "phase5_paddle_annual_price_id" {
   type    = string
   default = ""

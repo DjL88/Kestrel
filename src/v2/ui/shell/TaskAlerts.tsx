@@ -60,14 +60,14 @@ export function TaskAlerts() {
   if (!shown) return null;
   return (
     <div role="status" aria-live="polite" data-testid="task-alert"
-      className="pointer-events-none fixed right-4 top-14 z-50 flex max-w-[min(26rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)]">
+      className="v2-safe-top v2-safe-right pointer-events-none fixed right-4 top-14 z-50 flex max-w-[min(26rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)]">
       <span aria-hidden="true">{shown.failed ? '⚠' : '✓'}</span>
       <p className="flex-1">{shown.away && <span className="font-semibold">{t.whileAway} </span>}{shown.text}</p>
       {permission === 'default' && (
         <button type="button" data-testid="task-alert-allow" onClick={() => { void askNotifyPermission().then(setPermission); }}
-          className="pointer-events-auto min-h-7 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.allowSystem}</button>
+          className="v2-touch-target pointer-events-auto min-h-7 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.allowSystem}</button>
       )}
-      <button type="button" onClick={() => setShown(null)} className="pointer-events-auto min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.dismiss}</button>
+      <button type="button" onClick={() => setShown(null)} className="v2-touch-target pointer-events-auto min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.dismiss}</button>
     </div>
   );
 }

@@ -177,7 +177,7 @@ Clean, flat, synthetic text only. Real photos (blur, angle, glare, tiny rings on
 
 ## Optional model packs (opt-in downloads)
 
-Upgrades the owner approved on 25 Nov 2026. None is in git or in an installer. Each is pinned in `src/core/optionalModels.ts`
+Upgrades the owner approved on 25 Nov 2026. None is in git. Since 26 Nov 2026 the desktop installer carries the four smaller ones (RF-DETR Nano, EfficientSAM-Ti, NAFNet, BiRefNet-lite; `models/desktop-packs.json`, fetched by `scripts/build-desktop.mjs` and enabled with `VITE_BUNDLED_PACKS`), read from the app's own files and checked against the same pins each time; BioCLIP 2 and any pack the build could not fetch stay downloads, from the models bucket by checksum (`VITE_MODEL_PACK_HOST`). People see each pack by what it does; the model names are under Settings → Models → Technical details. Each is pinned in `src/core/optionalModels.ts`
 (address, bytes, SHA-256), fetched only when the photographer chooses, checked as it arrives and again when read back
 (`src/providers/optionalModels.ts`), and kept on the device for offline use. The existing model keeps working as the fallback.
 A build offers a pack only when its address is set, for example `VITE_RFDETR_MODEL_URL=/models/rfdetr-nano-fp16.onnx`

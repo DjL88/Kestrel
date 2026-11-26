@@ -6,7 +6,9 @@ import { evaluateFlag } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, signEnvelope } from './crypto.ts';
 import { mintLicenceKey, ownsLicence } from './licenceKeys.ts';
-import { newLicence } from './store.ts';
+import { licenceIsUsable, newLicence } from './store.ts';
+import { isContributorLicence } from './entitlement.ts';
+import { accountCopy, parseSetupAnswers } from '../../../src/core/quickSetup.ts';
 import { PADDLE_TRANSACTION_ID } from './commerce/paddle.ts';
 import { caseForUploader } from './contentSafety.ts';
 import { ApiError, parseJson } from './http.ts';
@@ -14,7 +16,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.t
 import type { AppContext } from './appContext.ts';
 
 export function meRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, activateLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
+  const { options, config, store, now, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
   return [
   // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
   // originals are never on this service, so nothing here can reach them.
@@ -170,6 +172,40 @@ export function meRoutes(ctx: AppContext): Route[] {
     },
   },
   {
+    method: 'POST', path: '/v1/me/checkout/topup', summary: 'Signed in: start a server-priced Paddle checkout for a prepaid cloud top-up (500, 1000 or 2000 pence), bound to this account', auth: 'user',
+    body: Schemas.TopUpCheckoutRequest,
+    handler: async (req) => {
+      const claims = await bearer(req);
+      const checkout = options.topUpCheckout;
+      if (!checkout || !(await switchOn('cloud-top-ups'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
+      if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+      const { pence } = parseJson(Schemas.TopUpCheckoutRequest, req.rawBody);
+      if (!checkout.amounts.includes(pence)) throw new ApiError(400, 'TOP_UP_UNAVAILABLE', 'That amount is not on sale.');
+      const account = await store.getAccount(claims.sub);
+      if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to top up.');
+      try {
+        const started = await checkout.start({ accountId: claims.sub, pence });
+        await audit(claims.sub, 'checkout.topup.start', 'allowed', `${started.checkoutId} ${pence}p`);
+        return { status: 201, body: started };
+      } catch {
+        throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true);
+      }
+    },
+  },
+  {
+    method: 'GET', path: '/v1/me/checkout/topup/:id', summary: 'Signed in: has this top-up been paid and verified with Paddle? Paid means the cloud balance has been credited.', auth: 'user',
+    handler: async (req, params) => {
+      const claims = await bearer(req);
+      if (!options.topUpCheckout || !PADDLE_TRANSACTION_ID.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+      if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
+      let status: 'paid' | 'pending' | null;
+      try { status = await options.topUpCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
+      catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
+      if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+      return { status: 200, body: { status } };
+    },
+  },
+  {
     method: 'POST', path: '/v1/me/subscription/manage', summary: "Signed in: this account's Pro subscription (renewing, ending, payment due) and Paddle's own pages to cancel it or change the card", auth: 'user',
     handler: async (req) => {
       const claims = await bearer(req);
@@ -229,9 +265,38 @@ export function meRoutes(ctx: AppContext): Route[] {
           plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays, majorVersion: p.majorVersion, paid: p.paid, source: p.source })),
           aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
           aiConsent: account?.aiConsent ?? false,
+          contributor: plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now())),
           nextRevalidationMs: now() + 7 * DAY_MS,
         },
       };
+    },
+  },
+  {
+    method: 'POST', path: '/v1/me/feedback', summary: 'A contributor\'s "Feedback on this": what they pointed at and their comment, to the admin inbox', auth: 'user',
+    body: Schemas.ContributorFeedback, response: z.object({ received: z.boolean() }),
+    handler: async (req) => {
+      const claims = await bearer(req);
+      if (!feedbackLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'That is a lot of feedback in a few minutes. Thank you! Wait a little, then send the rest.', true);
+      const plans = await store.listLicencesForAccount(claims.sub);
+      if (!plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now()))) throw new ApiError(403, 'NOT_CONTRIBUTOR', 'Feedback on this is for contributors. Ask us to add you.');
+      const body = parseJson(Schemas.ContributorFeedback, req.rawBody);
+      // Plain text only, shown as text in the admin inbox. No photo, page HTML or address is sent or kept.
+      const lines = [
+        body.comment,
+        '',
+        `Language: ${body.language || 'unknown'}`,
+        `Screen: ${body.screen || 'unknown'}`,
+        `Part of the app: ${body.target || 'unknown'}`,
+        ...(body.text ? [`Words shown: ${body.text}`] : []),
+        ...(body.appVersion ? [`App version: ${body.appVersion}`] : []),
+        `Account: ${claims.sub}`,
+      ];
+      await store.insertContactMessage({
+        messageId: `fbk_${randomId(12)}`, receivedAtMs: now(), name: `Contributor feedback (${body.language || 'unknown'})`, email: '',
+        message: lines.join('\n'), status: 'new',
+      });
+      await audit(claims.sub, 'feedback.contributor', 'allowed', `${body.language} ${body.screen}`.slice(0, 80));
+      return { status: 200, body: { received: true } };
     },
   },
   {
@@ -243,6 +308,27 @@ export function meRoutes(ctx: AppContext): Route[] {
       await store.setAiConsent(claims.sub, body.consent);
       await audit(claims.sub, 'ai.consent.set', 'allowed', body.consent ? 'granted' : 'withdrawn');
       return { status: 200, body: { aiConsent: body.consent } };
+    },
+  },
+
+  // ---- App preferences kept with the account (quick setup's answers), so signing in elsewhere doesn't ask again.
+  {
+    method: 'GET', path: '/v1/me/preferences', summary: 'Signed in: the app preferences kept with this account (quick setup: language, what you shoot, experience, cloud choice, Flight mode, finished)', auth: 'user',
+    handler: async (req) => {
+      const claims = await bearer(req);
+      return { status: 200, body: { preferences: (await store.getPreferences(claims.sub)) ?? {} } };
+    },
+  },
+  {
+    method: 'POST', path: '/v1/me/preferences', summary: 'Signed in: save quick setup\'s answers with this account. Only known answers are kept; nothing about photos', auth: 'user', body: Schemas.PreferencesRequest,
+    handler: async (req) => {
+      const claims = await bearer(req);
+      const body = parseJson(Schemas.PreferencesRequest, req.rawBody);
+      const setup = parseSetupAnswers(body.setup);
+      if (!setup || setup.status === 'in-progress') throw new ApiError(400, 'BAD_PREFERENCES', 'Those setup answers could not be read. Nothing was changed.');
+      const preferences = { ...((await store.getPreferences(claims.sub)) ?? {}), setup: accountCopy(setup) };
+      await store.setPreferences(claims.sub, preferences);
+      return { status: 200, body: { preferences } };
     },
   },
 
