@@ -298,6 +298,8 @@ export const source = {
     kindPhotoShootBody: 'Edit some photos: cull, develop and export a set of pictures',
     kindCollageTitle: 'Collage or album',
     kindCollageBody: 'Lay several photos out on pages, posters or posts',
+    kindTetheredTitle: "Tethered shoot",
+    kindTetheredBody: "Photos arrive from the camera as you take them: by cable, camera Wi-Fi or a watched folder",
     kindSelected: 'Selected',
     modeQuestion: 'How much should InFlight help?',
     modeChangeLater: 'You can change this later in the project.',
@@ -307,6 +309,9 @@ export const source = {
   // Filmstrip & Grid
   filmstrip: {
     importPhotos: 'Import',
+    rowMore: "More",
+    rowMoreLabel: "More import and culling tools",
+    showAllButtons: "Show every button in this row",
     autoCull: 'Auto pick & Analyse',
     autoCullRunning: 'Analysing…',
     searchPlaceholder: 'Search filename, camera, species…',

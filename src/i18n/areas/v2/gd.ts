@@ -279,6 +279,8 @@ export const gd: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Deasaich dealbhan: tagh, leasaich is às-phortaich sreath de dhealbhan',
     kindCollageTitle: 'Colaids no clàr-dhealbh',
     kindCollageBody: 'Cuir grunn dhealbhan air duilleagan, postairean no postaichean',
+    kindTetheredTitle: "Seisean ceangailte",
+    kindTetheredBody: "Thig dealbhan on chamara fhad ’s a tha thu gan togail: le càball, Wi-Fi a’ chamara no pasgan fo fhaire",
     kindSelected: 'Air a thaghadh',
     modeQuestion: "Dè na cuideachadh a bu chòir do InFlight a thoirt?",
     modeChangeLater: "'S urrainn dhut seo atharrachadh nas fhaide air adhart sa phròiseact.",
@@ -286,6 +288,9 @@ export const gd: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Ion-phortaich',
+    rowMore: "Barrachd",
+    rowMoreLabel: "Barrachd innealan ion-phortaidh is taghaidh",
+    showAllButtons: "Seall gach putan san t-sreath seo",
     autoCull: 'Taghadh is mion-sgrùdadh fèin-obrachail',
     autoCullRunning: 'A’ mion-sgrùdadh…',
     searchPlaceholder: 'Lorg ainm faidhle, camara, gnè…',

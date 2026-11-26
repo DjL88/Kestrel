@@ -60,3 +60,9 @@ test('Macro pad keys off is remembered; anything but true or false is ignored, s
   assert.equal(parseSavedUi(JSON.stringify({ settings: { padKeysEnabled: false } })).settings.padKeysEnabled, false);
   assert.equal(parseSavedUi(JSON.stringify({ settings: { padKeysEnabled: 0 } })).settings.padKeysEnabled, undefined);
 });
+
+test('focus mode for the filmstrip row is kept between sessions, and only a true or false is accepted', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { filmstripFocus: true } })).settings.filmstripFocus, true);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { filmstripFocus: false } })).settings.filmstripFocus, false);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { filmstripFocus: 'yes' } })).settings.filmstripFocus, undefined);
+});

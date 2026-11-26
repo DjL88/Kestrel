@@ -278,6 +278,8 @@ export const da: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Rediger nogle fotos: sorter, fremkald og eksporter en serie billeder',
     kindCollageTitle: 'Collage eller album',
     kindCollageBody: 'Placer flere fotos på sider, plakater eller opslag',
+    kindTetheredTitle: "Tethered optagelse",
+    kindTetheredBody: "Billeder kommer fra kameraet, mens du tager dem: via kabel, kameraets Wi-Fi eller en overvåget mappe",
     kindSelected: 'Valgt',
     modeQuestion: "Hvor meget skal InFlight hjælpe?",
     modeChangeLater: "Du kan ændre det senere i projektet.",
@@ -285,6 +287,9 @@ export const da: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Importér',
+    rowMore: "Mere",
+    rowMoreLabel: "Flere værktøjer til import og udvælgelse",
+    showAllButtons: "Vis alle knapper i denne række",
     autoCull: 'Automatisk udvalg og analyse',
     autoCullRunning: 'Analyserer …',
     searchPlaceholder: 'Søg filnavn, kamera, art …',

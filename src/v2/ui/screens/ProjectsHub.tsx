@@ -15,7 +15,7 @@ interface ProjectsHubProps {
   hubState: HubViewState;
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
-  onCreateProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
+  onCreateProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
   /** The Flight mode a new project starts in (Settings → Assistance); the person can pick another when creating it. */
   defaultAssistMode?: AssistMode;
   onCreateFromFolder: () => void;
@@ -72,7 +72,7 @@ export default function ProjectsHub({
   const createPanel = useRef<HTMLFormElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
-  const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
+  const [projectKind, setProjectKind] = useState<'photography' | 'collage' | 'tethered'>('photography');
   const [projectMode, setProjectMode] = useState<AssistMode>(defaultAssistMode);
   const openCreate = () => { setProjectMode(defaultAssistMode); setModalOpen(true); };
 
@@ -348,6 +348,7 @@ export default function ProjectsHub({
                   {([
                     ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
                     ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
+                    ['tethered', STRINGS.hub.kindTetheredTitle, STRINGS.hub.kindTetheredBody],
                   ] as const).map(([kind, title, description]) => {
                     const selected = projectKind === kind;
                     return (
@@ -461,12 +462,23 @@ export default function ProjectsHub({
  * a row of separate frames for a photo shoot, one page laid out with several photos for a collage or album.
  * Drawn in the theme's own colours, so it suits light and dark.
  */
-function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage'; selected: boolean }) {
+function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage' | 'tethered'; selected: boolean }) {
   const stroke = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
   const fill = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
   return (
     <svg viewBox="0 0 120 56" aria-hidden="true" className="h-14 w-full rounded-[var(--radius-md)] bg-[var(--bg-input)]" preserveAspectRatio="xMidYMid meet">
-      {kind === 'photography' ? (
+      {kind === 'tethered' ? (
+        // A camera with a cable to a screen: photos arrive as they are taken.
+        <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
+          <rect x="12" y="18" width="30" height="20" rx="3" />
+          <circle cx="27" cy="28" r="6" />
+          <rect x="18" y="14" width="10" height="4" rx="1" />
+          <path d="M42 30 C56 30 56 40 70 40" strokeDasharray="3 3" />
+          <rect x="70" y="10" width="38" height="32" rx="2" />
+          <rect x="76" y="16" width="26" height="18" rx="1" fill={fill} fillOpacity="0.3" />
+          <path d="M84 48 h10" />
+        </g>
+      ) : kind === 'photography' ? (
         <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
           {[10, 44, 78].map((x, i) => (
             <g key={x} opacity={i === 1 ? 1 : 0.6}>

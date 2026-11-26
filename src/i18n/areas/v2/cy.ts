@@ -278,6 +278,8 @@ export const cy: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Golygu rhai lluniau: didoli, datblygu ac allforio set o luniau',
     kindCollageTitle: 'Collage neu albwm',
     kindCollageBody: 'Gosod sawl llun ar dudalennau, posteri neu bostiadau',
+    kindTetheredTitle: "Saethu cysylltiedig",
+    kindTetheredBody: "Mae lluniau’n cyrraedd o’r camera wrth i chi eu tynnu: drwy gebl, Wi-Fi y camera neu ffolder a wylir",
     kindSelected: 'Wedi’i ddewis',
     modeQuestion: "Faint ddylai InFlight helpu?",
     modeChangeLater: "Gallwch newid hyn yn nes ymlaen yn y prosiect.",
@@ -285,6 +287,9 @@ export const cy: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Mewnforio',
+    rowMore: "Rhagor",
+    rowMoreLabel: "Rhagor o offer mewnforio a dewis",
+    showAllButtons: "Dangos pob botwm yn y rhes hon",
     autoCull: 'Dewis awtomatig a dadansoddi',
     autoCullRunning: 'Yn dadansoddi…',
     searchPlaceholder: 'Chwilio enw ffeil, camera, rhywogaeth…',

@@ -928,6 +928,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  const tetheredProject = store.projects.find((project) => project.id === store.activeProjectId)?.kind === 'tethered';
+  // Focus mode: on by default on a phone; the person's own choice (filmstrip More menu) wins everywhere.
+  const filmstripFocus = store.settings.filmstripFocus ?? isMobile;
   // Phone layouts: upright (bottom tool bar and bottom sheet) and sideways (tools on the right, side panels).
   const phoneLandscape = isPhoneLandscape && !composingCollage;
   const phoneLayout = isMobile || phoneLandscape;
@@ -1321,13 +1324,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
-                onWatchFolder={actions.watchFolder}
+                // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot
+                // project (owner, 26 Nov). A live session already running elsewhere can still be seen and stopped.
+                onWatchFolder={tetheredProject ? actions.watchFolder : undefined}
                 onStopWatchingFolder={actions.stopWatchingFolder}
-                onReceiveFromCamera={actions.receiveFromCamera}
+                onReceiveFromCamera={tetheredProject ? actions.receiveFromCamera : undefined}
                 shootRoom={store.shootRoom}
-                onOpenShootRoom={actions.openShootRoom}
+                onOpenShootRoom={tetheredProject ? actions.openShootRoom : undefined}
                 onCloseShootRoom={actions.closeShootRoom}
-                onTetherCamera={actions.tetherCamera}
+                onTetherCamera={tetheredProject ? actions.tetherCamera : undefined}
+                focusRow={filmstripFocus}
+                onSetFocusRow={(on) => actions.updateSettings({ filmstripFocus: on })}
                 liveFolder={store.liveFolder}
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}

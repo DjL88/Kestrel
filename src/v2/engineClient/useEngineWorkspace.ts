@@ -2824,7 +2824,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
-      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } }
+        : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, projectType: 'tethered' as const } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {

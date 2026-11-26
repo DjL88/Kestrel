@@ -278,6 +278,8 @@ export const sv: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Redigera några foton: gallra, framkalla och exportera en serie bilder',
     kindCollageTitle: 'Collage eller album',
     kindCollageBody: 'Placera flera foton på sidor, affischer eller inlägg',
+    kindTetheredTitle: "Tethered fotografering",
+    kindTetheredBody: "Bilderna kommer från kameran medan du fotograferar: via kabel, kamerans Wi-Fi eller en bevakad mapp",
     kindSelected: 'Vald',
     modeQuestion: "Hur mycket ska InFlight hjälpa till?",
     modeChangeLater: "Du kan ändra detta senare i projektet.",
@@ -285,6 +287,9 @@ export const sv: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Importera',
+    rowMore: "Mer",
+    rowMoreLabel: "Fler verktyg för import och urval",
+    showAllButtons: "Visa alla knappar i den här raden",
     autoCull: 'Automatiskt urval och analys',
     autoCullRunning: 'Analyserar …',
     searchPlaceholder: 'Sök filnamn, kamera, art …',

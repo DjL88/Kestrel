@@ -339,3 +339,9 @@ test('personal style says in plain words how Auto was leaned, and nothing when i
   const note = styleNoteFor([{ key: 'exposure', multiplier: 0.75, examples: 6, outliers: 0 }, { key: 'shadows', multiplier: 1.2, examples: 9, outliers: 1 }]);
   assert.equal(note, 'Leaned towards your own edits: Exposure 25% less (from 6 photos), Shadows 20% more (from 9 photos). Learnt on this device from what you kept, undid or corrected. Nothing is sent anywhere.');
 });
+
+test('a project is a Tethered shoot when its saved shoot says so; older projects stay photo shoots', () => {
+  const shoot = { id: 'p1', title: 'Studio', sourceKind: 'local-files' as const, totalFrames: 0, createdAt: 0, lastUpdatedAt: 0 };
+  assert.equal(shootToProject({ ...shoot, projectType: 'tethered' as const }, []).kind, 'tethered');
+  assert.equal(shootToProject(shoot, []).kind, 'photography');
+});

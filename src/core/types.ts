@@ -213,7 +213,8 @@ export interface PhotoFrame {
 
 export interface ShootDescriptor {
   /** Absent on legacy photography projects. */
-  projectType?: 'photography' | 'collage' | 'album';
+  /** 'tethered': a live shoot, where photos arrive from the camera (USB, camera Wi-Fi, a watched folder) as they are taken. */
+  projectType?: 'photography' | 'collage' | 'album' | 'tethered';
   id: string;
   title: string;
   sourceKind: 'demo' | 'local-files' | 'local-folder';

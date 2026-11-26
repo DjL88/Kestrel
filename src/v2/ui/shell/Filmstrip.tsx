@@ -78,6 +78,9 @@ interface FilmstripProps {
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
+  /** Focus mode: keep the row to photos, Import and Folder; Auto pick and the Culling Assistant move under More. */
+  focusRow?: boolean;
+  onSetFocusRow?: (on: boolean) => void;
   onExportSelected: () => void;
   /** Two selected photos open side by side. */
   onCompareSelected?: () => void;
@@ -153,6 +156,8 @@ export default function Filmstrip({
   activity = null,
   onRunAutoCull,
   onOpenCullAssistant,
+  focusRow = false,
+  onSetFocusRow,
   onExportSelected,
   onCompareSelected,
   onCreateCollage,
@@ -163,6 +168,8 @@ export default function Filmstrip({
   onChooseFromProject,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
+  const rowMoreRef = useRef<HTMLDetailsElement | null>(null);
+  const closeRowMore = () => { if (rowMoreRef.current) rowMoreRef.current.open = false; };
   const [searchOpen, setSearchOpen] = useState(false);
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
@@ -476,7 +483,7 @@ export default function Filmstrip({
             </button>
           )}
 
-          {!hideAutoCull && !collageMode && (
+          {!hideAutoCull && !collageMode && !focusRow && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -490,11 +497,42 @@ export default function Filmstrip({
             <ProBadge feature="smartCulling" />
           </button>
           )}
-          {onOpenCullAssistant && !hideAutoCull && !collageMode && (
+          {onOpenCullAssistant && !hideAutoCull && !collageMode && !focusRow && (
             <button type="button" onClick={onOpenCullAssistant} data-testid="open-cull-assistant"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap">
               <span>{CULL_ASSISTANT_LABEL}</span>
             </button>
+          )}
+          {onSetFocusRow && !collageMode && (
+            <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more">
+              <summary aria-label={STRINGS.filmstrip.rowMoreLabel}
+                className="inline-flex h-7 cursor-pointer list-none items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <span aria-hidden="true">⋯</span>
+                <span>{STRINGS.filmstrip.rowMore}</span>
+              </summary>
+              <div className="absolute bottom-full left-0 z-50 mb-1 flex w-64 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1.5 shadow-[var(--shadow-popover)]">
+                {focusRow && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onRunAutoCull(); }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    <BrandIcon name="find-subject" size={13} />
+                    <span>{STRINGS.filmstrip.autoCull}</span>
+                    <ProBadge feature="smartCulling" />
+                  </button>
+                )}
+                {focusRow && onOpenCullAssistant && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onOpenCullAssistant(); }}
+                    className="inline-flex min-h-9 items-center rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {CULL_ASSISTANT_LABEL}
+                  </button>
+                )}
+                <button type="button" aria-pressed={!focusRow} data-testid="filmstrip-show-all-buttons"
+                  onClick={() => { closeRowMore(); onSetFocusRow(!focusRow); }}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  <BrandIcon name={focusRow ? 'checkbox-empty' : 'checkbox-checked'} size={14} />
+                  <span>{STRINGS.filmstrip.showAllButtons}</span>
+                </button>
+              </div>
+            </details>
           )}
         </div>
 
