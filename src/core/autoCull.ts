@@ -10,23 +10,37 @@ export interface CullSuggestion {
   confidence: Confidence;
   score: number;
   reason: CullReason;
+  /** The raw numbers this suggestion was judged from (x-std-rescore), so a later threshold or scorer change can judge
+   * the photo again without looking at it again. Numbers only: never pixels, paths or a decision. Absent when the
+   * preview could not be read. */
+  evidence?: CullEvidence;
 }
 
-export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: number, height: number): CullSuggestion {
+/** What the 256 px detail pass measured: the mean of the three most detailed of 16 regions, and the share of pixels
+ * that are near black and near white (0 to 1). */
+export interface PreviewMeasures { detail: number; dark: number; bright: number }
+
+export interface CullEvidence {
+  preview: PreviewMeasures;
+  /** Every subject the detector reported, trusted or not. Absent when the detector did not run on this photo. */
+  subjects?: SubjectFinding[];
+}
+
+/** Measure a preview, or null when it is truncated, malformed or not fully opaque (never judged). */
+export function measurePreview(pixels: Uint8ClampedArray, width: number, height: number): PreviewMeasures | null {
+
   // A truncated or malformed preview must never produce a confident culling decision.
   // Check dimensions before allocating the luminance buffer (including overflow).
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
       width < 64 || height < 64 || width * height > 16_777_216 ||
       !(pixels instanceof Uint8ClampedArray) || pixels.length !== width * height * 4) {
-    return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+    return null;
   }
   // Alpha is not exposure. Even a partly transparent canvas can make the
   // transparent background look like a flat, dark photograph or create sharp
   // artificial edges. Only score fully opaque photographic previews.
   for (let i = 3; i < pixels.length; i += 4) {
-    if (pixels[i] !== 255) {
-      return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
-    }
+    if (pixels[i] !== 255) return null;
   }
   const luma = new Float32Array(width * height);
   let dark = 0;
@@ -50,9 +64,21 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
     }
   }
   const regions = [...cells].map((sum, index) => sum / Math.max(1, counts[index])).sort((a, b) => b - a);
-  const detail = (regions[0] + regions[1] + regions[2]) / 3;
-  const clipped = (dark + bright) / luma.length;
-  if (Math.max(dark, bright) / luma.length > 0.97 && detail < 2) {
+  return { detail: (regions[0] + regions[1] + regions[2]) / 3, dark: dark / luma.length, bright: bright / luma.length };
+}
+
+const validShare = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+
+/** Judge measured preview numbers. The same thresholds as a fresh scan; stored numbers are checked first, because a
+ * damaged project must never manufacture a keeper. */
+export function judgePreview(frameId: string, measures: PreviewMeasures | null): CullSuggestion {
+  if (!measures || typeof measures.detail !== 'number' || !Number.isFinite(measures.detail) || measures.detail < 0 ||
+      measures.detail > 1_000_000 || !validShare(measures.dark) || !validShare(measures.bright) || measures.dark + measures.bright > 1.000001) {
+    return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+  }
+  const { detail, dark, bright } = measures;
+  const clipped = dark + bright;
+  if (Math.max(dark, bright) > 0.97 && detail < 2) {
     // A dark/bright flat preview could be sky, a backlit bird, or a failed
     // thumbnail. Without independent subject evidence it is review-only.
     return { frameId, decision: null, confidence: 'low', score: 35, reason: 'flat' };
@@ -64,6 +90,12 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
     return { frameId, decision: 'keep', confidence: 'medium', score: Math.min(84, Math.round(62 + detail)), reason: 'someDetail' };
   }
   return { frameId, decision: null, confidence: 'low', score: 40, reason: 'limitedDetail' };
+}
+
+export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: number, height: number): CullSuggestion {
+  const measures = measurePreview(pixels, width, height);
+  const judged = judgePreview(frameId, measures);
+  return measures ? { ...judged, evidence: { preview: measures } } : judged;
 }
 
 /** What the subject detector found in a photo, or null when it found nothing it trusts. */
@@ -101,8 +133,18 @@ export function judgeSubject(found: SubjectFinding | null): Pick<CullSuggestion,
  * Calibrated on 30 real long-lens frames of jets: well-held shots read about 15 to 25, soft or very distant ones about 5 to 10.
  */
 export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
+  return withSubjects(scoreOneSubject(base, found), base, found ? [found] : []);
+}
+
+function scoreOneSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
   if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
   return { ...base, ...judgeSubject(found) };
+}
+
+/** Keep what the detector reported next to the preview numbers, so the photo can be judged again later. */
+function withSubjects(result: CullSuggestion, base: CullSuggestion, found: readonly SubjectFinding[]): CullSuggestion {
+  if (!base.evidence) return result;
+  return { ...result, evidence: { preview: base.evidence.preview, subjects: found.slice(0, 16).map((f) => ({ ...f })) } };
 }
 
 /** The keeper target describes original photographs, not edit variants or sample data. */
@@ -200,8 +242,8 @@ const CONFIDENCE_RANK = { low: 0, medium: 1, high: 2 } as const;
  */
 export function scoreWithSubjects(base: CullSuggestion, found: readonly SubjectFinding[]): CullSuggestion {
   const trusted = found.filter((finding) => judgeSubject(finding).reason !== 'noSubject');
-  if (trusted.length <= 1) return scoreWithSubject(base, trusted[0] ?? found[0] ?? null);
-  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+  if (trusted.length <= 1) return withSubjects(scoreOneSubject(base, trusted[0] ?? found[0] ?? null), base, found);
+  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return withSubjects(base, base, found);
   const largest = Math.max(...trusted.map((finding) => finding.size));
   const majors = trusted.filter((finding) => finding.size >= largest * MAJOR_SUBJECT_SHARE).map(judgeSubject);
   const worst = majors.reduce((a, b) => {
@@ -210,5 +252,5 @@ export function scoreWithSubjects(base: CullSuggestion, found: readonly SubjectF
     const rank = CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence];
     return rank !== 0 ? (rank < 0 ? a : b) : a.score <= b.score ? a : b;
   });
-  return { ...base, ...worst };
+  return withSubjects({ ...base, ...worst }, base, found);
 }
