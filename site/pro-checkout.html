@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Subscribe to InFlight Pro</title><meta name="robots" content="noindex"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>InFlight checkout</title><meta name="robots" content="noindex"></head>
 <body style="font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0;padding:0 16px">
 <main style="max-width:32rem;line-height:1.5">
-  <h1 style="font-size:1.4rem">Subscribe to InFlight Pro</h1>
+  <h1 style="font-size:1.4rem">InFlight checkout</h1>
   <p id="state" role="status">Opening the secure checkout…</p>
   <p>The checkout is run by Paddle, our reseller and merchant of record. Paddle asks for your country, adds any sales tax or VAT that applies there and sends your receipt. InFlight never sees your card.</p>
-  <p>Pro renews by itself each month or year until you cancel. You can cancel at any time from your Paddle receipt or account emails. When it ends, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
+  <p>Paddle shows what you are buying before you pay. A Pro subscription renews by itself each month or year until you cancel; a cloud top-up is a single prepaid payment that never expires. You can cancel Pro at any time in InFlight (Settings, Account) or from your Paddle receipt. When it ends, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
   <p style="font-size:.85rem;color:#bbb">Your photos and edits are not affected either way. <a style="color:#9cf" href="/privacy">Privacy</a></p>
 </main>
 <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
@@ -19,7 +19,7 @@
     if (!/^txn_[a-z0-9]{10,60}$/.test(new URLSearchParams(location.search).get('_ptxn') || '')) { say('This checkout address is incomplete. Start again from InFlight.'); return; }
     try {
       const response = await fetch('/v1/billing/paddle/config', { cache: 'no-store' });
-      if (!response.ok) { say('Pro subscriptions are not open yet. Nothing was charged.'); return; }
+      if (!response.ok) { say('Paying online is not open yet. Nothing was charged.'); return; }
       const { environment, clientToken } = await response.json();
       if (environment === 'sandbox') { window.Paddle.Environment.set('sandbox'); say('Test checkout (Paddle sandbox): use a Paddle test card, nothing real is charged.'); }
       window.Paddle.Initialize({

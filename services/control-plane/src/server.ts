@@ -10,6 +10,7 @@ import { buildAccountErasure } from './accountErasureWiring.ts';
 import { paddleApi } from './commerce/paddle.ts';
 import { rotatingKeySource, secretManagerSecret } from './commerce/paddleKeyRotation.ts';
 import { paddleProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
+import { paddleTopUps, TOP_UP_AMOUNTS_PENCE, type TopUpOrder, type TopUpPence } from './commerce/topUpCheckout.ts';
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
 import { buildOptionalServices } from './wiring.ts';
@@ -52,7 +53,7 @@ const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
   // The buyer's key by email, once per purchase. `app` is created below; this runs only when a payment arrives.
   onNewLicence: async (licence) => { await app.sendLicenceKey(licence); },
 }) : undefined;
-const settlePaddle = paddleBilling?.settle;
+const proSettle = paddleBilling?.settle;
 const syncPaddleSubscription = paddleBilling?.syncSubscription;
 const managePaddleSubscription = paddleBilling?.manage;
 // A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
@@ -68,7 +69,7 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
 }) : undefined;
 // The checkout page is on the published website (the first HTTPS app origin, i.e. the Hosting site Terraform adds).
 const siteUrl = process.env.KCP_PUBLIC_SITE_URL?.trim() || config.allowedOrigins.find((o) => o.startsWith('https://') && o !== 'https://tauri.localhost');
-const proCheckout = firestore && paddle && settlePaddle && (paddlePriceIds.monthly || paddlePriceIds.annual) && siteUrl ? paddleProCheckout({
+const proCheckout = firestore && paddle && proSettle && (paddlePriceIds.monthly || paddlePriceIds.annual) && siteUrl ? paddleProCheckout({
   paddle,
   orders: {
     // create() refuses to overwrite: a transaction ID is bound to one account for good.
@@ -77,13 +78,39 @@ const proCheckout = firestore && paddle && settlePaddle && (paddlePriceIds.month
   },
   priceIds: paddlePriceIds,
   checkoutUrl: new URL('/pro-checkout', siteUrl).toString(),
-  settle: settlePaddle,
+  settle: proSettle,
   promoDiscountId: paddlePromoDiscountId,
 }) : undefined;
 const paddleClient = paddleClientToken ? { environment: paddleEnvironment, clientToken: paddleClientToken } as const : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
+// Cloud top-ups: KCP_PADDLE_TOPUP_PRICE_IDS is JSON, {"500":"pri_…","1000":"pri_…","2000":"pri_…"} (Terraform).
+const topUpPriceIds = (() => {
+  try {
+    const raw = JSON.parse(process.env.KCP_PADDLE_TOPUP_PRICE_IDS?.trim() || '{}') as Record<string, unknown>;
+    const out: Partial<Record<TopUpPence, string>> = {};
+    for (const p of TOP_UP_AMOUNTS_PENCE) { const v = raw[String(p)]; if (typeof v === 'string' && /^pri_[a-z0-9]{10,60}$/.test(v)) out[p] = v; }
+    return out;
+  } catch { return {}; }
+})();
+const topUpOrders = 'paddle_topup_orders';
+const topUpCheckout = firestore && paddle && commerce && optional.cloudBalance && siteUrl && Object.keys(topUpPriceIds).length ? paddleTopUps({
+  paddle,
+  orders: {
+    save: async (order) => { await firestore.collection(topUpOrders).doc(order.transactionId).create(order); },
+    get: async (id) => (await firestore.collection(topUpOrders).doc(id).get()).data() as TopUpOrder | undefined ?? null,
+  },
+  priceIds: topUpPriceIds,
+  checkoutUrl: new URL('/pro-checkout', siteUrl).toString(),
+  commerce,
+  balance: optional.cloudBalance,
+}) : undefined;
+// One Paddle notification route: a top-up order settles here; anything else goes to Pro (first payments, renewals, older one-off orders).
+const settlePaddle = proSettle ? async (id: string, hint?: { subscriptionId?: string }) => {
+  const asTopUp = topUpCheckout ? await topUpCheckout.settle(id) : 'unknown';
+  return asTopUp !== 'unknown' ? asTopUp : proSettle(id, hint);
+} : undefined;
 // Merging two accounts (accountMerge.ts): needs Firestore for its records; moves what the optional services hold.
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
 // Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
@@ -92,7 +119,7 @@ const app = createApp({ config, store, commerce, payments: commerce, settlePaddl
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
-  } : undefined, proCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
+  } : undefined, proCheckout, topUpCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

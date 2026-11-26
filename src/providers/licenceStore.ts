@@ -265,6 +265,9 @@ export const startProCheckout = (idToken: string, plan?: ProPlan) => sync.startP
 export const proCheckoutStatus = (idToken: string, checkoutId: string) => sync.proCheckoutStatus(idToken, checkoutId);
 /** Manage or cancel Pro (see src/core/proCheckout.ts): Paddle runs the cancellation; the server then moves the end date. */
 export const manageProSubscription = (idToken: string) => sync.manageProSubscription(idToken);
+/** Cloud top-ups (src/v2/ui/useCloudTopUp.ts): the server credits the balance only after Paddle confirms the payment. */
+export const startTopUpCheckout = (idToken: string, pence: number) => sync.startTopUpCheckout(idToken, pence);
+export const topUpCheckoutStatus = (idToken: string, checkoutId: string) => sync.topUpCheckoutStatus(idToken, checkoutId);
 export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
 export const accountConnection = () => sync.accountConnection();
