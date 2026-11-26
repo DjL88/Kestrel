@@ -454,7 +454,7 @@ export const is: AreaTranslation<typeof source> = {
     licences: (n: number) => `Pro-leyfi sem fara af aðganginum: ${n}. Paddle geymir kvittanirnar þínar.`,
     owned: (n: number, people: number) => `Samnýtt verkefni í þinni eigu sem eyðast með skýjamyndum: ${n}.` + (people ? ` Fólk sem missir aðgang: ${people}.` : ''),
     others: (n: number) => `Samnýtt verkefni annarra sem þú yfirgefur: ${n}. Athugasemdir þínar þar standa, án nafns þíns.`,
-    balance: (amount: string) => `Ónotuð skýjainneign þín, ${amount}, tapast.`,
+    balance: (amount: string) => `Ónotuð skýjainneign þín, ${amount}, er endurgreidd þér í gegnum Paddle.`,
     localStays: 'Ekkert breytist á þessu tæki: verkefni, breytingar og upprunalegar myndir verða þar sem þær eru.',
     grace: 'Engu er eytt í 30 daga. Skráðu þig inn á þeim tíma til að halda aðganginum.',
     typeToConfirm: (word: string) => `Sláðu inn ${word} til að staðfesta`,

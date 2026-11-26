@@ -454,7 +454,7 @@ export const nl: AreaTranslation<typeof source> = {
     licences: (n: number) => `Pro-licenties die van dit account verdwijnen: ${n}. Paddle bewaart uw bonnen.`,
     owned: (n: number, people: number) => `Uw gedeelde projecten die met hun cloudfoto’s worden verwijderd: ${n}.` + (people ? ` Mensen die de toegang verliezen: ${people}.` : ''),
     others: (n: number) => `Gedeelde projecten van anderen die u verlaat: ${n}. Uw reacties daar blijven, zonder uw naam.`,
-    balance: (amount: string) => `Uw ongebruikte cloudtegoed van ${amount} vervalt.`,
+    balance: (amount: string) => `Uw ongebruikte cloudtegoed van ${amount} wordt via Paddle aan u terugbetaald.`,
     localStays: 'Op dit apparaat verandert niets: uw projecten, bewerkingen en originele foto’s blijven waar ze zijn.',
     grace: 'Er wordt 30 dagen niets verwijderd. Log in die tijd in om uw account te houden.',
     typeToConfirm: (word: string) => `Typ ${word} om te bevestigen`,

@@ -454,7 +454,7 @@ export const de: AreaTranslation<typeof source> = {
     licences: (n: number) => `Pro-Lizenzen, die von diesem Konto entfernt werden: ${n}. Paddle behält Ihre Belege.`,
     owned: (n: number, people: number) => `Ihre geteilten Projekte, die mit ihren Cloudfotos gelöscht werden: ${n}.` + (people ? ` Personen, die den Zugang verlieren: ${people}.` : ''),
     others: (n: number) => `Geteilte Projekte anderer, die Sie verlassen: ${n}. Ihre Kommentare dort bleiben, ohne Ihren Namen.`,
-    balance: (amount: string) => `Ihr ungenutztes Cloudguthaben von ${amount} verfällt.`,
+    balance: (amount: string) => `Ihr ungenutztes Cloudguthaben von ${amount} wird Ihnen über Paddle erstattet.`,
     localStays: 'Auf diesem Gerät ändert sich nichts: Ihre Projekte, Bearbeitungen und Originalfotos bleiben, wo sie sind.',
     grace: '30 Tage lang wird nichts gelöscht. Melden Sie sich in dieser Zeit an, um Ihr Konto zu behalten.',
     typeToConfirm: (word: string) => `Geben Sie zur Bestätigung ${word} ein`,

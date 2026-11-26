@@ -299,6 +299,7 @@ export const Schemas = {
   AttachLicenceRequest: z.object({ licenceKey: z.string().min(10).max(2000) }).strict(),
   MergeTicketRequest: z.object({ ticket: z.string().min(20).max(400) }).strict(),
   DeletionRequest: z.object({ confirm: z.string().min(1).max(40) }).strict(),
+  BalanceRefunded: z.object({ paddleReference: z.string().trim().min(1).max(80) }).strict(),
   MergeUndoRequest: z.object({ mergeId: z.string().regex(/^mrg_[0-9a-f]{24}$/) }).strict(),
   AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
   AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
@@ -1652,7 +1653,8 @@ export function createApp(options: AppOptions) {
         // The Account screen's meters: plan, cloud photos this period and the prepaid balance, when those are set up.
         const cloud = options.cloud;
         const pro = await accountIsPro(claims.sub);
-        const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0) } : {};
+        const carried = cloud ? (await cloud.ledger.periodCarried?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0 : 0;
+        const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: (pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0)) + carried, photosCarried: carried } : {};
         await settleStorage(claims.sub);
         const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
         const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
@@ -2529,6 +2531,23 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'account.deletion.run');
         const result = await erasureCfg().runDue();
         return adminDone(claims, 'account.deletion.run', `deleted=${result.deleted} failed=${result.failed}`, result);
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/balance-refunds', summary: 'Unused cloud balances owed back after an account deletion, to refund through Paddle', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'balance.refund.list');
+        const refunds = await erasureCfg().owedRefunds();
+        return adminDone(claims, 'balance.refund.list', `owed=${refunds.length}`, { refunds });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/balance-refunds/:id/refunded', summary: 'Mark an owed balance as refunded through Paddle (safe to repeat)', auth: 'admin', body: Schemas.BalanceRefunded,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'balance.refund.done');
+        const body = parseJson(Schemas.BalanceRefunded, req.rawBody);
+        const refund = await erasing(() => erasureCfg().markRefunded(params.id, body.paddleReference));
+        return adminDone(claims, 'balance.refund.done', params.id, { refund });
       },
     },
     {

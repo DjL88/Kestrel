@@ -454,7 +454,7 @@ export const es: AreaTranslation<typeof source> = {
     licences: (n: number) => `Licencias Pro retiradas de esta cuenta: ${n}. Paddle guarda sus recibos.`,
     owned: (n: number, people: number) => `Proyectos compartidos suyos que se eliminan con sus fotos en la nube: ${n}.` + (people ? ` Personas que pierden el acceso: ${people}.` : ''),
     others: (n: number) => `Proyectos compartidos de otras personas que deja: ${n}. Sus comentarios allí se quedan, sin su nombre.`,
-    balance: (amount: string) => `Su saldo en la nube sin usar de ${amount} se pierde.`,
+    balance: (amount: string) => `Le devolvemos su saldo en la nube sin usar de ${amount} a través de Paddle.`,
     localStays: 'Nada cambia en este dispositivo: sus proyectos, ediciones y fotos originales se quedan donde están.',
     grace: 'No se elimina nada durante 30 días. Inicie sesión en ese tiempo para conservar su cuenta.',
     typeToConfirm: (word: string) => `Escriba ${word} para confirmar`,
