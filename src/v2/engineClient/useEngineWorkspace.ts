@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
 import { marksOf } from '../../core/sharedMarks';
 import { computeCullCounts, applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
-import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
+import { jumpToStep, recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -2125,7 +2125,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       else if (warnings.length) setNotice(warnings.slice(0, 3).join(' '));
       // Auto-pilot sorts the new photos on this device; Co-pilot offers it; a switched-off cull says so (never silent).
       if (stateRef.current?.shoot.id === projectKey) {
-        const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome);
+        const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome, live);
         if (next === 'run') void afterImport.current.run();
         else if (!live && outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
         else if (!live && outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
@@ -3742,16 +3742,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     copyRecipe: () => { if (activeFrame) setClipboard(editToRecipe(activeFrame.edit)); },
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
-    // Clicking an earlier step makes a NEW version; the parent and all its
-    // later edit steps remain untouched and can be reopened from History.
+    // Choosing a step in History goes back (or forward) to it, like several Undos at once; later steps stay
+    // available to redo. A new version only exists when the person starts one and names it (owner, 26 Nov 2026).
     jumpToEditStep: (photoId, cursor) => {
+      const at = Date.now();
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) =>
+          frame.id === photoId ? syncEditGroup(jumpToStep(frame, cursor)) : frame),
+      }));
+    },
+    // Forking makes a NEW, named version; the parent and all its later edit steps remain untouched.
+    forkEditVersion: (photoId, cursor, name) => {
       const versionId = `fork-${newId()}`;
       const at = Date.now();
       mutate((current) => ({
         ...current,
         shoot: { ...current.shoot, lastUpdatedAt: at },
         frames: current.frames.map((frame) =>
-          frame.id === photoId ? syncEditGroup(forkEditCheckpoint(frame, cursor, versionId, at)) : frame),
+          frame.id === photoId ? syncEditGroup(renameEditVersion(forkEditCheckpoint(frame, cursor, versionId, at), versionId, name)) : frame),
       }));
     },
     switchEditVersion: (photoId, versionId) => {

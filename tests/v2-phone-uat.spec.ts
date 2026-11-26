@@ -163,11 +163,8 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await (await picker).setFiles(['swipe-a.png', 'swipe-b.png', 'swipe-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
   await expect(options).toHaveCount(3);
-  // Co-pilot (the default) offers Auto pick once the import finishes; close it so nothing sits over the photo while swiping.
-  const offer = studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' });
-  await expect(offer).toBeVisible();
-  await offer.getByRole('button', { name: 'Dismiss message' }).tap();
-  await expect(offer).toHaveCount(0);
+  // Auto pick is only offered for an import of more than 20 photos, so this small import gets no offer over the filmstrip.
+  await expect(studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' })).toHaveCount(0);
   const frame = studio.getByTestId('canvas-frame');
   await expect(frame).toBeVisible();
   const cdp = await context.newCDPSession(page);
@@ -240,10 +237,11 @@ test('a message never covers the filmstrip, so a thumbnail can be long-pressed w
   });
   const picker = page.waitForEvent('filechooser');
   await studio.getByRole('button', { name: 'Import', exact: true }).tap();
-  await (await picker).setFiles(['note-a.png', 'note-b.png', 'note-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
+  // Auto pick is only offered for an import of more than 20 photos, so bring in 21 to get the message.
+  await (await picker).setFiles(Array.from({ length: 21 }, (_, i) => ({ name: `note-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   const strip = studio.locator('.v2-filmstrip');
   const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
-  await expect(options).toHaveCount(3);
+  await expect(options).toHaveCount(21);
   // Co-pilot's offer after an import is the message that used to sit over the thumbnails.
   const notice = studio.getByTestId('action-notice').filter({ hasText: 'Photos added' });
   await expect(notice).toBeVisible();

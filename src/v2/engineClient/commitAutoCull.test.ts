@@ -97,15 +97,26 @@ test('only RAWs that were judged, and not from a picture developed from their se
 test('after an import, Auto-pilot runs Auto-cull, Co-pilot offers it, Solo stays quiet, and a switched-off cull says so', async () => {
   const { cullAfterImport } = await import('./commitAutoCull.ts');
   assert.equal(cullAfterImport('autopilot', true, 2000, 'done'), 'run');
-  assert.equal(cullAfterImport('copilot', true, 12, 'done'), 'offer');
-  assert.equal(cullAfterImport('solo', true, 12, 'done'), 'none');
-  assert.equal(cullAfterImport('autopilot', false, 12, 'done'), 'switched-off');
-  assert.equal(cullAfterImport('copilot', false, 12, 'done'), 'switched-off');
-  assert.equal(cullAfterImport('solo', false, 12, 'done'), 'none', 'Solo never mentions it');
+  assert.equal(cullAfterImport('copilot', true, 120, 'done'), 'offer');
+  assert.equal(cullAfterImport('solo', true, 120, 'done'), 'none');
+  assert.equal(cullAfterImport('autopilot', false, 120, 'done'), 'switched-off');
+  assert.equal(cullAfterImport('copilot', false, 120, 'done'), 'switched-off');
+  assert.equal(cullAfterImport('solo', false, 120, 'done'), 'none', 'Solo never mentions it');
   // A partly failed import still gets a cull of what arrived; a stopped or empty one does not.
-  assert.equal(cullAfterImport('autopilot', true, 5, 'failed'), 'run');
-  assert.equal(cullAfterImport('autopilot', true, 5, 'cancelled'), 'none');
+  assert.equal(cullAfterImport('autopilot', true, 50, 'failed'), 'run');
+  assert.equal(cullAfterImport('autopilot', true, 50, 'cancelled'), 'none');
   assert.equal(cullAfterImport('autopilot', true, 0, 'done'), 'none');
+});
+
+test('Auto pick is only offered or run for an import of more than 20 photos, except frame by frame in a live shoot', async () => {
+  const { cullAfterImport, AUTO_PICK_MIN_IMPORT } = await import('./commitAutoCull.ts');
+  assert.equal(AUTO_PICK_MIN_IMPORT, 20);
+  assert.equal(cullAfterImport('copilot', true, 20, 'done'), 'none');
+  assert.equal(cullAfterImport('autopilot', true, 20, 'done'), 'none');
+  assert.equal(cullAfterImport('copilot', false, 12, 'done'), 'none', 'a small import does not mention a switched-off cull either');
+  assert.equal(cullAfterImport('copilot', true, 21, 'done'), 'offer');
+  assert.equal(cullAfterImport('autopilot', true, 21, 'done'), 'run');
+  assert.equal(cullAfterImport('autopilot', true, 1, 'done', true), 'run', 'live shoot keeps sorting each frame');
 });
 
 test('the summary says how many keepers the vision check held for review, and only when it held some', async () => {
