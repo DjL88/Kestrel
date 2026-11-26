@@ -2020,5 +2020,7 @@ export const da: AreaTranslation<typeof source> = {
     signInOrCreate: "Log ind eller opret en konto",
     resetSent: "Hvis den e-mail har en konto, er et link til nulstilling på vej.",
     keepSessionFailed: "Kunne ikke begrænse dette login til denne browsersession. Prøv igen.",
+    slideshowSetting: "Vis mine billeder på velkomstskærmen",
+    photosFrom: (project) => `Fra ${project}`,
   },
 };

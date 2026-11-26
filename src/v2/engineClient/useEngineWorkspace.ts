@@ -37,7 +37,9 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectPreviewBlobs } from './projectCover';
+import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
+import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
+import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -152,7 +154,7 @@ import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
 import { lastProjectFrom, onLaunchIntent, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
-import { writeLastProject } from '../../providers/launchMemory';
+import { writeLastProject, writeSlideshow } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -681,6 +683,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     consume();
     return onLaunchIntent(consume);
   }, [projectsLoaded, openProject]);
+
+  // The welcome-back slideshow: while a project is open, remember which of its flagged photos to show next launch, as
+  // references to previews already stored on this device (never the pictures, never uploaded). A moment after the
+  // flags settle, so culling is never slowed. No flagged photos forgets it. Local only; erased with device data.
+  const slideshowFrames = state?.frames;
+  const slideshowProject = state?.shoot;
+  useEffect(() => {
+    if (!slideshowFrames || !slideshowProject) return;
+    const timer = window.setTimeout(() => {
+      const keys = pickSlideshowPhotos(slideshowFrames).map(hubPreviewKey);
+      writeSlideshow(keys.length ? { projectId: slideshowProject.id, projectName: slideshowProject.title, developVersion: DEVELOP_VERSION, keys } : null);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [slideshowFrames, slideshowProject]);
 
   // The opened project is on screen: add the photos an import finished while it was opening. Their originals were
   // registered in the provider of the time, so register them in this project's provider first (from the stored copy or

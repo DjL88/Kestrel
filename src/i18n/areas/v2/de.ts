@@ -2020,5 +2020,7 @@ export const de: AreaTranslation<typeof source> = {
     signInOrCreate: "Anmelden oder Konto erstellen",
     resetSent: "Falls zu dieser E-Mail ein Konto gehört, ist ein Link zum Zurücksetzen unterwegs.",
     keepSessionFailed: "Diese Anmeldung konnte nicht auf diese Browsersitzung begrenzt werden. Bitte versuchen Sie es erneut.",
+    slideshowSetting: "Meine Fotos auf dem Willkommensbildschirm zeigen",
+    photosFrom: (project) => `Aus ${project}`,
   },
 };

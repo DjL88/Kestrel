@@ -2020,5 +2020,7 @@ export const sv: AreaTranslation<typeof source> = {
     signInOrCreate: "Logga in eller skapa ett konto",
     resetSent: "Om den e-postadressen har ett konto är en återställningslänk på väg.",
     keepSessionFailed: "Det gick inte att begränsa inloggningen till den här webbläsarsessionen. Försök igen.",
+    slideshowSetting: "Visa mina foton på välkomstskärmen",
+    photosFrom: (project) => `Från ${project}`,
   },
 };

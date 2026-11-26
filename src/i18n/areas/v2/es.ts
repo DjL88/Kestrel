@@ -2020,5 +2020,7 @@ export const es: AreaTranslation<typeof source> = {
     signInOrCreate: "Inicia sesión o crea una cuenta",
     resetSent: "Si ese correo tiene una cuenta, te hemos enviado un enlace para restablecer la contraseña.",
     keepSessionFailed: "No se pudo limitar este inicio de sesión a esta sesión del navegador. Inténtalo de nuevo.",
+    slideshowSetting: "Mostrar mis fotos en la pantalla de bienvenida",
+    photosFrom: (project) => `De ${project}`,
   },
 };

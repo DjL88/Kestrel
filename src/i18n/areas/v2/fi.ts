@@ -2021,5 +2021,7 @@ export const fi: AreaTranslation<typeof source> = {
     signInOrCreate: "Kirjaudu sisään tai luo tili",
     resetSent: "Jos sähköpostilla on tili, palautuslinkki on matkalla.",
     keepSessionFailed: "Kirjautumista ei voitu rajata tähän selainistuntoon. Yritä uudelleen.",
+    slideshowSetting: "Näytä omat kuvani tervetulonäytöllä",
+    photosFrom: (project) => `Projektista ${project}`,
   },
 };

@@ -2020,5 +2020,7 @@ export const nb: AreaTranslation<typeof source> = {
     signInOrCreate: "Logg på eller opprett en konto",
     resetSent: "Hvis den e-postadressen har en konto, er en lenke for tilbakestilling på vei.",
     keepSessionFailed: "Kunne ikke begrense denne påloggingen til denne nettleserøkten. Prøv igjen.",
+    slideshowSetting: "Vis bildene mine på velkomstskjermen",
+    photosFrom: (project) => `Fra ${project}`,
   },
 };

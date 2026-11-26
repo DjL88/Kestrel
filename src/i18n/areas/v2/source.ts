@@ -2105,5 +2105,7 @@ export const source = {
     signInOrCreate: "Sign in or create an account",
     resetSent: "If that email has an account, a reset link is on its way.",
     keepSessionFailed: "Couldn't keep this sign-in to this browser session. Please try again.",
+    slideshowSetting: "Show my photos on the welcome screen",
+    photosFrom: (project: string) => `From ${project}`,
   },
 };

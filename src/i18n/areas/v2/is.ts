@@ -2020,5 +2020,7 @@ export const is: AreaTranslation<typeof source> = {
     signInOrCreate: "Skráðu þig inn eða stofnaðu aðgang",
     resetSent: "Ef aðgangur er til fyrir þetta netfang er tengill til endurstillingar á leiðinni.",
     keepSessionFailed: "Ekki tókst að takmarka þessa innskráningu við þessa vafralotu. Reyndu aftur.",
+    slideshowSetting: "Sýna myndirnar mínar á velkomuskjánum",
+    photosFrom: (project) => `Úr ${project}`,
   },
 };

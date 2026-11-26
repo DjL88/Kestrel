@@ -1,4 +1,5 @@
 import type { LastProject, LaunchProfile } from '../core/launchWelcome';
+import { asSlideshowSnapshot, type SlideshowSnapshot } from '../core/welcomeSlideshow';
 import { isDeviceKey } from '../v2/engineClient/eraseDeviceData';
 
 /**
@@ -15,6 +16,8 @@ const KEY_LAST_PROJECT = `${PREFIX}lastProject`;
 const KEY_LAUNCHED = `${PREFIX}launched`;
 const KEY_SKIP = `${PREFIX}skip`;
 const KEY_PROFILE_CHECKED = `${PREFIX}profileChecked`;
+const KEY_SLIDESHOW = `${PREFIX}slideshow`;
+const KEY_SLIDESHOW_OFF = `${PREFIX}slideshowOff`;
 
 function defaults(): Partial<LaunchStorages> {
   const out: Partial<LaunchStorages> = {};
@@ -88,6 +91,23 @@ export function setSkipChosen(skip: boolean, s: Partial<LaunchStorages> = defaul
 
 export function profileChecked(s: Partial<LaunchStorages> = defaults()): boolean { return get(s.local, KEY_PROFILE_CHECKED) === '1'; }
 export function markProfileChecked(s: Partial<LaunchStorages> = defaults()): void { set(s.local, KEY_PROFILE_CHECKED, '1'); }
+
+/**
+ * The welcome-back slideshow: references to up to eight previews already stored on this device (never the pictures),
+ * written while a project is open. Null forgets it (no flagged photos in the project now open).
+ */
+export function readSlideshow(s: Partial<LaunchStorages> = defaults()): SlideshowSnapshot | null {
+  return asSlideshowSnapshot(parse(get(s.local, KEY_SLIDESHOW)));
+}
+export function writeSlideshow(snapshot: SlideshowSnapshot | null, s: Partial<LaunchStorages> = defaults()): void {
+  if (snapshot && snapshot.keys.length > 0) set(s.local, KEY_SLIDESHOW, JSON.stringify(snapshot)); else remove(s.local, KEY_SLIDESHOW);
+}
+
+/** The Settings switch "Show my photos on the welcome screen": on unless turned off. */
+export function slideshowOff(s: Partial<LaunchStorages> = defaults()): boolean { return get(s.local, KEY_SLIDESHOW_OFF) === '1'; }
+export function setSlideshowOff(off: boolean, s: Partial<LaunchStorages> = defaults()): void {
+  if (off) set(s.local, KEY_SLIDESHOW_OFF, '1'); else remove(s.local, KEY_SLIDESHOW_OFF);
+}
 
 /** Someone upgrading has theme, layout or V2 keys already, so they count as returning. */
 export function priorUseDetected(s: Partial<LaunchStorages> = defaults()): boolean {

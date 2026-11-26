@@ -4,7 +4,9 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import type { LastProject, LaunchProfile, WelcomeState } from '../../../core/launchWelcome';
 import type { LaunchIntent } from '../../launchIntent';
-import { markLaunched, readProfile, setSkipChosen, skipChosen } from '../../../providers/launchMemory';
+import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, slideshowOff } from '../../../providers/launchMemory';
+import { slideshowWanted } from '../../../core/welcomeSlideshow';
+import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
 
@@ -108,6 +110,14 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   const panelBack = useRef<(() => void) | null>(null);
   const onKeyDown = useWelcomeKeys(rootRef, panelBack);
 
+  // Welcome back shows a few of their own flagged photos behind it, read from this device after the welcome has painted.
+  const reduced = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)[0];
+  const [off] = useState(slideshowOff);
+  const [remembered] = useState(() => (off ? null : readSlideshow()));
+  const wanted = slideshowWanted({ state: view, off, slides: remembered?.keys.length ?? 0 });
+  const slideshow = useWelcomeSlideshow(wanted ? remembered : null, reduced);
+  const photos = wanted && slideshow.slides.length > 0 ? remembered : null;
+
   useEffect(() => { setProNow((was) => was || isPro); }, [isPro]);
 
   // Focus starts on the primary action, and comes back to Sign in when the panel closes.
@@ -148,9 +158,11 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   const title = signingIn ? t.signInOrCreate : view === 'first' ? t.firstTitle : view === 'signedIn' && name ? t.welcomeBackName(name) : t.welcomeBack;
 
   return (
+    <>
+    {photos && <SlideshowBackdrop slides={slideshow.slides} current={slideshow.current} reduced={reduced} light={light} />}
     <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state={view}
-      data-v2-theme={light ? 'light' : 'dark'}
-      className="inflight-v2 flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
+      data-v2-theme={light ? 'light' : 'dark'} style={photos ? SLIDESHOW_TEXT[light ? 'light' : 'dark'] : undefined}
+      className="inflight-v2 relative flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
       <div className="flex w-full max-w-[20rem] flex-1 flex-col items-center">
         {view === 'signedIn' && !signingIn && who?.initial && (
           <span aria-hidden="true" className="mt-2 grid h-14 w-14 place-items-center rounded-full border border-[var(--border-default)] bg-[var(--brand-accent-soft)] text-[22px] font-semibold text-[var(--brand-accent)]">
@@ -175,6 +187,13 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
         )}
 
         <div className="min-h-6 flex-1" />
+
+        {photos && !signingIn && (
+          <div className="mb-3 flex w-full flex-col items-center gap-2">
+            <p className="max-w-full truncate text-center text-xs text-[var(--text-secondary)]" data-testid="welcome-slideshow-caption">{t.photosFrom(photos.projectName)}</p>
+            {!reduced && slideshow.done && slideshow.slides.length > 1 && <SlideshowDots count={slideshow.slides.length} current={slideshow.current} />}
+          </div>
+        )}
 
         {signingIn ? (
           <LaunchSignInPanel online={online} onClose={closePanel} onSignedIn={signedIn} backRef={panelBack} />
@@ -206,5 +225,6 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
         )}
       </div>
     </main>
+    </>
   );
 }

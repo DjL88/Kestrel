@@ -2021,5 +2021,7 @@ export const gd: AreaTranslation<typeof source> = {
     signInOrCreate: "Clàraich a-steach no cruthaich cunntas",
     resetSent: "Ma tha cunntas aig a’ phost-d sin, tha ceangal ath-shuidheachaidh air an t-slighe.",
     keepSessionFailed: "Cha b’ urrainn dhuinn an clàradh a-steach seo a chumail ris an t-seisean brabhsair seo. Feuch ris a-rithist.",
+    slideshowSetting: "Seall na dealbhan agam air an sgrìn fàilte",
+    photosFrom: (project) => `O ${project}`,
   },
 };

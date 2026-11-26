@@ -21,7 +21,7 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
-import { readProfile, setSkipChosen, skipChosen } from '../../../providers/launchMemory';
+import { readProfile, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
 import { ModelsSection } from '../panels/ModelsSection';
@@ -475,6 +475,17 @@ export default function SettingsDialog({
                   title={STRINGS.welcome.showOnLaunch}
                   checked={!skipChosen()}
                   onToggle={() => { setSkipChosen(!skipChosen()); refreshWelcomeSwitch((n) => n + 1); }}
+                />
+              </div>
+            )}
+
+            {/* Welcome back shows a few of their own flagged photos (previews already on this device); anyone can turn it off. */}
+            {activeTab === 'account' && (
+              <div className="mt-5">
+                <SettingSwitch
+                  title={STRINGS.welcome.slideshowSetting}
+                  checked={!slideshowOff()}
+                  onToggle={() => { setSlideshowOff(!slideshowOff()); refreshWelcomeSwitch((n) => n + 1); }}
                 />
               </div>
             )}

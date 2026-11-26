@@ -2023,5 +2023,7 @@ export const ga: AreaTranslation<typeof source> = {
     signInOrCreate: "Sínigh isteach nó cruthaigh cuntas",
     resetSent: "Má tá cuntas ag an ríomhphost sin, tá nasc athshocraithe ar a bhealach.",
     keepSessionFailed: "Níorbh fhéidir an síniú isteach seo a choinneáil don seisiún brabhsálaí seo amháin. Bain triail eile as.",
+    slideshowSetting: "Taispeáin mo ghrianghraif ar an scáileán fáilte",
+    photosFrom: (project) => `Ó ${project}`,
   },
 };

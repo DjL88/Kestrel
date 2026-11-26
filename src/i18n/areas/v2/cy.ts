@@ -2020,5 +2020,7 @@ export const cy: AreaTranslation<typeof source> = {
     signInOrCreate: "Mewngofnodi neu greu cyfrif",
     resetSent: "Os oes cyfrif gan y cyfeiriad e-bost hwnnw, mae dolen ailosod ar ei ffordd.",
     keepSessionFailed: "Methu cadw'r mewngofnodi hwn i'r sesiwn porwr hon yn unig. Rhowch gynnig arall arni.",
+    slideshowSetting: "Dangos fy lluniau ar y sgrin croeso",
+    photosFrom: (project) => `O ${project}`,
   },
 };

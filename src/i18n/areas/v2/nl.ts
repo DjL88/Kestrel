@@ -2020,5 +2020,7 @@ export const nl: AreaTranslation<typeof source> = {
     signInOrCreate: "Inloggen of een account maken",
     resetSent: "Als dat e-mailadres een account heeft, is er een herstellink onderweg.",
     keepSessionFailed: "Kon deze aanmelding niet tot deze browsersessie beperken. Probeer het opnieuw.",
+    slideshowSetting: "Mijn foto's tonen op het welkomstscherm",
+    photosFrom: (project) => `Uit ${project}`,
   },
 };

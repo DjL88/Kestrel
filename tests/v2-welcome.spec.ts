@@ -155,3 +155,147 @@ test('Settings does not offer the welcome switch to someone signed in', async ({
   await expect(settings.getByRole('tab', { name: 'Account', selected: true })).toBeVisible();
   await expect(settings.getByRole('switch', { name: 'Show the welcome screen on launch' })).toHaveCount(0);
 });
+
+/*
+ * The welcome-back slideshow. Its photos are previews already stored on this device: the test puts two small synthetic
+ * pictures into the offline preview cache (the same IndexedDB store the app fills on import) and remembers them the way
+ * the workspace does, then launches.
+ */
+const SLIDE_KEYS = ['["slide-a::1::2","slide-a.jpg",1,2,2]', '["slide-b::1::2","slide-b.jpg",1,2,2]'];
+const SLIDESHOW = { projectId: 'p-slides', projectName: 'Kestrels at dawn', developVersion: 1, keys: SLIDE_KEYS };
+
+async function storeSlides(page: Page, memory: Record<string, unknown>, onlyThese = false) {
+  await page.goto('/?v2&stub=1');
+  await page.evaluate(async ({ keys, memory, onlyThese }) => {
+    const picture = (colour: string) => new Promise<Blob>((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 40;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = colour; context.fillRect(0, 0, 64, 40);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no blob'))), 'image/jpeg', 0.8);
+    });
+    const blobs = [await picture('#d9a441'), await picture('#3f6f8f')];
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('kestrel-offline-previews-v1', 1);
+      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('previews')) request.result.createObjectStore('previews'); };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('previews', 'readwrite');
+      keys.forEach((key, i) => tx.objectStore('previews').put({ thumbnail: blobs[i], review: blobs[i] }, key));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    // A brand-new device: nothing but what the test remembers (the first load saved its display settings).
+    if (onlyThese) localStorage.clear();
+    for (const [key, value] of Object.entries(memory)) localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+  }, { keys: SLIDE_KEYS, memory, onlyThese });
+}
+
+test('welcome back shows their own flagged photos behind a scrim, with a caption naming the project, and moves on', async ({ page }) => {
+  test.setTimeout(60_000);
+  await storeSlides(page, { 'inflight.launch.profile': PROFILE, 'inflight.launch.slideshow': SLIDESHOW });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
+  const slideshow = splash.getByTestId('welcome-slideshow');
+  await expect(slideshow).toHaveAttribute('data-slides', '2', { timeout: 10_000 });
+  await expect(slideshow).toHaveAttribute('aria-hidden', 'true');
+  await expect(slideshow.locator('img')).toHaveCount(2);
+  for (const image of await slideshow.locator('img').all()) await expect(image).toHaveAttribute('alt', '');
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
+  // About 6 s a photo: the second one comes in.
+  await expect(slideshow).toHaveAttribute('data-current', '1', { timeout: 12_000 });
+});
+
+test('with reduced motion the slideshow is one still photo', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await storeSlides(page, { 'inflight.launch.launched': '1', 'inflight.launch.slideshow': SLIDESHOW });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  const slideshow = splash.getByTestId('welcome-slideshow');
+  await expect(slideshow).toHaveAttribute('data-slides', '1', { timeout: 10_000 });
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
+  // Still: no crossfade, and it stays on the same photo past the time a photo would change.
+  expect(await slideshow.evaluate((el) => getComputedStyle(el.querySelector('img')!).transitionDuration)).toBe('0s');
+  await page.waitForTimeout(7000);
+  await expect(slideshow).toHaveAttribute('data-current', '0');
+  await expect(slideshow.locator('img')).toHaveCount(1);
+});
+
+test('the first launch never shows a slideshow, even with photos remembered', async ({ page }) => {
+  await storeSlides(page, { 'inflight.launch.slideshow': SLIDESHOW }, true);
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: WELCOME })).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveCount(0);
+});
+
+test('with the slideshow turned off in Settings the welcome is plain', async ({ page }) => {
+  await storeSlides(page, { 'inflight.launch.launched': '1', 'inflight.launch.slideshow': SLIDESHOW, 'inflight.launch.slideshowOff': '1' });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(splash.getByRole('button', { name: 'Continue as guest' })).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveCount(0);
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveCount(0);
+});
+
+test('a returning guest with no flagged photos remembered sees the plain welcome', async ({ page }) => {
+  await seed(page, { local: { 'inflight.launch.launched': '1' } });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveCount(0);
+});
+
+test('Settings offers everyone the slideshow switch, and it is remembered on this device', async ({ page }) => {
+  await seed(page, { local: { 'inflight.launch.profile': PROFILE } });
+  await page.goto('/?v2&stub=1');
+  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await settings.getByRole('tab', { name: 'Account' }).click();
+  const choice = settings.getByRole('switch', { name: 'Show my photos on the welcome screen' });
+  await expect(choice).toHaveAttribute('aria-checked', 'true');
+  await choice.click();
+  await expect(choice).toHaveAttribute('aria-checked', 'false');
+  expect(await page.evaluate(() => localStorage.getItem('inflight.launch.slideshowOff'))).toBe('1');
+  await choice.click();
+  await expect(choice).toHaveAttribute('aria-checked', 'true');
+  expect(await page.evaluate(() => localStorage.getItem('inflight.launch.slideshowOff'))).toBeNull();
+});
+
+test('flagging a photo in a project remembers it for the slideshow, and the next welcome shows that photo from this device', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project', exact: true }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Kestrels at dawn');
+  await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'DSC_0007.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
+  const option = root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
+  await expect(option).toHaveCount(1, { timeout: 20_000 });
+  await option.click();
+  await page.keyboard.press('f');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.slideshow')), { timeout: 10_000 }).not.toBeNull();
+  const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.slideshow')))!);
+  expect(remembered.projectName).toBe('Kestrels at dawn');
+  expect(remembered.keys).toHaveLength(1);
+  // Only a reference is remembered, never the picture: a couple of hundred characters.
+  expect(JSON.stringify(remembered).length).toBeLessThan(1024);
+
+  await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
+  await page.goto('/?v2&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveAttribute('data-slides', '1', { timeout: 10_000 });
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
+});
