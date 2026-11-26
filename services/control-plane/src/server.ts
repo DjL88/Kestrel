@@ -48,6 +48,7 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
   paddle,
   licences: store,
+  commerce,
   events: {
     claim: async (eventId, atMs) => { try { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).create({ atMs }); return true; } catch { return false; } },
     release: async (eventId) => { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).delete(); },
@@ -80,7 +81,7 @@ const app = createApp({ config, store, commerce, payments: commerce, settlePaddl
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
-  } : undefined, proCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
+  } : undefined, proCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

@@ -187,7 +187,7 @@ export default function AdjustPanel({
           <h3 id="looks-heading" className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.adjust.looksHeading}
           </h3>
-          <span className="text-[0.625rem] text-[var(--text-muted)]">{builtInLooks.length} styles</span>
+          <span className="text-[0.625rem] text-[var(--text-muted)]">{builtInLooks.filter((look) => look.id !== 'none').length} styles</span>
         </div>
         <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
 
@@ -484,7 +484,7 @@ export default function AdjustPanel({
           <div className="mt-3 space-y-3">
             <ColourGradeControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
             <div className="border-t border-[var(--border-subtle)] pt-3">
-              <CalibrationControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+              <CalibrationControl recipe={recipe} calmView={hideReadouts} pictureUrl={photo.previewUrl} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
             </div>
           </div>
         </details>

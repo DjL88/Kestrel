@@ -45,3 +45,36 @@ test('?v2 File menu saves ratings as an XMP sidecar and reads one back onto the 
   await expect(root.getByText(/None of those sidecars matches a photo here/)).toBeVisible({ timeout: 15000 });
   await expect(root.getByTestId('decision-filter-flagged')).toHaveText(/Flagged \(1\)/);
 });
+
+test('?v2 a Lightroom sidecar\'s basic sliders come in, and saving writes InFlight\'s edit back for Lightroom', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Lightroom sidecar');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'DSC_0042.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 30000 });
+  const lightroom = `<?xml version="1.0" encoding="UTF-8"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+ xmp:Rating="3" crs:ProcessVersion="15.4" crs:Exposure2012="+1.00" crs:Contrast2012="+25" crs:WhiteBalance="As Shot"/>
+</rdf:RDF></x:xmpmeta>`;
+  await root.getByTestId('xmp-input').setInputFiles([{ name: 'DSC_0042.xmp', mimeType: 'application/rdf+xml', buffer: Buffer.from(lightroom) }]);
+  await expect(root.getByText(/Used Lightroom’s basic sliders for 1 photo/)).toBeVisible({ timeout: 15000 });
+  const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  await advanced.click();
+  await expect(root.getByLabel('Contrast', { exact: true })).toHaveValue('25');
+  await expect(root.getByLabel('Exposure', { exact: true })).toHaveValue('1');
+
+  // Saved again, the sidecar carries the edit as Camera Raw settings Lightroom reads.
+  await root.getByRole('button', { name: 'File', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await root.getByRole('menuitem', { name: 'Save ratings to XMP…' }).click();
+  const text = readFileSync(await (await download).path()).toString();
+  expect(text).toContain('crs:Contrast2012="+25"');
+  expect(text).toContain('crs:Exposure2012="+1.00"');
+  await expect(root.getByText(/Edited photos also carry their basic sliders/)).toBeVisible();
+});

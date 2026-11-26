@@ -10,6 +10,10 @@ export interface TiffExportMetadata {
   caption?: string;
   creator?: string;
   copyright?: string;
+  /** IPTC Credit Line, City and Country (photoshop: namespace), for press captions. */
+  credit?: string;
+  city?: string;
+  country?: string;
   keywords?: readonly string[];
 }
 
@@ -49,6 +53,8 @@ function encodeXmp(metadata: TiffExportMetadata, decision?: { stars: number; pic
   const caption = field(metadata.caption);
   const creator = field(metadata.creator);
   const rights = field(metadata.copyright);
+  const press = ([['Credit', metadata.credit], ['City', metadata.city], ['Country', metadata.country]] as const)
+    .map(([name, value]) => [name, field(value)] as const).filter(([, value]) => value);
   const keywords = Array.isArray(metadata.keywords)
     ? [...new Set(metadata.keywords.slice(0, MAX_KEYWORDS).map(field).filter(Boolean))]
     : [];
@@ -58,15 +64,17 @@ function encodeXmp(metadata: TiffExportMetadata, decision?: { stars: number; pic
     creator ? bag('creator', [creator]) : '',
     rights ? alt('rights', rights) : '',
     keywords.length ? bag('subject', keywords) : '',
+    ...press.map(([name, value]) => `<photoshop:${name}>${value}</photoshop:${name}>`),
   ].filter(Boolean).join('');
   if (!fields && !decision) return null;
   const ratings = decision
     ? ` xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/" xmp:Rating="${decision.stars}" xmpDM:pick="${decision.pick}"`
     : '';
+  const photoshop = press.length ? ' xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"' : '';
   const packet = `<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
     `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
     `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
-    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"${ratings}>` +
+    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"${photoshop}${ratings}>` +
     fields + `</rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`;
   const bytes = new TextEncoder().encode(packet);
   if (bytes.length > MAX_PACKET_BYTES) throw new Error('The XMP metadata is too large to export.');

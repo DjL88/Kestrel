@@ -2,15 +2,16 @@ import { useConnectivity } from '../providers/useConnectivity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { deviceFamily, suggestedSignIn, type SignInOption } from '../core/signInOptions';
-import { consumeLinkedMethod, currentSignInOptions, firebaseAuth, isSignInConfigured, resendAccountVerification } from '../providers/firebaseAuth';
+import { currentSignInOptions, firebaseAuth, isSignInConfigured, resendAccountVerification } from '../providers/firebaseAuth';
 import { LinkingError } from '../core/accountLinking';
+import { continueWithEmail, createWithEmail, linkLicenceOutcome, signInWithProvider, signOutEverywhere, type LicenceLink } from '../providers/accountSignIn';
 import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
 import { AccountMergePanel } from './AccountMergePanel';
 import { AccountDataPanel } from './AccountDataPanel';
 import { accountDataClient } from '../providers/accountDataClient';
 import { downloadExport } from '../providers/browserExport';
 import { useAccess } from '../providers/useAccess';
-import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, deviceLicenceKey, deviceReleaseRefusal, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { accountLicenceDevices, consumeExpiredAccountNotice, deviceLicenceKey, deviceReleaseRefusal, freeAccountLicenceDevice, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
@@ -28,6 +29,24 @@ import { licencePlan } from '../core/licencePlan';
 const field = 'block min-h-11 w-full rounded-md border border-[var(--account-border,#ffffff26)] bg-[var(--account-field,#0000004d)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)]';
 const action = 'min-h-11 rounded-md border border-[var(--account-border,#ffffff26)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)] hover:bg-white/8 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-sky-300';
 const storageSize = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'gigabyte', unitDisplay: 'short', maximumFractionDigits: 2 });
+
+/** The words for what signing in found: a way in added, a device key moved onto the account, then Pro for this device. */
+function licenceNote({ outcome, linked, attached }: LicenceLink): string {
+  if (outcome === 'no_token') return 'Could not check Pro online. You can keep using InFlight.';
+  const before = [
+    linked ? t.accountLinks.added(methodName(linked)) : '',
+    attached === 'attached' ? t.accountLinks.keyAttached : attached === 'other' ? t.accountLinks.keyOther : '',
+  ].filter(Boolean).join(' ');
+  const text: Record<typeof outcome, string> = {
+    pro: 'InFlight Pro is active on this device through your account.',
+    free: 'Signed in. This account has no Pro licence yet, and signing in does not change what InFlight can do.',
+    limit: 'This account\'s Pro licence is already on its maximum number of devices. Use Show account devices to free another device, then check Pro again.',
+    revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
+    unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. InFlight keeps working.',
+    not_set_up: 'This build is missing its online licence settings.',
+  };
+  return [before, text[outcome]].filter(Boolean).join(' ');
+}
 
 export function AccountAndLicenceSettings() {
   const licence = useLicence();
@@ -67,26 +86,7 @@ export function AccountAndLicenceSettings() {
   /** Signing in only creates a record. This asks whether the account has a purchase or gift, and says so plainly either way. */
   async function linkLicence() {
     if (offline) return;
-    const token = await firebaseAuth.idToken(true).catch(() => null);
-    if (!token) { setAccountNote('Could not check Pro online. You can keep using InFlight.'); return; }
-    // A Pro key used on this device before signing up goes onto the account, with its devices. Never silently from
-    // another account: then it is left where it is and the person is told.
-    const linked = consumeLinkedMethod();
-    const attached = await attachDeviceKeyToAccount(token);
-    const before = [
-      linked ? t.accountLinks.added(methodName(linked)) : '',
-      attached === 'attached' ? t.accountLinks.keyAttached : attached === 'other' ? t.accountLinks.keyOther : '',
-    ].filter(Boolean).join(' ');
-    const result = await activateFromAccount(token);
-    const text: Record<typeof result, string | null> = {
-      pro: 'InFlight Pro is active on this device through your account.',
-      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what InFlight can do.',
-      limit: 'This account\'s Pro licence is already on its maximum number of devices. Use Show account devices to free another device, then check Pro again.',
-      revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
-      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. InFlight keeps working.',
-      not_set_up: 'This build is missing its online licence settings.',
-    };
-    setAccountNote([before, text[result]].filter(Boolean).join(' '));
+    setAccountNote(licenceNote(await linkLicenceOutcome()));
   }
 
   useEffect(() => {
@@ -187,18 +187,16 @@ export function AccountAndLicenceSettings() {
   );
 
   function chooseSignIn(provider: SignInProvider) {
-    if (offline) return;
+    if (offline || provider === 'password') return; // the buttons are Google, Apple and Microsoft; email has its own form
     return runAccountAction(async () => {
-      const session = await firebaseAuth.signIn(provider);
-      setAccount(session);
-      // Firebase does not vouch for a Microsoft email (a work account's address is set by its organisation), so it is
-      // proved with a link before it can open the account's licence or match an account that signs in another way.
-      if (session.emailVerified === false) {
-        await resendAccountVerification().catch(() => undefined);
-        setAccountNote('Check your email for a link to confirm this address, then choose Check Pro online. That keeps one account for one email, however you sign in.');
-        return;
-      }
-      await linkLicence();
+      // Settings always remembers the sign-in (keep = true). Firebase does not vouch for a Microsoft email (a work
+      // account's address is set by its organisation), so the shared sign-in sends a link to prove it before it can open
+      // the account's licence or match an account that signs in another way.
+      const result = await signInWithProvider(provider, true, undefined, setAccount);
+      setAccountNote(result.kind === 'linking' ? linkingProblemText(result.problem)
+        : result.kind === 'error' ? result.message
+        : result.kind === 'verify-email' ? 'Check your email for a link to confirm this address, then choose Check Pro online. That keeps one account for one email, however you sign in.'
+        : licenceNote(result.licence));
     });
   }
 
@@ -210,10 +208,13 @@ export function AccountAndLicenceSettings() {
         setAccountNote('If that email has an account, a reset link is on its way.');
         return;
       }
-      setAccount(await (kind === 'in' ? firebaseAuth.signInWithEmail(email, password) : firebaseAuth.createAccount(email, password)));
-      setPassword('');
-      if (kind === 'create') setAccountNote('Check your email to verify the address, then check Pro. If nothing arrives, use Resend verification email.');
-      else await linkLicence();
+      const onSignedIn = (session: Session) => { setAccount(session); setPassword(''); };
+      const result = kind === 'in' ? await continueWithEmail(email, password, true, undefined, onSignedIn) : await createWithEmail(email, password, true);
+      if (result.kind === 'created') {
+        onSignedIn(result.session);
+        setAccountNote('Check your email to verify the address, then check Pro. If nothing arrives, use Resend verification email.');
+      } else if (result.kind === 'signed-in') setAccountNote(licenceNote(result.licence));
+      else setAccountNote(result.kind === 'linking' ? linkingProblemText(result.problem) : result.message);
     });
   }
 
@@ -252,13 +253,12 @@ export function AccountAndLicenceSettings() {
 
   function chooseSignOut() {
     return runAccountAction(async () => {
-      await firebaseAuth.signOut();
+      await signOutEverywhere(); // Firebase, then the account's Pro on this device, then the launch profile
       ++aiRequest.current;
       setAiStatus(null);
       setCloudUsage(null);
       setAiBusy(false);
       setAiNote(null);
-      leaveAccount();
       setAccount(null);
       setAccountDevices(null);
       setAccountNote('Signed out of InFlight.');

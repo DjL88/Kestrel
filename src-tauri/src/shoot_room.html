@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>InFlight live shoot</title>
+<style>
+  :root { --bg: #131416; --panel: #1d1f22; --text: #ececec; --muted: #a9adb3; --line: #34373c; --accent: #e8b04a; color-scheme: dark; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f6f4; --panel: #ffffff; --text: #1b1c1e; --muted: #575b61; --line: #d6d7d9; --accent: #8a5a00; color-scheme: light; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: baseline; padding: .75rem 1rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.05rem; margin: 0; }
+  .muted { color: var(--muted); font-size: .875rem; }
+  main { padding: 1rem; display: grid; gap: 1rem; }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .75rem; display: grid; gap: .5rem; }
+  .stage img { width: 100%; max-height: 70vh; object-fit: contain; background: #000; border-radius: 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  button { font: inherit; min-height: 44px; min-width: 44px; padding: 0 .8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); font-weight: 600; }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; list-style: none; padding: 0; margin: 0; }
+  .grid button { width: 100%; padding: 0; display: grid; text-align: left; background: var(--panel); overflow: hidden; }
+  .grid img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #000; }
+  .grid span { padding: .25rem .4rem; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grid button[aria-current="true"] { outline: 3px solid var(--accent); }
+  label { display: inline-flex; gap: .4rem; align-items: center; min-height: 44px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Live shoot</h1>
+  <span id="status" class="muted" role="status">Connecting…</span>
+  <label class="muted"><input type="checkbox" id="follow" checked> Show each new photo</label>
+</header>
+<main>
+  <section class="stage" id="stage" hidden aria-label="Chosen photo">
+    <img id="big" alt="">
+    <div class="row"><strong id="name"></strong><span id="note" class="muted"></span></div>
+    <div class="row" role="group" aria-label="Stars" id="stars"></div>
+    <div class="row" role="group" aria-label="Pick">
+      <button type="button" data-decision="keep">Pick</button>
+      <button type="button" data-decision="reject">Set aside</button>
+      <button type="button" data-decision="unreviewed">Not decided</button>
+    </div>
+    <p class="muted" id="saved" role="status"></p>
+  </section>
+  <p class="muted" id="empty">Photos appear here as the photographer takes them.</p>
+  <ul class="grid" id="grid" aria-label="Photos in this shoot"></ul>
+  <p class="muted">Shown from the photographer's computer on this network. These are screen-sized previews of each frame as shot, not the photographs themselves. Your stars and picks go to the photographer; if they changed the same photo meanwhile, theirs stays.</p>
+</main>
+<script>
+(() => {
+  const key = new URLSearchParams(location.search).get('k') || '';
+  const q = (path) => `${path}${path.includes('?') ? '&' : '?'}k=${encodeURIComponent(key)}`;
+  const $ = (id) => document.getElementById(id);
+  let frames = [], chosen = null, version = -1, failures = 0;
+  const words = (f) => `${f.rating ? '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating) + ' ' : ''}${f.decision === 'keep' ? 'Picked' : f.decision === 'reject' ? 'Set aside' : ''}`.trim();
+  for (let n = 1; n <= 5; n++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.rating = String(n); b.textContent = '★'.repeat(n);
+    b.setAttribute('aria-label', `${n} star${n > 1 ? 's' : ''}`);
+    $('stars').appendChild(b);
+  }
+  function show() {
+    const f = frames.find((x) => x.id === chosen);
+    $('stage').hidden = !f; $('empty').hidden = frames.length > 0;
+    if (!f) return;
+    const src = q(`/img?id=${encodeURIComponent(f.id)}&v=${f.v}`);
+    if ($('big').getAttribute('src') !== src) { $('big').src = src; $('big').alt = f.name; }
+    $('name').textContent = f.name;
+    $('note').textContent = f.camera ? 'Camera preview' : '';
+    document.querySelectorAll('#stars button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.rating) === f.rating)));
+    document.querySelectorAll('[data-decision]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.decision === f.decision)));
+  }
+  function render() {
+    const grid = $('grid');
+    const items = [...frames].reverse();
+    grid.replaceChildren(...items.map((f) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-current', String(f.id === chosen));
+      const img = document.createElement('img'); img.loading = 'lazy'; img.alt = ''; img.src = q(`/img?id=${encodeURIComponent(f.id)}&v=${f.v}`);
+      const label = document.createElement('span'); label.textContent = `${f.name}${words(f) ? ' · ' + words(f) : ''}`;
+      b.append(img, label);
+      b.addEventListener('click', () => { chosen = f.id; $('follow').checked = false; render(); show(); $('stage').scrollIntoView({ block: 'nearest' }); });
+      li.appendChild(b); return li;
+    }));
+    show();
+  }
+  async function look() {
+    try {
+      const res = await fetch(q('/frames'), { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const room = await res.json();
+      failures = 0;
+      $('title').textContent = room.title ? `Live shoot · ${room.title}` : 'Live shoot';
+      $('status').textContent = `Live · ${room.frames.length} photo${room.frames.length === 1 ? '' : 's'}`;
+      if (room.version !== version) {
+        const newest = room.frames.at(-1);
+        frames = room.frames; version = room.version;
+        if (newest && ($('follow').checked || !frames.some((x) => x.id === chosen))) chosen = newest.id;
+        render();
+      }
+    } catch {
+      failures++;
+      $('status').textContent = failures > 2 ? 'Can’t reach the photographer’s computer. Still trying…' : 'Connecting…';
+    }
+    setTimeout(look, 2000);
+  }
+  async function mark(change) {
+    const f = frames.find((x) => x.id === chosen);
+    if (!f) return;
+    const base = { rating: f.rating, decision: f.decision };
+    const marks = { ...base, ...change };
+    Object.assign(f, marks); render();
+    try {
+      const res = await fetch(q('/mark'), { method: 'POST', body: JSON.stringify({ id: f.id, base, marks }) });
+      $('saved').textContent = res.ok ? 'Sent to the photographer.' : 'Not sent. Try again.';
+    } catch { $('saved').textContent = 'Not sent. Try again.'; }
+  }
+  $('stars').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { const f = frames.find((x) => x.id === chosen); const n = Number(b.dataset.rating); mark({ rating: f && f.rating === n ? 0 : n }); } });
+  document.querySelectorAll('[data-decision]').forEach((b) => b.addEventListener('click', () => mark({ decision: b.dataset.decision })));
+  look();
+})();
+</script>
+</body>
+</html>

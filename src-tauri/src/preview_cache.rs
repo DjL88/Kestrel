@@ -35,7 +35,8 @@ impl Level {
 }
 
 /// Photo types this cache may read. Anything else is refused before a byte is read.
-const RAW_EXTENSIONS: &[&str] = &["nef", "nrw", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "3fr"];
+/// Keep in step with DEVELOP_RAW_EXTENSIONS in src/core/rawFormats.ts (a unit test there compares them).
+const RAW_EXTENSIONS: &[&str] = &["nef", "nrw", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "3fr", "fff", "iiq", "rwl", "mos"];
 const PICTURE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "tif", "tiff"];
 /// A camera file bigger than this is not a photo this app reads.
 const MAX_SOURCE_BYTES: u64 = 1024 * 1024 * 1024;

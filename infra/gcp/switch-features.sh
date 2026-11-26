@@ -13,7 +13,7 @@ set -euo pipefail
 umask 077
 fail(){ echo "STOP: $*" >&2; exit 1; }
 mode=${1:-}; repo=${2:-}; live=${3:-}; export TF_DATA_DIR=${4:-}
-allowed='["collaboration_enabled","presence_database_url","gallery_enabled","cloud_photos_enabled","push_enabled","smtp_mail_enabled","smtp_username","mail_from","firebase_project_id","phase5_paddle_enabled","phase5_paddle_environment","phase5_paddle_pro_price_id","paddle_key_rotation_enabled","download_credits_per_month","cloud_project_max_gb","licence_issuing_enabled","account_deletion_enabled","cloud_recipe_enabled","monthly_spend_ceiling_pence","phase5_paddle_promo_discount_id"]'
+allowed='["collaboration_enabled","presence_database_url","gallery_enabled","cloud_photos_enabled","push_enabled","smtp_mail_enabled","smtp_username","mail_from","firebase_project_id","phase5_paddle_enabled","phase5_paddle_environment","phase5_paddle_pro_price_id","paddle_key_rotation_enabled","download_credits_per_month","cloud_project_max_gb","licence_issuing_enabled","account_deletion_enabled","cloud_recipe_enabled","monthly_spend_ceiling_pence","phase5_paddle_promo_discount_id","safesearch_enabled","photodna_key_secret_id","ncmec_username","ncmec_password_secret_id","ncmec_reporter_email","ncmec_company","ncmec_environment","compliance_documents_enabled"]'
 for c in git terraform jq tar sha256sum; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
 [[ -f "$live/current.tfvars.json" && -f "$live/backend_override.tf" && -f "$live/.terraform.lock.hcl" ]] || fail "Missing private applied configuration"

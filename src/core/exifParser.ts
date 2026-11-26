@@ -3,6 +3,7 @@ import type { CaptureStamp, ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
 import { rawSensorSize } from './rawSensorSize';
+import { readCameraFocus } from './cameraFocus';
 import { c2paActionsIn, MAX_SIDECAR_STATUS_BYTES, readEditStatus, withSidecar, type EditStatus } from './editStatus';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
@@ -91,6 +92,11 @@ export function readCaptureStamp(original: unknown, digitized: unknown, offsetOr
   if (taken) { stamp.original = taken; const zone = offset(offsetOriginal); if (zone) stamp.offsetOriginal = zone; }
   if (made) { stamp.digitized = made; const zone = offset(offsetDigitized); if (zone) stamp.offsetDigitized = zone; }
   return stamp.original || stamp.digitized ? stamp : undefined;
+}
+
+/** EXIF ExposureMode 2, which exifr gives as "Auto bracket" (or the raw number when values are not translated). */
+export function isAutoBracket(value: unknown): boolean {
+  return value === 2 || (typeof value === 'string' && /bracket/i.test(value));
 }
 
 /** The GPS position, when the file has a valid one. exifr gives decimal `latitude` and `longitude` in its GPS block. */
@@ -326,6 +332,7 @@ export async function parseImageExif(
     return {
       ...rating,
       editStatus,
+      cameraFocus: readCameraFocus(segments?.makerNote, parsed.Make),
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:
@@ -340,6 +347,8 @@ export async function parseImageExif(
       ...(captureStamp ? { captureStamp } : {}),
       ...(gps ? { gps } : {}),
       ...(validExifPositiveNumber(parsed.ExposureTime) ? { exposureSeconds: validExifPositiveNumber(parsed.ExposureTime) } : {}),
+      ...(typeof parsed.ExposureBiasValue === 'number' && Number.isFinite(parsed.ExposureBiasValue) && Math.abs(parsed.ExposureBiasValue) <= 15 ? { exposureBiasEv: parsed.ExposureBiasValue } : {}),
+      ...(isAutoBracket(parsed.ExposureMode) ? { autoBracket: true } : {}),
       width,
       height,
       formatLabel: formatLabel ?? (lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG'),
