@@ -41,6 +41,8 @@ export const FEATURES = {
   focusStack: 'flagged',
   // Panorama stitching: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   panorama: 'flagged',
+  // HDR merge of a bracketed burst: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  hdrMerge: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

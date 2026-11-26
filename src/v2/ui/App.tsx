@@ -1057,6 +1057,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 onStitchPanorama={store.features.panorama && !store.collage ? actions.stitchPanorama : undefined}
                 onFocusStack={store.features.focusStack && !store.collage ? actions.focusStackPhotos : undefined}
+                onHdrMerge={store.features.hdrMerge && !store.collage ? actions.hdrMergePhotos : undefined}
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}

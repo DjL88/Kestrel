@@ -624,6 +624,7 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   splitFrames: 'basic',
   focusStack: 'basic',
   panorama: 'basic',
+  hdrMerge: 'basic',
 };
 
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
@@ -638,6 +639,7 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   splitFrames: true,
   focusStack: false,
   panorama: false,
+  hdrMerge: false,
 };
 
 function logAction(name: string, payload?: unknown) {

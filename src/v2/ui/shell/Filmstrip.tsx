@@ -1,6 +1,7 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
+import { hdrText } from '../../../i18n/areas/hdr';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
@@ -63,6 +64,8 @@ interface FilmstripProps {
   onFocusStack?: (photoIds: string[]) => void;
   /** Stitch the selected photos into a new panorama (a preview feature: absent while its flag is off). */
   onStitchPanorama?: (photoIds: string[]) => void;
+  /** Merge the selected bracket into a new HDR photo (a preview feature: absent while its flag is off). */
+  onHdrMerge?: (photoIds: string[]) => void;
   /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
   collageMode?: boolean;
   /** Composing a collage: open the picker that references photographs from another project. */
@@ -113,6 +116,7 @@ export default function Filmstrip({
   onCreateCollage,
   onFocusStack,
   onStitchPanorama,
+  onHdrMerge,
   collageMode = false,
   onChooseFromProject,
 }: FilmstripProps) {
@@ -657,6 +661,11 @@ export default function Filmstrip({
             onClick={() => { onStitchPanorama(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
+          </button>}
+          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={hdrText.menuHint} data-testid="v2-hdr-merge-menu"
+            onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            {hdrText.menu(menuTargetIds.length)}
           </button>}
           <button type="button" role="menuitem"
             onClick={() => {
