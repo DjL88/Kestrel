@@ -758,6 +758,7 @@ export const source = {
 
   // Adjust Panel
   guardian: {
+    autopilotSkippedEdited: "Auto-pilot left this photo alone because the file says it was already edited elsewhere. Press Auto for a suggestion. Nothing was changed.",
     autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
     secondOpinion: "Second opinion:",
     suggestionDoubted: "the vision check on this device was not convinced this looks natural. Compare before and after; applying it is your choice.",
@@ -1305,6 +1306,18 @@ export const source = {
 
   // Info Panel
   info: {
+    editStatusRow: "Earlier edits",
+    editStatusEdited: "Edited elsewhere",
+    editStatusCamera: "Straight from the camera",
+    editStatusUnknown: "Unknown",
+    evidenceDevelop: "The file carries Lightroom or Camera Raw settings.",
+    evidenceHistory: "The file records an edit history.",
+    evidenceApp: (app: string) => `Saved by ${app}.`,
+    evidenceCredentials: "Its Content Credentials list edits.",
+    evidenceRaw: "A RAW file with no edit recorded inside it.",
+    evidenceMakerNotes: "The camera’s maker notes are intact and no editing app is named.",
+    evidenceUnrecognised: (app: string) => `Saved by ${app}, which InFlight does not recognise.`,
+    evidenceNone: "The file does not say.",
     rawColourSource: "Camera's own colour matrix from the RAW file, InFlight standard look (not the maker's picture style)",
     heading: 'Photo Info',
     fileSection: 'File & Connection',

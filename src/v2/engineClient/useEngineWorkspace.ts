@@ -93,7 +93,7 @@ import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOve
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
-import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
+import { autopilotHeldForReview, autopilotSkippedEdited, autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
 import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian, askOnDeviceGuardianAbout, onDeviceGuardianReady } from '../../providers/visionGuardian';
@@ -1544,6 +1544,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
   const assistProjectId = state?.shoot.id;
   const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
+  // Photos Auto-pilot already told the person it left alone (edited elsewhere), so the notice is said once each.
+  const editedElsewhereNoticed = useRef(new Set<string>());
   useEffect(() => {
     if (screen !== 'editor' || !assistProjectId || !activeFrame || activeFrame.removedAt != null) return;
     const frame = activeFrame;
@@ -1595,7 +1597,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
             return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          const autopilot = !manual && assistMode === 'autopilot' && run.improved;
+          const skipEdited = !manual && assistMode === 'autopilot' && run.improved && autopilotSkipsEditedElsewhere(frame);
+          if (skipEdited && !editedElsewhereNoticed.current.has(frame.id)) {
+            editedElsewhereNoticed.current.add(frame.id);
+            ctx.commitIfCurrent(() => setNotice(autopilotSkippedEdited()));
+          }
+          const autopilot = !manual && assistMode === 'autopilot' && run.improved && !skipEdited;
           let piloted = false;
           const pilot = (held: boolean) => {
             piloted = true;
