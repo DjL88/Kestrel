@@ -848,7 +848,7 @@ export const sv: AreaTranslation<typeof source> = {
       vignetting: "Objektivvinjettering",
       vignettingHelp: "Ljusar upp hörnen som objektivet lämnat mörkare än mitten, så att ljuset blir jämnt över hela bilden. För medvetet mörkare eller ljusare kanter, använd Vinjett i stället.",
       useProfile: "Använd objektivprofil",
-      useProfileHelp: "Hittar objektivet som tog fotot i en fri objektivdatabas, uppmätt av gemenskapen, och korrigerar dess uppmätta distorsion och mörkare hörn för den brännvidd och bländare som användes. Reglagen nedan verkar sedan ovanpå.",
+      useProfileHelp: "Hittar objektivet som tog fotot i en objektivdatabas och korrigerar dess uppmätta distorsion och mörkare hörn för den brännvidd och bländare som användes. Reglagen nedan verkar sedan ovanpå.",
       finding: "Söker objektivet…",
       downloadAsk: "Objektivprofilerna är en gratis nedladdning på cirka 5 MB. InFlight sparar dem på den här enheten, så de fungerar offline. Bara profilerna hämtas: inget foto eller fotouppgift lämnar din enhet.",
       download: "Hämta objektivprofiler",

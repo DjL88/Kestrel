@@ -848,7 +848,7 @@ export const it: AreaTranslation<typeof source> = {
       vignetting: "Vignettatura dell’obiettivo",
       vignettingHelp: "Schiarisce gli angoli che l’obiettivo ha lasciato più scuri del centro, così la luce è uniforme in tutta l’immagine. Per bordi più scuri o chiari di proposito, usa invece Vignettatura.",
       useProfile: "Usa il profilo dell’obiettivo",
-      useProfileHelp: "Trova l’obiettivo di questa foto in un database di obiettivi libero, misurato dalla comunità, e corregge la distorsione misurata e gli angoli più scuri per la focale e il diaframma usati. I cursori qui sotto si aggiungono poi.",
+      useProfileHelp: "Trova l’obiettivo di questa foto in un database di obiettivi e corregge la distorsione misurata e gli angoli più scuri per la focale e il diaframma usati. I cursori qui sotto si aggiungono poi.",
       finding: "Ricerca dell’obiettivo…",
       downloadAsk: "I profili degli obiettivi sono un download gratuito di circa 5 MB. InFlight li tiene su questo dispositivo, così funzionano offline. Vengono scaricati solo i profili: nessuna foto né dato della foto lascia il dispositivo.",
       download: "Scarica i profili degli obiettivi",

@@ -851,7 +851,7 @@ export const ga: AreaTranslation<typeof source> = {
       vignetting: "Vignetáil an lionsa",
       vignettingHelp: "Gealaíonn sé na cúinní a d'fhág an lionsa níos dorcha ná an lár, ionas go mbíonn an solas cothrom ar fud an fhráma. Le haghaidh imill níos dorcha nó níos gile d'aon ghnó, úsáid Vinnéit ina ionad.",
       useProfile: "Úsáid próifíl lionsa",
-      useProfileHelp: "Aimsíonn sé an lionsa a thóg an grianghraf i mbunachar sonraí lionsa saor in aisce a thomhais an pobal agus ceartaíonn sé an díchumadh tomhaiste agus na coirnéil níos dorcha don fhad fócasach agus don chró a úsáideadh. Oibríonn na sleamhnáin thíos ina dhiaidh sin.",
+      useProfileHelp: "Aimsíonn sé an lionsa a thóg an grianghraf i mbunachar sonraí lionsa agus ceartaíonn sé an díchumadh tomhaiste agus na coirnéil níos dorcha don fhad fócasach agus don chró a úsáideadh. Oibríonn na sleamhnáin thíos ina dhiaidh sin.",
       finding: "Ag aimsiú an lionsa…",
       downloadAsk: "Is íoslódáil saor in aisce thart ar 5 MB iad próifílí lionsa. Coinníonn InFlight iad ar an ngléas seo, mar sin oibríonn siad as líne. Ní fhaightear ach na próifílí: ní fhágann grianghraf ná sonraí grianghraif do ghléas.",
       download: "Íoslódáil próifílí lionsa",

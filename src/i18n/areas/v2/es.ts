@@ -848,7 +848,7 @@ export const es: AreaTranslation<typeof source> = {
       vignetting: "Viñeteo del objetivo",
       vignettingHelp: "Aclara las esquinas que el objetivo dejó más oscuras que el centro, para que la luz sea uniforme en todo el encuadre. Para bordes más oscuros o claros a propósito, usa Viñeta en Efectos.",
       useProfile: "Usar perfil de objetivo",
-      useProfileHelp: "Busca el objetivo de esta foto en una base de datos de objetivos libre, medida por la comunidad, y corrige su distorsión medida y las esquinas más oscuras para la focal y la apertura usadas. Los controles de abajo se suman después.",
+      useProfileHelp: "Busca el objetivo de esta foto en una base de datos de objetivos y corrige su distorsión medida y las esquinas más oscuras para la focal y la apertura usadas. Los controles de abajo se suman después.",
       finding: "Buscando el objetivo…",
       downloadAsk: "Los perfiles de objetivo son una descarga gratuita de unos 5 MB. InFlight los guarda en este dispositivo, así que funcionan sin conexión. Solo se descargan los perfiles: ninguna foto ni dato de foto sale de tu dispositivo.",
       download: "Descargar perfiles de objetivo",

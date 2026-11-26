@@ -50,7 +50,7 @@ test('first launch: quick setup walks language, about you, Pro, cloud, Flight mo
   await expect(settings.getByTestId('flight-mode-solo').getByRole('radio')).toBeChecked();
   // The licence credit for the lens profiles lives in Settings → Privacy → Credits.
   await settings.getByRole('tab', { name: 'Privacy' }).click();
-  await expect(settings.getByTestId('v2-credits')).toContainText('Attribution-ShareAlike 3.0');
+  await expect(settings.getByTestId('v2-credits')).toContainText('CC BY-SA 3.0');
   await settings.getByRole('tab', { name: 'Account' }).click();
   await settings.getByRole('button', { name: 'Run quick setup again' }).click();
   const again = page.getByTestId('quick-setup-dialog');

@@ -934,7 +934,7 @@ export const source = {
       notNow: 'Not now',
       using: 'Using the profile for {lens}.',
       removeProfile: 'Remove profile',
-      credit: 'Lens correction profiles: the lensfun project (lensfun.github.io), shared under the Creative Commons Attribution-ShareAlike 3.0 licence.',
+      credit: 'Lens correction profiles: the lensfun project (lensfun.github.io), shared under the CC BY-SA 3.0 licence.',
       creditsHeading: "Credits",
       setupTitle: "Lens profiles",
       setupWhy: "Straightens lens distortion and brightens darker corners for thousands of lenses, in Develop.",

@@ -848,7 +848,7 @@ export const de: AreaTranslation<typeof source> = {
       vignetting: "Objektiv-Vignettierung",
       vignettingHelp: "Hellt die Ecken auf, die das Objektiv dunkler als die Mitte gelassen hat, damit das Licht über das ganze Bild gleichmäßig ist. Für bewusst dunklere oder hellere Ränder nutzen Sie stattdessen Vignette.",
       useProfile: "Objektivprofil verwenden",
-      useProfileHelp: "Sucht das Objektiv, mit dem dieses Foto aufgenommen wurde, in einer freien, von der Community vermessenen Objektivdatenbank und korrigiert seine gemessene Verzeichnung und die dunkleren Ecken für die verwendete Brennweite und Blende. Die Regler darunter wirken zusätzlich.",
+      useProfileHelp: "Sucht das Objektiv, mit dem dieses Foto aufgenommen wurde, in einer Objektivdatenbank und korrigiert seine gemessene Verzeichnung und die dunkleren Ecken für die verwendete Brennweite und Blende. Die Regler darunter wirken zusätzlich.",
       finding: "Objektiv wird gesucht…",
       downloadAsk: "Objektivprofile sind ein kostenloser Download von etwa 5 MB. InFlight behält sie auf diesem Gerät, damit sie offline funktionieren. Nur die Profile werden abgerufen: Kein Foto und keine Fotodaten verlassen Ihr Gerät.",
       download: "Objektivprofile herunterladen",

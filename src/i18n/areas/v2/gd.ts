@@ -849,7 +849,7 @@ export const gd: AreaTranslation<typeof source> = {
       vignetting: "Bìnteachadh an lionsa",
       vignettingHelp: "Soillsichidh seo na h-oiseanan a dh'fhàg an lionsa nas dorcha na am meadhan, gus am bi an solas cothromach air feadh an fhrèama. Airson oirean nas dorcha no nas soilleire a dh'aona-ghnothach, cleachd Sgàileadh oir na àite.",
       useProfile: "Cleachd pròifil lionsa",
-      useProfileHelp: "Lorgaidh e an lionsa a thog an dealbh ann an stòr-dàta lionsa an-asgaidh a thomhais a' choimhearsnachd agus ceartaichidh e an t-saobhadh tomhaiste agus na h-oiseanan nas dorcha airson an fhad fòcais is an fhosglaidh a chaidh a chleachdadh. Obraichidh na sleamhnagain gu h-ìosal air a mhuin sin.",
+      useProfileHelp: "Lorgaidh e an lionsa a thog an dealbh ann an stòr-dàta lionsa agus ceartaichidh e an t-saobhadh tomhaiste agus na h-oiseanan nas dorcha airson an fhad fòcais is an fhosglaidh a chaidh a chleachdadh. Obraichidh na sleamhnagain gu h-ìosal air a mhuin sin.",
       finding: "A' lorg an lionsa…",
       downloadAsk: "'S e luchdachadh a-nuas an-asgaidh de mu 5 MB a th' ann am pròifilean lionsa. Cumaidh InFlight iad air an uidheam seo, 's mar sin obraichidh iad far loidhne. Cha tèid ach na pròifilean fhaighinn: chan fhàg dealbh no fiosrachadh deilbh an t-uidheam agad.",
       download: "Luchdaich a-nuas pròifilean lionsa",

@@ -848,7 +848,7 @@ export const is: AreaTranslation<typeof source> = {
       vignetting: "Linsuskygging",
       vignettingHelp: "Lýsir hornin sem linsan skildi eftir dekkri en miðjuna svo birtan verði jöfn yfir allan rammann. Fyrir viljandi dekkri eða ljósari brúnir skaltu nota Skyggingu í staðinn.",
       useProfile: "Nota linsusnið",
-      useProfileHelp: "Finnur linsuna sem tók myndina í ókeypis linsugagnagrunni sem samfélagið hefur mælt og leiðréttir mælda bjögun hennar og dekkri horn fyrir brennivídd og ljósop sem notað var. Sleðarnir hér fyrir neðan bætast svo ofan á.",
+      useProfileHelp: "Finnur linsuna sem tók myndina í linsugagnagrunni og leiðréttir mælda bjögun hennar og dekkri horn fyrir brennivídd og ljósop sem notað var. Sleðarnir hér fyrir neðan bætast svo ofan á.",
       finding: "Leitar að linsunni…",
       downloadAsk: "Linsusniðin eru ókeypis niðurhal, um 5 MB. InFlight geymir þau í þessu tæki svo þau virka án nettengingar. Aðeins sniðin eru sótt: engin mynd eða myndupplýsingar fara úr tækinu þínu.",
       download: "Sækja linsusnið",

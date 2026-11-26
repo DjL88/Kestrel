@@ -848,7 +848,7 @@ export const pt: AreaTranslation<typeof source> = {
       vignetting: "Vinheta da objetiva",
       vignettingHelp: "Clareia os cantos que a objetiva deixou mais escuros do que o centro, para uma luz uniforme em todo o enquadramento. Para margens mais escuras ou claras de propósito, use Vinheta.",
       useProfile: "Usar perfil da objetiva",
-      useProfileHelp: "Encontra a objetiva desta foto numa base de dados de objetivas livre, medida pela comunidade, e corrige a distorção medida e os cantos mais escuros para a distância focal e a abertura usadas. Os controlos abaixo somam-se depois.",
+      useProfileHelp: "Encontra a objetiva desta foto numa base de dados de objetivas e corrige a distorção medida e os cantos mais escuros para a distância focal e a abertura usadas. Os controlos abaixo somam-se depois.",
       finding: "A procurar a objetiva…",
       downloadAsk: "Os perfis de objetiva são uma transferência gratuita de cerca de 5 MB. O InFlight guarda-os neste dispositivo, por isso funcionam offline. Só os perfis são obtidos: nenhuma foto nem dado de foto sai do seu dispositivo.",
       download: "Descarregar perfis de objetiva",

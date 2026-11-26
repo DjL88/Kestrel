@@ -848,7 +848,7 @@ export const fr: AreaTranslation<typeof source> = {
       vignetting: "Vignetage de l’objectif",
       vignettingHelp: "Éclaircit les coins que l’objectif a laissés plus sombres que le centre, pour une lumière égale sur toute l’image. Pour des bords volontairement plus sombres ou plus clairs, utilisez plutôt Vignetage.",
       useProfile: "Utiliser le profil d’objectif",
-      useProfileHelp: "Trouve l’objectif de cette photo dans une base d’objectifs libre, mesurée par la communauté, et corrige sa distorsion mesurée et ses coins plus sombres pour la focale et l’ouverture utilisées. Les curseurs ci-dessous s’ajoutent ensuite.",
+      useProfileHelp: "Trouve l’objectif de cette photo dans une base d’objectifs et corrige sa distorsion mesurée et ses coins plus sombres pour la focale et l’ouverture utilisées. Les curseurs ci-dessous s’ajoutent ensuite.",
       finding: "Recherche de l’objectif…",
       downloadAsk: "Les profils d’objectif sont un téléchargement gratuit d’environ 5 Mo. InFlight les garde sur cet appareil, ils fonctionnent donc hors ligne. Seuls les profils sont récupérés : aucune photo ni information de photo ne quitte votre appareil.",
       download: "Télécharger les profils d’objectif",

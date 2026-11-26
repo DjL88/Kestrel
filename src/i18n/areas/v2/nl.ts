@@ -848,7 +848,7 @@ export const nl: AreaTranslation<typeof source> = {
       vignetting: "Objectiefvignettering",
       vignettingHelp: "Maakt de hoeken lichter die het objectief donkerder liet dan het midden, zodat het licht over het hele beeld gelijk is. Voor bewust donkere of lichte randen gebruikt u Vignet.",
       useProfile: "Lensprofiel gebruiken",
-      useProfileHelp: "Zoekt de lens van deze foto op in een vrije, door de gemeenschap gemeten lensdatabase en corrigeert de gemeten vervorming en donkerdere hoeken voor de gebruikte brandpuntsafstand en het diafragma. De schuifjes hieronder werken daarbovenop.",
+      useProfileHelp: "Zoekt de lens van deze foto op in een lensdatabase en corrigeert de gemeten vervorming en donkerdere hoeken voor de gebruikte brandpuntsafstand en het diafragma. De schuifjes hieronder werken daarbovenop.",
       finding: "Lens zoeken…",
       downloadAsk: "Lensprofielen zijn een gratis download van ongeveer 5 MB. InFlight bewaart ze op dit apparaat, zodat ze offline werken. Alleen de profielen worden opgehaald: geen foto of fotogegeven verlaat je apparaat.",
       download: "Lensprofielen downloaden",
