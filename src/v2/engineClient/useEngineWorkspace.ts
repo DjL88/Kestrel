@@ -57,6 +57,7 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { canWatchFolder, chooseHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -483,6 +484,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
+  // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
+  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean } | null>(null);
+  const liveWatch = useRef<AbortController | null>(null);
+  const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
+  const lastFollowed = useRef<string | null>(null);
   const relinking = useRef(false);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
@@ -2068,16 +2074,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
     /** Fields to add to a photo as it is read (a focus stack's, panorama's or HDR merge's recipe), by its picked key. */
-    attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
+    attach?: (key: string) => Partial<PhotoFrame> | undefined,
+    /** A frame from a watched folder during a live shoot: no notices for each arrival, and it never waits for a picker. */
+    live = false): Promise<boolean> => {
     const target = stateRef.current;
-    if (!target) return;
-    if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
+    if (!target) return false;
+    if (importController.current) { if (!live) setNotice(engineText.workspace.importRunning); return false; }
     const picks = suppliedPicks === undefined ? await pickFiles() : suppliedPicks;
-    if (!picks?.length) return;
+    if (!picks?.length) return false;
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     const existing = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => { const key = pickedKey(file); if (existing.has(key)) return false; existing.add(key); return true; });
-    if (!additions.length) { setNotice(engineText.workspace.importNothingNew); return; }
+    if (!additions.length) { if (!live) setNotice(engineText.workspace.importNothingNew); return true; }
     const projectKey = target.shoot.id;
     const controller = new AbortController();
     importController.current = controller;
@@ -2167,11 +2175,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (stateRef.current?.shoot.id === projectKey) {
         const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome);
         if (next === 'run') void afterImport.current.run();
-        else if (outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
-        else if (outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        // Live shoot: show the frame that just landed, so the photographer sees each shot as it arrives.
+        const newest = live ? importedFrames.at(-1) : undefined;
+        if (newest) followLiveFrame.current?.(newest.id);
       }
+      return true;
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : engineText.workspace.importFailed);
+      return true;
     } finally {
       controller.abort();
       if (importingInto.current === projectKey) importingInto.current = null;
@@ -2179,6 +2192,52 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setImporting(false);
     }
   }, []);
+
+  // Live shoot: follow the newest frame only while the photographer is at the newest one, so culling an earlier frame
+  // is never pulled away by the next arrival.
+  followLiveFrame.current = (photoId: string) => {
+    void (async () => {
+      for (let wait = 0; !stateRef.current?.frames.some((frame) => frame.id === photoId) && wait < 100; wait++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const current = stateRef.current;
+      if (!current?.frames.some((frame) => frame.id === photoId)) return;
+      const atNewest = current.selectedFrameId == null || current.selectedFrameId === lastFollowed.current || lastFollowed.current === null;
+      lastFollowed.current = photoId;
+      if (!atNewest) return;
+      setSelected([photoId]);
+      mutate((now) => (now.shoot.id === current.shoot.id ? { ...now, selectedFrameId: photoId } : now));
+    })();
+  };
+
+  const stopLiveFolder = useCallback(() => {
+    liveWatch.current?.abort();
+    liveWatch.current = null;
+    lastFollowed.current = null;
+    setLiveFolder(null);
+  }, []);
+
+  const startLiveFolder = useCallback((source: HotFolderSource) => {
+    const projectId = stateRef.current?.shoot.id;
+    if (!projectId) return;
+    liveWatch.current?.abort();
+    const controller = new AbortController();
+    liveWatch.current = controller;
+    lastFollowed.current = null;
+    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false });
+    watchHotFolder(source, {
+      signal: controller.signal,
+      // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
+      onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
+      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status }); },
+    });
+  }, [importPhotos]);
+
+  // Leaving the project (or closing InFlight's editor) ends the watch: a live shoot belongs to the project it started in.
+  useEffect(() => {
+    if (liveFolder && liveFolder.projectId !== state?.shoot.id) stopLiveFolder();
+  }, [liveFolder, state?.shoot.id, stopLiveFolder]);
+  useEffect(() => () => liveWatch.current?.abort(), []);
 
   // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
   // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
@@ -3086,6 +3145,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }),
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderPhotos(setNotice).then((chosen) => { if (chosen) void importPhotos(chosen.picks); }); },
+    watchFolder: () => {
+      if (!canWatchFolder()) { setNotice(V2_STRINGS.liveShoot.notHere); return; }
+      // The picker opens straight from the person's click; nothing in the folder is moved or written.
+      void chooseHotFolder().then((source) => { if (source) startLiveFolder(source); });
+    },
+    stopWatchingFolder: () => stopLiveFolder(),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
@@ -3818,6 +3883,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
