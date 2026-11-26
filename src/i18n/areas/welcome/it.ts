@@ -28,4 +28,16 @@ export const it: AreaTranslation<typeof source> = {
     forget: "Progetti, scelte, modifiche e anteprime sono conservati in questo browser. Cancellare i dati di navigazione, usare una finestra privata o disinstallare il browser può eliminarli. Le foto originali non vengono mai salvate né modificate qui, quindi sono al sicuro.",
     backupHint: "Per sicurezza, faccia un backup dalle opzioni del progetto e lo conservi, insieme agli originali, fuori da questo browser.",
   },
+  diskPreviews: {
+    title: "Anteprime su questo computer",
+    intro: "InFlight tiene tre piccole immagini di ogni foto RAW nella sua cartella: una miniatura, una copia di revisione e un’anteprima avanzata da 2560 px. Può continuare a modificare una foto con il disco scollegato. Per esportare serve sempre l’originale. I suoi originali non vengono mai modificati.",
+    using: "{used} in uso per {count} foto.",
+    checking: "Controllo della cartella delle anteprime…",
+    limitLabel: "Dimensione massima",
+    limitDefault: "{size} (consigliata per questo computer)",
+    limitHint: "Ci stanno circa {count} foto. Quando la cartella è piena, vengono tolte le anteprime che non guarda da più tempo. Vengono rifatte quando riapre quelle foto con il disco collegato.",
+    clear: "Togli tutte le anteprime",
+    cleared: "Anteprime tolte. Vengono rifatte mentre guarda le foto.",
+    failed: "Non è stato possibile leggere la cartella delle anteprime.",
+  },
 };

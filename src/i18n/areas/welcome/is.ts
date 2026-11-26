@@ -28,4 +28,16 @@ export const is: AreaTranslation<typeof source> = {
     forget: "Verkefnin þín, val, breytingar og forskoðanir eru geymd í þessum vafra. Að hreinsa vafragögn, nota einkaglugga eða fjarlægja vafrann getur eytt þeim. Upprunalegu myndirnar þínar eru aldrei geymdar eða þeim breytt hér, svo þær eru öruggar.",
     backupHint: "Til öryggis skaltu taka öryggisafrit úr valkostum verkefnisins og geyma það, ásamt upprunalegu myndunum, utan þessa vafra.",
   },
+  diskPreviews: {
+    title: "Forskoðanir í þessari tölvu",
+    intro: "InFlight geymir þrjár litlar myndir af hverri RAW-mynd í eigin möppu: smámynd, skoðunarafrit og snjalla forskoðun í 2560 px. Þú getur haldið áfram að breyta mynd þegar drifið hennar er ekki tengt. Útflutningur þarf samt frumritið. Frumritunum þínum er aldrei breytt.",
+    using: "{used} í notkun fyrir {count} myndir.",
+    checking: "Athuga möppuna með forskoðunum…",
+    limitLabel: "Hámarksstærð",
+    limitDefault: "{size} (mælt með fyrir þessa tölvu)",
+    limitHint: "Um {count} myndir komast fyrir. Þegar mappan fyllist eru þær forskoðanir fjarlægðar sem þú hefur ekki skoðað lengst. Þær eru gerðar aftur þegar þú opnar myndirnar með drifið tengt.",
+    clear: "Fjarlægja allar forskoðanir",
+    cleared: "Forskoðanir fjarlægðar. Þær eru gerðar aftur þegar þú skoðar myndir.",
+    failed: "Ekki tókst að lesa möppuna með forskoðunum.",
+  },
 };

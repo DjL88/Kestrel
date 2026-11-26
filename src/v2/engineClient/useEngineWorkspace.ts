@@ -1974,7 +1974,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             provider.current!.registerLinked(key, {
               read: linkedReader(path, frame.filename, lastModified, size || undefined, frame.originalSha256!),
               openRange: linkedRangeOpener(path, size || undefined, frame.originalSha256!),
-              size, lastModified,
+              size, lastModified, path, sha256: frame.originalSha256,
             });
             provider.current!.retryLinkedOriginal(key);
           }

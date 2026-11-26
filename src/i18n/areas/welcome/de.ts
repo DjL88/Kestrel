@@ -28,4 +28,16 @@ export const de: AreaTranslation<typeof source> = {
     forget: "Ihre Projekte, Entscheidungen, Bearbeitungen und Vorschauen liegen in diesem Browser. Das Löschen von Browserdaten, ein privates Fenster oder das Deinstallieren des Browsers kann sie entfernen. Ihre Originalfotos werden dabei nie gespeichert oder verändert, sie sind also sicher.",
     backupHint: "Erstellen Sie zur Sicherheit eine Projektsicherung über die Projektoptionen und bewahren Sie sie zusammen mit Ihren Originalen außerhalb dieses Browsers auf.",
   },
+  diskPreviews: {
+    title: "Vorschauen auf diesem Computer",
+    intro: "InFlight behält von jedem RAW-Foto drei kleine Bilder in einem eigenen Ordner: ein Miniaturbild, eine Ansichtskopie und eine Smart-Vorschau mit 2.560 px. Sie können ein Foto weiter bearbeiten, wenn sein Laufwerk nicht angeschlossen ist. Für den Export braucht es weiter das Original. Ihre Originale werden nie verändert.",
+    using: "{used} belegt für {count} Fotos.",
+    checking: "Der Vorschauordner wird geprüft …",
+    limitLabel: "Größenlimit",
+    limitDefault: "{size} (für diesen Computer empfohlen)",
+    limitHint: "Etwa {count} Fotos passen hinein. Ist der Ordner voll, werden die Vorschauen entfernt, die Sie am längsten nicht angesehen haben. Sie entstehen neu, wenn Sie diese Fotos mit angeschlossenem Laufwerk wieder öffnen.",
+    clear: "Alle Vorschauen entfernen",
+    cleared: "Vorschauen entfernt. Sie entstehen neu, wenn Sie Fotos ansehen.",
+    failed: "Der Vorschauordner konnte nicht gelesen werden.",
+  },
 };

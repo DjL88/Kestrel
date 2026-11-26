@@ -8,6 +8,8 @@ import { canDevelopRaw, developRaw, matchPreviewOrientation, rawSensorMode } fro
 import type { RawCodec } from './core/pictureSource';
 import { appText as t } from './i18n/areas/app';
 import { readAsShotWhiteFromBlob, type AsShotWhite } from './core/asShotWhite';
+import { deviceMemoryBudget } from './providers/deviceBudget';
+import { diskPreviewThreads } from './core/diskPreviewLimit';
 
 const SETTLE_MS = 1500;
 
@@ -68,6 +70,19 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
             return;
           }
           ctx.checkCancelled();
+          if (source.canBuildDiskPreviews(frame)) {
+            // Desktop app: develop from the file's path into the preview folder on disk (x-std-disk-previews), a few
+            // photos at once on the app's own threads. The RAW's bytes never come into the page.
+            ctx.stage('Developing sensor pixels');
+            const at = queue.indexOf(frame);
+            const alongside = queue.slice(at + 1, at + diskPreviewThreads(deviceMemoryBudget()));
+            const made = await source.buildDiskPreviews(frame, alongside, ctx.signal);
+            ctx.checkCancelled();
+            if (made.white && latest.current.projectId === id) latest.current.onAsShotWhite?.(frame.stableKey, made.white);
+            if (made.codec && !frame.rawCodec && latest.current.projectId === id) latest.current.onRawCodec?.(frame.stableKey, made.codec);
+            await new Promise<void>(resolve => window.setTimeout(resolve, 0));
+            return;
+          }
           const original = await source.ensureOriginal(frame.stableKey, 'background');
           ctx.checkCancelled();
           if (!original) throw new Error(`Reconnect ${frame.filename} to develop the actual RAW file.`);

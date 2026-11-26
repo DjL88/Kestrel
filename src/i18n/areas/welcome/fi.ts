@@ -28,4 +28,16 @@ export const fi: AreaTranslation<typeof source> = {
     forget: "Projektisi, valintasi, muokkauksesi ja esikatselusi ovat tässä selaimessa. Selaustietojen poistaminen, yksityinen ikkuna tai selaimen poistaminen voi hävittää ne. Alkuperäisiä kuviasi ei koskaan tallenneta tai muuteta täällä, joten ne ovat turvassa.",
     backupHint: "Varmuuden vuoksi tee projektin varmuuskopio projektin asetuksista ja säilytä se alkuperäisten kuvien kanssa tämän selaimen ulkopuolella.",
   },
+  diskPreviews: {
+    title: "Esikatselut tällä tietokoneella",
+    intro: "InFlight säilyttää jokaisesta RAW-kuvasta kolme pientä kuvaa omassa kansiossaan: pikkukuvan, katselukopion ja 2 560 px:n älykkään esikatselun. Voit jatkaa kuvan muokkausta, vaikka sen asema ei ole kiinni. Vienti tarvitsee yhä alkuperäisen. Alkuperäisiä kuviasi ei koskaan muuteta.",
+    using: "{used} käytössä, {count} kuvaa.",
+    checking: "Esikatselukansiota tarkistetaan…",
+    limitLabel: "Enimmäiskoko",
+    limitDefault: "{size} (suositus tälle tietokoneelle)",
+    limitHint: "Noin {count} kuvaa mahtuu. Kun kansio täyttyy, poistetaan esikatselut, joita et ole katsonut pisimpään. Ne tehdään uudelleen, kun avaat kuvat asema kiinnitettynä.",
+    clear: "Poista kaikki esikatselut",
+    cleared: "Esikatselut poistettu. Ne tehdään uudelleen, kun katsot kuvia.",
+    failed: "Esikatselukansiota ei voitu lukea.",
+  },
 };

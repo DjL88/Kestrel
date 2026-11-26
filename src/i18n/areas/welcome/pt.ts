@@ -28,4 +28,16 @@ export const pt: AreaTranslation<typeof source> = {
     forget: "Os seus projetos, decisões, edições e pré-visualizações ficam neste navegador. Apagar os dados de navegação, usar uma janela privada ou desinstalar o navegador pode removê-los. As fotografias originais nunca são guardadas nem alteradas aqui, por isso estão seguras.",
     backupHint: "Por segurança, faça uma cópia do projeto nas opções do projeto e guarde-a, com os originais, fora deste navegador.",
   },
+  diskPreviews: {
+    title: "Pré-visualizações neste computador",
+    intro: "O InFlight guarda três imagens pequenas de cada foto RAW na sua própria pasta: uma miniatura, uma cópia de revisão e uma pré-visualização inteligente de 2560 px. Pode continuar a editar uma foto com o disco desligado. Para exportar continua a ser preciso o original. Os seus originais nunca são alterados.",
+    using: "{used} em uso para {count} fotos.",
+    checking: "A verificar a pasta das pré-visualizações…",
+    limitLabel: "Tamanho máximo",
+    limitDefault: "{size} (sugerido para este computador)",
+    limitHint: "Cabem cerca de {count} fotos. Quando a pasta fica cheia, saem as pré-visualizações que não vê há mais tempo. Voltam a ser feitas quando abrir essas fotos com o disco ligado.",
+    clear: "Remover todas as pré-visualizações",
+    cleared: "Pré-visualizações removidas. Voltam a ser feitas quando vê as fotos.",
+    failed: "Não foi possível ler a pasta das pré-visualizações.",
+  },
 };

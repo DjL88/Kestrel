@@ -28,4 +28,16 @@ export const es: AreaTranslation<typeof source> = {
     forget: "Sus proyectos, decisiones, ediciones y vistas previas se guardan en este navegador. Borrar los datos de navegación, usar una ventana privada o desinstalar el navegador puede eliminarlos. Sus fotos originales nunca se guardan ni se cambian aquí, así que están a salvo.",
     backupHint: "Por seguridad, haga una copia del proyecto desde sus opciones y guárdela, con sus originales, fuera de este navegador.",
   },
+  diskPreviews: {
+    title: "Vistas previas en este ordenador",
+    intro: "InFlight guarda tres imágenes pequeñas de cada foto RAW en su propia carpeta: una miniatura, una copia de revisión y una vista previa inteligente de 2560 px. Puede seguir editando una foto con su disco desconectado. Para exportar sigue haciendo falta el original. Sus originales nunca se modifican.",
+    using: "{used} en uso para {count} fotos.",
+    checking: "Comprobando la carpeta de vistas previas…",
+    limitLabel: "Tamaño máximo",
+    limitDefault: "{size} (recomendado para este ordenador)",
+    limitHint: "Caben unas {count} fotos. Cuando la carpeta se llena, se quitan las vistas previas que lleva más tiempo sin mirar. Se vuelven a hacer cuando abre esas fotos con su disco conectado.",
+    clear: "Quitar todas las vistas previas",
+    cleared: "Vistas previas quitadas. Se vuelven a hacer al mirar las fotos.",
+    failed: "No se pudo leer la carpeta de vistas previas.",
+  },
 };
