@@ -226,6 +226,8 @@ export interface ShootDescriptor {
   trashedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
+  /** The Flight mode chosen for this project. Absent on older projects, which follow Settings' default. */
+  assistMode?: 'solo' | 'copilot' | 'autopilot';
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
   collage?: import('./collage').CollageDocument;
 }

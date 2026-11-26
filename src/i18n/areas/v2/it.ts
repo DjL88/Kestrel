@@ -151,6 +151,7 @@ export const it: AreaTranslation<typeof source> = {
     viewMenu: 'Vista',
     exportButton: 'Esporta',
     assistModes: { solo: 'Solo', copilot: 'Copilota', autopilot: 'Pilota automatico' },
+    assistModeHints: { solo: "InFlight non fa nulla finché non lo chiedi. Selezioni e modifichi tu.", copilot: "L'assistente di InFlight suggerisce scelte e modifiche, per esempio una selezione dopo un'importazione. Approvi tu ciascuna.", autopilot: "InFlight applica le scelte e le modifiche di cui è sicuro. Tutto ciò che è incerto resta da rivedere a te." },
     fileActions: {
       newProject: 'Nuovo progetto',
       importPhotos: 'Importa foto',
@@ -278,6 +279,8 @@ export const it: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage o album',
     kindCollageBody: 'Disporre più foto su pagine, poster o post',
     kindSelected: 'Selezionato',
+    modeQuestion: "Quanto deve aiutare InFlight?",
+    modeChangeLater: "Puoi cambiarlo più tardi nel progetto.",
     demoStateLabel: 'Stato della vista:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const it: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Copilota',
     changeInSettings: 'Cambia modalità nelle Impostazioni',
+    modeForProject: "Modalità di volo di questo progetto",
     nothingYet: 'Ancora niente da segnalare. Comparirà quando InFlight avrà esaminato questa foto.',
     modeDescriptions: {
       solo: 'Modalità Solo: il controllo manuale resta a te. Scegli Controlla la foto su questo dispositivo quando vuoi dei suggerimenti.',
@@ -1473,6 +1477,7 @@ export const it: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Modalità di volo predefinita per i nuovi progetti',
+      defaultModeNote: "Ogni progetto mantiene la propria modalità. Puoi cambiarlo più tardi nel progetto.",
       cvdLabel: 'Supporto per la visione dei colori',
       cvdDesc: 'Indica a parole i colori principali di ogni foto e segnala dominanti di colore, colori molto intensi e aree rosse e verdi che molte persone daltoniche faticano a distinguere. Etichetta anche le estremità dei cursori Temperatura e Tinta. Disattivato finché non lo attivi.',
       ongoingLabel: 'Critica continua delle modifiche',

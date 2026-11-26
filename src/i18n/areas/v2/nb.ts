@@ -151,6 +151,7 @@ export const nb: AreaTranslation<typeof source> = {
     viewMenu: 'Vis',
     exportButton: 'Eksporter',
     assistModes: { solo: 'Solo', copilot: 'Andrepilot', autopilot: 'Autopilot' },
+    assistModeHints: { solo: "InFlight gjør ingenting før du ber om det. Du sorterer og redigerer selv.", copilot: "InFlights egen hjelper foreslår valg og redigeringer, for eksempel å sortere etter en import. Du godkjenner hver enkelt.", autopilot: "InFlight utfører valgene og redigeringene den er sikker på. Alt som er usikkert, blir liggende til du ser gjennom det." },
     fileActions: {
       newProject: 'Nytt prosjekt',
       importPhotos: 'Importer bilder',
@@ -278,6 +279,8 @@ export const nb: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage eller album',
     kindCollageBody: 'Plasser flere bilder på sider, plakater eller innlegg',
     kindSelected: 'Valgt',
+    modeQuestion: "Hvor mye skal InFlight hjelpe?",
+    modeChangeLater: "Du kan endre dette senere i prosjektet.",
     demoStateLabel: 'Visningstilstand:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const nb: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Andrepilot',
     changeInSettings: 'Bytt modus i Innstillinger',
+    modeForProject: "Flymodus for dette prosjektet",
     nothingYet: 'Ingenting å melde ennå. Det vises når InFlight har sett på dette bildet.',
     modeDescriptions: {
       solo: 'Solomodus: du har den manuelle kontrollen. Velg Sjekk bildet på denne enheten når du vil ha forslag.',
@@ -1473,6 +1477,7 @@ export const nb: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Standard flymodus for nye prosjekter',
+      defaultModeNote: "Hvert prosjekt har sin egen modus. Du kan endre dette senere i prosjektet.",
       cvdLabel: 'Støtte for fargesyn',
       cvdDesc: 'Navngir hovedfargene i hvert bilde med ord og påpeker fargestikk, svært sterke farger og røde og grønne områder som mange fargeblinde har vanskelig for å skille. Merker også endene på glidebryterne Temperatur og Fargetone. Av til du slår det på.',
       ongoingLabel: 'Løpende kritikk av redigeringer',

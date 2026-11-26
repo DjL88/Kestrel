@@ -151,6 +151,7 @@ export const nl: AreaTranslation<typeof source> = {
     viewMenu: 'Beeld',
     exportButton: 'Exporteren',
     assistModes: { solo: 'Solo', copilot: 'Copiloot', autopilot: 'Automatische piloot' },
+    assistModeHints: { solo: "InFlight doet niets totdat je erom vraagt. Je selecteert en bewerkt zelf.", copilot: "De eigen helper van InFlight stelt keuzes en bewerkingen voor, zoals selecteren na een import. Je keurt elk ervan goed.", autopilot: "InFlight past de keuzes en bewerkingen toe waar het zeker van is. Alles wat onzeker is, blijft voor jou ter controle liggen." },
     fileActions: {
       newProject: 'Nieuw project',
       importPhotos: 'Foto’s importeren',
@@ -278,6 +279,8 @@ export const nl: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage of album',
     kindCollageBody: 'Meerdere foto’s schikken op pagina’s, posters of berichten',
     kindSelected: 'Geselecteerd',
+    modeQuestion: "Hoeveel moet InFlight helpen?",
+    modeChangeLater: "Je kunt dit later in het project wijzigen.",
     demoStateLabel: 'Weergavestatus:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const nl: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Copiloot',
     changeInSettings: 'Modus wijzigen in Instellingen',
+    modeForProject: "Vliegmodus voor dit project",
     nothingYet: 'Nog niets te melden. Dit verschijnt zodra InFlight deze foto heeft bekeken.',
     modeDescriptions: {
       solo: 'Solomodus: u houdt handmatig de controle. Kies Foto op dit apparaat controleren wanneer u suggesties wilt.',
@@ -1473,6 +1477,7 @@ export const nl: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Standaard vliegmodus voor nieuwe projecten',
+      defaultModeNote: "Elk project houdt zijn eigen modus. Je kunt dit later in het project wijzigen.",
       cvdLabel: 'Ondersteuning bij kleurwaarneming',
       cvdDesc: 'Noemt de hoofdkleuren van elke foto in woorden en wijst op kleurzwemen, zeer felle kleuren en rode en groene vlakken die veel kleurenblinde mensen moeilijk uit elkaar houden. Benoemt ook de uiteinden van de schuifregelaars Temperatuur en Tint. Uit tot u het inschakelt.',
       ongoingLabel: 'Doorlopende kritiek op bewerkingen',

@@ -830,7 +830,8 @@ export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string, kind?: 'photography' | 'collage') => void;
+  /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
+  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;

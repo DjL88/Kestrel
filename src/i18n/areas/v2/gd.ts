@@ -152,6 +152,7 @@ export const gd: AreaTranslation<typeof source> = {
     viewMenu: 'Sealladh',
     exportButton: 'Às-phortaich',
     assistModes: { solo: 'Leat fhèin', copilot: 'Co-phìleat', autopilot: 'Fèin-phìleat' },
+    assistModeHints: { solo: "Cha dèan InFlight dad gus an iarr thu e. Taghaidh agus deasaichidh tu fhèin.", copilot: "Molaidh an cuidiche aig InFlight fhèin taghaidhean is deasachaidhean, can taghadh às dèidh ion-phortaidh. Aontaichidh tu ri gach fear.", autopilot: "Cuiridh InFlight an sàs na taghaidhean is na deasachaidhean a tha e cinnteach asta. Thèid rud sam bith mì-chinnteach fhàgail dhut airson lèirmheas." },
     fileActions: {
       newProject: 'Pròiseact ùr',
       importPhotos: 'Ion-phortaich dealbhan',
@@ -279,6 +280,8 @@ export const gd: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Colaids no clàr-dhealbh',
     kindCollageBody: 'Cuir grunn dhealbhan air duilleagan, postairean no postaichean',
     kindSelected: 'Air a thaghadh',
+    modeQuestion: "Dè na cuideachadh a bu chòir do InFlight a thoirt?",
+    modeChangeLater: "'S urrainn dhut seo atharrachadh nas fhaide air adhart sa phròiseact.",
     demoStateLabel: 'Staid an t-seallaidh:',
   },
   filmstrip: {
@@ -595,6 +598,7 @@ export const gd: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Co-phìleat',
     changeInSettings: 'Atharraich am modh sna Roghainnean',
+    modeForProject: "Modh itealaich a' phròiseict seo",
     nothingYet: 'Chan eil dad ri aithris fhathast. Nochdaidh e nuair a bhios InFlight air sùil a thoirt air an dealbh seo.',
     modeDescriptions: {
       solo: 'Modh leat fhèin: ’s ann agadsa a tha an smachd. Tagh Dearbh an dealbh air an uidheam seo nuair a bhios tu ag iarraidh mholaidhean.',
@@ -1474,6 +1478,7 @@ export const gd: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Modh itealaich bunaiteach do phròiseactan ùra',
+      defaultModeNote: "Cumaidh gach pròiseact a mhodh fhèin. 'S urrainn dhut seo atharrachadh nas fhaide air adhart sa phròiseact.",
       cvdLabel: 'Taic do lèirsinn dhathan',
       cvdDesc: 'Ainmichidh seo prìomh dhathan gach deilbh ann am faclan, agus comharraichidh e fiamhan dhathan, dathan glè làidir agus raointean dearga is uaine a tha doirbh do mhòran dhaoine dath-dhall aithneachadh bho chèile. Cuiridh e leubailean cuideachd air cinn nan sleamhnagan Teòthachd is Fiamh. Dheth gus an cuir thu air e.',
       ongoingLabel: 'Breithneachadh leantainneach air deasachaidhean',

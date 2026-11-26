@@ -151,6 +151,7 @@ export const cy: AreaTranslation<typeof source> = {
     viewMenu: 'Gweld',
     exportButton: 'Allforio',
     assistModes: { solo: 'Unigol', copilot: 'Cyd-beilot', autopilot: 'Awtobeilot' },
+    assistModeHints: { solo: "Nid yw InFlight yn gwneud dim nes i chi ofyn. Chi sy'n dethol ac yn golygu.", copilot: "Mae cynorthwyydd InFlight ei hun yn awgrymu dewisiadau a golygiadau, fel cynnig dethol ar ôl mewnforio. Chi sy'n cymeradwyo pob un.", autopilot: "Mae InFlight yn gwneud y dewisiadau a'r golygiadau y mae'n hyderus amdanynt. Caiff unrhyw beth ansicr ei adael i chi ei adolygu." },
     fileActions: {
       newProject: 'Prosiect newydd',
       importPhotos: 'Mewnforio lluniau',
@@ -278,6 +279,8 @@ export const cy: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage neu albwm',
     kindCollageBody: 'Gosod sawl llun ar dudalennau, posteri neu bostiadau',
     kindSelected: 'Wedi’i ddewis',
+    modeQuestion: "Faint ddylai InFlight helpu?",
+    modeChangeLater: "Gallwch newid hyn yn nes ymlaen yn y prosiect.",
     demoStateLabel: 'Cyflwr y golwg:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const cy: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Cyd-beilot',
     changeInSettings: 'Newid y modd yn y Gosodiadau',
+    modeForProject: "Modd hedfan y prosiect hwn",
     nothingYet: 'Dim i’w adrodd eto. Bydd yn ymddangos unwaith y bydd InFlight wedi edrych ar y llun hwn.',
     modeDescriptions: {
       solo: 'Modd unigol: chi sy’n rheoli â llaw. Dewiswch Gwirio’r llun ar y ddyfais hon pan fyddwch eisiau awgrymiadau.',
@@ -1473,6 +1477,7 @@ export const cy: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Modd hedfan diofyn ar gyfer prosiectau newydd',
+      defaultModeNote: "Mae pob prosiect yn cadw ei fodd ei hun. Gallwch newid hyn yn nes ymlaen yn y prosiect.",
       cvdLabel: 'Cymorth golwg lliw',
       cvdDesc: 'Yn enwi prif liwiau pob llun mewn geiriau. Mae’n tynnu sylw at arlliwiau lliw, lliwiau cryf iawn ac ardaloedd coch a gwyrdd y mae llawer o bobl ddall i liwiau’n ei chael yn anodd gwahaniaethu rhyngddynt. Mae hefyd yn labelu pennau’r llithryddion Tymheredd ac Arlliw. I ffwrdd oni bai eich bod yn ei droi ymlaen.',
       ongoingLabel: 'Beirniadaeth barhaus o olygiadau',

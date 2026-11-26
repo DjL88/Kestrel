@@ -151,6 +151,7 @@ export const sv: AreaTranslation<typeof source> = {
     viewMenu: 'Visa',
     exportButton: 'Exportera',
     assistModes: { solo: 'Solo', copilot: 'Andrepilot', autopilot: 'Autopilot' },
+    assistModeHints: { solo: "InFlight gör ingenting förrän du ber om det. Du gallrar och redigerar själv.", copilot: "InFlights egen hjälpare föreslår val och redigeringar, till exempel att gallra efter en import. Du godkänner varje förslag.", autopilot: "InFlight utför de val och redigeringar den är säker på. Allt osäkert lämnas kvar så att du kan granska det." },
     fileActions: {
       newProject: 'Nytt projekt',
       importPhotos: 'Importera foton',
@@ -278,6 +279,8 @@ export const sv: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage eller album',
     kindCollageBody: 'Placera flera foton på sidor, affischer eller inlägg',
     kindSelected: 'Vald',
+    modeQuestion: "Hur mycket ska InFlight hjälpa till?",
+    modeChangeLater: "Du kan ändra detta senare i projektet.",
     demoStateLabel: 'Visningsläge:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const sv: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Andrepilot',
     changeInSettings: 'Byt läge i Inställningar',
+    modeForProject: "Flygläge för det här projektet",
     nothingYet: 'Inget att rapportera ännu. Det visas när InFlight har tittat på det här fotot.',
     modeDescriptions: {
       solo: 'Sololäge: du har den manuella kontrollen. Välj Kontrollera fotot på den här enheten när du vill ha förslag.',
@@ -1473,6 +1477,7 @@ export const sv: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Standardläge (Solo, Co-pilot eller Autopilot) för nya projekt',
+      defaultModeNote: "Varje projekt behåller sitt eget läge. Du kan ändra detta senare i projektet.",
       cvdLabel: 'Stöd för färgseende',
       cvdDesc: 'Namnger huvudfärgerna i varje foto med ord och pekar ut färgstick, mycket starka färger och röda och gröna områden som många färgblinda har svårt att skilja åt. Visar också ändarna på reglagen Temperatur och Nyans. Av tills du slår på det.',
       ongoingLabel: 'Löpande kritik av redigeringar',

@@ -150,7 +150,8 @@ export const de: AreaTranslation<typeof source> = {
     editMenu: 'Bearbeiten',
     viewMenu: 'Ansicht',
     exportButton: 'Exportieren',
-    assistModes: { solo: 'Solo', copilot: 'Copilot', autopilot: 'Autopilot' },
+    assistModes: { solo: 'Solo', copilot: 'Co-Pilot', autopilot: 'Autopilot' },
+    assistModeHints: { solo: "InFlight tut nichts, bis Sie darum bitten. Sie sortieren und bearbeiten selbst.", copilot: "Der eigene Helfer von InFlight schlägt Auswahl und Bearbeitungen vor, etwa das Aussortieren nach einem Import. Sie bestätigen jeden Vorschlag.", autopilot: "InFlight wendet Auswahl und Bearbeitungen an, bei denen es sicher ist. Alles Unsichere bleibt zur Prüfung für Sie liegen." },
     fileActions: {
       newProject: 'Neues Projekt',
       importPhotos: 'Fotos importieren',
@@ -182,7 +183,7 @@ export const de: AreaTranslation<typeof source> = {
     },
   },
   rail: {
-    copilot: 'Copilot',
+    copilot: 'Co-Pilot',
     solo: 'Solo',
     autopilot: 'Autopilot',
     adjust: 'Anpassen',
@@ -278,6 +279,8 @@ export const de: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage oder Album',
     kindCollageBody: 'Mehrere Fotos auf Seiten, Postern oder Beiträgen anordnen',
     kindSelected: 'Ausgewählt',
+    modeQuestion: "Wie viel soll InFlight helfen?",
+    modeChangeLater: "Sie können das später im Projekt ändern.",
     demoStateLabel: 'Ansichtszustand:',
   },
   filmstrip: {
@@ -374,7 +377,7 @@ export const de: AreaTranslation<typeof source> = {
     working: "Ihr Foto wird hinzugefügt und Belichtung und Farbe werden auf diesem Gerät geprüft …",
     ready: "Auto hat Belichtung und Farbe ausgeglichen. Vergleichen Sie mit dem Original, bearbeiten Sie weiter oder exportieren Sie jetzt. Rückgängig nimmt es zurück.",
     unchanged: "Dieses Foto wirkt schon natürlich, daher hat Auto es gelassen, wie es war. Bearbeiten Sie es nach Belieben oder exportieren Sie es jetzt.",
-    held: "Auto hat einen Vorschlag, aber die Bildprüfung auf diesem Gerät war nicht überzeugt, dass er natürlich wirkt, daher wurde nichts geändert. Vergleichen Sie ihn im Copilot und wenden Sie ihn an, wenn er Ihnen gefällt, oder exportieren Sie das Foto unverändert.",
+    held: "Auto hat einen Vorschlag, aber die Bildprüfung auf diesem Gerät war nicht überzeugt, dass er natürlich wirkt, daher wurde nichts geändert. Vergleichen Sie ihn im Co-Pilot und wenden Sie ihn an, wenn er Ihnen gefällt, oder exportieren Sie das Foto unverändert.",
     failedCheck: "Auto konnte dieses Foto nicht prüfen. Sie können es trotzdem bearbeiten und exportieren.",
     export: "Exportieren …",
     done: "Fertig",
@@ -592,12 +595,13 @@ export const de: AreaTranslation<typeof source> = {
   },
 
   copilot: {
-    heading: 'Copilot',
+    heading: 'Co-Pilot',
     changeInSettings: 'Modus in den Einstellungen ändern',
+    modeForProject: "Flugmodus für dieses Projekt",
     nothingYet: 'Noch nichts zu melden. Hinweise erscheinen, sobald InFlight dieses Foto geprüft hat.',
     modeDescriptions: {
       solo: 'Solo-Modus: Sie behalten die manuelle Kontrolle. Wählen Sie „Foto auf diesem Gerät prüfen“, wenn Sie Vorschläge möchten.',
-      copilot: 'Copilot-Modus: InFlight prüft das geöffnete Foto auf diesem Gerät und lässt Sie jede vorgeschlagene Bearbeitung wählen.',
+      copilot: 'Co-Pilot-Modus: InFlight prüft das geöffnete Foto auf diesem Gerät und lässt Sie jede vorgeschlagene Bearbeitung wählen.',
       autopilot: 'Autopilot-Modus: InFlight kann eine geprüfte Bearbeitung auf ein unbearbeitetes Foto anwenden, wenn Sie es öffnen.',
     },
     runReviewButton: 'Tiefe Bildanalyse',
@@ -754,7 +758,7 @@ export const de: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotSkippedEdited: "Der Autopilot hat dieses Foto nicht verändert, weil die Datei angibt, dass es bereits anderswo bearbeitet wurde. Tippen Sie auf Auto für einen Vorschlag. Es wurde nichts geändert.",
-    autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Copilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
+    autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Co-Pilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
     secondOpinion: "Zweite Meinung:",
     suggestionDoubted: "Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass dies natürlich wirkt. Vergleichen Sie vorher und nachher; ob Sie es anwenden, entscheiden Sie.",
     maskDoubted: "Zweite Meinung: Die Bildprüfung auf diesem Gerät zweifelt an dieser Motivmaske. Sie liegt vielleicht auf dem Falschen oder verfehlt eine Flügelspitze, den Schwanz oder den Kopf. Prüfen Sie die Ränder und tippen Sie zum Hinzufügen oder Entfernen. Es wurde nichts geändert.",
@@ -1473,6 +1477,7 @@ export const de: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Standard-Flugmodus für neue Projekte',
+      defaultModeNote: "Jedes Projekt behält seinen eigenen Modus. Sie können das später im Projekt ändern.",
       cvdLabel: 'Unterstützung beim Farbsehen',
       cvdDesc: 'Benennt die Hauptfarben jedes Fotos in Worten und weist auf Farbstiche, sehr kräftige Farben sowie rote und grüne Bereiche hin, die viele farbenblinde Menschen schwer unterscheiden können. Beschriftet außerdem die Enden der Regler Temperatur und Tönung. Aus, bis Sie es einschalten.',
       ongoingLabel: 'Laufende Bearbeitungskritik',

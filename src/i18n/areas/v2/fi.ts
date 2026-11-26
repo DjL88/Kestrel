@@ -152,6 +152,7 @@ export const fi: AreaTranslation<typeof source> = {
     viewMenu: 'Näytä',
     exportButton: 'Vie',
     assistModes: { solo: 'Soolo', copilot: 'Perämies', autopilot: 'Autopilotti' },
+    assistModeHints: { solo: "InFlight ei tee mitään ennen kuin pyydät. Karsit ja muokkaat itse.", copilot: "InFlightin oma avustaja ehdottaa valintoja ja muokkauksia, esimerkiksi karsintaa tuonnin jälkeen. Hyväksyt jokaisen itse.", autopilot: "InFlight tekee valinnat ja muokkaukset, joista se on varma. Epävarmat jäävät sinun tarkistettaviksesi." },
     fileActions: {
       newProject: 'Uusi projekti',
       importPhotos: 'Tuo kuvia',
@@ -279,6 +280,8 @@ export const fi: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Kollaasi tai albumi',
     kindCollageBody: 'Asettele useita kuvia sivuille, julisteisiin tai julkaisuihin',
     kindSelected: 'Valittu',
+    modeQuestion: "Kuinka paljon InFlightin pitäisi auttaa?",
+    modeChangeLater: "Voit muuttaa tätä myöhemmin projektissa.",
     demoStateLabel: 'Näkymän tila:',
   },
   filmstrip: {
@@ -595,6 +598,7 @@ export const fi: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Perämies',
     changeInSettings: 'Vaihda tilaa Asetuksissa',
+    modeForProject: "Tämän projektin lentotila",
     nothingYet: 'Ei vielä raportoitavaa. Tiedot näkyvät, kun InFlight on tarkastellut tätä kuvaa.',
     modeDescriptions: {
       solo: 'Soolotila: hallitset kaikkea itse. Valitse Tarkista kuva tällä laitteella, kun haluat ehdotuksia.',
@@ -1474,6 +1478,7 @@ export const fi: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Uusien projektien oletuslentotila',
+      defaultModeNote: "Jokaisella projektilla on oma tilansa. Voit muuttaa tätä myöhemmin projektissa.",
       cvdLabel: 'Värinäön tuki',
       cvdDesc: 'Nimeää jokaisen kuvan päävärit sanoin ja osoittaa värivirheet, hyvin voimakkaat värit sekä punaiset ja vihreät alueet, joita monen värisokean on vaikea erottaa. Nimeää myös Lämpötila- ja Sävy-liukusäätimien päät. Pois päältä, kunnes otat sen käyttöön.',
       ongoingLabel: 'Jatkuva muokkausten arvio',

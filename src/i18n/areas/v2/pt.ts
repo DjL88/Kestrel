@@ -151,6 +151,7 @@ export const pt: AreaTranslation<typeof source> = {
     viewMenu: 'Ver',
     exportButton: 'Exportar',
     assistModes: { solo: 'Solo', copilot: 'Copiloto', autopilot: 'Piloto automático' },
+    assistModeHints: { solo: "O InFlight não faz nada até que peça. É você quem seleciona e edita.", copilot: "O assistente próprio do InFlight sugere escolhas e edições, como oferecer uma seleção após importar. Você aprova cada uma.", autopilot: "O InFlight aplica as escolhas e edições de que tem certeza. O que for incerto fica para você rever." },
     fileActions: {
       newProject: 'Novo projeto',
       importPhotos: 'Importar fotografias',
@@ -278,6 +279,8 @@ export const pt: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Colagem ou álbum',
     kindCollageBody: 'Dispor várias fotografias em páginas, cartazes ou publicações',
     kindSelected: 'Selecionado',
+    modeQuestion: "Quanto o InFlight deve ajudar?",
+    modeChangeLater: "Pode alterar isto mais tarde no projeto.",
     demoStateLabel: 'Estado da vista:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const pt: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Copiloto',
     changeInSettings: 'Mudar o modo nas Definições',
+    modeForProject: "Modo de voo deste projeto",
     nothingYet: 'Ainda nada a assinalar. Aparece quando o InFlight tiver analisado esta fotografia.',
     modeDescriptions: {
       solo: 'Modo Solo: mantém o controlo manual. Escolha Verificar a fotografia neste dispositivo quando quiser sugestões.',
@@ -1473,6 +1477,7 @@ export const pt: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Modo de voo predefinido para novos projetos',
+      defaultModeNote: "Cada projeto mantém o seu próprio modo. Pode alterar isto mais tarde no projeto.",
       cvdLabel: 'Apoio à visão das cores',
       cvdDesc: 'Nomeia por palavras as cores principais de cada fotografia e assinala dominantes de cor, cores muito intensas e zonas vermelhas e verdes que muitas pessoas daltónicas têm dificuldade em distinguir. Também identifica os extremos dos controlos Temperatura e Tonalidade. Desligado até o ligar.',
       ongoingLabel: 'Crítica contínua das edições',

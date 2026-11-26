@@ -154,6 +154,12 @@ export const source = {
       copilot: 'Co-pilot',
       autopilot: 'Auto-pilot',
     },
+    /** One plain line per Flight mode, shown wherever the mode is chosen. Co-pilot is InFlight's own helper, not another company's assistant. */
+    assistModeHints: {
+      solo: 'InFlight does nothing until you ask. You cull and edit yourself.',
+      copilot: "InFlight's own helper suggests picks and edits, such as offering to cull after an import. You approve each one.",
+      autopilot: 'InFlight applies the picks and edits it is confident about. Anything uncertain is left for you to review.',
+    },
     fileActions: {
       newProject: 'New project',
       importPhotos: 'Import photos',
@@ -293,6 +299,8 @@ export const source = {
     kindCollageTitle: 'Collage or album',
     kindCollageBody: 'Lay several photos out on pages, posters or posts',
     kindSelected: 'Selected',
+    modeQuestion: 'How much should InFlight help?',
+    modeChangeLater: 'You can change this later in the project.',
     demoStateLabel: 'View state:',
   },
 
@@ -627,6 +635,7 @@ export const source = {
   copilot: {
     heading: 'Co-pilot',
     changeInSettings: 'Change mode in Settings',
+    modeForProject: 'Flight mode for this project',
     nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
       solo: 'Solo mode: you stay in manual control. Choose Check photo on this device when you want suggestions.',
@@ -1525,6 +1534,7 @@ export const source = {
     },
     assistance: {
       defaultModeLabel: 'Default Flight mode for new projects',
+      defaultModeNote: 'Each project keeps its own mode. You can change it inside the project at any time.',
       cvdLabel: 'Colour-vision support',
       cvdDesc: 'Names the main colours in each photo in words. Points out colour casts, very strong colours, and red and green areas that many colour-blind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
       ongoingLabel: 'Ongoing edit critique',

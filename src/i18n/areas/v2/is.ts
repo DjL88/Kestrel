@@ -151,6 +151,7 @@ export const is: AreaTranslation<typeof source> = {
     viewMenu: 'Skoða',
     exportButton: 'Flytja út',
     assistModes: { solo: 'Einn', copilot: 'Aðstoðarflugmaður', autopilot: 'Sjálfstýring' },
+    assistModeHints: { solo: "InFlight gerir ekkert fyrr en þú biður um það. Þú velur og breytir sjálf/ur.", copilot: "Eigin aðstoð InFlight stingur upp á vali og breytingum, t.d. að grisja eftir innflutning. Þú samþykkir hverja og eina.", autopilot: "InFlight beitir vali og breytingum sem það er öruggt um. Allt óvíst er skilið eftir svo þú getir farið yfir það." },
     fileActions: {
       newProject: 'Nýtt verkefni',
       importPhotos: 'Flytja inn myndir',
@@ -278,6 +279,8 @@ export const is: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Klippimynd eða albúm',
     kindCollageBody: 'Raða mörgum myndum á síður, veggspjöld eða færslur',
     kindSelected: 'Valið',
+    modeQuestion: "Hversu mikið á InFlight að hjálpa?",
+    modeChangeLater: "Þú getur breytt þessu síðar í verkefninu.",
     demoStateLabel: 'Staða yfirlits:',
   },
   filmstrip: {
@@ -594,6 +597,7 @@ export const is: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Aðstoðarflugmaður',
     changeInSettings: 'Breyta stillingu í Stillingum',
+    modeForProject: "Flugstilling þessa verkefnis",
     nothingYet: 'Ekkert að segja enn. Þetta birtist þegar InFlight hefur skoðað þessa mynd.',
     modeDescriptions: {
       solo: 'Einn: þú stjórnar öllu sjálf/ur. Veldu Athuga mynd á þessu tæki þegar þú vilt tillögur.',
@@ -1473,6 +1477,7 @@ export const is: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Sjálfgefin flugstilling fyrir ný verkefni',
+      defaultModeNote: "Hvert verkefni heldur sinni eigin stillingu. Þú getur breytt þessu síðar í verkefninu.",
       cvdLabel: 'Stuðningur við litasjón',
       cvdDesc: 'Nefnir aðallitina í hverri mynd með orðum. Bendir á litablæ, mjög sterka liti og rauð og græn svæði sem mörgum litblindum reynist erfitt að greina á milli. Merkir einnig enda Hitastigs- og Litblæs-sleðanna. Slökkt þar til þú kveikir á því.',
       ongoingLabel: 'Samfelld umsögn um breytingar',

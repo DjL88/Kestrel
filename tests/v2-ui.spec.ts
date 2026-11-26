@@ -311,10 +311,17 @@ test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the hea
   await expect(rail.getByRole('button', { name: /^Assist/ })).toHaveCount(0);
   // The first rail tool is named after the mode that is on (#1301 removed the separate mode flag); Settings changes it.
   await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toBeVisible();
+  // Settings sets the default for new projects, with each mode's icon and one plain line on what it does.
   await openV2Settings(page);
   await root.getByRole('tab', { name: 'Assistance' }).click();
-  await root.getByRole('button', { name: 'Auto-pilot', exact: true }).click();
+  const defaults = root.getByRole('group', { name: 'Default Flight mode for new projects' });
+  await expect(defaults.getByText('InFlight does nothing until you ask.', { exact: false })).toBeVisible();
+  await defaults.getByTestId('flight-mode-autopilot').click();
+  await expect(defaults.getByRole('radio', { name: 'Auto-pilot' })).toBeChecked();
   await root.getByRole('button', { name: 'Close settings' }).click().catch(() => page.keyboard.press('Escape'));
+  // This project's own mode is changed from its Flight panel.
+  await rail.getByRole('button', { name: 'Co-pilot', exact: true }).click();
+  await root.getByRole('group', { name: 'Flight mode for this project' }).getByTestId('flight-mode-autopilot').click();
   await expect(rail.getByRole('button', { name: 'Auto-pilot', exact: true })).toBeVisible();
   await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toHaveCount(0);
   // Tasks sit at the bottom with a count in a progress ring.

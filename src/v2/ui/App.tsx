@@ -897,6 +897,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           theme={activeTheme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
+          defaultAssistMode={store.settings.defaultAssistMode}
           onCreateFromFolder={actions.createProjectFromFolder}
           onQuickStart={actions.startQuickStart}
           onRenameProject={actions.renameProject}
