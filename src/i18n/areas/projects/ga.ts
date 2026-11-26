@@ -148,6 +148,8 @@ export const ga: AreaTranslation<typeof source> = {
     nothing: 'Níl aon rud nasctha fós. Níl na tionscadail ach ar an ngléas seo.',
     listLabel: 'Naisc',
     check: 'Seiceáil',
+    serviceUnreachable: "Ní féidir teacht ar sheirbhísí ar líne InFlight faoi láthair. Leanann d’obair ar an ngléas seo ar aghaidh; fanann comhroinnt agus síniú isteach go dtí go mbeidh siad ar ais.",
+    tryAgain: "Bain triail eile as",
     reconnect: 'Athnasc',
     remove: (name) => `Bain ${name}`,
     kind: 'Cineál naisc',

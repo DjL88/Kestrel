@@ -150,6 +150,8 @@ export const source = {
     nothing: 'Nothing connected yet. Projects live on this device only.',
     listLabel: 'Connections',
     check: 'Check',
+    serviceUnreachable: "InFlight’s online services cannot be reached right now. Your work on this device carries on; sharing and sign-in wait until they are back.",
+    tryAgain: "Try again",
     reconnect: 'Reconnect',
     remove: (name: string) => `Remove ${name}`,
     kind: 'Kind of connection',

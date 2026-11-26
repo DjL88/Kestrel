@@ -148,6 +148,8 @@ export const pt: AreaTranslation<typeof source> = {
     nothing: 'Ainda não há nada ligado. Os projetos ficam apenas neste dispositivo.',
     listLabel: 'Ligações',
     check: 'Verificar',
+    serviceUnreachable: "Os serviços online do InFlight não estão acessíveis neste momento. O seu trabalho neste dispositivo continua; partilhar e iniciar sessão aguardam até voltarem.",
+    tryAgain: "Tentar novamente",
     reconnect: 'Voltar a ligar',
     remove: (name) => `Remover ${name}`,
     kind: 'Tipo de ligação',

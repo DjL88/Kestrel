@@ -207,8 +207,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [sharing, reloadNotices]);
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
-  const health = projectsText.connections.health;
-  const serviceLabel = service.state === 'reachable' ? health.ok : service.state === 'unreachable' ? health.error : health.unknown;
+  // The web app checks InFlight's online services by itself (it was just loaded from them, so this tells them nothing
+  // new); the desktop app checks only when asked, as before. Nothing is shown while they answer: only a check that
+  // could not reach them says so, in plain words, and stays until a later check gets through.
+  React.useEffect(() => { if (serviceBase && !isDesktopApp()) service.check(); }, [serviceBase]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [serviceTrouble, setServiceTrouble] = useState(false);
+  React.useEffect(() => {
+    if (service.state === 'unreachable') setServiceTrouble(true);
+    else if (service.state !== 'checking') setServiceTrouble(false);
+  }, [service.state]);
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -942,14 +949,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
         </div>
       )}
-      {serviceBase && connectivity !== 'offline' && (
+      {serviceBase && connectivity !== 'offline' && serviceTrouble && (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          <span role="status" data-testid="service-reachability">
-            {['InFlight API', serviceLabel].join(' · ')}
+          <span role="status" data-testid="service-reachability" className="flex items-center gap-2">
+            <BrandIcon name="alert" size={14} />
+            {projectsText.connections.serviceUnreachable}
           </span>
           <button type="button" disabled={service.state === 'checking'} aria-busy={service.state === 'checking'}
-            onClick={service.check} className="rounded px-2 py-1 hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
-            {projectsText.connections.check}
+            onClick={service.check} className="v2-touch-target rounded px-2 py-1 hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
+            {projectsText.connections.tryAgain}
           </button>
         </div>
       )}
@@ -1321,7 +1329,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-0 z-40 flex w-[calc(4.5rem+env(safe-area-inset-right))] flex-col items-stretch gap-1 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-1 pr-[calc(0.25rem+env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))]'
-                : 'flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]'}
+                : 'v2-safe-bottom-fill flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1'}
             >
               {phoneLandscape && (
                 <button type="button" onClick={() => actions.setExportOpen(true)}
@@ -1379,7 +1387,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.moreTools}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-40 grid w-64 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto border-l border-[var(--border-default)] bg-[var(--bg-surface)] p-3 pt-[max(0.75rem,env(safe-area-inset-top))]'
-                : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
             >
               {(
                 [
@@ -1417,7 +1425,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {phoneLayout && store.activePanel && !composingCollage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
-              : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
+              : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1583,9 +1591,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onMouseLeave={() => setNoticePaused(false)}
           onFocus={() => setNoticePaused(true)}
           onBlur={() => setNoticePaused(false)}
-          className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
+          className={`${phoneLandscape ? '' : 'v2-safe-right '}fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
+          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
           style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >

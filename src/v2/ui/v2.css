@@ -134,8 +134,8 @@
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
     clip: rect(0 0 0 0); clip-path: inset(50%); border: 0;
   }
-  .inflight-v2 .v2-canvas-bar button:has(> .v2-phone-label) { min-width: 40px; justify-content: center; }
-  .inflight-v2 .v2-filmstrip-tools button:has(> .v2-compact-label) { min-width: 40px; justify-content: center; }
+  .inflight-v2 .v2-canvas-bar button:has(> .v2-phone-label) { min-width: var(--touch-min); justify-content: center; }
+  .inflight-v2 .v2-filmstrip-tools button:has(> .v2-compact-label) { min-width: var(--touch-min); justify-content: center; }
 }
 
 /* Tablets and unfolded foldables: the photo tools above the picture, the zoom bar, the filmstrip's tools and filters
@@ -162,8 +162,8 @@
    zoom steps, no drag grip), with finger-sized buttons. The filmstrip's buttons grow to finger size too. */
 @media (pointer: coarse) and (max-width: 767px) {
   .inflight-v2 [data-testid="canvas-viewport-controls"] .v2-zoom-fine { display: none; }
-  .inflight-v2 [data-testid="canvas-viewport-controls"] button { min-height: 40px; min-width: 40px; }
-  .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
+  .inflight-v2 [data-testid="canvas-viewport-controls"] button { min-height: var(--touch-min); min-width: var(--touch-min); }
+  .inflight-v2 .v2-filmstrip-tools button { min-height: var(--touch-min); }
 }
 
 /* Phone held sideways (V2-WORKSPACE 26.4): navigation on the left, tools on the right, both fixed and notch-aware, so
@@ -230,3 +230,32 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
 .inflight-v2 .v2-tasks-wheel-sweep { animation: v2-wheel-sweep 1.6s linear infinite; transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .inflight-v2 .v2-tasks-wheel-sweep { animation: none !important; } }
 .inflight-v2[data-v2-motion="calm"] .v2-tasks-wheel-sweep { animation: none !important; }
+
+/* Safe areas (viewport-fit=cover): nothing sits under a notch, a rounded corner, the status bar or the home indicator.
+   The workspace keeps clear of all four edges, so the top bar, the rail and docked panels, the bottom bars and sheets and
+   full-screen views all start inside the safe area. On a screen without insets every value is 0 and nothing moves. */
+.inflight-v2 {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+/* A dialog's dimmed backdrop still covers the whole screen; a clear border keeps the dialog itself inside the safe area. */
+.inflight-v2 .fixed.inset-0:not(.pointer-events-none) {
+  border-style: solid; border-color: transparent;
+  border-width: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+/* Messages and sheets fixed to an edge keep clear of it. */
+.inflight-v2 .v2-safe-top { margin-top: env(safe-area-inset-top, 0px); }
+.inflight-v2 .v2-safe-bottom { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.inflight-v2 .v2-safe-right { margin-right: env(safe-area-inset-right, 0px); }
+.inflight-v2 .v2-safe-x { margin-left: env(safe-area-inset-left, 0px); margin-right: env(safe-area-inset-right, 0px); }
+/* The phone tool bar's own colour carries on under the home indicator, so the bar does not look cut off above it. */
+.inflight-v2 .v2-safe-bottom-fill { box-shadow: 0 env(safe-area-inset-bottom, 0px) 0 0 var(--bg-surface); }
+
+/* Touch phones, upright or on their side: every control a finger uses is at least --touch-min (44px) in both directions.
+   Short words and icons are widened to a square at least; longer labels are already wider. Sliders keep their large thumb. */
+@media (pointer: coarse) and (max-width: 767px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 899px) {
+  .inflight-v2 button, .inflight-v2 [role="button"], .inflight-v2 [role="tab"], .inflight-v2 [role="option"][tabindex],
+  .inflight-v2 select, .inflight-v2 a[href] { min-height: var(--touch-min); }
+  .inflight-v2 button, .inflight-v2 [role="button"], .inflight-v2 [role="tab"], .inflight-v2 a[href], .inflight-v2 .v2-touch-target { min-width: var(--touch-min); }
+  .inflight-v2 .v2-touch-target { min-height: var(--touch-min); }
+  .inflight-v2 input[type="checkbox"], .inflight-v2 input[type="radio"] { width: 24px; height: 24px; }
+}

@@ -333,7 +333,7 @@ export default function Filmstrip({
               else if (collapsed) onSetCollapsed(false);
               setTouchSelectionMode((mode) => !mode);
             }}
-            className={`inline-flex min-h-10 shrink-0 items-center rounded px-3 text-xs font-semibold md:hidden
+            className={`inline-flex min-h-11 shrink-0 items-center rounded px-3 text-xs font-semibold md:hidden
               ${touchSelectionMode ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border border-[var(--border-default)] text-[var(--text-primary)]'}`}>
             {touchSelectionMode ? `Done · ${selectedPhotoIds.length}` : 'Select'}
           </button>

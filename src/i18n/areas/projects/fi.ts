@@ -148,6 +148,8 @@ export const fi: AreaTranslation<typeof source> = {
     nothing: 'Mitään ei ole vielä yhdistetty. Projektit ovat vain tällä laitteella.',
     listLabel: 'Yhteydet',
     check: 'Tarkista',
+    serviceUnreachable: "InFlightin verkkopalveluihin ei juuri nyt saada yhteyttä. Työsi tällä laitteella jatkuu; jakaminen ja kirjautuminen odottavat, kunnes palvelut palaavat.",
+    tryAgain: "Yritä uudelleen",
     reconnect: 'Yhdistä uudelleen',
     remove: (name) => `Poista ${name}`,
     kind: 'Yhteyden tyyppi',

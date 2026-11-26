@@ -148,6 +148,8 @@ export const sv: AreaTranslation<typeof source> = {
     nothing: 'Inget anslutet än. Projekten finns bara på den här enheten.',
     listLabel: 'Anslutningar',
     check: 'Kontrollera',
+    serviceUnreachable: "InFlights onlinetjänster går inte att nå just nu. Ditt arbete på den här enheten fortsätter; delning och inloggning väntar tills de är tillbaka.",
+    tryAgain: "Försök igen",
     reconnect: 'Anslut igen',
     remove: (name) => `Ta bort ${name}`,
     kind: 'Typ av anslutning',

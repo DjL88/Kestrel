@@ -69,7 +69,7 @@ export default function CloudOriginalPrompt({ client, localProjectId, photo, att
       role={view.kind === 'ask' ? 'dialog' : 'status'}
       aria-label={t.cloudHeading}
       data-testid="cloud-original-prompt"
-      className="fixed bottom-20 left-1/2 z-40 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 space-y-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-3 text-sm shadow-lg"
+      className="v2-safe-bottom fixed bottom-20 left-1/2 z-40 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 space-y-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-3 text-sm shadow-lg"
     >
       {view.kind === 'ask' && (
         <>
