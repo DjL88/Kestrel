@@ -19,21 +19,23 @@ The script:
 - Refuses to change an uncommitted checkout, unless you explicitly use `--no-update`.
 - Fetches the newest `main` and uses its exact Git revision.
 - Confirms release versions match, installs locked dependencies, and builds a **universal**
-  Apple silicon + Intel Mac application via `npm run desktop:build -- --target universal-apple-darwin`.
+  Mac application for this Mac's chip via `npm run desktop:build -- --target aarch64-apple-darwin` (or universal with `--universal`).
 - Copies only a freshly compiled DMG into `src-tauri/target/prototype`, with SHA-256 and
   JSON build receipt. Never uploads the installer or changes photos.
 - **Signs it when it can.** If exactly one *Developer ID Application* certificate is in this Mac's keychain
   (`security find-identity -v -p codesigning`), the app is signed with it; set `APPLE_SIGNING_IDENTITY` to choose when
-  there are several. If `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password from account.apple.com) and
-  `APPLE_TEAM_ID` are also set in the same Terminal, Apple notarises it too. The script then checks the result
+  there are several. It notarises with a saved notarytool profile (`KESTREL_NOTARY_PROFILE=inflight-notary`, made once
+  with `xcrun notarytool store-credentials`), or with `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password from
+  account.apple.com) and `APPLE_TEAM_ID` set in the same Terminal. The script then checks the result
   (`codesign --verify`, `stapler validate`, `spctl`) and names the DMG `-unsigned`, `-signed` or `-notarised` by what
   was actually verified. Credentials stay in the keychain and that Terminal; nothing is stored or uploaded.
 
 ```bash
-read -r APPLE_ID; read -rs APPLE_PASSWORD; read -r APPLE_TEAM_ID   # type them, nothing is echoed for the password
-export APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
-bash scripts/macos/Build-Kestrel.sh
+KESTREL_NOTARY_PROFILE=inflight-notary bash scripts/macos/Build-Kestrel.sh
 ```
+
+It builds for this Mac's own chip. `--universal` adds Intel, but fails today: onnxruntime (`ort-sys`) has no
+x86_64-apple-darwin prebuilt.
 
 This first installer is **unsigned/unnotarised**. It is for installation on your own Mac,
 not a claim of public distribution readiness. Settings → Build information shows the Git

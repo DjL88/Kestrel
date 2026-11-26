@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build Kestrel's actual macOS app from the same Git source as Windows.
-# Produces a universal DMG. It is signed when a Developer ID Application certificate is in this Mac's keychain, and
-# notarised when APPLE_ID, APPLE_PASSWORD (an app-specific password) and APPLE_TEAM_ID are also set in this Terminal.
+# Produces a DMG for this Mac's chip (--universal for Apple silicon + Intel). It is signed when a Developer ID Application certificate is in this Mac's keychain, and
+# notarised when KESTREL_NOTARY_PROFILE names a saved notarytool profile, or APPLE_ID, APPLE_PASSWORD (an app-specific
+# password) and APPLE_TEAM_ID are set in this Terminal.
 # Otherwise it is unsigned, and the file name says so. Credentials stay in the keychain and this Terminal: the script
 # never prints, stores or uploads them, and never touches originals.
 set -euo pipefail
@@ -9,12 +10,23 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$ROOT"
 NO_UPDATE=0
+UNIVERSAL=0
 for arg in "$@"; do
   case "$arg" in
     --no-update) NO_UPDATE=1 ;;
-    *) echo "Unknown argument: $arg. Use --no-update to build this checkout." >&2; exit 2 ;;
+    --universal) UNIVERSAL=1 ;;
+    *) echo "Unknown argument: $arg. Use --no-update to build this checkout, --universal for Apple silicon + Intel." >&2; exit 2 ;;
   esac
 done
+# This Mac's own chip by default. --universal also needs Intel builds of every native library (onnxruntime's ort-sys
+# has no x86_64-apple-darwin prebuilt as of 26 Nov 2026, so it fails there).
+if [ "$UNIVERSAL" -eq 1 ]; then
+  BUILD_TARGET='universal-apple-darwin'; PLATFORM='macos-universal'; NEEDED_TARGETS='aarch64-apple-darwin x86_64-apple-darwin'
+elif [ "$(uname -m)" = 'arm64' ]; then
+  BUILD_TARGET='aarch64-apple-darwin'; PLATFORM='macos-arm64'; NEEDED_TARGETS='aarch64-apple-darwin'
+else
+  BUILD_TARGET='x86_64-apple-darwin'; PLATFORM='macos-x64'; NEEDED_TARGETS='x86_64-apple-darwin'
+fi
 step() { printf '\n== %s\n' "$1"; }
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -35,7 +47,7 @@ xcode-select -p >/dev/null || { echo 'Run xcode-select --install.' >&2; exit 1; 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 if [ "$NODE_MAJOR" -lt 22 ]; then echo "Node.js 22 required, found $NODE_MAJOR." >&2; exit 1; fi
 INSTALLED="$(rustup target list --installed)"
-for target in aarch64-apple-darwin x86_64-apple-darwin; do
+for target in $NEEDED_TARGETS; do
   if ! printf '%s\n' "$INSTALLED" | grep -Fxq "$target"; then
     echo "Install the missing Rust target: rustup target add $target" >&2
     exit 1
@@ -87,23 +99,32 @@ if [ "$NOTARISE_SET" -ne 0 ] && [ "$NOTARISE_SET" -ne 3 ]; then
   echo 'Notarising needs all three of APPLE_ID, APPLE_PASSWORD (app-specific) and APPLE_TEAM_ID; only some are set.' >&2
   exit 1
 fi
-if [ "$NOTARISE_SET" -eq 3 ] && [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
-  echo 'The Apple ID details are set, but no Developer ID Application certificate is in the keychain. Notarising needs a signed app.' >&2
+# Two ways to notarise: the Apple ID trio (Tauri notarises the app during the build), or a notarytool keychain profile
+# saved once with `xcrun notarytool store-credentials <name>` (this script notarises the DMG after the build).
+NOTARY=''
+if [ "$NOTARISE_SET" -eq 3 ]; then NOTARY='appleid'; fi
+if [ -n "${KESTREL_NOTARY_PROFILE:-}" ]; then
+  if [ -n "$NOTARY" ]; then echo 'Set either KESTREL_NOTARY_PROFILE or the Apple ID trio, not both.' >&2; exit 1; fi
+  xcrun notarytool history --keychain-profile "$KESTREL_NOTARY_PROFILE" >/dev/null 2>&1     || { echo "The notary profile '$KESTREL_NOTARY_PROFILE' is not in the keychain or cannot sign in. Save it with: xcrun notarytool store-credentials $KESTREL_NOTARY_PROFILE" >&2; exit 1; }
+  NOTARY='profile'
+fi
+if [ -n "$NOTARY" ] && [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  echo 'Notarising was requested, but no Developer ID Application certificate is in the keychain. Notarising needs a signed app.' >&2
   exit 1
 fi
 if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
   echo 'No Developer ID Application certificate in the keychain: this build will be unsigned.'
-elif [ "$NOTARISE_SET" -eq 3 ]; then
+elif [ -n "$NOTARY" ]; then
   echo "Signing as $APPLE_SIGNING_IDENTITY and notarising with Apple (needs internet; can take several minutes)."
 else
-  echo "Signing as $APPLE_SIGNING_IDENTITY. Not notarising: APPLE_ID, APPLE_PASSWORD and APPLE_TEAM_ID are not set."
+  echo "Signing as $APPLE_SIGNING_IDENTITY. Not notarising: set KESTREL_NOTARY_PROFILE, or APPLE_ID, APPLE_PASSWORD and APPLE_TEAM_ID."
 fi
 step 'Install locked JavaScript dependencies'
 npm ci --no-audit --no-fund
-step 'Build a universal macOS desktop app (Apple silicon + Intel)'
+step "Build the macOS desktop app ($BUILD_TARGET)"
 START_EPOCH="$(date +%s)"
-npm run desktop:build -- --target universal-apple-darwin
-step 'Locate newly compiled universal DMG'
+npm run desktop:build -- --target "$BUILD_TARGET"
+step 'Locate newly compiled DMG'
 TARGET="$ROOT/src-tauri/target"
 if [ ! -d "$TARGET" ]; then echo 'Missing Rust/Tauri target output.' >&2; exit 1; fi
 NEWEST=''
@@ -137,19 +158,36 @@ if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
   codesign --verify --deep --strict "$APP" || { echo 'The app signature does not verify.' >&2; exit 1; }
   PACKAGE='signed'
   PACKAGE_TEXT='Developer ID signed DMG, not notarised'
-  if [ "$NOTARISE_SET" -eq 3 ]; then
+  if [ "$NOTARY" = 'appleid' ]; then
     xcrun stapler validate "$APP" >/dev/null || { echo 'Notarising was requested but the app has no stapled ticket.' >&2; exit 1; }
     spctl -a -vv "$APP" 2>&1 | grep -q 'Notarized Developer ID' || { echo 'Gatekeeper does not report Notarized Developer ID.' >&2; exit 1; }
     PACKAGE='notarised'
     PACKAGE_TEXT='Developer ID signed and notarised DMG'
   fi
 fi
-echo "Package: $PACKAGE_TEXT"
 PROTOTYPE="$TARGET/prototype"
 mkdir -p "$PROTOTYPE"
-FILENAME="Kestrel-$VERSION-macos-universal-$REVISION-$PACKAGE.dmg"
+WORKING="$PROTOTYPE/.building-$REVISION.dmg"
+cp "$NEWEST" "$WORKING"
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  codesign --force --sign "$APPLE_SIGNING_IDENTITY" --timestamp "$WORKING"
+  codesign --verify --strict "$WORKING" || { echo 'The DMG signature does not verify.' >&2; exit 1; }
+fi
+if [ "$NOTARY" = 'profile' ]; then
+  step 'Notarise the DMG with Apple'
+  xcrun notarytool submit "$WORKING" --keychain-profile "$KESTREL_NOTARY_PROFILE" --wait --timeout 60m | tee "$WORKING.notary.txt"
+  grep -q 'status: Accepted' "$WORKING.notary.txt" || { echo 'Apple did not accept the notarisation. Run xcrun notarytool log <submission id> for why.' >&2; exit 1; }
+  xcrun stapler staple "$WORKING"
+  xcrun stapler validate "$WORKING" >/dev/null || { echo 'The DMG has no stapled ticket.' >&2; exit 1; }
+  spctl -a -t open --context context:primary-signature -vv "$WORKING" 2>&1 | grep -q 'Notarized Developer ID'     || { echo 'Gatekeeper does not report Notarized Developer ID for the DMG.' >&2; exit 1; }
+  rm -f "$WORKING.notary.txt"
+  PACKAGE='notarised'
+  PACKAGE_TEXT='Developer ID signed and notarised DMG'
+fi
+echo "Package: $PACKAGE_TEXT"
+FILENAME="Kestrel-$VERSION-$PLATFORM-$REVISION-$PACKAGE.dmg"
 DESTINATION="$PROTOTYPE/$FILENAME"
-cp "$NEWEST" "$DESTINATION"
+mv "$WORKING" "$DESTINATION"
 SHA="$(shasum -a 256 "$DESTINATION" | awk '{print $1}')"
 printf '%s  %s\n' "$SHA" "$FILENAME" > "$DESTINATION.sha256"
 cat > "$DESTINATION.json" <<EOF
@@ -157,7 +195,7 @@ cat > "$DESTINATION.json" <<EOF
   "product": "Kestrel",
   "version": "$VERSION",
   "gitRevision": "$REVISION",
-  "platform": "macos-universal",
+  "platform": "$PLATFORM",
   "packageType": "$PACKAGE_TEXT",
   "filename": "$FILENAME",
   "sha256": "$SHA",
