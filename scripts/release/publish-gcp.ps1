@@ -129,7 +129,7 @@ if ($Website) {
   # -SiteUrl explicitly rather than guessing which Hosting target was deployed.
   $verifyUrl = $SiteUrl
   if (-not $verifyUrl -and $Project -eq 'kestrel-hosting') {
-    $verifyUrl = 'https://kestrel-hosting-kestrel.web.app'
+    $verifyUrl = 'https://inflight.studio'
   }
   if ($verifyUrl) {
     node scripts/site/verify-deployment.mjs "--live-url=$verifyUrl"
