@@ -1,3 +1,4 @@
+import { deviceMemoryBudget } from './deviceBudget';
 import {
   loadOfflinePreview,
   loadOfflinePreviewPair,
@@ -25,9 +26,11 @@ import type { LinkedRange } from './linkedOriginals';
 /** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
 export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
 
-const MAX_FULL_PREVIEW_CACHE = 24;
+// How many of each stay in memory comes from the device's memory budget (src/core/memoryBudget.ts): 24 and 8 on a
+// standard device, fewer on a phone with little memory, more on a big desktop.
+const MAX_FULL_PREVIEW_CACHE = deviceMemoryBudget().fullPreviews;
 // Full-sensor JPEGs can be tens of MB each; a 500-photo session must not pin them all.
-const MAX_DEVELOPED_FULL_CACHE = 8;
+const MAX_DEVELOPED_FULL_CACHE = deviceMemoryBudget().developedRaws;
 /** Preview addresses whose picture source is remembered (a few bytes each). */
 const MAX_TAGGED_URLS = 4096;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;

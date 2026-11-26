@@ -37,6 +37,7 @@ import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { projectPreviewBlobs } from './projectCover';
+import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
@@ -715,7 +716,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const frames = stateRef.current?.frames ?? [];
     if (!source || !activeId || !urls[activeId]?.preview || (!can('cullWarmup') && !cullWarmupPreviewOn())) return;
     let live = true;
-    const neighbours = warmupNeighbours(frames, activeId);
+    // How far ahead, and how many decoded pictures are held, comes from the device's memory budget.
+    const budget = deviceMemoryBudget();
+    const neighbours = warmupNeighbours(frames, activeId, budget.readAheadReach);
     void (async () => {
       for (const frame of neighbours) {
         if (!live) return;
@@ -728,7 +731,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         await image.decode().catch(() => undefined);
         warmed.current.delete(frame.id);
         warmed.current.set(frame.id, image);
-        while (warmed.current.size > 4) warmed.current.delete(warmed.current.keys().next().value!);
+        while (warmed.current.size > budget.readAheadHeld) warmed.current.delete(warmed.current.keys().next().value!);
       }
     })();
     return () => { live = false; };
