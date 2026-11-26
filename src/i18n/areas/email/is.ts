@@ -20,6 +20,12 @@ export const is: AreaTranslation<typeof source> = {
     done: "Búið. InFlight sendir ekki fleiri tölvupósta á þetta netfang.",
     invalid: "Þessi tengill er ekki gildur.",
     invalidHint: "Svaraðu tölvupóstinum og við hættum.",
+    stopNews: "Hætta að fá fréttir frá InFlight í tölvupósti",
+    stopNotices: "Hætta að fá tölvupóst um sameiginleg verkefni þín",
+    confirmNews: "Ýttu á hnappinn til að hætta að fá fréttir frá InFlight í tölvupósti. Póstur um aðganginn, til dæmis leyfislykill, berst áfram.",
+    confirmNotices: "Ýttu á hnappinn til að hætta að fá tölvupóst um sameiginleg verkefni þín. Þú sérð þau áfram í forritinu.",
+    doneNews: "Búið. Kveiktu aftur á fréttum í tölvupósti í Stillingar → Aðgangur í InFlight.",
+    doneNotices: "Búið. Kveiktu aftur á þessum pósti í Stillingar → Aðgangur í InFlight.",
   },
   news: {
     why: "Þú færð þetta af því að þú baðst um fréttir frá InFlight í tölvupósti. Til að hætta skaltu slökkva á því í Stillingar → Aðgangur eða nota tengilinn hér fyrir neðan.",

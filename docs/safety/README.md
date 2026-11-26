@@ -12,6 +12,7 @@ Sharing, client galleries and cloud storage cannot open in production until a ha
 | [childrens-access-assessment.md](childrens-access-assessment.md) | Can children use InFlight? Today's terms say **13+**, with no age check, so the honest answer is yes. | Choose: keep 13+ (then a children's risk assessment is needed), or 18+ (with or without age checks). |
 | [photodna-application-draft.md](photodna-application-draft.md) | Answers for Microsoft's PhotoDNA Cloud Service application. | Your legal name, address, safety email, volumes. |
 | [ncmec-esp-registration-draft.md](ncmec-esp-registration-draft.md) | Answers for NCMEC registration (CyberTipline reporting), plus the UK NCA duty. | Contact details, including a law enforcement contact. Four questions for the solicitor at the top. |
+| [compliance-documents.md](compliance-documents.md) | Where signed copies are kept: a private UK bucket, listed and downloaded from /admin → Compliance documents. Switch on and seed steps. | Upload each signed copy there. |
 | [safesearch-switch-on.md](safesearch-switch-on.md) | How SafeSearch, PhotoDNA and NCMEC are switched on with the Terraform switches, and in what order. | When to switch each one on. |
 
 ## 2. Give to the solicitor

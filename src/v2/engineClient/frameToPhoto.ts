@@ -14,6 +14,7 @@ import { describeCheckpoints, describeEditVersions, readEditVersions } from '../
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import type { EditStatus } from '../../core/editStatus';
+import type { CameraAfAreaMode, CameraFocus } from '../../core/cameraFocus';
 import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
@@ -75,6 +76,25 @@ export function editStatusWords(status: EditStatus): NonNullable<Photo['editStat
               : first.kind === 'maker-notes' ? words.evidenceMakerNotes
                 : words.evidenceUnrecognised(first.app);
   return { kind: status.kind, label, detail };
+}
+
+/** The camera's own focus record in the person's words: the AF mode, then the camera's verdict and where its AF area sat. */
+export function cameraFocusWords(focus: CameraFocus): NonNullable<Photo['cameraFocus']> {
+  const words = STRINGS.info;
+  const modes: Record<CameraAfAreaMode, string> = {
+    pinpoint: words.cameraFocusPinpoint, single: words.cameraFocusSingle, dynamic: words.cameraFocusDynamic,
+    'wide-s': words.cameraFocusWideS, 'wide-l': words.cameraFocusWideL, 'wide-custom': words.cameraFocusWideCustom,
+    auto: words.cameraFocusAuto, '3d-tracking': words.cameraFocus3d,
+  };
+  const verdict = focus.focusConfirmed === true ? words.cameraFocusConfirmed : focus.focusConfirmed === false ? words.cameraFocusNotConfirmed : '';
+  const place = focus.area
+    ? words.cameraFocusAt(Math.round((focus.area.x + focus.area.width / 2) * 100), Math.round((focus.area.y + focus.area.height / 2) * 100))
+    : words.cameraFocusNoBox;
+  return {
+    label: focus.areaMode ? modes[focus.areaMode] : words.cameraFocusModeUnknown,
+    detail: [verdict, place].filter(Boolean).join(' '),
+    ...(focus.area ? { area: focus.area } : {}),
+  };
 }
 
 export function matchesAutoSource(run: AutoRun, frame: PhotoFrame): boolean {
@@ -300,6 +320,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     photoTags: photoTagViews(frame),
     sharpnessScore: frame.cullScore ?? 0,
     ...(exif.editStatus ? { editStatus: editStatusWords(exif.editStatus) } : {}),
+    ...(exif.cameraFocus ? { cameraFocus: cameraFocusWords(exif.cameraFocus) } : {}),
     ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
       camera: exif.camera ?? NOT_RECORDED,
@@ -384,6 +405,7 @@ export function taskToInfo(task: Task): TaskInfo {
   return {
     id: String(task.id),
     label: task.title,
+    ...(task.kind ? { kind: task.kind } : {}),
     detail: task.detail ?? (task.total ? `${task.done} of ${task.total}` : ''),
     progress,
     status: task.state,

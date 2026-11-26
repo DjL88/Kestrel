@@ -154,7 +154,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadCompliance(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
   if (!token) return;
   renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
@@ -770,6 +770,51 @@ act(newsForm, 'submit', async (e) => {
     r.off + ' switched news off, ' + r.unreachable + ' not reachable, ' + r.alreadyReached + ' already reached. ' +
     (r.emailWaiting ? r.emailWaiting + ' email(s) waiting' + (r.emailLimitReached ? ' because today’s email limit was reached' : '') + ': send again with the same id tomorrow. ' : '') +
     (r.notTried ? r.notTried + ' not tried in this run: send again with the same id. ' : '') + 'Id ' + r.broadcastId + '.';
+});
+
+// ---- Compliance documents ------------------------------------------------------------------------------------
+
+const sizeText = bytes => bytes >= 1_000_000 ? (bytes / 1_000_000).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1000)) + ' KB';
+let complianceMaxBytes = 8_000_000;
+
+async function loadCompliance() {
+  let c;
+  try { c = await api('admin/compliance/documents'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('compliance-unavailable').hidden = false; $('compliance-form').hidden = true; $('compliance-empty').hidden = true;
+    $('compliance-table').tBodies[0].replaceChildren(); return;
+  }
+  complianceMaxBytes = c.maxBytes ?? complianceMaxBytes;
+  $('compliance-unavailable').hidden = true; $('compliance-form').hidden = false;
+  $('compliance-empty').hidden = c.documents.length > 0;
+  $('compliance-table').tBodies[0].replaceChildren(...c.documents.map(d => {
+    const row = el('tr');
+    const name = el('div'); name.append(el('strong', d.title), el('div', d.fileName, 'muted'));
+    cell(row, name); cell(row, when(d.uploadedAtMs)); cell(row, sizeText(d.bytes));
+    cell(row, button('Download', 'Download ' + d.title, '', async () => {
+      const link = await api('admin/compliance/documents/' + encodeURIComponent(d.id) + '/download');
+      location.assign(link.url);
+      say('Downloading ' + d.fileName + '.');
+    }));
+    return row;
+  }));
+}
+
+act($('compliance-form'), 'submit', async () => {
+  const form = $('compliance-form');
+  const file = form.elements.file.files[0];
+  if (!file) { say('Choose a file first.'); return; }
+  const lower = file.name.toLowerCase();
+  const contentType = lower.endsWith('.pdf') ? 'application/pdf' : lower.endsWith('.md') ? 'text/markdown' : null;
+  if (!contentType) { say('Upload a PDF (.pdf) or a Markdown file (.md).'); return; }
+  if (file.size > complianceMaxBytes) { say('That file is too large: documents must be ' + sizeText(complianceMaxBytes) + ' or less.'); return; }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  await api('admin/compliance/documents', { title: form.elements.title.value.trim(), fileName: file.name, contentType, base64: btoa(binary) });
+  form.reset();
+  await Promise.all([loadCompliance(), loadAudit()]);
+  say('Uploaded. It is listed below.');
 });
 
 async function loadMail() {

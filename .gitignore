@@ -60,3 +60,4 @@ google-services.json
 *.mobileprovision
 *.provisionprofile
 AuthKey_*
+site/open-source-notices.txt

@@ -200,7 +200,9 @@ test('release acceptance: external-drive RAW+JPEG import, unplug, safe relink, s
   const plan = await planDesktopRelink(missing, [], replugged, nodeFs);
   assert.equal(plan.replacements.size, SHOTS * 2 - 1, 'every genuine original reconnects except the one with two identical copies');
   assert.equal(plan.ambiguous, 1);
-  assert.ok([...plan.replacements.values()].every((path) => path.startsWith(join(replugged, 'DCIM', '100NIKON'))), 'the impostor in Edited/ was never chosen');
+  // Compare with one separator: the relink planner joins with '/', which Windows accepts, while join() uses '\' there.
+  const slash = (path: string) => path.replace(/\\/g, '/');
+  assert.ok([...plan.replacements.values()].every((path) => slash(path).startsWith(slash(join(replugged, 'DCIM', '100NIKON')))), 'the impostor in Edited/ was never chosen');
   const relinked = applyDesktopRelink(project.frames, missing, plan.replacements);
   assert.deepEqual(decisionsOf(relinked), decided, 'relinking moves only the saved path');
   assert.equal(rawJpegPairs(relinked).jpegOf.size, SHOTS - 1, 'pairs whose two files moved together stay paired');
@@ -230,7 +232,7 @@ test('release acceptance: external-drive RAW+JPEG import, unplug, safe relink, s
   const recovered = await planDesktopRelink(needed, [], join(base, 'second-device'), nodeFs);
   assert.equal(recovered.replacements.size, SHOTS * 2, 'the second device reconnects every original by its contents');
   const onSecond = applyDesktopRelink(restored.frames, needed, recovered.replacements);
-  assert.ok(onSecond.every((frame) => frame.sourcePath!.startsWith(secondDevice)));
+  assert.ok(onSecond.every((frame) => slash(frame.sourcePath!).startsWith(slash(secondDevice))));
   assert.deepEqual(decisionsOf(onSecond), decided);
   assert.equal(rawJpegPairs(onSecond).jpegOf.size, SHOTS);
 

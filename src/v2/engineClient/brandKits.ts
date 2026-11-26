@@ -122,6 +122,19 @@ export function editBrandKit(list: readonly BrandKit[], id: string, change: { na
   return list.map((entry) => (entry.id === id ? { ...entry, ...style, name, savedAt: change.overlay ? now : entry.savedAt } : entry));
 }
 
+/** The logo a photo actually shows: its chosen watermark when that is in this device's library, otherwise the library's
+ * first one (the same choice the canvas and Export make). Undefined when the library is empty, so nothing is drawn. */
+export function shownLogoId(overlay: OverlaySettings, libraryIds: readonly string[]): string | undefined {
+  return libraryIds.includes(overlay.watermarkPresetId) ? overlay.watermarkPresetId : libraryIds[0];
+}
+
+/** A photo's overlay as a kit should keep it: pinned to the logo the photo shows, never to a watermark this device lacks. */
+export function overlayForKit(overlay: OverlaySettings, libraryIds: readonly string[]): OverlaySettings {
+  const current = readOverlay(overlay);
+  const shown = shownLogoId(current, libraryIds);
+  return shown && shown !== current.watermarkPresetId ? { ...current, watermarkPresetId: shown } : current;
+}
+
 export const deleteBrandKit = (list: readonly BrandKit[], id: string): BrandKit[] => list.filter((kit) => kit.id !== id);
 
 /** A photo's overlay with the kit put on: the logo switched on in the kit's place, and the kit's colours and text style.

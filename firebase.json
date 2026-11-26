@@ -2,6 +2,7 @@
   "hosting": {
     "site": "kestrel-hosting-kestrel",
     "public": "site",
+    "predeploy": ["node -e \"require('fs').copyFileSync('NOTICE.md', 'site/open-source-notices.txt')\""],
     "cleanUrls": true,
     "rewrites": [
       {

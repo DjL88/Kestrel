@@ -21,8 +21,14 @@ export const source = {
     done: "Done. InFlight will not email this address again.",
     invalid: "This link is not valid.",
     invalidHint: "Reply to the email and we will stop them.",
+    stopNews: "Stop InFlight news emails",
+    stopNotices: "Stop emails about your shared projects",
+    confirmNews: "Press the button to stop InFlight news emails. Account emails, such as a licence key, still arrive.",
+    confirmNotices: "Press the button to stop emails about your shared projects. You still see them in the app.",
+    doneNews: "Done. To turn news emails back on, open Settings → Account in InFlight.",
+    doneNotices: "Done. To turn these emails back on, open Settings → Account in InFlight.",
   },
   news: {
-    why: "You get this because you asked for InFlight news by email. To stop, turn it off in Settings → Account, or use the link below.",
+    why: "You get this because you asked for InFlight news by email. To stop, turn it off in Settings → Account → Communication preferences, or use the link below.",
   },
 };

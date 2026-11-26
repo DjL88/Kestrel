@@ -442,6 +442,8 @@ export interface Photo {
   exif: PhotoExif;
   /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
   editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
+  /** Where the camera says it focused, in the person's words (src/core/cameraFocus.ts). Absent when the file does not say. */
+  cameraFocus?: { label: string; detail: string; area?: { x: number; y: number; width: number; height: number } };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
@@ -535,6 +537,8 @@ export interface Project {
 export interface TaskInfo {
   id: string;
   label: string;
+  /** The kind of engine work ('import', 'thumbnail', 'cull', ...), when the scheduler ran it. */
+  kind?: string;
   detail: string;
   progress: number; // 0 to 100
   status: import('../../core/taskStore').TaskState;
@@ -721,6 +725,8 @@ export interface PhotoSurfaceProps {
   style?: CSSProperties;
   /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
   onPictureSize?: (size: { width: number; height: number }) => void;
+  /** True while the picture is still loading or being redrawn (a develop or an edit), false once it is on screen. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
@@ -766,7 +772,7 @@ export interface WorkspaceStore {
   /** Saved overlay templates on this device (name only; the layout stays inside the store). */
   overlayTemplates: Array<{ id: string; name: string }>;
   /** Saved brand kits on this device (K080): name and the logo they use. Absent while the brand-kits preview is off. */
-  brandKits?: Array<{ id: string; name: string; logoLabel: string }>;
+  brandKits?: Array<{ id: string; name: string; logoLabel: string; /** True when no watermark on this device can be drawn, so Export puts no logo. */ logoMissing?: boolean }>;
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];

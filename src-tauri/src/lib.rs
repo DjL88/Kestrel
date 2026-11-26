@@ -176,7 +176,8 @@ fn oauth_listen_stop(state: tauri::State<'_, OauthListener>) {
 /// Only picture files InFlight can read. Anything else handed to the app is ignored.
 #[cfg(desktop)]
 fn is_photo(path: &std::path::Path) -> bool {
-    const KNOWN: [&str; 19] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
+    // Keep in step with PHOTO_EXTENSIONS in src/core/rawFormats.ts (a unit test there compares them).
+    const KNOWN: [&str; 25] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng", "srw", "3fr", "fff", "iiq", "rwl", "mos"];
     path.is_file() && path.extension().and_then(|e| e.to_str()).map(|e| KNOWN.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
 }
 

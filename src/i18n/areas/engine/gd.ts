@@ -50,6 +50,7 @@ export const gd: AreaTranslation<typeof source> = {
     global: 'Cha robh iomall cuspair sam bith earbsach, mar sin chaidh lùghdachadh gràinne a chur air an dealbh air fad gu cothromach.',
     failedCheck: 'Cha deach an toradh tron dearbhadh càileachd. Chaidh na deasachaidhean agad a chumail.',
     mainThread: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin dh’fhaodadh InFlight stad greis.',
+    learnedLostDetail: 'Aig làn-mheud, rinn lùghdachadh gràinne AI fìor mhion-fhiosrachadh air a’ chuspair rèidh, mar sin chaidh an lùghdachadh gràinne a-staigh a chleachdadh na àite.',
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
   },
   workspace: {

@@ -137,6 +137,24 @@
     </table></div>
   </section>
 
+  <section id="compliance" class="panel" aria-labelledby="compliance-title">
+    <h2 id="compliance-title">Compliance documents</h2>
+    <p class="muted">Signed copies of the risk assessments, kept in a private UK store. Nothing here can be deleted or replaced: a new upload sits beside the old one. Each upload and download goes in the audit log.</p>
+    <p id="compliance-unavailable" class="muted" hidden>Not set up on this server yet.</p>
+    <div class="scroll"><table id="compliance-table">
+      <caption class="sr-only">Compliance documents, newest first</caption>
+      <thead><tr><th scope="col">Document</th><th scope="col">Uploaded</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="compliance-empty" class="muted" hidden>No documents yet.</p>
+    <form id="compliance-form">
+      <h3>Upload a signed copy</h3>
+      <label>Title <input name="title" required maxlength="120" placeholder="Illegal content risk assessment, signed"></label>
+      <label>File (PDF or Markdown) <input name="file" type="file" accept=".pdf,.md,application/pdf,text/markdown" required></label>
+      <button>Upload</button>
+    </form>
+  </section>
+
   <section id="switches" class="panel" aria-labelledby="switches-title">
     <h2 id="switches-title">Switches</h2>
     <p class="muted">One on/off switch for each managed feature. New features start <strong>off</strong> and only work once the service is set up for them and you switch them on. Switching off takes effect at once and is written to the audit log. Switching off never stops people reading or deleting their own data. Managed Gemini and cloud processing count against the monthly spending limit.</p>
