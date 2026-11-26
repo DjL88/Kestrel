@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createApp, openApi } from './app.ts';
 import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
+import { fetchEcbRatesPerGbp } from './commerce/priceReview.ts';
 import { paddleProBilling, type ProPurchaseOrder, type ProSubscriptionRecord } from './commerce/proSettlement.ts';
 import { paddleRefundRevocation } from './commerce/paddleRefunds.ts';
 import { accountMerges } from './accountMerge.ts';
@@ -117,7 +118,10 @@ const app = createApp({ config, store, commerce, payments: commerce, settlePaddl
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
-  } : undefined, proCheckout, topUpCheckout, pricing: commerce, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
+  } : undefined, proCheckout, topUpCheckout, pricing: commerce,
+  priceMatrix: commerce ? { get: () => commerce.getPriceMatrix(), save: (matrix) => commerce.savePriceMatrix(matrix) } : undefined,
+  paddlePrices: paddle ? { priceIds: paddlePriceIds, get: (id) => paddle.getPrice(id), update: (id, body) => paddle.updatePrice(id, body) } : undefined,
+  ecbRates: () => fetchEcbRatesPerGbp(), cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

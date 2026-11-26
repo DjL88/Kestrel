@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { CHECKOUT_POLL_MS, keepPolling, PRO_PLAN_CHOICES, priceText, SUBSCRIPTION_GRACE_DAYS, type ProPlan } from '../core/proCheckout';
+import { CHECKOUT_POLL_MS, keepPolling, proPlanChoices, priceText, SUBSCRIPTION_GRACE_DAYS, type ProPlan } from '../core/proCheckout';
 import { firebaseAuth } from '../providers/firebaseAuth';
 import { proCheckoutStatus, startProCheckout } from '../providers/licenceStore';
 import { isDesktopApp } from '../providers/desktopShell';
+import { appPricing, browserRegion } from '../providers/pricing';
 
 const action = 'min-h-11 rounded-md border border-[var(--account-border,#ffffff26)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)] hover:bg-white/8 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-sky-300';
 
@@ -19,8 +20,11 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [plan, setPlan] = useState<ProPlan>('monthly');
+  // Prices come from the pricing matrix (Admin → Prices); the last copy read, or the starting prices, until refreshed.
+  const [pricing, setPricing] = useState(() => appPricing.current());
   const live = useRef(true);
   useEffect(() => () => { live.current = false; }, []);
+  useEffect(() => { if (!offline) void appPricing.refresh().then((next) => { if (live.current) setPricing(next); }); }, [offline]);
 
   async function openPage(url: string, preopened: Window | null): Promise<boolean> {
     if (isDesktopApp()) {
@@ -101,7 +105,7 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
           <p>Pro adds assisted culling, species suggestions and the online helper. It is a subscription you can cancel at any time. You pay in a secure checkout run by Paddle, our reseller, which adds any sales tax or VAT for your country; InFlight never sees your card.</p>
           <fieldset className="space-y-1">
             <legend className="text-sm">Choose how to pay</legend>
-            {PRO_PLAN_CHOICES.map((choice) => (
+            {proPlanChoices(pricing, browserRegion()).map((choice) => (
               <label key={choice.plan} className="flex min-h-11 items-center gap-2">
                 <input type="radio" name="pro-plan" value={choice.plan} checked={plan === choice.plan} onChange={() => setPlan(choice.plan)} />
                 <span>{choice.label}: {choice.price}</span>

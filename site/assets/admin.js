@@ -154,7 +154,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadCompliance(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPricing(), loadPriceReview(), loadSafety(), loadCompliance(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
   if (!token) return;
   renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
@@ -563,6 +563,134 @@ async function loadMessages() {
   }));
   $('messages-empty').hidden = messages.length > 0;
 }
+
+// ---- Prices (the pricing matrix, src/core/pricingMatrix.ts) ----------------------------------------------------
+const PRICE_ITEMS = ['pro.monthly', 'pro.annual'];
+const ITEM_LABEL = { 'pro.monthly': 'monthly', 'pro.annual': 'yearly' };
+const PADDLE_CURRENCIES = ['USD', 'EUR', 'JPY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'ARS', 'BRL', 'CNY', 'COP', 'CZK', 'DKK', 'HUF', 'ILS', 'INR', 'KRW', 'MXN', 'NOK', 'NZD', 'PLN', 'RUB', 'THB', 'TRY', 'TWD', 'UAH', 'VND', 'ZAR'];
+const pricingForm = $('pricing-form');
+let pricing = null;
+let pricingRows = [];
+
+const digitsOf = currency => { try { return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits; } catch { return 2; } };
+const moneyText = (minor, currency) => {
+  const digits = digitsOf(currency);
+  try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(minor / 10 ** digits); } catch { return currency + ' ' + minor; }
+};
+/** "3.49" → 349 (in the currency's minor unit); "" → undefined; anything else → NaN. */
+function toMinor(text, currency) {
+  const value = String(text ?? '').trim();
+  if (!value) return undefined;
+  const digits = digitsOf(currency);
+  if (!new RegExp('^\\d+(\\.\\d{1,' + Math.max(digits, 0) + '})?$').test(value) || (digits === 0 && value.includes('.'))) return NaN;
+  return Math.round(Number(value) * 10 ** digits);
+}
+const fromMinor = (minor, currency) => (minor === undefined || minor === null ? '' : String(minor / 10 ** digitsOf(currency)));
+
+function renderPricing(result) {
+  pricing = result.matrix;
+  for (const item of PRICE_ITEMS) pricingForm.elements['base-' + item].value = fromMinor(pricing.base[item], 'GBP');
+  $('pricing-rates').textContent = pricing.rates.date ? `ECB reference rates for ${pricing.rates.date}.` : 'No exchange rates yet. Fetch them to convert the other currencies.';
+  $('pricing-status').textContent = pricing.updatedAt ? `Last saved ${when(Date.parse(pricing.updatedAt))}.` : 'Not saved yet: showing the starting prices.';
+  const computed = Object.fromEntries((result.prices ?? []).map(row => [row.currency, row]));
+  pricingRows = Object.keys(pricing.currencies).sort();
+  const body = $('pricing-rows');
+  body.replaceChildren();
+  for (const currency of pricingRows) {
+    const rule = pricing.currencies[currency];
+    const row = el('tr');
+    row.dataset.currency = currency;
+    cell(row, currency);
+    cell(row, pricing.rates.perGbp[currency] ? String(pricing.rates.perGbp[currency]) : 'No rate');
+    const rounding = el('select');
+    rounding.name = 'rounding-' + currency;
+    rounding.setAttribute('aria-label', currency + ' rounding');
+    for (const [value, label] of [['charm', 'Charm (3.99, 35, 299)'], ['whole', 'Whole units'], ['exact', 'Exact conversion']]) rounding.add(new Option(label, value));
+    rounding.value = rule.rounding;
+    cell(row, rounding);
+    for (const item of PRICE_ITEMS) {
+      const input = el('input');
+      input.name = 'override-' + currency + '-' + item;
+      input.inputMode = 'decimal';
+      input.size = 8;
+      input.setAttribute('aria-label', `${currency} ${ITEM_LABEL[item]} override`);
+      input.value = fromMinor(rule.overrides[item], currency);
+      cell(row, input);
+    }
+    for (const item of PRICE_ITEMS) {
+      const price = computed[currency]?.prices[item];
+      cell(row, price ? moneyText(price.minor, currency) + (price.source === 'override' ? ' (override)' : '') : 'Not offered');
+    }
+    cell(row, button('Remove', 'Remove ' + currency, '', async () => { delete pricing.currencies[currency]; renderPricing({ matrix: readPricingForm(), prices: result.prices, paddle: result.paddle }); }));
+    body.append(row);
+  }
+  const add = $('pricing-add');
+  add.replaceChildren(...PADDLE_CURRENCIES.filter(c => !pricing.currencies[c]).map(c => new Option(c, c)));
+  if (result.paddle !== undefined) renderPaddle(result.paddle);
+}
+
+function renderPaddle(check) {
+  const list = $('pricing-paddle-list');
+  list.replaceChildren();
+  if (!check) { $('pricing-paddle').textContent = 'Paddle is not set up on this server, so checkout prices cannot be checked.'; $('pricing-push').hidden = true; return; }
+  $('pricing-push').hidden = false;
+  $('pricing-paddle').textContent = check.inStep ? 'In step: Paddle charges exactly these prices.' : 'Not in step: Paddle would charge something different. Save, then set the Paddle prices.';
+  for (const row of check.items) {
+    if (row.error) list.append(el('li', `Pro, ${ITEM_LABEL[row.item]}: ${row.error}`));
+    for (const d of row.differences) {
+      const matrix = d.matrix === null ? 'not offered' : moneyText(d.matrix, d.currency);
+      const paddle = d.paddle === null ? 'not set, or not for every country' : moneyText(d.paddle, d.currency);
+      list.append(el('li', `Pro, ${ITEM_LABEL[row.item]}, ${d.currency}: matrix ${matrix}, Paddle ${paddle}`));
+    }
+  }
+}
+
+function readPricingForm() {
+  const base = {};
+  for (const item of PRICE_ITEMS) base[item] = toMinor(pricingForm.elements['base-' + item].value, 'GBP');
+  const currencies = {};
+  for (const currency of Object.keys(pricing.currencies)) {
+    const rounding = pricingForm.elements['rounding-' + currency]?.value ?? pricing.currencies[currency].rounding;
+    const overrides = {};
+    for (const item of PRICE_ITEMS) {
+      const input = pricingForm.elements['override-' + currency + '-' + item];
+      const minor = input ? toMinor(input.value, currency) : pricing.currencies[currency].overrides[item];
+      if (Number.isNaN(minor)) throw new Error(`The ${currency} ${ITEM_LABEL[item]} override is not an amount.`);
+      if (minor !== undefined) overrides[item] = minor;
+    }
+    currencies[currency] = { rounding, overrides };
+  }
+  if (PRICE_ITEMS.some(item => !Number.isFinite(base[item]))) throw new Error('Type both UK prices as amounts, for example 2.99.');
+  return { version: 1, base, rates: pricing.rates, currencies };
+}
+
+async function loadPricing() {
+  try { renderPricing(await api('admin/pricing')); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('pricing-status').textContent = error.message;
+  }
+}
+
+act($('pricing-fetch-rates'), 'click', async () => {
+  const matrix = readPricingForm();
+  const { rates } = await api('admin/pricing/rates', {});
+  matrix.rates = rates;
+  renderPricing(await api('admin/pricing/preview', matrix));
+  say(`Fetched ECB rates for ${rates.date}. Check the prices, then save.`);
+});
+act($('pricing-add-button'), 'click', async () => {
+  const matrix = readPricingForm();
+  const currency = $('pricing-add').value;
+  if (!currency) return;
+  matrix.currencies[currency] = { rounding: 'charm', overrides: {} };
+  renderPricing(await api('admin/pricing/preview', matrix));
+});
+act($('pricing-preview'), 'click', async () => { renderPricing(await api('admin/pricing/preview', readPricingForm())); say('Preview only: nothing is saved yet.'); });
+act(pricingForm, 'submit', async () => { renderPricing(await api('admin/pricing', readPricingForm())); say('Prices saved. The website and app show them within a few minutes.'); });
+act($('pricing-push'), 'click', async () => {
+  renderPricing(await api('admin/pricing/paddle', {}));
+  say('Paddle prices set from the saved matrix. New checkouts charge these prices; existing subscriptions keep theirs.');
+});
 
 // ---- Tax (from the tax admin, #547) ----------------------------------------------------------------------------
 async function loadPriceReview() {

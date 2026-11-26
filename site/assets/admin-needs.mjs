@@ -70,7 +70,7 @@ export const VIEWS = {
   messages: { label: 'Messages', sections: ['messages'] },
   safety: { label: 'Safety', sections: ['safety'] },
   compliance: { label: 'Compliance documents', sections: ['compliance'] },
-  money: { label: 'Money and tax', sections: ['payments', 'accounts', 'tax', 'price-review', 'usage'] },
+  money: { label: 'Money and tax', sections: ['payments', 'accounts', 'pricing', 'tax', 'price-review', 'usage'] },
   news: { label: 'Send news', sections: ['notifications'] },
   service: { label: 'Switches, flags and jobs', sections: ['switches', 'flags', 'mail', 'learning', 'monitoring'] },
   records: { label: 'Counts and audit log', sections: ['overview', 'audit'] },

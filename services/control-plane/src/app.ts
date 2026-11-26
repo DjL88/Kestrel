@@ -14,6 +14,7 @@ import { adminRoutes } from './routesAdmin.ts';
 import { collabRoutes } from './routesCollab.ts';
 import { meRoutes } from './routesMe.ts';
 import { generalRoutes } from './routesGeneral.ts';
+import { pricingRoutes } from './routesPricing.ts';
 export { DEVICE_RELEASES_PER_YEAR, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE, SWAP_IDLE_DAYS, Schemas } from './appShared.ts';
 export type { AppOptions } from './appShared.ts';
 import type { AppOptions } from './appShared.ts';
@@ -21,7 +22,7 @@ import type { AppOptions } from './appShared.ts';
 export function createApp(options: AppOptions) {
   const ctx = createContext(options);
   const { config, store, now, audit, bearer, issueSession, createAccount, switchOn, collab, compliance, admin } = ctx;
-  const routes: Route[] = [...generalRoutes(ctx), ...meRoutes(ctx), ...collabRoutes(ctx), ...adminRoutes(ctx)];
+  const routes: Route[] = [...generalRoutes(ctx), ...meRoutes(ctx), ...collabRoutes(ctx), ...adminRoutes(ctx), ...pricingRoutes(ctx)];
 
   const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/compliance/documents' ? Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4 + 4096 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 

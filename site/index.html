@@ -496,7 +496,7 @@
       </article>
       <article class="card"><h3 data-i18n="chooseProTitle">Subscribe to Pro</h3>
         <p class="promo" id="promo-banner" role="note" hidden data-i18n="promoBanner">Black Friday offer: Pro costs less when you sign in and buy by the end of {lastDay}. The checkout shows the reduced price before you pay.</p>
-        <p><strong>£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong>£29</strong> <span data-i18n="priceAnnual">a year</span></p>
+        <p><strong data-pro-price="pro.monthly">£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong data-pro-price="pro.annual">£29</strong> <span data-i18n="priceAnnual">a year</span></p>
         <p data-i18n="chooseSubBody">Pay monthly or yearly and cancel at any time. If you stop, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
         <p class="note" data-i18n="choosePricePromise">Price promise: your subscription price never goes up without at least 30 days’ notice by email, and a new price only starts at a renewal after that notice. You can cancel before then.</p>
         <p data-i18n="chooseBuyHow">To subscribe, sign in from the InFlight app and choose Subscribe to Pro. Paddle, our reseller, runs the checkout.</p>
@@ -721,6 +721,31 @@
   })();
 </script>
 <script src="assets/contact.js" defer></script>
+<script type="module">
+  // Prices from the one pricing matrix (Admin → Prices), in the currency Paddle charges for the visitor's country.
+  // The £ prices in the page are the matrix's starting prices and stay if /v1/pricing cannot be read.
+  import { loadPricing, currencyFor, priceText } from './assets/pricing.mjs';
+  (async () => {
+    const pricing = await loadPricing();
+    let region = null;
+    for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+      try { region = new Intl.Locale(tag).region || null; } catch { /* not a tag */ }
+      if (region) break;
+    }
+    const currency = currencyFor(pricing, region);
+    const fill = () => {
+      const locale = window.KestrelI18n ? window.KestrelI18n.language : 'en-GB';
+      const slots = [...document.querySelectorAll('#pro-price-monthly, #pro-price-annual, [data-pro-price]')];
+      for (const node of slots) {
+        const item = node.dataset.proPrice || (node.id === 'pro-price-monthly' ? 'pro.monthly' : 'pro.annual');
+        node.textContent = priceText(pricing, currency, item, locale);
+        node.dataset.currency = currency;
+      }
+    };
+    fill();
+    window.KestrelI18n?.onChange?.(fill);
+  })();
+</script>
 <script type="module">
   // Plan choices: shown only when the admin flag sitePlanChoices is on. Fails closed: if the flags cannot be read,
   // the page stays as it is.

@@ -83,6 +83,14 @@ export const isPaddlePortalUrl = (value: string) => {
   } catch { return false; }
 };
 
+const PADDLE_PRICE_ID = /^pri_[a-z0-9]{10,60}$/;
+const priceMoney = z.object({ amount: z.string().regex(/^\d{1,12}$/), currency_code: z.string().regex(/^[A-Z]{3}$/) });
+const paddlePrice = z.object({
+  id: z.string().regex(PADDLE_PRICE_ID),
+  unit_price: priceMoney,
+  unit_price_overrides: z.array(z.object({ country_codes: z.array(z.string()), unit_price: priceMoney })).nullable().optional().transform((v) => v ?? []),
+}).passthrough();
+
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
   apiKey: string | (() => Promise<string>);
@@ -123,6 +131,19 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
       const url = created.checkout?.url;
       if (!url || new URL(url).protocol !== 'https:') throw new Error('Paddle did not return a checkout address.');
       return { transactionId: created.id, url };
+    },
+    /** One price as Paddle has it: the base amount and the country overrides (the pricing matrix checks these). */
+    async getPrice(id: string) {
+      if (!PADDLE_PRICE_ID.test(id)) throw new Error('Invalid Paddle price ID.');
+      return paddlePrice.parse(await raw('/prices/' + encodeURIComponent(id)));
+    },
+    /**
+     * Sets a price's base amount and country overrides from the pricing matrix. Paddle applies it to new checkouts;
+     * existing subscriptions keep the price they were sold at.
+     */
+    async updatePrice(id: string, body: { unit_price: { amount: string; currency_code: string }; unit_price_overrides: { country_codes: string[]; unit_price: { amount: string; currency_code: string } }[] }) {
+      if (!PADDLE_PRICE_ID.test(id)) throw new Error('Invalid Paddle price ID.');
+      return paddlePrice.parse(await raw('/prices/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(body) }));
     },
     /** The transaction as Paddle has it now, with the buyer's country. Never trust a webhook body on its own. */
     getTransaction: (id: string) => {
