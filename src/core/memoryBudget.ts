@@ -40,13 +40,21 @@ export interface MemoryBudget {
   readAheadHeld: number;
   /** How long a model copy may sit unused before it is let go. */
   modelIdleUnloadMs: number;
+  /**
+   * Default size limit of the desktop preview folder on disk (src/providers/diskPreviewCache.ts): thumbnails, review
+   * copies and 2,560 px smart previews, about 2 MB a photo. The person can change it in Settings. Not memory, but sized
+   * from the same tier, since a machine with little memory usually has a small disk too.
+   */
+  diskPreviewBytes: number;
 }
+
+const GB = 1024 ** 3;
 
 /** Per tier. "standard" keeps the numbers the app used before the budget (24 previews, 8 RAWs, 1 each side, 4 held). */
 export const TIER_LIMITS: Record<DeviceTier, Omit<MemoryBudget, 'tier' | 'basis' | 'cullWorkers'> & { cullWorkers: number }> = {
-  low: { cullWorkers: 2, fullPreviews: 8, developedRaws: 3, readAheadReach: 1, readAheadHeld: 2, modelIdleUnloadMs: 20_000 },
-  standard: { cullWorkers: 4, fullPreviews: 24, developedRaws: 8, readAheadReach: 1, readAheadHeld: 4, modelIdleUnloadMs: 60_000 },
-  high: { cullWorkers: 6, fullPreviews: 48, developedRaws: 12, readAheadReach: 2, readAheadHeld: 6, modelIdleUnloadMs: 120_000 },
+  low: { cullWorkers: 2, fullPreviews: 8, developedRaws: 3, readAheadReach: 1, readAheadHeld: 2, modelIdleUnloadMs: 20_000, diskPreviewBytes: 2 * GB },
+  standard: { cullWorkers: 4, fullPreviews: 24, developedRaws: 8, readAheadReach: 1, readAheadHeld: 4, modelIdleUnloadMs: 60_000, diskPreviewBytes: 8 * GB },
+  high: { cullWorkers: 6, fullPreviews: 48, developedRaws: 12, readAheadReach: 2, readAheadHeld: 6, modelIdleUnloadMs: 120_000, diskPreviewBytes: 20 * GB },
 };
 
 export function deviceTier(facts: DeviceFacts): { tier: DeviceTier; basis: MemoryBudget['basis'] } {

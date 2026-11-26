@@ -28,4 +28,16 @@ export const da: AreaTranslation<typeof source> = {
     forget: "Dine projekter, valg, redigeringer og forhåndsvisninger ligger i denne browser. Rydning af browserdata, et privat vindue eller afinstallation af browseren kan fjerne dem. Dine originale fotos gemmes eller ændres aldrig her, så de er sikre.",
     backupHint: "For en sikkerheds skyld: lav en projektbackup fra projektets indstillinger, og gem den sammen med dine originaler et sted uden for denne browser.",
   },
+  diskPreviews: {
+    title: "Forhåndsvisninger på denne computer",
+    intro: "InFlight gemmer tre små billeder af hvert RAW-foto i sin egen mappe: et miniaturebillede, en visningskopi og en smart forhåndsvisning på 2.560 px. Du kan blive ved med at redigere et foto, når dets drev ikke er tilsluttet. Eksport kræver stadig originalen. Dine originaler bliver aldrig ændret.",
+    using: "{used} brugt til {count} fotos.",
+    checking: "Tjekker mappen med forhåndsvisninger …",
+    limitLabel: "Største størrelse",
+    limitDefault: "{size} (anbefalet til denne computer)",
+    limitHint: "Der er plads til cirka {count} fotos. Når mappen er fuld, fjernes de forhåndsvisninger, du ikke har set på i længst tid. De laves igen, når du åbner fotoene med deres drev tilsluttet.",
+    clear: "Fjern alle forhåndsvisninger",
+    cleared: "Forhåndsvisninger fjernet. De laves igen, når du ser på fotos.",
+    failed: "Mappen med forhåndsvisninger kunne ikke læses.",
+  },
 };

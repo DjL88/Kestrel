@@ -2005,6 +2005,7 @@ export default function App() {
           read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0, Number(parts.at(-2)) || undefined, frame.originalSha256!),
           openRange: linkedRangeOpener(path, Number(parts.at(-2)) || undefined, frame.originalSha256!),
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
+          path, sha256: frame.originalSha256,
         });
         preview.retryLinkedOriginal(key);
       }

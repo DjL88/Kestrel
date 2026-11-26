@@ -28,4 +28,16 @@ export const gd: AreaTranslation<typeof source> = {
     forget: "Tha na pròiseactan, na co-dhùnaidhean, na deasachaidhean is na ro-sheallaidhean agad sa bhrabhsair seo. Faodaidh falamhachadh dàta brabhsaidh, uinneag phrìobhaideach no dì-stàladh a' bhrabhsair an toirt air falbh. Cha tèid na dealbhan tùsail agad a stòradh no atharrachadh an seo idir, mar sin tha iad sàbhailte.",
     backupHint: "Airson a bhith sàbhailte, dèan lethbhreac-glèidhidh bho roghainnean a' phròiseict is cùm e, còmhla ris na dealbhan tùsail, àiteigin taobh a-muigh a' bhrabhsair seo.",
   },
+  diskPreviews: {
+    title: "Ro-sheallaidhean air a’ choimpiutair seo",
+    intro: "Cumaidh InFlight trì dealbhan beaga de gach dealbh RAW na phasgan fhèin: dealbhag, lethbhreac airson sùil a thoirt air agus ro-shealladh glic 2,560 px. Faodaidh tu cumail a’ deasachadh dealbh nuair nach eil an draibh aige ceangailte. Feumaidh às-phortadh an tionndadh tùsail fhathast. Chan atharraichear na dealbhan tùsail agad idir.",
+    using: "A’ cleachdadh {used} airson {count} dealbhan.",
+    checking: "A’ sgrùdadh pasgan nan ro-sheallaidhean…",
+    limitLabel: "Crìoch meud",
+    limitDefault: "{size} (molta airson a’ choimpiutair seo)",
+    limitHint: "Bidh àite airson mu {count} dealbhan. Nuair a bhios am pasgan làn, thèid na ro-sheallaidhean air nach do choimhead thu as fhaide a thoirt air falbh. Thèid an dèanamh a-rithist nuair a dh’fhosglas tu na dealbhan sin leis an draibh ceangailte.",
+    clear: "Thoir air falbh gach ro-shealladh",
+    cleared: "Chaidh na ro-sheallaidhean a thoirt air falbh. Thèid an dèanamh a-rithist nuair a choimheadas tu air dealbhan.",
+    failed: "Cha b’ urrainn dhuinn pasgan nan ro-sheallaidhean a leughadh.",
+  },
 };

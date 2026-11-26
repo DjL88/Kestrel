@@ -111,7 +111,7 @@ async function importLinkedWithoutFullRead(
     } catch {
       return null;
     }
-    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
+    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified, path: file.path, sha256: originalSha256 });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
     } catch {
@@ -193,7 +193,7 @@ export async function loadLocalFileListShoot(
         }
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
-          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
+          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified, path: file.path, sha256: originalSha256 });
           try {
             if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
           } catch {
@@ -436,6 +436,7 @@ export async function rehydrateLocalFramesFromStore(
       read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
       openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
       size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
+      path: frame.sourcePath, sha256: frame.originalSha256,
     });
   }
   const linkedKeys = new Set(frames.filter((frame) => frame.sourcePath).map((frame) => frame.stableKey));

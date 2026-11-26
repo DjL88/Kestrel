@@ -28,4 +28,16 @@ export const sv: AreaTranslation<typeof source> = {
     forget: "Dina projekt, val, redigeringar och förhandsvisningar finns i den här webbläsaren. Att rensa webbinformation, använda ett privat fönster eller avinstallera webbläsaren kan ta bort dem. Dina originalfoton lagras eller ändras aldrig här, så de är säkra.",
     backupHint: "Gör för säkerhets skull en projektsäkerhetskopia från projektets alternativ och spara den, tillsammans med dina original, utanför den här webbläsaren.",
   },
+  diskPreviews: {
+    title: "Förhandsvisningar på den här datorn",
+    intro: "InFlight sparar tre små bilder av varje RAW-foto i en egen mapp: en miniatyr, en granskningskopia och en smart förhandsvisning på 2 560 px. Du kan fortsätta redigera ett foto när dess enhet inte är ansluten. Export kräver fortfarande originalet. Dina original ändras aldrig.",
+    using: "{used} används för {count} foton.",
+    checking: "Kontrollerar mappen med förhandsvisningar …",
+    limitLabel: "Största storlek",
+    limitDefault: "{size} (föreslås för den här datorn)",
+    limitHint: "Ungefär {count} foton får plats. När mappen är full tas de förhandsvisningar bort som du inte har tittat på längst. De görs igen när du öppnar fotona med enheten ansluten.",
+    clear: "Ta bort alla förhandsvisningar",
+    cleared: "Förhandsvisningarna är borttagna. De görs igen när du tittar på foton.",
+    failed: "Mappen med förhandsvisningar kunde inte läsas.",
+  },
 };
