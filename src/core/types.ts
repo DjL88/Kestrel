@@ -103,6 +103,8 @@ export interface PhotoFrame {
   framing?: PhotoFraming;
   focusPoint?: FocusPoint;
   rating?: number;
+  /** A focus stack made in InFlight: this photo is the new linked file, and this is the record of its sources. */
+  focusStack?: import('./focusStackRecipe').FocusStackRecipe;
   /** A panorama stitched in InFlight: this photo is the new linked file, and this is the record of its sources. */
   panorama?: import('./panoramaRecipe').PanoramaRecipe;
   virtualCopy?: { originalFrameId: string; number: number };

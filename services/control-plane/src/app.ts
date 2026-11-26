@@ -65,7 +65,7 @@ export interface AppOptions {
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
-  payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
+  payments?: { listTransactions(limit: number): Promise<TransactionRecord[]>; listTransactionsForMonth?(month: string): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
   settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
   /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
@@ -2304,6 +2304,31 @@ export function createApp(options: AppOptions) {
             currency: t.currency, totalPence: t.totalPence, netPence: t.netPence, taxPence: t.taxPence, accountId: t.accountId,
           })),
           billingEvents: events,
+        });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/accounts', summary: 'Read-only month accounts: Paddle payout figures and the cost model\'s estimate of metered spend', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'accounts.read');
+        const month = req.query.get('month') ?? new Date(now()).toISOString().slice(0, 7);
+        const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+        if (!match || Number(match[1]) < 2020 || Number(match[1]) > 9998) throw new ApiError(400, 'BAD_MONTH', 'Choose a month as YYYY-MM.');
+        const monthStartMs = Date.UTC(Number(match[1]), Number(match[2]) - 1, 1);
+        const p = options.payments;
+        const transactions = !p ? null : p.listTransactionsForMonth
+          ? await p.listTransactionsForMonth(month)
+          : (await p.listTransactions(1000)).filter((t) => t.supplyDate.startsWith(month));
+        const sp = options.spend;
+        return adminDone(claims, 'accounts.read', month, {
+          month,
+          paymentsConnected: transactions !== null,
+          transactions: (transactions ?? []).map((t) => ({
+            invoiceNumber: t.invoiceNumber, paidAt: t.paidAt, status: t.status, store: t.store ?? null, currency: t.currency,
+            netPence: t.netPence, taxPence: t.taxPence, totalPence: t.totalPence, storeFeeMinor: t.storeFeeMinor ?? null,
+            buyer: t.buyer ? { currency: t.buyer.currency, totalMinor: t.buyer.totalMinor, taxMinor: t.buyer.taxMinor } : null,
+          })),
+          costModel: sp ? { reservedPence: await sp.guard.spent(monthStartMs), ceilingPence: sp.ceilingPence } : null,
         });
       },
     },

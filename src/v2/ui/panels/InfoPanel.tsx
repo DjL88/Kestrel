@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import VehicleRow from './VehicleRow';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
@@ -199,6 +200,16 @@ export default function InfoPanel({
               {photo.panorama.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
             </ul>
             <p className="text-[0.6875rem] text-[var(--text-secondary)]">{panoText.infoHow}</p>
+          </div>
+        )}
+        {photo.focusStack && (
+          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-focus-stack-info">
+            <p className="text-xs font-semibold text-[var(--text-primary)]">{stackText.infoTitle}</p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoMadeFrom(photo.focusStack.sources.length)}</p>
+            <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
+              {photo.focusStack.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
+            </ul>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoHow}</p>
           </div>
         )}
         {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (

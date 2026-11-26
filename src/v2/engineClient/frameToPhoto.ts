@@ -1,5 +1,6 @@
 import { readExternalEdit } from '../../core/externalEdit';
 import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
+import { readFocusStackRecipe } from '../../core/focusStackRecipe';
 import { readPanoramaRecipe } from '../../core/panoramaRecipe';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
@@ -308,6 +309,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(readExternalEdit(frame.externalEdit) ? { externalEdit: readExternalEdit(frame.externalEdit) } : {}),
     ...(extras.dngCopy ? { dngCopy: true } : {}),
     ...(readPanoramaRecipe(frame.panorama) ? { panorama: { sources: frame.panorama!.sources.map((source) => source.filename) } } : {}),
+    ...(readFocusStackRecipe(frame.focusStack) ? { focusStack: { sources: frame.focusStack!.sources.map((source) => source.filename) } } : {}),
     ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
