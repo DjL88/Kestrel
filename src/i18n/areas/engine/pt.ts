@@ -73,6 +73,7 @@ export const pt: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'A preparar 1 miniatura' : `A preparar ${count} miniaturas`),
     thumbnailStage: 'A ler e reduzir esta fotografia',
     thumbnailFailed: (filename) => `Não foi possível criar a miniatura de ${filename}. Volte a ligar o original e tente de novo.`,
+    rawJpegXl: 'Este RAW usa compressão JPEG XL, que o InFlight ainda não consegue ler. O original não foi alterado.',
     notConnected: (names) => `Ainda não está ligado ao motor do InFlight, por isso não foi aplicado: ${names}.`,
     exportRunning: 'Já há uma exportação em curso.',
     selectOneRaw: 'Selecione uma fotografia RAW para exportar o seu TIFF.',

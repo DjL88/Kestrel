@@ -73,6 +73,7 @@ export const gd: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Ag ullachadh 1 dealbhag' : `Ag ullachadh ${count} dealbhagan`),
     thumbnailStage: 'A’ leughadh is a’ lùghdachadh an deilbh seo',
     thumbnailFailed: (filename) => `Cha b’ urrainnear an dealbhag airson ${filename} a dhèanamh. Ceangail an tè thùsail a-rithist is feuch a-rithist.`,
+    rawJpegXl: 'Tha an RAW seo a’ cleachdadh dùmhlachadh JPEG XL nach urrainn do InFlight a leughadh fhathast. Cha deach beantainn ris an tè thùsail.',
     notConnected: (names) => `Chan eil seo ceangailte ri einnsean InFlight fhathast, mar sin cha deach a chur an sàs: ${names}.`,
     exportRunning: 'Tha às-phortadh a’ dol mu thràth.',
     selectOneRaw: 'Tagh aon dealbh RAW gus an TIFF aige às-phortadh.',

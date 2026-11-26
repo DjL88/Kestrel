@@ -10,6 +10,9 @@ substitutions:
   _FIREBASE_AUTH_DOMAIN: ''
   _FIREBASE_PROJECT_ID: ''
   _FIREBASE_APP_ID: ''
+  # Browser push alerts: the Firebase sender id and the public Web Push (VAPID) key. Public values.
+  _FIREBASE_MESSAGING_SENDER_ID: ''
+  _FCM_VAPID_KEY: ''
   _CONTROL_PLANE_URL: ''
   _GRANT_KEYS: ''
   # G10 build provenance. Trigger builds get the commit from $COMMIT_SHA. A manual `gcloud builds submit` has none, so pass
@@ -35,6 +38,8 @@ steps:
       - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
       - --build-arg=VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
       - --build-arg=VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - --build-arg=VITE_FIREBASE_MESSAGING_SENDER_ID=${_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg=VITE_FCM_VAPID_KEY=${_FCM_VAPID_KEY}
       - --build-arg=VITE_KESTREL_CONTROL_PLANE_URL=${_CONTROL_PLANE_URL}
       - --build-arg=VITE_KESTREL_GRANT_KEYS=${_GRANT_KEYS}
       - -t
