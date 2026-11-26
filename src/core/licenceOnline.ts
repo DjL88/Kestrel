@@ -7,7 +7,7 @@
  *
  * Nothing here ever locks, hides or deletes local work: Free editing, projects, backup and export never depend on it.
  */
-import type { EntitlementGrant } from './entitlementGrant';
+import { grantIsOwned, type EntitlementGrant } from './entitlementGrant';
 import type { PinnedKeys } from './signedEnvelope';
 
 const DAY_MS = 86_400_000;
@@ -107,12 +107,17 @@ export type AccountStanding =
   | { kind: 'revoked'; message: string };
 
 /**
- * Pro from an account. Unlike a key, an account has nothing to fall back on: only a verified paid grant inside its
- * offline window counts, so signing in alone never unlocks anything. Free work is never touched either way.
+ * Pro from an account. Signing in alone never unlocks anything: only a verified paid grant counts. A grant for a
+ * licence bought outright (`grantIsOwned`) keeps Pro on this device past its offline window; any other grant (a gift,
+ * a time-limited licence) counts only inside its window. Free work is never touched either way.
  */
 export function decideAccountAccess(standing: AccountStanding, nowMs: number): AccessDecision {
   if (standing.kind !== 'active') return { pro: false, managedAi: false, basis: standing.kind === 'revoked' ? 'revoked' : 'none' };
   const { grant } = standing;
-  if (grant.plan === 'free' || nowMs > grant.offlineUntilMs) return { pro: false, managedAi: false, basis: 'none' };
+  if (grant.plan === 'free') return { pro: false, managedAi: false, basis: 'none' };
+  const withinWindow = nowMs <= grant.offlineUntilMs;
+  // Bought outright: Pro stays on this device for good, online or not. Managed AI still needs a live window.
+  if (grantIsOwned(grant)) return { pro: true, managedAi: withinWindow && grant.managedAi, basis: 'grant' };
+  if (!withinWindow) return { pro: false, managedAi: false, basis: 'none' };
   return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
 }

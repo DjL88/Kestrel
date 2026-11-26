@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
-import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
+import { OWNED_GRANT_FLAG, type EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
 import { forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
@@ -15,7 +15,7 @@ import { learningSubjectFor } from './learningSignal.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
-import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './store.ts';
+import { licenceIsUsable, newLicence, type AuditRecord, type LicenceRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
@@ -834,6 +834,18 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
+  /**
+   * Bought outright (a verified one-off payment that never expires): mark the grant so the app keeps Pro on that
+   * device for good, even if this service is down or gone (src/core/entitlementGrant.ts grantIsOwned). Always decided
+   * here, never by an admin flag of the same name, so a gift or a flag rule cannot claim it.
+   */
+  function ownedFlags(licence: LicenceRecord, base: Pick<EntitlementGrant, 'flags'>): Pick<EntitlementGrant, 'flags'> {
+    const owned = licence.paid && licence.plan === 'paid' && licence.validUntilMs === null && licence.status === 'active';
+    const { [OWNED_GRANT_FLAG]: _ignored, ...rest } = base.flags ?? {};
+    if (owned) return { flags: { ...rest, [OWNED_GRANT_FLAG]: { on: true } } };
+    return base.flags ? { flags: rest } : {};
+  }
+
   // The one model manifest: the bucket's signed manifest/stable.json, served unchanged after its signature is checked
   // against the pinned manifest key. The control plane never builds or re-signs a model list (kcp keys sign grants only).
   let cachedManifest: { atMs: number; body: unknown } | null = null;
@@ -1139,7 +1151,7 @@ export function createApp(options: AppOptions) {
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: outcome.licence.plan as EntitlementGrant['plan'], managedAi: outcome.licence.managedAi,
           deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: offlineDeadline(outcome.licence, t),
-          ...(await grantFlagsFor({ plan: outcome.licence.plan === 'free' ? 'basic' : 'pro', user: (await store.getAccount(claims.sub))?.emailHash }, body.deviceHash, body.appVersion, t)),
+          ...ownedFlags(outcome.licence, await grantFlagsFor({ plan: outcome.licence.plan === 'free' ? 'basic' : 'pro', user: (await store.getAccount(claims.sub))?.emailHash }, body.deviceHash, body.appVersion, t)),
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
@@ -2063,7 +2075,8 @@ export function createApp(options: AppOptions) {
         const parsed = parseFlagSet({ [body.key]: { ...body.flag, rules } })[body.key];
         if (!parsed || parsed.rules.length !== rules.length) throw new ApiError(400, 'VALIDATION_FAILED', 'One of the rules is not valid. Nothing was changed.');
         const flags = { ...(await loadFlags()), [body.key]: parsed };
-        if (Object.keys(flags).length > MAX_GRANT_FLAGS) throw new ApiError(400, 'VALIDATION_FAILED', `At most ${MAX_GRANT_FLAGS} flags.`);
+        // One grant slot is kept for the owned-licence flag (ownedFlags), so a full flag set never makes a buyer's grant too big.
+        if (Object.keys(flags).length > MAX_GRANT_FLAGS - 1) throw new ApiError(400, 'VALIDATION_FAILED', `At most ${MAX_GRANT_FLAGS - 1} flags.`);
         await store.setSetting(FLAGS_SETTING, JSON.stringify(flags));
         return adminDone(claims, 'flags.set', `${body.key} rules=${parsed.rules.length} kill=${parsed.kill === true}`, { key: body.key, flag: parsed });
       },

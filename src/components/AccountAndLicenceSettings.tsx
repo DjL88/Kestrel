@@ -383,7 +383,9 @@ export function AccountAndLicenceSettings() {
       <section aria-labelledby="licence-h" className="space-y-3">
         <h3 id="licence-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">{t.licence.licenceKey}</h3>
         {licence.status === 'account' && licence.standing.kind === 'active' && licence.access.pro && (
-          <p role="status">InFlight Pro is active on this device. Offline until {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(licence.standing.grant.offlineUntilMs)}.</p>
+          <p role="status">{plan.kind === 'pro-account' && plan.owned
+            ? 'InFlight Pro is yours on this device. It keeps working with or without a connection.'
+            : <>InFlight Pro is active on this device. Offline until {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(licence.standing.grant.offlineUntilMs)}.</>}</p>
         )}
         {licence.status === 'valid'
           ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>

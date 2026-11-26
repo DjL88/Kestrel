@@ -51,6 +51,20 @@ test('Pro: signed key remains valid offline, while last-known server denials ove
   assert.deepEqual(decideAccess(true, { kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
 });
 
+test('an account licence bought outright keeps Pro past the offline window; managed AI does not', () => {
+  const owned = grant({ managedAi: true, flags: { 'licence.owned': { on: true } } });
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: owned, activationId: 'act_1' }, NOW), { pro: true, managedAi: true, basis: 'grant' });
+  // Years with no server at all: still Pro on this device, never managed AI.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: owned, activationId: 'act_1' }, NOW + 3650 * DAY), { pro: true, managedAi: false, basis: 'grant' });
+  // A revoke or refund heard online still wins.
+  assert.deepEqual(decideAccountAccess({ kind: 'revoked', message: 'Refunded' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
+  // Only "on for good" counts: a trial, a time-boxed or an "off" flag, or a non-paid plan, lapses as before.
+  for (const flag of [{ on: false }, { on: true, trial: true as const }, { on: true, endsAtMs: NOW + 400 * DAY }]) {
+    assert.equal(decideAccountAccess({ kind: 'active', grant: grant({ flags: { 'licence.owned': flag } }), activationId: 'act_1' }, NOW + 31 * DAY).pro, false);
+  }
+  assert.equal(decideAccountAccess({ kind: 'active', grant: grant({ plan: 'subscriber', flags: { 'licence.owned': { on: true } } }), activationId: 'act_1' }, NOW + 31 * DAY).pro, false);
+});
+
 test('an account has nothing to fall back on: Pro only inside the grant\'s offline window (30 days by default)', () => {
   assert.deepEqual(decideAccountAccess({ kind: 'no_licence' }, NOW), { pro: false, managedAi: false, basis: 'none' });
   assert.deepEqual(decideAccountAccess({ kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
