@@ -580,6 +580,8 @@ export interface WorkspaceSettings {
   advanceAfterDecision: boolean;
   /** A quick one-finger flick across the photo steps to the next or previous photo (touch screens). On by default. */
   swipeBetweenPhotos: boolean;
+  /** Game controllers (Gamepad API) run commands: Settings > Keyboard > Game controller. Off by default. */
+  gamepadEnabled?: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';

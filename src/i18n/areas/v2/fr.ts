@@ -1442,6 +1442,9 @@ export const fr: AreaTranslation<typeof source> = {
       swipeLabel: "Balayer pour changer de photo",
       swipeDesc: "Un geste rapide d’un doigt sur la photo affiche la photo suivante ou précédente. Désactivez-le si cela arrive par accident.",
       penNote: "Avec un stylet comme l’Apple Pencil, les contacts sur la photo sont ignorés tant que le stylet touche l’écran. Cela dure aussi un instant après, pour que votre main ne déplace jamais la photo.",
+      gamepadHeading: "Manette de jeu",
+      gamepadLabel: "Utiliser une manette de jeu",
+      gamepadDesc: "Triez et retouchez avec une manette Xbox, PlayStation ou similaire. La croix directionnelle change de photo et d’étoiles, les joysticks déplacent le curseur en cours. Désactivé tant que vous ne l’activez pas.",
     },
     language: {
       label: 'Langue d’affichage',
@@ -1504,6 +1507,12 @@ export const fr: AreaTranslation<typeof source> = {
     nothing: 'Rien',
     learnLabel: (slot) => `Apprendre la touche de ${slot}`,
     resetPad: 'Rétablir la configuration de départ du pavé',
+    gamepadHelp: "Choisissez l’action de chaque bouton et de chaque direction des joysticks. Les joysticks déplacent le dernier curseur utilisé, ou l’exposition, par les mêmes pas qu’un glissement, donc Annuler revient en arrière. Les manettes ne font rien tant que les Réglages sont ouverts, pour que vous puissiez tester chaque bouton ici.",
+    gamepadNone: "Aucune manette trouvée. Branchez-en une, puis appuyez sur un bouton pour que le navigateur la voie.",
+    gamepadConnected: (name: string) => `Connectée : ${name}`,
+    gamepadLast: (slot: string, action: string) => `Dernier appui : ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Dernier appui : ${slot} (ne fait rien)`,
+    gamepadReset: "Rétablir la configuration de départ de la manette",
   },
   cloudUsage: {
     title: 'Utilisation du cloud',

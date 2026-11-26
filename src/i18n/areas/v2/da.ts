@@ -1442,6 +1442,9 @@ export const da: AreaTranslation<typeof source> = {
       swipeLabel: "Stryg for at skifte foto",
       swipeDesc: "Et hurtigt stryg med én finger hen over fotoet viser det næste eller forrige foto. Slå det fra, hvis det sker ved et uheld.",
       penNote: "Med en pen som Apple Pencil ignoreres berøringer på fotoet, mens pennen rører skærmen. Også et øjeblik efter, så din hånd aldrig flytter fotoet.",
+      gamepadHeading: "Spilcontroller",
+      gamepadLabel: "Brug en spilcontroller",
+      gamepadDesc: "Sortér og redigér med en Xbox-, PlayStation- eller lignende controller. Retningsknapperne skifter foto og stjerner, og pindene drejer den skyder, der er i brug. Slået fra, indtil du slår det til.",
     },
     language: {
       label: 'Visningssprog',
@@ -1504,6 +1507,12 @@ export const da: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lær tasten for ${slot}`,
     resetPad: 'Nulstil pad’en til startopsætningen',
+    gamepadHelp: "Vælg, hvad hver knap og hver pindretning gør. Pindene drejer den senest brugte skyder, eller Eksponering, i samme trin som et træk, så Fortryd tager det tilbage. Controllere gør intet, mens Indstillinger er åben, så du kan afprøve hver knap her.",
+    gamepadNone: "Ingen controller fundet. Tilslut en, og tryk på en knap, så browseren kan se den.",
+    gamepadConnected: (name: string) => `Tilsluttet: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Sidst trykket: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Sidst trykket: ${slot} (gør intet)`,
+    gamepadReset: "Nulstil controlleren til startopsætningen",
   },
   cloudUsage: {
     title: 'Cloudforbrug',

@@ -734,6 +734,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       advancedControls: false,
       advanceAfterDecision: false,
       swipeBetweenPhotos: true,
+      gamepadEnabled: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),

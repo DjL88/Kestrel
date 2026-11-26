@@ -1442,6 +1442,9 @@ export const it: AreaTranslation<typeof source> = {
       swipeLabel: "Scorri per cambiare foto",
       swipeDesc: "Un rapido scorrimento con un dito sulla foto mostra la foto successiva o precedente. Disattivalo se succede per sbaglio.",
       penNote: "Con una penna come Apple Pencil, i tocchi sulla foto vengono ignorati mentre la penna è appoggiata. Anche per un attimo dopo, così la tua mano non sposta mai la foto.",
+      gamepadHeading: "Controller di gioco",
+      gamepadLabel: "Usa un controller di gioco",
+      gamepadDesc: "Seleziona e modifica con un controller Xbox, PlayStation o simile. La croce direzionale cambia foto e stelle, le levette muovono il cursore in uso. Disattivato finché non lo attivi.",
     },
     language: {
       label: 'Lingua dell’interfaccia',
@@ -1504,6 +1507,12 @@ export const it: AreaTranslation<typeof source> = {
     nothing: 'Niente',
     learnLabel: (slot) => `Apprendi il tasto per ${slot}`,
     resetPad: 'Ripristina la configurazione iniziale del pad',
+    gamepadHelp: "Scegli cosa fa ogni pulsante e ogni direzione delle levette. Le levette muovono l’ultimo cursore usato, o l’esposizione, con gli stessi passi di un trascinamento, quindi Annulla lo riporta indietro. I controller non fanno nulla mentre le Impostazioni sono aperte, così puoi provare ogni pulsante qui.",
+    gamepadNone: "Nessun controller trovato. Collegane uno, poi premi un pulsante qualsiasi perché il browser lo veda.",
+    gamepadConnected: (name: string) => `Collegato: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Ultimo premuto: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Ultimo premuto: ${slot} (non fa nulla)`,
+    gamepadReset: "Ripristina il controller all’impostazione iniziale",
   },
   cloudUsage: {
     title: 'Uso del cloud',
