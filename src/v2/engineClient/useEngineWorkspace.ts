@@ -59,7 +59,8 @@ import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
 import { usePictureSearch } from './usePictureSearch';
 import { declinePhotoTag } from '../../core/photoTags';
-import { folderNameOf, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
+import { folderNameOf, linkedRangeOpener, linkedReader, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
+import { applyDesktopRelink, framesNeedingRelink, pickRelinkFolder, planDesktopRelink, tauriRelinkFs } from './desktopRelink';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
@@ -293,7 +294,7 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
 }
 
 /** Pick replacement files for originals the catalogue can no longer read (moved, renamed, or the browser session
- * lost its blob). Browser-only: desktop's own folder-relink is a separate, not-yet-wired path (see reconnectOriginal). */
+ * lost its blob). Browser-only: the desktop app picks a folder instead (see reconnectOriginal). */
 async function pickReselectFiles(): Promise<File[] | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -1817,16 +1818,85 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
    * reusing the same verified primitives App.tsx's reconnectFileSelection already uses: getLocalFileKey to identify a
    * picked file, BrowserPreviewProvider.hasBlob/registerBlob and BrowserCatalogueStore.saveLocalFileBlob to store it.
    * Browser/web, sourceKind 'file' originals only: matches every picked file against every frame still missing its
-   * original (not just the one clicked), exactly as App.tsx's whole-project reselect does. Desktop's own folder
-   * relink (Tauri fs, path-based) is a separate flow and is not wired here; this says so rather than doing nothing.
+   * original (not just the one clicked), exactly as App.tsx's whole-project reselect does. On the desktop app the
+   * person picks the folder or drive that now holds the originals instead, and each one is proved by its full-file
+   * SHA-256 before its saved path changes (desktopRelink.ts, the same matching App.tsx's folder reconnect uses).
    */
   const reconnectOriginal = useCallback(() => {
     if (relinking.current) return;
+    relinking.current = true;
+    /** Forget the failed pictures of reconnected photos and read them again from their verified originals. */
+    const refreshRecovered = (target: CullingState, recoveredIds: readonly string[]) => {
+      setUrls((current) => {
+        const updated = { ...current };
+        for (const id of recoveredIds) delete updated[id];
+        return updated;
+      });
+      for (const id of recoveredIds) {
+        thumbs.current.requested.delete(id);
+        const frame = target.frames.find((candidate) => candidate.id === id);
+        if (frame) thumbs.current.queue.push(frame);
+      }
+      pumpThumbnails();
+      if (activeId && recoveredIds.includes(activeId)) {
+        const frame = target.frames.find((candidate) => candidate.id === activeId);
+        if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
+          (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
+          () => { /* thumbnail reload shows failures without replacing original bytes */ },
+        );
+      }
+    };
     if (isDesktopApp()) {
-      setNotice('Desktop folder relinking is not connected to V2 yet. Your original files are unchanged.');
+      // Desktop: originals stay where they are on the disk. Pick the folder or drive that now holds them; each missing
+      // photo is proved by its full-file fingerprint before its saved path changes (see desktopRelink.ts).
+      const words = engineText.workspace.relink;
+      void (async () => {
+        const target = stateRef.current;
+        const projectId = target?.shoot.id;
+        const stillCurrent = () => Boolean(projectId) && stateRef.current?.shoot.id === projectId;
+        try {
+          if (!target || !projectId) return;
+          const folder = await pickRelinkFolder(words.chooseFolder);
+          if (!folder || !stillCurrent()) return;
+          const missing = framesNeedingRelink(target.frames, (key) => provider.current!.hasBlob(key));
+          if (!missing.length) { setNotice(words.nothingMissing); return; }
+          const connectedPaths = target.frames
+            .filter((frame) => frame.sourcePath && provider.current!.hasBlob(frame.stableKey))
+            .map((frame) => frame.sourcePath!);
+          setNotice(words.checking(missing.length));
+          const plan = await planDesktopRelink(missing, connectedPaths, folder, await tauriRelinkFs(), stillCurrent);
+          if (!stillCurrent()) return;
+          for (const [key, path] of plan.replacements) {
+            const frame = missing.find((candidate) => candidate.stableKey === key)!;
+            const size = Number(key.split('::').at(-2)) || 0;
+            const lastModified = Number(key.split('::').at(-1)) || 0;
+            provider.current!.registerLinked(key, {
+              read: linkedReader(path, frame.filename, lastModified, size || undefined, frame.originalSha256!),
+              openRange: linkedRangeOpener(path, size || undefined, frame.originalSha256!),
+              size, lastModified,
+            });
+            provider.current!.retryLinkedOriginal(key);
+          }
+          if (plan.replacements.size) mutate((current) => current.shoot.id !== projectId ? current
+            : { ...current, frames: applyDesktopRelink(current.frames, missing, plan.replacements) });
+          const now = stateRef.current ?? target;
+          refreshRecovered(now, now.frames.filter((frame) => plan.replacements.has(frame.stableKey)).map((frame) => frame.id));
+          const left = missing.length - plan.replacements.size;
+          setNotice([
+            plan.replacements.size ? words.reconnected(plan.replacements.size) : words.noMatch,
+            plan.replacements.size && left ? words.stillMissing(left) : '',
+            plan.ambiguous ? words.ambiguous(plan.ambiguous) : '',
+            plan.unverifiable ? words.unverifiable(plan.unverifiable) : '',
+            plan.truncated ? words.scanLimit : '',
+          ].filter(Boolean).join(' '));
+        } catch {
+          if (stillCurrent()) setNotice(words.unreadable);
+        } finally {
+          relinking.current = false;
+        }
+      })();
       return;
     }
-    relinking.current = true;
     void (async () => {
       try {
         const files = await pickReselectFiles();
@@ -1873,24 +1943,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice('Those files did not match a missing original in this project.');
           return;
         }
-        setUrls((current) => {
-          const updated = { ...current };
-          for (const id of recoveredIds) delete updated[id];
-          return updated;
-        });
-        for (const id of recoveredIds) {
-          thumbs.current.requested.delete(id);
-          const frame = target.frames.find((candidate) => candidate.id === id);
-          if (frame) thumbs.current.queue.push(frame);
-        }
-        pumpThumbnails();
-        if (activeId && recoveredIds.includes(activeId)) {
-          const frame = target.frames.find((candidate) => candidate.id === activeId);
-          if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
-            (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
-            () => { /* thumbnail reload shows failures without replacing original bytes */ },
-          );
-        }
+        refreshRecovered(target, recoveredIds);
         const stillMissing = missing.filter((frame) => !provider.current!.hasBlob(frame.stableKey)).length;
         setNotice([
           `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'} using matching original bytes.`,
@@ -1905,7 +1958,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         relinking.current = false;
       }
     })();
-  }, [pumpThumbnails, activeId]);
+  }, [pumpThumbnails, activeId, mutate]);
 
   const backToProjects = useCallback(async () => {
     const leaving = stateRef.current?.shoot.id ?? null;
