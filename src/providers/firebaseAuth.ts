@@ -1,5 +1,5 @@
 import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfaces';
-import type { SignInPlatform } from '../core/signInOptions';
+import { signInOptions, type SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
 import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
@@ -29,6 +29,12 @@ export const isDesktopGoogleConfigured = () => googleDesktop !== null;
 /** The website's Apple sign-in page this build sends desktop users to, if any (see desktopAppleSignIn.ts). */
 const appleDesktop = desktopAppleConfig(env as Record<string, string | undefined>);
 export const isDesktopAppleConfigured = () => appleDesktop !== null;
+
+/** Sign in with Microsoft is switched on per build, once its provider is enabled in the Firebase console. */
+export const isMicrosoftSignInEnabled = () => env.VITE_MICROSOFT_SIGN_IN === '1' || env.VITE_MICROSOFT_SIGN_IN === 'true';
+
+/** The sign-in options for this build and device. */
+export const currentSignInOptions = () => signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured(), isMicrosoftSignInEnabled());
 
 export function signInPlatform(): SignInPlatform {
   if (!isDesktopApp()) return 'web';
@@ -65,11 +71,29 @@ const toSession = (user: import('firebase/auth').User, provider: SignInProvider)
   email: user.email ?? undefined,
   displayName: user.displayName ?? undefined,
   expiresAtMs: Date.now() + 60 * 60 * 1000,
+  emailVerified: user.emailVerified,
 });
 
 const providerOf = (user: import('firebase/auth').User): SignInProvider =>
   user.providerData.some((p) => p.providerId === 'apple.com') ? 'apple'
+    : user.providerData.some((p) => p.providerId === 'microsoft.com') ? 'microsoft'
     : user.providerData.some((p) => p.providerId === 'password') ? 'password' : 'google';
+
+/**
+ * The pop-up provider for Google, Apple or Microsoft. Microsoft uses the "common" tenant, so both personal accounts and
+ * work or school (Microsoft 365) accounts can sign in, and always asks which account, so a shared PC is not a trap.
+ */
+function popupProvider(auth: typeof import('firebase/auth'), method: 'google' | 'apple' | 'microsoft') {
+  if (method === 'google') return new auth.GoogleAuthProvider();
+  const chosen = new auth.OAuthProvider(method === 'apple' ? 'apple.com' : 'microsoft.com');
+  chosen.addScope('email');
+  if (method === 'apple') chosen.addScope('name');
+  else { chosen.addScope('openid'); chosen.addScope('profile'); chosen.setCustomParameters({ tenant: 'common', prompt: 'select_account' }); }
+  return chosen;
+}
+
+/** Which method a pop-up provider choice is, for the methods that can open one. */
+const popupMethod = (method: SignInMethod | SignInProvider): 'google' | 'apple' | 'microsoft' => (method === 'apple' || method === 'microsoft' ? method : 'google');
 
 
 
@@ -137,7 +161,7 @@ export async function signInOtherAccount(method: SignInMethod, email?: string, p
       user = (await auth.signInWithEmailAndPassword(other, email.trim(), password)).user;
     } else {
       if (signInPlatform() !== 'web') throw new Error('On the desktop app, sign in to the other account with its email and password, or merge on the web version.');
-      user = (await auth.signInWithPopup(other, method === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider())).user;
+      user = (await auth.signInWithPopup(other, popupProvider(auth, popupMethod(method)))).user;
     }
     return await user.getIdToken();
   } catch (error) {
@@ -169,9 +193,8 @@ export async function addSignInMethod(method: SignInMethod, password?: string): 
         if (!user.email || !password) throw new Error('Choose a password for signing in with your email.');
         await auth.linkWithCredential(user, auth.EmailAuthProvider.credential(user.email, password));
       } else {
-        if (signInPlatform() !== 'web') throw new Error('Adding Google or Apple is not built for this app yet. Add it on the web version.');
-        const chosen = method === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider();
-        await auth.linkWithPopup(user, chosen);
+        if (signInPlatform() !== 'web') throw new Error('Adding Google, Apple or Microsoft is not built for this app yet. Add it on the web version.');
+        await auth.linkWithPopup(user, popupProvider(auth, popupMethod(method)));
       }
     } catch (error) {
       const problem = linkingProblem(codeOf(error));
@@ -282,19 +305,20 @@ export const firebaseAuth: AuthProvider = {
     if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
     if (signInPlatform() === 'desktop' && provider === 'google' && googleDesktop) return signInWithGoogleOnDesktop(googleDesktop);
     if (signInPlatform() === 'desktop' && provider === 'apple' && appleDesktop) return signInWithAppleOnDesktop(appleDesktop);
-    if (signInPlatform() !== 'web') throw new Error('Google and Apple sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.');
+    if (signInPlatform() !== 'web') throw new Error('Google, Apple and Microsoft sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.');
     try {
       const { auth, instance } = await firebase();
-      const chosen = provider === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider();
-      if (provider === 'apple') { chosen.addScope('email'); chosen.addScope('name'); }
+      if (provider === 'password') throw new Error('Use the email and password form.');
+      const method = popupMethod(provider);
+      const chosen = popupProvider(auth, method);
       try {
         const result = await auth.signInWithPopup(instance, chosen);
         await afterSignIn(auth, result.user);
         return toSession(result.user, provider);
       } catch (error) {
         if (codeOf(error) === 'auth/account-exists-with-different-credential') {
-          const credential = provider === 'apple' ? auth.OAuthProvider.credentialFromError(error as never) : auth.GoogleAuthProvider.credentialFromError(error as never);
-          if (credential) pendingLink = { credential, method: provider === 'apple' ? 'apple' : 'google' };
+          const credential = method === 'google' ? auth.GoogleAuthProvider.credentialFromError(error as never) : auth.OAuthProvider.credentialFromError(error as never);
+          if (credential) pendingLink = { credential, method };
           throw new LinkingError('use-existing-method');
         }
         throw error;

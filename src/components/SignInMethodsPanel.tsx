@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LinkingError, methodsToAdd, type LinkingProblem, type SignInMethod } from '../core/accountLinking';
-import { signInOptions } from '../core/signInOptions';
-import { addSignInMethod, isDesktopAppleConfigured, isDesktopGoogleConfigured, isSignInConfigured, signInMethods, signInPlatform } from '../providers/firebaseAuth';
+import { addSignInMethod, currentSignInOptions, signInMethods } from '../providers/firebaseAuth';
 import { projectsText } from '../i18n/areas/projects';
 
 /** The words for a linking outcome, in the person's language. */
@@ -14,7 +13,7 @@ export function linkingProblemText(problem: LinkingProblem): string {
 export const methodName = (m: SignInMethod) => projectsText.accountLinks[m];
 
 /**
- * Settings → Account: the ways into this one account (Google, Apple, email and password), and adding another. Adding
+ * Settings → Account: the ways into this one account (Google, Apple, Microsoft, email and password), and adding another. Adding
  * links it to the same account; it never creates a second one. Removing a way in is not offered, so nobody can lock
  * themselves out.
  */
@@ -25,9 +24,9 @@ export function SignInMethodsPanel({ disabled, hasEmail, className, onNote }: { 
   const [busy, setBusy] = useState(false);
   useEffect(() => { void signInMethods().then(setMethods, () => setMethods([])); }, []);
 
-  const options = signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured());
+  const options = currentSignInOptions();
   const available: SignInMethod[] = [
-    ...options.filter((o) => o.available).map((o) => (o.provider === 'apple' ? 'apple' : 'google') as SignInMethod),
+    ...options.filter((o) => o.available && o.provider !== 'password').map((o) => o.provider as SignInMethod),
     ...(hasEmail ? ['password' as const] : []),
   ];
   const toAdd = methods ? methodsToAdd(methods, [...new Set(available)]) : [];

@@ -402,6 +402,7 @@ export const it: AreaTranslation<typeof source> = {
     none: 'Non è ancora mostrato nessun modo per accedere. Esci e accedi di nuovo.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Email e password',
     add: (method: string) => `Aggiungi ${method}`,
     passwordLabel: 'Password per accedere con la tua email',
