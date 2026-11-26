@@ -359,7 +359,7 @@ export const da: AreaTranslation<typeof source> = {
     working: "Tilføjer dit billede og tjekker eksponering og farve på denne enhed…",
     ready: "Auto har afbalanceret eksponering og farve. Sammenlign med originalen, redigér videre, eller eksportér nu. Fortryd tager det tilbage.",
     unchanged: "Billedet ser allerede naturligt ud, så Auto lod det være. Redigér det som du vil, eller eksportér det nu.",
-    held: "Auto har et forslag, men billedtjekket på denne enhed var ikke overbevist om, at det ser naturligt ud, så intet blev ændret. Sammenlign det i Copilot, og anvend det, hvis du kan lide det, eller eksportér billedet, som det er.",
+    held: "Auto har et forslag, men billedtjekket på denne enhed var ikke overbevist om, at det ser naturligt ud, så intet blev ændret. Sammenlign det i Andenpilot, og anvend det, hvis du kan lide det, eller eksportér billedet, som det er.",
     failedCheck: "Auto kunne ikke tjekke dette billede. Du kan stadig redigere og eksportere det.",
     export: "Eksportér…",
     done: "Færdig",
