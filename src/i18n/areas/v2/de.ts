@@ -1999,5 +1999,11 @@ export const de: AreaTranslation<typeof source> = {
     ftpPassive: 'Passiv',
     ftpPlain: 'Einfaches FTP ist nicht verschlüsselt. Nutzen Sie es im eigenen oder im Studionetz, nicht in öffentlichem WLAN. Der Eingang empfängt nur: Er kann nichts senden, ändern oder löschen.',
     ftpNoAddress: 'Kein Netzwerk. Verbinden Sie diesen Computer mit dem WLAN.',
+    usb: 'Kamera-USB',
+    usbHint: 'Kamera per USB verbinden und jedes Foto hinzufügen, sobald Sie es aufnehmen. Eine Kopie jedes neuen Bildes wird in einem Ordner Ihrer Wahl gespeichert; auf der Kamera wird nichts geändert oder gelöscht.',
+    usbTethered: (camera: string) => `${camera} per USB`,
+    usbFetching: (name: string) => `Lädt ${name}`,
+    usbNoCamera: 'Keine Kamera über USB gefunden. Schalten Sie die Kamera ein, schließen Sie das Kabel an und beenden Sie andere Apps, die sie nutzen (Tether-App des Herstellers, Fotos oder Digitale Bilder).',
+    usbEnded: (camera: string, reason: string) => `${camera} hat das Tethering beendet: ${reason} Bereits hinzugefügte Fotos bleiben.`,
   },
 };

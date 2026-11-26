@@ -1999,5 +1999,11 @@ export const is: AreaTranslation<typeof source> = {
     ftpPassive: 'Óvirkur',
     ftpPlain: 'Venjulegt FTP er ekki dulkóðað. Notaðu það á eigin neti eða neti stúdíósins, ekki á opnu Wi‑Fi. Innhólfið tekur bara á móti: það getur ekki sent, breytt eða eytt neinu.',
     ftpNoAddress: 'Ekki á neti. Tengdu þessa tölvu við Wi‑Fi.',
+    usb: 'Myndavél USB',
+    usbHint: 'Tengdu myndavélina með USB og bættu hverri mynd við um leið og þú tekur hana. Afrit af hverjum nýjum ramma er vistað í möppu sem þú velur; engu er breytt eða eytt á myndavélinni.',
+    usbTethered: (camera: string) => `${camera} með USB`,
+    usbFetching: (name: string) => `Sæki ${name}`,
+    usbNoCamera: 'Engin myndavél fannst á USB. Kveiktu á myndavélinni, tengdu snúruna og lokaðu öðrum forritum sem nota hana (tengiforriti framleiðandans, Myndum eða Myndatöku).',
+    usbEnded: (camera: string, reason: string) => `${camera} hætti tengingu: ${reason} Myndir sem þegar var bætt við verða áfram.`,
   },
 };

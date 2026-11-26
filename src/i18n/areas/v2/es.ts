@@ -1999,5 +1999,11 @@ export const es: AreaTranslation<typeof source> = {
     ftpPassive: 'Pasivo',
     ftpPlain: 'El FTP simple no está cifrado. Úsalo en tu red o la del estudio, no en una Wi‑Fi pública. La bandeja solo recibe: no puede enviar, cambiar ni borrar nada.',
     ftpNoAddress: 'Sin red. Conecta este ordenador a una Wi‑Fi.',
+    usb: 'Cámara USB',
+    usbHint: 'Conecta la cámara por USB y añade cada foto al tomarla. Se guarda una copia de cada fotograma nuevo en una carpeta que elijas; no se cambia ni se borra nada en la cámara.',
+    usbTethered: (camera: string) => `${camera} por USB`,
+    usbFetching: (name: string) => `Recibiendo ${name}`,
+    usbNoCamera: 'No se encontró ninguna cámara por USB. Enciende la cámara, conecta el cable y cierra cualquier otra app que la use (la app de disparo remoto del fabricante, Fotos o Captura de Imagen).',
+    usbEnded: (camera: string, reason: string) => `${camera} dejó de estar conectada: ${reason} Las fotos ya añadidas se quedan.`,
   },
 };

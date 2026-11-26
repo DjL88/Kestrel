@@ -1999,5 +1999,11 @@ export const cy: AreaTranslation<typeof source> = {
     ftpPassive: 'Goddefol',
     ftpPlain: 'Dydy FTP plaen ddim wedi\'i amgryptio. Defnyddiwch ef ar eich rhwydwaith eich hun neu\'r stiwdio, nid Wi‑Fi cyhoeddus. Dim ond derbyn mae\'r mewnflwch: all e ddim anfon, newid na dileu dim.',
     ftpNoAddress: 'Ddim ar rwydwaith. Cysylltwch y cyfrifiadur hwn â Wi‑Fi.',
+    usb: 'Camera USB',
+    usbHint: 'Cysylltwch eich camera drwy USB ac ychwanegu pob llun wrth i chi ei dynnu. Caiff copi o bob ffrâm newydd ei gadw mewn ffolder o\'ch dewis; does dim yn cael ei newid na\'i ddileu ar y camera.',
+    usbTethered: (camera: string) => `${camera} drwy USB`,
+    usbFetching: (name: string) => `Yn nôl ${name}`,
+    usbNoCamera: 'Dim camera i\'w gael ar USB. Trowch y camera ymlaen, cysylltwch y cebl, a chau unrhyw ap arall sy\'n ei ddefnyddio (ap tennyn y gwneuthurwr, Photos neu Image Capture).',
+    usbEnded: (camera: string, reason: string) => `Mae ${camera} wedi stopio: ${reason} Mae'r lluniau a ychwanegwyd eisoes yn aros.`,
   },
 };

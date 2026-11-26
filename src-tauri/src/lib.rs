@@ -9,6 +9,8 @@ mod oauth_loopback;
 #[cfg(desktop)]
 mod ftp_inbox;
 #[cfg(desktop)]
+mod ptp_usb;
+#[cfg(desktop)]
 mod local_vision;
 #[cfg(desktop)]
 mod external_edit;
@@ -83,6 +85,106 @@ fn ftp_inbox_status(state: tauri::State<'_, FtpInboxState>) -> Option<FtpInboxIn
 #[tauri::command]
 fn ftp_inbox_stop(state: tauri::State<'_, FtpInboxState>) {
     if let Ok(mut slot) = state.0.lock() { if let Some(handle) = slot.take() { handle.stop(); } }
+}
+
+/// The camera tethered by USB, while the person has it connected. One at a time; opening another replaces it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct PtpUsbState(std::sync::Arc<std::sync::Mutex<Option<ptp_usb::PtpUsb>>>);
+
+#[cfg(desktop)]
+fn ptp_usb_run<T: Send + 'static>(state: &PtpUsbState, job: impl FnOnce(&mut ptp_usb::PtpUsb) -> Result<T, String> + Send + 'static) -> impl std::future::Future<Output = Result<T, String>> {
+    let slot = state.0.clone();
+    async move {
+        tauri::async_runtime::spawn_blocking(move || {
+            let mut guard = slot.lock().map_err(|_| "The camera link is busy. Try again.".to_string())?;
+            let link = guard.as_mut().ok_or_else(|| "The camera is not connected.".to_string())?;
+            job(link)
+        }).await.map_err(|error| error.to_string())?
+    }
+}
+
+#[cfg(desktop)]
+fn raw_body(request: &tauri::ipc::Request<'_>) -> Result<Vec<u8>, String> {
+    match request.body() { tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.clone()), _ => Err("Expected bytes.".to_string()) }
+}
+
+#[cfg(desktop)]
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            if let Ok(value) = u8::from_str_radix(&text[index + 1..index + 3], 16) { out.push(value); index += 3; continue; }
+        }
+        out.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+#[cfg(desktop)]
+fn header_text(request: &tauri::ipc::Request<'_>, name: &str) -> Result<String, String> {
+    request.headers().get(name).and_then(|value| value.to_str().ok()).map(percent_decode).ok_or_else(|| format!("Missing {name}."))
+}
+
+/// Cameras plugged in by USB that speak PTP.
+#[cfg(desktop)]
+#[tauri::command]
+async fn ptp_usb_list() -> Result<Vec<ptp_usb::CameraInfo>, String> {
+    tauri::async_runtime::spawn_blocking(ptp_usb::list).await.map_err(|error| error.to_string())?
+}
+
+/// Claim a camera's PTP interface. Returns whether it has an event channel.
+#[cfg(desktop)]
+#[tauri::command]
+async fn ptp_usb_open(state: tauri::State<'_, PtpUsbState>, id: String) -> Result<bool, String> {
+    let slot = state.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let link = ptp_usb::open(&id)?;
+        let events = link.has_events();
+        *slot.lock().map_err(|_| "The camera link is busy. Try again.".to_string())? = Some(link);
+        Ok(events)
+    }).await.map_err(|error| error.to_string())?
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+async fn ptp_usb_write(state: tauri::State<'_, PtpUsbState>, request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    let bytes = raw_body(&request)?;
+    ptp_usb_run(&state, move |link| link.write(bytes, std::time::Duration::from_secs(10))).await
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+async fn ptp_usb_read(state: tauri::State<'_, PtpUsbState>, max: usize, timeout_ms: u64) -> Result<tauri::ipc::Response, String> {
+    let max = max.clamp(512, 8 * 1024 * 1024);
+    let bytes = ptp_usb_run(&state, move |link| link.read(max, std::time::Duration::from_millis(timeout_ms.clamp(50, 60_000)))).await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+async fn ptp_usb_event(state: tauri::State<'_, PtpUsbState>, timeout_ms: u64) -> Result<Option<Vec<u8>>, String> {
+    ptp_usb_run(&state, move |link| link.read_event(std::time::Duration::from_millis(timeout_ms.clamp(10, 5_000)))).await
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn ptp_usb_close(state: tauri::State<'_, PtpUsbState>) {
+    if let Ok(mut slot) = state.0.lock() { slot.take(); }
+}
+
+/// Save one tethered frame into the live-shoot folder (headers x-folder and x-name, percent-encoded; body: the file).
+#[cfg(desktop)]
+#[tauri::command]
+async fn tether_save_frame(request: tauri::ipc::Request<'_>) -> Result<String, String> {
+    let folder = std::path::PathBuf::from(header_text(&request, "x-folder")?);
+    let name = header_text(&request, "x-name")?;
+    let bytes = raw_body(&request)?;
+    tauri::async_runtime::spawn_blocking(move || ptp_usb::save_frame(&folder, &name, &bytes).map(|path| path.display().to_string()))
+        .await.map_err(|error| error.to_string())?
 }
 
 /// Start listening for the sign-in redirect and return the redirect address to give the provider.
@@ -415,8 +517,9 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(FtpInboxState::default())
+        .manage(PtpUsbState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,

@@ -1999,5 +1999,11 @@ export const da: AreaTranslation<typeof source> = {
     ftpPassive: 'Passiv',
     ftpPlain: 'Almindelig FTP er ikke krypteret. Brug den på dit eget eller studiets netværk, ikke på offentligt wi‑fi. Indbakken modtager kun: den kan ikke sende, ændre eller slette noget.',
     ftpNoAddress: 'Ikke på et netværk. Forbind denne computer til wi‑fi.',
+    usb: 'Kamera-USB',
+    usbHint: 'Forbind kameraet med USB, og tilføj hvert foto, når du tager det. En kopi af hvert nyt billede gemmes i en mappe, du vælger; intet på kameraet ændres eller slettes.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `Henter ${name}`,
+    usbNoCamera: 'Intet kamera fundet via USB. Tænd kameraet, tilslut kablet, og luk andre apps, der bruger det (producentens tether-app, Fotos eller Billedoverførsel).',
+    usbEnded: (camera: string, reason: string) => `${camera} stoppede tethering: ${reason} Fotos, der allerede er tilføjet, bliver.`,
   },
 };

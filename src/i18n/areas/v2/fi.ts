@@ -2000,5 +2000,11 @@ export const fi: AreaTranslation<typeof source> = {
     ftpPassive: 'Passiivinen',
     ftpPlain: 'Tavallista FTP:tä ei ole salattu. Käytä sitä omassa tai studion verkossa, ei julkisessa Wi‑Fissä. Saapuneet-kansio vain vastaanottaa: se ei voi lähettää, muuttaa eikä poistaa mitään.',
     ftpNoAddress: 'Ei verkkoa. Yhdistä tämä tietokone Wi‑Fiin.',
+    usb: 'Kameran USB',
+    usbHint: 'Yhdistä kamera USB:llä ja lisää jokainen kuva heti kuvattaessa. Jokaisesta uudesta kuvasta tallennetaan kopio valitsemaasi kansioon; kamerassa ei muuteta tai poisteta mitään.',
+    usbTethered: (camera: string) => `${camera} USB:llä`,
+    usbFetching: (name: string) => `Haetaan ${name}`,
+    usbNoCamera: 'USB:llä ei löytynyt kameraa. Kytke kamera päälle, liitä kaapeli ja sulje muut sitä käyttävät sovellukset (valmistajan etäkuvaussovellus, Kuvat tai Kuvansiirto).',
+    usbEnded: (camera: string, reason: string) => `${camera} lopetti yhteyden: ${reason} Jo lisätyt kuvat säilyvät.`,
   },
 };

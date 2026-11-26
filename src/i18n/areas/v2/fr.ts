@@ -1999,5 +1999,11 @@ export const fr: AreaTranslation<typeof source> = {
     ftpPassive: 'Passif',
     ftpPlain: 'Le FTP simple n\'est pas chiffré. Utilisez-le sur votre réseau ou celui du studio, pas sur un Wi‑Fi public. La boîte ne fait que recevoir : elle ne peut rien envoyer, modifier ni supprimer.',
     ftpNoAddress: 'Pas de réseau. Connectez cet ordinateur au Wi‑Fi.',
+    usb: 'USB appareil',
+    usbHint: 'Connectez votre appareil en USB et ajoutez chaque photo dès la prise de vue. Une copie de chaque nouvelle image est enregistrée dans un dossier de votre choix ; rien n\'est modifié ni supprimé sur l\'appareil.',
+    usbTethered: (camera: string) => `${camera} en USB`,
+    usbFetching: (name: string) => `Récupération de ${name}`,
+    usbNoCamera: 'Aucun appareil trouvé en USB. Allumez l\'appareil, branchez le câble et fermez toute autre app qui l\'utilise (app de connexion du fabricant, Photos ou Transfert d\'images).',
+    usbEnded: (camera: string, reason: string) => `${camera} a arrêté la connexion : ${reason} Les photos déjà ajoutées restent.`,
   },
 };

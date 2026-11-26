@@ -1999,5 +1999,11 @@ export const nl: AreaTranslation<typeof source> = {
     ftpPassive: 'Passief',
     ftpPlain: 'Gewone FTP is niet versleuteld. Gebruik het op je eigen netwerk of dat van de studio, niet op openbare wifi. De inbox ontvangt alleen: hij kan niets versturen, wijzigen of verwijderen.',
     ftpNoAddress: 'Geen netwerk. Verbind deze computer met wifi.',
+    usb: 'Camera-USB',
+    usbHint: 'Verbind je camera via USB en voeg elke foto toe zodra je hem maakt. Een kopie van elk nieuw beeld wordt bewaard in een map naar keuze; op de camera wordt niets gewijzigd of verwijderd.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `${name} ophalen`,
+    usbNoCamera: 'Geen camera gevonden via USB. Zet de camera aan, sluit de kabel aan en sluit andere apps die hem gebruiken (de tether-app van de fabrikant, Foto\'s of Fotolader).',
+    usbEnded: (camera: string, reason: string) => `${camera} is gestopt met tetheren: ${reason} Al toegevoegde foto's blijven.`,
   },
 };

@@ -41,3 +41,5 @@ rayon = "1"
 kestrel-vision = { path = "../crates/kestrel-vision" }
 sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["jpeg", "tiff", "png"] }
+# Tethered shooting over USB (PTP): the pipe only; the protocol is src/core/ptp.ts. Pure Rust, no libusb.
+nusb = "0.2"

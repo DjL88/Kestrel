@@ -2082,5 +2082,11 @@ export const source = {
     ftpPassive: 'Passive',
     ftpPlain: 'Plain FTP isn\'t encrypted. Use it on your own or the studio\'s network, not public Wi‑Fi. The inbox only receives: it can\'t send, change or delete anything.',
     ftpNoAddress: 'Not on a network. Connect this computer to Wi‑Fi.',
+    usb: 'Camera USB',
+    usbHint: 'Connect your camera by USB and add each photo as you take it. A copy of each new frame is saved into a folder you choose; nothing on the camera is changed or deleted.',
+    usbTethered: (camera: string) => `${camera} by USB`,
+    usbFetching: (name: string) => `Fetching ${name}`,
+    usbNoCamera: 'No camera found on USB. Switch the camera on, connect the cable, and close any other app using it (the maker\'s tether app, Photos or Image Capture).',
+    usbEnded: (camera: string, reason: string) => `${camera} stopped tethering: ${reason} Photos already added stay.`,
   },
 };

@@ -2000,5 +2000,11 @@ export const gd: AreaTranslation<typeof source> = {
     ftpPassive: 'Fulangach',
     ftpPlain: 'Chan eil FTP sìmplidh crioptaichte. Cleachd e air an lìonra agad fhèin no aig an stiùideo, chan ann air Wi‑Fi poblach. Chan fhaigh am bogsa ach dealbhan: chan urrainn dha càil a chur, atharrachadh no sguabadh às.',
     ftpNoAddress: 'Chan eil e air lìonra. Ceangail an coimpiutair seo ri Wi‑Fi.',
+    usb: 'Camara USB',
+    usbHint: 'Ceangail an camara agad le USB agus cuir ris gach dealbh fhad \'s a thogas tu i. Thèid lethbhreac de gach frèam ùr a shàbhaladh ann am pasgan a thaghas tu; chan atharraichear no sguabar às dad air a\' chamara.',
+    usbTethered: (camera: string) => `${camera} le USB`,
+    usbFetching: (name: string) => `A' faighinn ${name}`,
+    usbNoCamera: 'Cha deach camara a lorg air USB. Cuir an camara air, ceangail an càball, is dùin aplacaid sam bith eile a tha ga chleachdadh (aplacaid an dèanadair, Photos no Image Capture).',
+    usbEnded: (camera: string, reason: string) => `Sguir ${camera} dhen cheangal: ${reason} Fanaidh na dealbhan a chaidh a chur ris mu thràth.`,
   },
 };
