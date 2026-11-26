@@ -161,6 +161,8 @@ export const nb: AreaTranslation<typeof source> = {
     importRunning: 'Bilder blir allerede lagt til. Vent til det er ferdig, eller stopp den oppgaven først.',
     importNothingNew: 'De bildene er allerede i dette prosjektet.',
     importTask: (count) => (count === 1 ? 'Legger til 1 bilde' : `Legger til ${count} bilder`),
+    folderLooking: (folder) => `Ser etter bilder i ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Går gjennom ${folder}: ${done} av ${total} bilder`,
     importReadStage: 'Leser originalen og registrerer fingeravtrykket',
     importOneFailed: (filename) => `Kunne ikke importere ${filename}. Sjekk originalen og prøv igjen.`,
     importUnreadable: (names) => `Kunne ikke lese: ${names}.`,

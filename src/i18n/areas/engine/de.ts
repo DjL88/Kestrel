@@ -161,6 +161,8 @@ export const de: AreaTranslation<typeof source> = {
     importRunning: 'Es werden bereits Fotos hinzugefügt. Warten Sie, bis das fertig ist, oder stoppen Sie zuerst diese Aufgabe.',
     importNothingNew: 'Diese Fotos sind schon in diesem Projekt.',
     importTask: (count) => (count === 1 ? '1 Foto wird hinzugefügt' : `${count} Fotos werden hinzugefügt`),
+    folderLooking: (folder) => `${folder} wird nach Fotos durchsucht…`,
+    folderLookingProgress: (folder, done, total) => `${folder} wird durchsucht: ${done} von ${total} Fotos`,
     importReadStage: 'Das Original wird gelesen und sein Fingerabdruck festgehalten',
     importOneFailed: (filename) => `${filename} konnte nicht importiert werden. Prüfen Sie das Original und versuchen Sie es erneut.`,
     importUnreadable: (names) => `Nicht lesbar: ${names}.`,

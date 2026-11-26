@@ -101,6 +101,8 @@ interface WorkBatch {
   active: boolean;
   cancelled: boolean;
   controller: AbortController | null;
+  /** Give back the processing slot of the photo now running (once). Set while one runs. */
+  releaseSlot: (() => void) | null;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -217,6 +219,17 @@ export function createEngineScheduler(options: {
       job.active = true;
       job.order = ++sequence;
       used[job.resource]++;
+      // The slot is given back when the photo finishes, or at once when its task is cancelled: a photo that ignores
+      // the stop (a hung read, a stuck analysis) must never keep every other task "waiting for processing slot".
+      let holding = true;
+      job.releaseSlot = () => {
+        if (!holding) return;
+        holding = false;
+        job.active = false;
+        job.controller = null;
+        job.releaseSlot = null;
+        used[job.resource] = Math.max(0, used[job.resource] - 1);
+      };
       const item = job.items[index];
       const controller = new AbortController();
       job.controller = controller;
@@ -304,9 +317,10 @@ export function createEngineScheduler(options: {
             item.detail = error instanceof Error ? error.message : String(error);
           }
         } finally {
-          job.active = false;
-          job.controller = null;
-          used[job.resource] = Math.max(0, used[job.resource] - 1);
+          // Already given back by Cancel: this late finish changes nothing more (its result was never committed).
+          const abandoned = !holding;
+          job.releaseSlot?.();
+          if (abandoned) { setTimeout(pump, 0); return; }
           if (job.cancelled) { job.finish('cancelled'); }
           else {
             publishProgress(job);
@@ -368,9 +382,13 @@ export function createEngineScheduler(options: {
       cancel: () => {
         job.cancelled = true;
         job.controller?.abort();
-        for (const item of job.items) if (item.state === 'queued') item.state = 'cancelled';
+        for (const item of job.items) {
+          if (item.state === 'queued' || (item.state === 'running' && !item.confirmed)) item.state = 'cancelled';
+        }
         updateItems(job);
-        if (!job.active) job.finish('cancelled');
+        // Free the slot now rather than when the running photo notices the stop, which a hung read never does.
+        job.releaseSlot?.();
+        job.finish('cancelled');
         pump();
       },
     });
@@ -387,7 +405,7 @@ export function createEngineScheduler(options: {
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
       interactive: definition.interactive === true && items.length === 1,
       pauseable: definition.pauseable !== false && items.length > 1,
-      active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
+      active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
       handle, items: items as WorkItem<unknown>[], manualProgress: false,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
       saveCheckpoint: () => {

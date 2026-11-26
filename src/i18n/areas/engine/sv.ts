@@ -161,6 +161,8 @@ export const sv: AreaTranslation<typeof source> = {
     importRunning: 'Foton läggs redan till. Vänta tills det är klart, eller stoppa den uppgiften först.',
     importNothingNew: 'De fotona finns redan i det här projektet.',
     importTask: (count) => (count === 1 ? 'Lägger till 1 foto' : `Lägger till ${count} foton`),
+    folderLooking: (folder) => `Letar efter foton i ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Går igenom ${folder}: ${done} av ${total} foton`,
     importReadStage: 'Läser originalet och registrerar dess fingeravtryck',
     importOneFailed: (filename) => `Kunde inte importera ${filename}. Kontrollera originalet och försök igen.`,
     importUnreadable: (names) => `Kunde inte läsa: ${names}.`,

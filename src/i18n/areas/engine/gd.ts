@@ -161,6 +161,8 @@ export const gd: AreaTranslation<typeof source> = {
     importRunning: 'Thathar a’ cur dhealbhan ris mu thràth. Fuirich gus an crìochnaich iad, no cuir stad air an t-saothair sin an toiseach.',
     importNothingNew: 'Tha na dealbhan sin sa phròiseact seo mu thràth.',
     importTask: (count) => (count === 1 ? 'A’ cur 1 dealbh ris' : `A’ cur ${count} dealbhan ris`),
+    folderLooking: (folder) => `A’ lorg dhealbhan ann an ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `A’ dol tro ${folder}: ${done} à ${total} dealbhan`,
     importReadStage: 'A’ leughadh na tè thùsail is a’ clàradh a lorg-meòir',
     importOneFailed: (filename) => `Cha b’ urrainnear ${filename} ion-phortadh. Thoir sùil air an tè thùsail is feuch a-rithist.`,
     importUnreadable: (names) => `Cha b’ urrainnear a leughadh: ${names}.`,

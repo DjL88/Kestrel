@@ -205,6 +205,7 @@ import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
+import { createReadAhead, importLanes } from '../../core/importReadAhead';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -2062,6 +2063,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const pendingNames = new Map(additions.map((file) => [pickedKey(file), file.name]));
     recordPendingImport(projectKey, [...pendingNames.values()], true);
     importingInto.current = projectKey;
+    // Several photos are read at once (src/core/importReadAhead.ts) while each is still added in its own turn below.
+    const reads = createReadAhead(additions.length, importLanes(deviceMemoryBudget(), navigator.hardwareConcurrency),
+      (index) => loadLocalFileListShoot([additions[index]], sourceProvider, sourceCatalogue,
+        undefined, { allowPartial: true, signal: controller.signal }));
     try {
       // An actual scheduler item for each photograph: complete the original
       // fingerprint, preview and catalogue registration before advancing.
@@ -2080,8 +2085,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
         runItem: async (item, _, ctx) => {
           ctx.stage(engineText.workspace.importReadStage);
-          const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
-            undefined, { allowPartial: true, signal: ctx.signal });
+          const result = await reads.take(item.index);
           ctx.checkCancelled();
           if (!result.frames.length) throw new Error(engineText.workspace.importOneFailed(item.file.name));
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));

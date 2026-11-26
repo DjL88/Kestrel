@@ -181,6 +181,8 @@ export const source = {
     importRunning: 'Photos are already being added. Wait for them to finish, or stop that task first.',
     importNothingNew: 'Those photos are already in this project.',
     importTask: (count: number) => (count === 1 ? 'Adding 1 photo' : `Adding ${count} photos`),
+    folderLooking: (folder: string) => `Looking through ${folder} for photos…`,
+    folderLookingProgress: (folder: string, done: number, total: number) => `Looking through ${folder}: ${done} of ${total} photos`,
     importReadStage: 'Reading the original and recording its fingerprint',
     importOneFailed: (filename: string) => `Could not import ${filename}. Check the original and try again.`,
     importUnreadable: (names: string) => `Could not read ${names}.`,

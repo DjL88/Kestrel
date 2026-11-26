@@ -161,6 +161,8 @@ export const fi: AreaTranslation<typeof source> = {
     importRunning: 'Kuvia lisätään jo. Odota, että se valmistuu, tai pysäytä ensin se tehtävä.',
     importNothingNew: 'Nämä kuvat ovat jo tässä projektissa.',
     importTask: (count) => (count === 1 ? 'Lisätään 1 kuva' : `Lisätään ${count} kuvaa`),
+    folderLooking: (folder) => `Etsitään kuvia kansiosta ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Käydään läpi kansiota ${folder}: ${done}/${total} kuvaa`,
     importReadStage: 'Luetaan alkuperäinen ja tallennetaan sen sormenjälki',
     importOneFailed: (filename) => `Tiedostoa ${filename} ei voitu tuoda. Tarkista alkuperäinen ja yritä uudelleen.`,
     importUnreadable: (names) => `Ei voitu lukea: ${names}.`,

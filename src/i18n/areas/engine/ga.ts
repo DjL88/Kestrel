@@ -161,6 +161,8 @@ export const ga: AreaTranslation<typeof source> = {
     importRunning: 'Tá grianghraif á gcur leis cheana. Fan go gcríochnóidh siad, nó stop an tasc sin ar dtús.',
     importNothingNew: 'Tá na grianghraif sin sa tionscadal seo cheana.',
     importTask: (count) => (count === 1 ? '1 ghrianghraf á chur leis' : `${count} grianghraf á gcur leis`),
+    folderLooking: (folder) => `Ag cuardach grianghraf in ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Ag dul trí ${folder}: ${done} as ${total} grianghraf`,
     importReadStage: 'An bunchomhad á léamh agus a mhéarlorg á thaifeadadh',
     importOneFailed: (filename) => `Níorbh fhéidir ${filename} a iompórtáil. Seiceáil an bunchomhad agus bain triail eile as.`,
     importUnreadable: (names) => `Níorbh fhéidir a léamh: ${names}.`,
