@@ -1,0 +1,16 @@
+[package]
+name = "kestrel-sftp"
+version = "0.1.0"
+edition = "2021"
+description = "SFTP storage for InFlight's desktop app: one session per call, host key pinned on first use, paths kept inside one folder."
+license = "UNLICENSED"
+publish = false
+
+[dependencies]
+# Pure Rust SSH with the ring backend, so Windows and macOS builds need no C toolchain extras (no aws-lc, no OpenSSL).
+russh = { version = "0.65", default-features = false, features = ["ring", "rsa", "flate2"] }
+russh-sftp = "4"
+tokio = { version = "1", features = ["rt", "net", "time", "io-util"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs"] }

@@ -3,7 +3,7 @@
  * Google Drive's app), their own S3-compatible bucket, a WebDAV or NAS share, or InFlight's managed storage. All of them
  * look the same to the app: put, get, list, remove, under one shared layout. Nothing here talks to a network.
  */
-export type ConnectorKind = 'folder' | 's3' | 'webdav' | 'managed';
+export type ConnectorKind = 'folder' | 's3' | 'webdav' | 'sftp' | 'managed';
 
 /** What is synced. Each level is switched on separately; originals are never part of the first two. */
 export type SyncLevel = 'recipes' | 'previews' | 'originals';
@@ -56,7 +56,7 @@ export function checkWebDavSettings(settings: WebDavSettings): string[] {
   const problems: string[] = [];
   try {
     const url = new URL(settings.url);
-    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) problems.push('The address must start with https://, unless the NAS is on your home network.');
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) problems.push('The address must start with https://, unless the NAS is on your home or office network or on Tailscale.');
   } catch { problems.push('Enter the address of the NAS, such as https://nas.local:5006/photos.'); }
   if (!settings.username.trim()) problems.push('Enter the user name.');
   if (!settings.password) problems.push('Enter the password.');
@@ -66,20 +66,25 @@ export function checkWebDavSettings(settings: WebDavSettings): string[] {
 /** The settings for an S3-compatible bucket. The keys belong in the system keychain, never in the project or in any sync file. */
 export interface S3Settings { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string; pathStyle?: boolean }
 
-/** localhost, this computer, a .local name, or a private network address (10.x, 192.168.x, 172.16 to 31.x). */
+/**
+ * Where plain http is allowed (owner, 26 Nov 2026): this computer, a .local name, a private network address (10.x,
+ * 192.168.x, 172.16 to 31.x), or Tailscale (a 100.64 to 100.127 address, or a .ts.net name), whose tunnel is already
+ * encrypted. Anything else on the internet must use https. The desktop app's HTTP permission
+ * (src-tauri/capabilities/default.json) allows exactly the same addresses.
+ */
 export function isLocalHost(host: string): boolean {
-  if (host === 'localhost' || host === '[::1]' || /\.local$/i.test(host)) return true;
+  if (host === 'localhost' || host === '[::1]' || /\.(local|ts\.net)$/i.test(host)) return true;
   const parts = host.split('.');
   if (parts.length !== 4 || parts.some(part => !/^\d{1,3}$/.test(part) || Number(part) > 255)) return false;
   const [a, b] = parts.map(Number);
-  return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+  return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 100 && b >= 64 && b <= 127);
 }
 
 export function checkS3Settings(settings: S3Settings): string[] {
   const problems: string[] = [];
   try {
     const url = new URL(settings.endpoint);
-    // Plain http is only for storage on this computer or the home network (a NAS, MinIO); anything on the internet must use https.
+    // Plain http is only for storage on this computer, the local network or Tailscale (a NAS, MinIO); the internet needs https.
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) problems.push('The address must start with https://.');
   } catch { problems.push('Enter the storage address, such as https://s3.eu-west-2.amazonaws.com.'); }
   if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(settings.bucket)) problems.push('The bucket name looks wrong. Use lower-case letters, numbers, dots and dashes.');
