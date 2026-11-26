@@ -52,6 +52,6 @@
 ## After approval
 
 1. Store the subscription key in Secret Manager as `photodna-key` in project `kestrel-hosting` (the owner adds the value; never in Git or chat).
-2. Set `KCP_PHOTODNA_KEY_SECRET=projects/kestrel-hosting/secrets/photodna-key/versions/latest` on the control plane. **This needs a Terraform variable first** (see `safesearch-switch-on.md`, "The same gap for PhotoDNA and NCMEC"); a value set by hand is removed by the next apply. The control plane's service account also needs Secret Manager access to the new secret (**UNVERIFIED** whether existing IAM covers it).
+2. Switch it on with `switch-features.sh` and `{"photodna_key_secret_id":"photodna-key"}` (`infra/gcp/safety.tf`, see `safesearch-switch-on.md`). Terraform sets `KCP_PHOTODNA_KEY_SECRET` and gives the control plane's account read access to that secret. Don't set it by hand with gcloud: the next apply removes it.
 3. Test with Microsoft's own test image on a throwaway account (`docs/SAFETY-SETUP.md` "Checking it works once set up").
-4. Add Microsoft (PhotoDNA) to `site/subprocessors.html` and `site/privacy.html`.
+4. Fill in PhotoDNA's processing region on `site/subprocessors.html` (Microsoft is already named there and in `site/privacy.html`).
