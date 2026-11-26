@@ -816,12 +816,15 @@ export interface WorkspaceStore {
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
    * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
-  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
+
+/** What to type into a Wi-Fi camera's FTP transfer settings while InFlight's inbox is on (desktop app). */
+export interface LiveFtpInbox { addresses: string[]; port: number; user: string; password: string }
 
 export interface WorkspaceActions {
   // Navigation & Projects
@@ -882,6 +885,8 @@ export interface WorkspaceActions {
   /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
   watchFolder?: () => void;
   stopWatchingFolder?: () => void;
+  /** Live shoot over Wi-Fi: receive frames a camera sends by FTP into a chosen folder (desktop app only). */
+  receiveFromCamera?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;
