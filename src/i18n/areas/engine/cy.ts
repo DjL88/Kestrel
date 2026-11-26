@@ -50,6 +50,7 @@ export const cy: AreaTranslation<typeof source> = {
     global: 'Doedd dim amlinell gwrthrych yn ddibynadwy, felly lleihawyd sŵn yn gyfartal dros y llun cyfan.',
     failedCheck: 'Ni wnaeth y canlyniad basio’r gwiriad ansawdd. Cadwyd eich golygiadau presennol.',
     mainThread: 'Ni allai’r ddyfais hon leihau sŵn yn y cefndir, felly efallai fod InFlight wedi oedi wrth weithio.',
+    learnedLostDetail: 'Ar faint llawn, fe wnaeth y dad-sŵn AI lyfnhau manylion go iawn ar y gwrthrych, felly defnyddiwyd y dad-sŵn adeiledig yn lle hynny.',
     leftAsItWas: (notes) => `Gadawyd fel yr oedd. ${notes}`,
   },
   workspace: {

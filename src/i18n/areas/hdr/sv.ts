@@ -29,4 +29,9 @@ export const sv: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Gjord av ${n} bild:`, other: `Gjord av ${n} bilder:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} steg`,
   infoHow: "Varje del kommer från de bilder som var väl exponerade där, inriktade och viktade efter exponering, och sedan justerade med redigerarens Högdagrar och Skuggor. Inga pixlar skapades.",
+  whatIs: "HDR betyder högt dynamiskt omfång, inte hög upplösning. Det slår ihop flera exponeringar av samma motiv så att ljus himmel och mörka skuggor båda behåller detaljerna.",
+  bracketTitle: "Exponeringsserie",
+  bracketFound: (n: number, stops: string) => `${n} bilder tagna strax efter varandra med olika exponering (${stops} steg).`,
+  bracketFromCamera: "Din kamera markerade bilderna som en exponeringsserie.",
+  bracketFromExposures: "Hittade utifrån slutartid, bländare och ISO.",
 };

@@ -50,6 +50,7 @@ export const nl: AreaTranslation<typeof source> = {
     global: 'Geen omtrek van een onderwerp was betrouwbaar, dus ruisonderdrukking is gelijkmatig op de hele foto toegepast.',
     failedCheck: 'Het resultaat kwam niet door de kwaliteitscontrole. Uw bestaande bewerkingen zijn behouden.',
     mainThread: 'Dit apparaat kon de ruis niet op de achtergrond verwijderen, dus InFlight kan even hebben stilgestaan.',
+    learnedLostDetail: 'Op volle grootte streek de AI-ruisreductie echte details van het onderwerp weg, dus is de ingebouwde ruisreductie gebruikt.',
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
   },
   workspace: {

@@ -1,0 +1,123 @@
+[
+ {
+  "id": "canon-eos-r50-iso32000",
+  "iso": 32000,
+  "camera": "Canon EOS R50",
+  "mode": "CRAW (3:2)",
+  "ext": "CR3",
+  "url": "https://raw.pixls.us/getfile.php/6645/nice/Canon - EOS R50 - CRAW (3:2).CR3",
+  "sha": "38fc458f2f74d0cfa04afd0ce513b40797080079f0786bedbfc55c39cc28d7d8",
+  "sizeMB": 20.81,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "sony-ilme-fx3-iso20000",
+  "iso": 20000,
+  "camera": "Sony ILME-FX3",
+  "mode": "14bit (3:2)",
+  "ext": "ARW",
+  "url": "https://raw.pixls.us/getfile.php/6874/nice/Sony - ILME-FX3 - 14bit (3:2).ARW",
+  "sha": "394ceb1a356be8b17f18dc013bfd22895ba6ec7195f578b9be1c2fd0d5ea4773",
+  "sizeMB": 13.91,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "sony-ilce-7c-iso12800",
+  "iso": 12800,
+  "camera": "Sony ILCE-7C",
+  "mode": "14bit 14bit uncompressed (3:2)",
+  "ext": "ARW",
+  "url": "https://raw.pixls.us/getfile.php/4145/nice/Sony - ILCE-7C - 14bit 14bit uncompressed (3:2).ARW",
+  "sha": "386ce0122687b802e8e57151d36643b830f87e59eed15b65c690d1032eb3b763",
+  "sizeMB": 46.98,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "canon-eos-1d-x-iso12800",
+  "iso": 12800,
+  "camera": "Canon EOS-1D X",
+  "mode": "1:1",
+  "ext": "dng",
+  "url": "https://raw.pixls.us/getfile.php/6584/nice/Canon - EOS-1D X - 1:1.dng",
+  "sha": "0c07c60ceda8e724534ed24ae56ec73f6040a3c9040127fcba7dc3305e59396b",
+  "sizeMB": 2.56,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "sony-dsc-rx1r-iso6400",
+  "iso": 6400,
+  "camera": "Sony DSC-RX1R",
+  "mode": "14bit 14bit compressed (3:2)",
+  "ext": "ARW",
+  "url": "https://raw.pixls.us/getfile.php/4050/nice/Sony - DSC-RX1R - 14bit 14bit compressed (3:2).ARW",
+  "sha": "1778498069d68feec90d824bfacbe7bc1cc69f1e74d1b187b96c40b22457e95f",
+  "sizeMB": 23.73,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "panasonic-dc-s5-iso6400",
+  "iso": 6400,
+  "camera": "Panasonic DC-S5",
+  "mode": "3:2",
+  "ext": "RW2",
+  "url": "https://raw.pixls.us/getfile.php/6340/nice/Panasonic - DC-S5 - 3:2.RW2",
+  "sha": "2f66bd27c6c677bc6def28dfd955a8d520b04654a2d08087d49f3b2823e97ed2",
+  "sizeMB": 41.61,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "canon-eos-7d-mark-ii-iso4000",
+  "iso": 4000,
+  "camera": "Canon EOS 7D Mark II",
+  "mode": "16bit (3:2)",
+  "ext": "dng",
+  "url": "https://raw.pixls.us/getfile.php/7023/nice/Canon - EOS 7D Mark II - 16bit (3:2).dng",
+  "sha": "090e01f9a7a860b2f2f0ead770b8a9ba3b17ea98dc1997835c6bda2fc0a2ae54",
+  "sizeMB": 36.49,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "panasonic-dc-g9-iso3200",
+  "iso": 3200,
+  "camera": "Panasonic DC-G9",
+  "mode": "4:3",
+  "ext": "RW2",
+  "url": "https://raw.pixls.us/getfile.php/2348/nice/Panasonic - DC-G9 - 4:3.RW2",
+  "sha": "16282357ce0143ff7d36737f82074662db7aa0790ecd309196f406baf0f586a7",
+  "sizeMB": 23.13,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "panasonic-dmc-gx7mk2-iso3200",
+  "iso": 3200,
+  "camera": "Panasonic DMC-GX7MK2",
+  "mode": "3:2",
+  "ext": "RW2",
+  "url": "https://raw.pixls.us/getfile.php/2773/nice/Panasonic - DMC-GX7MK2 - 3:2.RW2",
+  "sha": "bcbdcf8fec2c161bb0d084d2880c4e84dc2595f183fabe8b9277bfddb7950e4f",
+  "sizeMB": 18.9,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "fujifilm-finepix-s6000fd-iso3200",
+  "iso": 3200,
+  "camera": "Fujifilm FinePix S6000fd",
+  "mode": "4:3",
+  "ext": "RAF",
+  "url": "https://raw.pixls.us/getfile.php/5549/nice/Fujifilm - FinePix S6000fd - 4:3.RAF",
+  "sha": "2c602e5a31b81683d8fb97f36c5cb3580836420e12b9ed5ae16241c68ff6201d",
+  "sizeMB": 13.03,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ },
+ {
+  "id": "panasonic-dc-s1rm2-iso3200",
+  "iso": 3200,
+  "camera": "Panasonic DC-S1RM2",
+  "mode": "3:2",
+  "ext": "RW2",
+  "url": "https://raw.pixls.us/getfile.php/7723/nice/Panasonic - DC-S1RM2 - 3:2.RW2",
+  "sha": "0175ac937261744fe13b5d234eb4ede83695562d100d2c7b4bb2e7fc3bd69e67",
+  "sizeMB": 52.75,
+  "licence": "CC0 1.0 (raw.pixls.us)"
+ }
+]

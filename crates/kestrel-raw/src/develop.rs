@@ -66,9 +66,15 @@ pub fn explain(error: &str) -> String {
 /// The developed picture at 16 bits per channel (display-encoded sRGB), turned the way the camera was held: exactly what
 /// `develop_jpeg` encodes, before it is reduced to 8 bits. The editor's 16-bit export starts from this.
 pub fn develop_rgb16(bytes: &[u8]) -> Result<ImageBuffer<Rgb<u16>, Vec<u16>>, String> {
-    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let (mut raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let lens = correct_sensor(bytes, &mut raw);
     let rgb16 = match crate::scene_develop::develop_display_rgb16(&raw, &crate::scene_develop::Look::default())? {
-        Some(display) => display,
+        Some(mut display) => {
+            correct_geometry(&lens, &raw, &mut display, false);
+            // Start from the camera's own look (its embedded JPEG), as the editor's picture does.
+            crate::camera_look::match_camera(bytes, &mut display);
+            display
+        }
         None => RawDevelop::default()
             .develop_intermediate(&raw)
             .map_err(|error| format!("This RAW file could not be developed: {error}"))?
@@ -106,13 +112,20 @@ pub fn develop_jpeg_screen(bytes: &[u8]) -> Result<Vec<u8>, String> {
 
 fn develop_jpeg_sized(bytes: &[u8], half: bool) -> Result<Vec<u8>, String> {
     // Nikon High Efficiency NEFs are decoded from their sensor data by `nikon_he`; everything else by rawler.
-    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let (mut raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let lens = correct_sensor(bytes, &mut raw);
     // Kestrel's own develop (highlight reconstruction, no clipping, filmic shoulder), shared with the 16-bit master.
     // Sensors it doesn't handle yet (monochrome, four-colour) keep rawler's default develop.
-    let look = crate::scene_develop::Look::default();
-    let display = if half { crate::scene_develop::develop_display_rgb16_half(&raw, &look)? } else { crate::scene_develop::develop_display_rgb16(&raw, &look)? };
+    let develop_look = crate::scene_develop::Look::default();
+    let display = if half { crate::scene_develop::develop_display_rgb16_half(&raw, &develop_look)? } else { crate::scene_develop::develop_display_rgb16(&raw, &develop_look)? };
+    let mut look = None;
     let rgb8 = match display {
-        Some(display) => crate::scene_develop::to_rgb8_dithered(&display),
+        Some(mut display) => {
+            correct_geometry(&lens, &raw, &mut display, half);
+            // Every RAW starts out looking like the camera's own JPEG (see `camera_look`).
+            look = crate::camera_look::match_camera(bytes, &mut display);
+            crate::scene_develop::to_rgb8_dithered(&display)
+        }
         None => RawDevelop::default()
             .develop_intermediate(&raw)
             .map_err(|error| format!("This RAW file could not be developed: {error}"))?
@@ -125,10 +138,41 @@ fn develop_jpeg_sized(bytes: &[u8], half: bool) -> Result<Vec<u8>, String> {
     JpegEncoder::new_with_quality(&mut out, 95)
         .encode_image(&rgb)
         .map_err(|error| format!("The developed picture could not be saved: {error}"))?;
+    let out = if lens.is_empty() { out } else { with_comment(out, &lens.summary()) };
+    let out = match look {
+        Some(look) => with_comment(out, &look.comment()),
+        None => out,
+    };
     Ok(match crate::scene_develop::as_shot_white(&raw) {
         Some((kelvin, duv)) => with_as_shot_comment(out, kelvin, duv),
         None => out,
     })
+}
+
+/// Read the lens corrections the file carries (`lens_correction`) and apply the brightness ones (shading, vignetting)
+/// to the sensor data. Every develop that starts from a RAW calls this, so the screen and the export match.
+pub fn correct_sensor(bytes: &[u8], raw: &mut rawler::RawImage) -> crate::lens_correction::LensCorrection {
+    let (_, _, (w, h)) = crate::scene_develop::picture_frame(raw);
+    let mut lens = crate::lens_correction::from_file_for(bytes, Some((w as f64, h as f64)));
+    // Only when the file has nothing of its own: the lensfun database, if it knows this exact lens and camera.
+    if lens.is_empty() {
+        lens.lensfun = crate::lensfun::lookup(bytes, &raw.camera.make, &raw.camera.model, (w as f64, h as f64));
+    }
+    crate::lens_correction::apply_to_sensor(&lens, raw);
+    lens
+}
+
+/// Apply the file's distortion correction to the developed picture (before orientation). `half`: the half-size develop.
+pub fn correct_geometry(lens: &crate::lens_correction::LensCorrection, raw: &rawler::RawImage, display: &mut ImageBuffer<Rgb<u16>, Vec<u16>>, half: bool) {
+    if let Some(profile) = &lens.profile {
+        crate::lens_correction::apply_profile(profile, display);
+    }
+    if let Some(lf) = &lens.lensfun {
+        crate::lens_correction::apply_lensfun(lf, display);
+    }
+    let Some(warp) = &lens.warp else { return };
+    let ((x, y), (w, h), _) = crate::scene_develop::picture_frame(raw);
+    crate::lens_correction::apply_warp(warp, display, (x as f64, y as f64), if half { 2.0 } else { 1.0 }, (w as f64, h as f64));
 }
 
 /// The text the app looks for (`src/core/asShotWhite.ts`). Kept short and versioned so it can change safely.
@@ -138,10 +182,14 @@ pub const AS_SHOT_PREFIX: &str = "InFlight-AsShotWhite/1 ";
 /// start-of-image marker, so the desktop app and the WebAssembly build hand it to the editor with no new interface.
 /// Comments never change the pixels.
 pub fn with_as_shot_comment(jpeg: Vec<u8>, kelvin: f32, duv: f32) -> Vec<u8> {
-    if jpeg.len() < 2 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 {
+    with_comment(jpeg, &format!("{AS_SHOT_PREFIX}K={:.0} Duv={:.4}", kelvin, duv))
+}
+
+/// A JPEG comment right after the start-of-image marker. Comments never change the pixels.
+pub fn with_comment(jpeg: Vec<u8>, text: &str) -> Vec<u8> {
+    if jpeg.len() < 2 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 || text.len() > 65000 {
         return jpeg;
     }
-    let text = format!("{AS_SHOT_PREFIX}K={:.0} Duv={:.4}", kelvin, duv);
     let length = (text.len() + 2) as u16;
     let mut out = Vec::with_capacity(jpeg.len() + text.len() + 4);
     out.extend_from_slice(&jpeg[..2]);

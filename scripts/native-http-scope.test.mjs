@@ -5,6 +5,18 @@ import { test } from 'node:test';
 const config = JSON.parse(readFileSync(new URL('../src-tauri/capabilities/default.json', import.meta.url), 'utf8'));
 const http = config.permissions.find((entry) => typeof entry === 'object' && entry.identifier === 'http:default');
 
+// Plain http beyond this computer (owner, 26 Nov 2026): the local network and Tailscale only, matching isLocalHost in
+// src/core/storageConnectors.ts. Each numeric pattern pins a whole address, so look-alike names never match.
+const OCTET = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
+const LAN_PLAINTEXT = [
+  `http://(10\\.${OCTET}\\.${OCTET}\\.${OCTET}):*`,
+  `http://(192\\.168\\.${OCTET}\\.${OCTET}):*`,
+  `http://(172\\.(?:1[6-9]|2\\d|3[01])\\.${OCTET}\\.${OCTET}):*`,
+  `http://(100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])\\.${OCTET}\\.${OCTET}):*`,
+  'http://*.local:*',
+  'http://*.ts.net:*',
+];
+
 test('native HTTP capability never grants wildcard plaintext hosts', () => {
   assert.ok(http, 'HTTP capability exists');
   const urls = http.allow.map((entry) => entry.url);
@@ -12,7 +24,7 @@ test('native HTTP capability never grants wildcard plaintext hosts', () => {
   assert.ok(urls.includes('http://localhost:*'), 'loopback helper access remains available');
   assert.ok(urls.includes('http://127.0.0.1:*'), 'IPv4 loopback helper access remains available');
   for (const url of urls) {
-    if (!url.startsWith('http://')) continue;
+    if (!url.startsWith('http://') || LAN_PLAINTEXT.includes(url)) continue;
     assert.match(url, /^http:\/\/(?:localhost|127\.0\.0\.1|\[\\:\\:1\])(?::\*)?$/, `unsafe plaintext HTTP scope: ${url}`);
   }
 });
@@ -29,10 +41,17 @@ test('every native HTTP scope compiles as a URL pattern and allows what it is me
   }
   const allowed = (target) => http.allow.some(({ url }) => new URLPattern(url).test(target));
   assert.ok(allowed('https://oauth2.googleapis.com/token'), 'Google sign-in code exchange');
+  assert.ok(allowed('https://login.microsoftonline.com/common/oauth2/v2.0/token'), 'Microsoft sign-in code exchange');
   assert.ok(allowed('http://localhost:11434/api/tags'), 'local helper on localhost');
   assert.ok(allowed('http://127.0.0.1:11434/api/tags'), 'local helper on IPv4 loopback');
   assert.ok(allowed('http://[::1]:11434/api/tags'), 'local helper on IPv6 loopback');
   assert.ok(!allowed('http://example.com/'), 'no plaintext HTTP to other hosts');
+  for (const lan of ['http://192.168.1.20:5005/photos', 'http://10.0.0.5/dav', 'http://172.20.1.1/dav', 'http://100.101.102.103:5005/dav', 'http://nas.local/dav', 'http://nas.tail1234.ts.net:5005/dav']) {
+    assert.ok(allowed(lan), `local network or Tailscale over plain http: ${lan}`);
+  }
+  for (const internet of ['http://10.evil.com/', 'http://192.168.1.2.evil.com/', 'http://100.200.1.1/', 'http://172.32.0.1/', 'http://evil.local.com/', 'http://ts.net.evil.com/', 'http://10.0.0.256/']) {
+    assert.ok(!allowed(internet), `no plaintext HTTP to an internet host: ${internet}`);
+  }
 });
 
 test('native window retains explicit file picker and offline file access', () => {

@@ -55,7 +55,7 @@ impl Default for Look {
 }
 
 /// Bump when the look changes, so cached developments can be told apart from new ones.
-pub const LOOK_VERSION: u32 = 1;
+pub const LOOK_VERSION: u32 = 2; // 2: the As shot look (camera_look) on top
 
 /// A missing as-shot white balance may be rendered neutral, but malformed supplied
 /// coefficients must not silently corrupt the image or produce NaN/Inf pixels.
@@ -339,6 +339,21 @@ struct StripPlan {
     /// The final picture, relative to the active area.
     crop: Rect,
     cfa: CFA,
+}
+
+/// Where the developed picture sits in the sensor's active area: its top-left corner (active-area pixels), the active
+/// area's size and the picture's size. The same default crop rawler's develop and the strip path use.
+pub fn picture_frame(raw: &RawImage) -> ((usize, usize), (usize, usize), (usize, usize)) {
+    let full = Rect::new(Point::new(0, 0), Dim2::new(raw.width, raw.height));
+    let active = raw.active_area.unwrap_or(full);
+    let mut crop = raw.crop_area.or(raw.active_area).unwrap_or(full);
+    if raw.active_area.is_some() {
+        crop = crop.adapt(&active);
+    }
+    if crop.d == active.d || raw.crop_area.or(raw.active_area).is_none() {
+        crop = Rect::new(Point::new(0, 0), active.d);
+    }
+    ((crop.p.x, crop.p.y), (active.d.w, active.d.h), (crop.d.w, crop.d.h))
 }
 
 /// When the strip path applies, and the exact active area and crop rawler's develop would use. None: use the whole frame.

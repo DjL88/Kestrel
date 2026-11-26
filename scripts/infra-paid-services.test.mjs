@@ -55,3 +55,31 @@ test('cloud edit settings (x-std-cloud-recipe) stay off until the owner switches
   const plane = code('control-plane.tf');
   assert.match(plane, /var\.cloud_processing_enabled && var\.cloud_runner_image != "" && var\.cloud_recipe_enabled \? \{ KCP_CLOUD_RECIPE_ENABLED = "1" \}/);
 });
+
+test('Cloud Vision (SafeSearch) is enabled only by safety.tf, and only when the owner switches it on', () => {
+  assert.deepEqual(files.filter((f) => code(f).includes('vision.googleapis.com')), ['safety.tf']);
+  const tf = code('safety.tf');
+  assert.match(tf, /variable "safesearch_enabled"\s*\{[^}]*default\s*=\s*false/s);
+  assert.match(tf, /variable "ncmec_environment"\s*\{[^}]*default\s*=\s*"test"/s);
+  const resource = tf.slice(tf.indexOf('resource "google_project_service" "vision"'));
+  assert.match(resource, /count\s*=\s*var\.safesearch_enabled \? 1 : 0/);
+  assert.match(tf, /var\.safesearch_enabled \? \{ KCP_SAFESEARCH_ENABLED = "1" \}/);
+  assert.match(code('control-plane.tf'), /for_each = local\.safety_env/);
+});
+
+test('the compliance document bucket is off by default, private, versioned, never deletes, and the control plane cannot delete from it', () => {
+  const tf = code('compliance.tf');
+  assert.match(tf, /variable "compliance_documents_enabled"\s*\{[^}]*default\s*=\s*false/s);
+  const bucket = tf.slice(tf.indexOf('resource "google_storage_bucket" "compliance"'), tf.indexOf('resource "google_storage_bucket_iam_member"'));
+  assert.match(bucket, /count\s*=\s*var\.compliance_documents_enabled \? 1 : 0/);
+  assert.match(bucket, /uniform_bucket_level_access\s*=\s*true/);
+  assert.match(bucket, /public_access_prevention\s*=\s*"enforced"/);
+  assert.match(bucket, /versioning\s*\{\s*enabled\s*=\s*true\s*\}/);
+  assert.match(bucket, /prevent_destroy\s*=\s*true/);
+  assert.match(bucket, /force_destroy\s*=\s*false/);
+  assert.doesNotMatch(bucket, /lifecycle_rule|soft_delete_policy|retention_duration_seconds\s*=\s*0/);
+  const roles = [...tf.matchAll(/roles\/storage\.[A-Za-z]+/g)].map((m) => m[0]);
+  assert.deepEqual([...new Set(roles)].sort(), ['roles/storage.objectCreator', 'roles/storage.objectViewer']);
+  assert.match(code('control-plane.tf'), /KCP_COMPLIANCE_BUCKET = try\(google_storage_bucket\.compliance\[0\]\.name, ""\)/);
+  assert.match(readFileSync(join(dir, 'switch-features.sh'), 'utf8'), /"compliance_documents_enabled"/);
+});

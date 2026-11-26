@@ -20,6 +20,8 @@ import { editRaw16, openRaw16, ShownPictureMismatchError } from '../../providers
 import type { Rgb16Image } from '../../core/master16';
 import { hasNativeRaw } from '../../providers/desktopShell';
 import { createRawSourceCache, rawSourceBudget } from './rawSourceCache';
+import { captionMetadataFor } from '../../core/captionTemplate';
+import { embedRasterXmp } from '../../core/rasterXmp';
 
 /** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
  * Completed files are never re-rendered on an ordinary pause/resume. */
@@ -143,10 +145,13 @@ export async function scheduleV2PhotoExports(input: {
               () => openRaw16(original, target.filename, { originalSha256, signal })),
           }));
         ctx.checkCancelled();
-        files = [selectedPanel].map(rendered => {
+        // Captions and credits (IPTC), only when the photographer switched them on (captionTemplate.ts).
+        const captions = submitted.request.captions ? captionMetadataFor(frame, submitted.request.captions) : null;
+        files = await Promise.all([selectedPanel].map(async rendered => {
           const base = rendered.name.replace(/(\.[^.]+)?$/, extension => variant.suffix + extension);
-          return new File([rendered], base, { type: rendered.type, lastModified: rendered.lastModified });
-        });
+          const body = captions ? await embedRasterXmp(rendered, rendered.type === 'image/png' ? 'png' : 'jpeg', captions) : rendered;
+          return new File([body], base, { type: rendered.type, lastModified: rendered.lastModified });
+        }));
       }
       for (const file of files) {
         ctx.checkCancelled();

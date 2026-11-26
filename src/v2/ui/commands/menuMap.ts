@@ -3,7 +3,7 @@ import type { SettingsTabId } from '../contract';
 
 /**
  * What a native desktop menu id (from src-tauri/src/lib.rs, sent as the "menu" event) means in V2.
- * The native menu is shared with the current app, so ids V2 has no use for (editor tabs, bursts, Auto tab...) map to null and do nothing.
+ * Unknown ids map to null and do nothing. When each item is available is decided in menuState.ts.
  * Several accelerators (Cmd+E, Cmd+A, Cmd+O, and Ctrl+M on Windows) are taken by the native menu before the page sees the key, so without this
  * bridge those keys would do nothing at all in the desktop app.
  */
@@ -24,7 +24,8 @@ export type MenuAction =
   | { kind: 'readLightroom' }
   | { kind: 'openExport' }
   | { kind: 'resetPhoto' }
-  | { kind: 'backToProjects' };
+  | { kind: 'backToProjects' }
+  | { kind: 'fullscreen' };
 
 const TABLE: Record<string, MenuAction> = {
   export: { kind: 'command', id: 'file.export' },
@@ -60,6 +61,11 @@ const TABLE: Record<string, MenuAction> = {
   'open-export': { kind: 'openExport' },
   'reset-photo': { kind: 'resetPhoto' },
   'back-to-projects': { kind: 'backToProjects' },
+  // macOS InFlight > Settings… (Cmd+,), Help menu, and Full screen on Windows and Linux.
+  'settings-open': { kind: 'settings', tab: 'appearance' },
+  'help-build': { kind: 'settings', tab: 'privacy' },
+  'help-shortcuts': { kind: 'command', id: 'help.toggle' },
+  'view-fullscreen': { kind: 'fullscreen' },
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((rating) => [`photo-rate-${rating}`, { kind: 'rate', rating } as MenuAction])),
 };
 

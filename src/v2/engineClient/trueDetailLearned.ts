@@ -1,7 +1,8 @@
 import { NAFNET_W32 } from '../../core/optionalModels';
 import { drawFramedPhoto, framedSize, type PhotoFraming } from '../../core/photoFraming';
 import { denoiseWithNafnet, nafnetStatus } from '../../providers/nafnetDenoise';
-import { subjectRect } from '../../core/trueDetailAi';
+import { alphaForArea, subjectRect } from '../../core/trueDetailAi';
+import type { Pixels } from '../../core/colourCheck';
 
 /** The largest subject area (full-size pixels) the learned denoiser runs on: about 80 tiles, a few minutes on one
  * CPU thread. A larger subject is left to the conventional denoise and the note says so. Never downsampled. */
@@ -16,6 +17,8 @@ export interface LearnedSubject {
   png: () => Promise<Blob>;
   /** The same result drawn into a working-size picture (transparent outside the area), for the guardian. */
   working: Uint8ClampedArray;
+  /** The area at full size before and after, and the subject over it, so the result is also judged where it was made. */
+  fullSize: { original: Pixels; learned: Pixels; alpha: Float32Array };
 }
 
 export type LearnedOutcome = { kind: 'ready'; result: LearnedSubject } | { kind: 'skipped'; note: string } | { kind: 'unavailable' };
@@ -49,6 +52,7 @@ export async function runLearnedOnSubject(
   const count = crop.width * crop.height;
   const rgb16 = new Uint16Array(count * 3);
   for (let p = 0; p < count; p++) for (let c = 0; c < 3; c++) rgb16[p * 3 + c] = pixels.data[p * 4 + c] * 257;
+  const before = new Uint8ClampedArray(pixels.data);
   const out = await denoiseWithNafnet(rgb16, crop.width, crop.height, { strength: 1, signal, progress });
   signal?.throwIfAborted();
   if (!out) return { kind: 'unavailable' };
@@ -58,6 +62,11 @@ export async function runLearnedOnSubject(
   }
   context.putImageData(pixels, 0, 0);
   const placed = { x: region.x / framed.width, y: region.y / framed.height, w: region.width / framed.width, h: region.height / framed.height };
+  const fullSize = {
+    original: { data: before, width: crop.width, height: crop.height },
+    learned: { data: new Uint8ClampedArray(pixels.data), width: crop.width, height: crop.height },
+    alpha: alphaForArea(subjectAlpha, working.width, working.height, placed, crop.width, crop.height),
+  };
   const layer = document.createElement('canvas');
   layer.width = working.width; layer.height = working.height;
   const lctx = layer.getContext('2d', { willReadFrequently: true });
@@ -69,7 +78,7 @@ export async function runLearnedOnSubject(
   return {
     kind: 'ready',
     result: {
-      model: NAFNET_W32.id, modelSha256: NAFNET_W32.files.model.sha256, rect: placed, working: workingPixels,
+      model: NAFNET_W32.id, modelSha256: NAFNET_W32.files.model.sha256, rect: placed, working: workingPixels, fullSize,
       png: () => new Promise<Blob>((resolve, reject) => crop.toBlob(blob => blob ? resolve(blob) : reject(new Error('The AI denoise result could not be stored.')), 'image/png')),
     },
   };

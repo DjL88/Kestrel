@@ -37,8 +37,10 @@ Where the ids go (26 Nov 2026): desktop installers read them from `.env.local` o
 
 Put the ids in the build environment (see `.env.example`). Each id switches on that provider's button; absent ids leave it listed but off.
 
-## Registration status (21 Nov 2026)
-All three apps are registered under the owner's accounts, named "Kite44" (to be renamed InFlight). The client ids are in the owner's build environment, not in Git. **Still not verified against a real sign-in.**
+## Registration status (21 Nov 2026, corrected 26 Nov 2026)
+The 21 Nov note below said all three apps were registered as "Kite44". On 26 Nov the lead looked in the consoles and the
+Microsoft one was **not found**, so the table below is not reliable: see "What was actually found" at the end of this
+file for what exists now. **None of the three has been verified against a real sign-in.**
 
 | Service | Registered as | Redirects registered | Status and limits |
 |---|---|---|---|
@@ -57,7 +59,20 @@ Findings that change the plan above:
 - Public release needs each provider's app review where required (Google verification, Dropbox production approval) and official logo assets in `ProviderIcon.tsx`.
 - Phone-app sign-in, NAS auto-discovery and a "Test with real account" Playwright run are the next items.
 
+## What was actually found (26 Nov 2026)
+Checked by the lead in the consoles. Client ids are public identifiers; no secret is in Git or in this file.
+
+| Service | What exists | Still missing |
+|---|---|---|
+| OneDrive (and Sign in with Microsoft) | Entra app **"InFlight"** in the owner's tenant, client id `2d7f2fd3-bf07-4afa-8707-8c4a9d643b7e`. Accounts: any Entra tenant plus personal Microsoft accounts. Redirects: Web `https://kestrel-photo.firebaseapp.com/__/auth/handler` (Firebase sign-in); Single-page `https://inflight.studio/oauth-callback.html`; Mobile and desktop `http://localhost:53682/oauth-callback`. Graph delegated: `User.Read`, `openid`, `email`, `profile`, `offline_access`, `Files.ReadWrite.AppFolder`. The same app serves OneDrive and Sign in with Microsoft. | Client secret (owner creates it and pastes it only into Firebase Auth's Microsoft provider). Single-page redirect for the V2 preview, `https://inflight.studio/V2Proto/oauth-callback.html`, and for development, `http://localhost:3000/oauth-callback.html`. Publisher verification, before wide use by other organisations. |
+| Google Drive | "Desktop app" OAuth client `172130699322-d6hqgmdm7d56oh4609tfutrtb009ok8e.apps.googleusercontent.com` in the `kestrel-hosting` project. | Consent screen is still **Testing** (only listed test users; refresh tokens expire after about 7 days). Its client secret is the owner's and goes only in the build machine's `.env.local`. A desktop client cannot sign in from a web page, so Google Drive is desktop-only. |
+| Dropbox | **Not confirmed.** The app key is unknown. | Create or locate the app (Scoped access, App folder) and give the lead the app key. |
+
+Where each id goes:
+- **Web (V2 preview image):** Cloud Build trigger substitutions in `.cloudbuild/v2proto.yaml`, passed into `services/v2proto/Dockerfile` as build arguments: `_ONEDRIVE_CLIENT_ID` and `_DROPBOX_APP_KEY` (added by PR #1727), and `_MICROSOFT_SIGN_IN` (`1` once Firebase's Microsoft provider is enabled). Google Drive takes no web id.
+- **Desktop installers:** `.env.local` on each build machine (`npm run desktop:build`, or `scripts/windows/Build-Kestrel.ps1` on Windows): `VITE_ONEDRIVE_CLIENT_ID`, `VITE_DROPBOX_APP_KEY`, `VITE_GOOGLE_DRIVE_CLIENT_ID`, `VITE_GOOGLE_DRIVE_CLIENT_SECRET`, `VITE_MICROSOFT_SIGN_IN=1`. Desktop Microsoft sign-in also needs `VITE_MICROSOFT_DESKTOP_SIGNIN=on`, which stays off until it has been tried in a real installed build (see `src/core/microsoftSignIn.ts`). The GitHub desktop workflows build draft installers without any of these, so their builds have sign-in and drives off.
+
 ## SFTP, shared drives and a NAS away from home (26 Nov 2026)
 - **SFTP** (desktop app only; a browser cannot speak SSH). `crates/kestrel-sftp` (russh on ring, pure Rust) opens one session per call. **Test the connection** shows the server's SHA-256 fingerprint; saving trusts it, and any later call to a server with a different key is refused (`host-key-changed:` to the page). Password or OpenSSH key, kept for the session only; address, user, folder and fingerprint are kept so **Sign in again** refills them. Writes `kestrel/v1/...` via a `.partial` file then rename; `export/...` is write-once. Live check: `KESTREL_SFTP_TEST=host:port:user:password[:root] cargo test` in the crate.
 - **SMB / office shares**: connect the share on the computer (Finder, Go, Connect to Server; or a mapped drive letter on Windows), then add it as a **folder**. UNC paths (`\\server\share`) without a drive letter are not verified.
-- **NAS away from home**: Tailscale on the NAS and computer is the simplest safe route. WebDAV needs https with a valid certificate (Tailscale HTTPS `*.ts.net`, or Synology DDNS with Let's Encrypt). QuickConnect does not carry WebDAV or SFTP. The desktop app's HTTP scope allows plain http only to this computer (`localhost`), so `http://192.168.x.x` WebDAV addresses do not connect there; self-signed certificates do not either.
+- **NAS away from home and plain http** (owner, 26 Nov 2026): plain `http://` is allowed only to this computer, the local network (10.x, 172.16 to 31.x, 192.168.x, `.local` names) and Tailscale (100.64 to 100.127 addresses and `.ts.net` names), because a Tailscale tunnel is already encrypted. Anywhere else on the internet needs https with a valid certificate (Tailscale HTTPS, or Synology DDNS with Let's Encrypt). The rule is `isLocalHost` in `src/core/storageConnectors.ts` (WebDAV and S3), and the desktop app's HTTP permission (`src-tauri/capabilities/default.json`) allows exactly the same addresses, checked by `scripts/native-http-scope.test.mjs`. Self-signed certificates do not connect. QuickConnect does not carry WebDAV or SFTP. In the web version a browser also blocks plain http from an https page, so a LAN or Tailscale address over http works in the desktop app only.
