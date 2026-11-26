@@ -34,9 +34,21 @@ export async function nativePhotoStats(paths: readonly string[]): Promise<Array<
   return out;
 }
 
+/**
+ * Whole-file reads one after another. The owner's photos are on a spinning USB disk (about 34 MB/s read whole): several
+ * whole-file reads at once make its head seek between files and every read slower. So whole files are read by one
+ * reader in turn, while the lanes of an import still decode and encode previews on several cores at once.
+ */
+let wholeFileQueue: Promise<unknown> = Promise.resolve();
+export function oneWholeFileReadAtATime<T>(read: () => Promise<T>): Promise<T> {
+  const turn = wholeFileQueue.then(read, read);
+  wholeFileQueue = turn.catch(() => undefined);
+  return turn;
+}
+
 /** The original's SHA-256 (lower-case hex), read once by the app; null when the app can't, so the caller reads it itself. */
 export async function nativeFingerprint(path: string, size?: number): Promise<string | null> {
-  const answer = await call<{ sha256: string; size: number }>('photo_fingerprint', { path, size: size ?? null });
+  const answer = await oneWholeFileReadAtATime(() => call<{ sha256: string; size: number }>('photo_fingerprint', { path, size: size ?? null }));
   if (!answer || !/^[0-9a-f]{64}$/.test(answer.sha256) || (size !== undefined && answer.size !== size)) return null;
   return answer.sha256;
 }
