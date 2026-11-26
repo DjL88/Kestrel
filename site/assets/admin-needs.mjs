@@ -71,7 +71,6 @@ export const VIEWS = {
   safety: { label: 'Safety', sections: ['safety'] },
   money: { label: 'Money and tax', sections: ['payments', 'accounts', 'tax', 'price-review', 'usage'] },
   news: { label: 'Send news', sections: ['notifications'] },
-  demo: { label: 'Demo Studio', sections: ['demo-studio'] },
   service: { label: 'Switches, flags and jobs', sections: ['switches', 'flags', 'mail', 'learning', 'monitoring'] },
   records: { label: 'Counts and audit log', sections: ['overview', 'audit'] },
 };
