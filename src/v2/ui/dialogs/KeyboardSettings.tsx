@@ -5,7 +5,7 @@ import {
   PRESETS, chordLabel, chordsLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
 } from '../commands/keymap';
-import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
+import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, usesFunctionKeys, withFunctionKeys, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
 
 interface KeyboardSettingsProps {
   saved: SavedKeymap;
@@ -225,7 +225,10 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
             </div>
           ))}
         </div>
-        <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>{STRINGS.keyboardKeys.resetPad}</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>{STRINGS.keyboardKeys.resetPad}</button>
+          <button type="button" className={buttonClass} disabled={usesFunctionKeys(pad)} onClick={() => onPadChange(withFunctionKeys(pad))}>{STRINGS.keyboardKeys.padFunctionKeys}</button>
+        </div>
       </section>
     </div>
   );

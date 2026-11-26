@@ -1524,6 +1524,7 @@ export const nb: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lær tasten for ${slot}`,
     resetPad: 'Tilbakestill panelet til startoppsettet',
+    padFunctionKeys: 'Bruk F13 til F21, taster som ingen tastatur har',
     gamepadHelp: "Velg hva hver knapp og hver spakretning gjør. Spakene vrir den sist brukte glidebryteren, eller Eksponering, i samme steg som når du drar, så Angre tar det tilbake. Kontrollere gjør ingenting mens Innstillinger er åpen, så du kan prøve hver knapp her.",
     gamepadNone: "Fant ingen kontroller. Koble til en og trykk på en knapp, så nettleseren ser den.",
     gamepadConnected: (name: string) => `Tilkoblet: ${name}`,

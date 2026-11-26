@@ -1525,6 +1525,7 @@ export const fi: AreaTranslation<typeof source> = {
     nothing: 'Ei mitään',
     learnLabel: (slot) => `Opeta näppäin: ${slot}`,
     resetPad: 'Palauta paneelin aloitusasetukset',
+    padFunctionKeys: 'Käytä näppäimiä F13–F21, joita missään näppäimistössä ei ole',
     gamepadHelp: "Valitse, mitä kukin painike ja sauvan suunta tekee. Sauvat kääntävät viimeksi käytettyä liukusäädintä tai Valotusta samoin askelin kuin vetäminen, joten Kumoa palauttaa sen. Ohjaimet eivät tee mitään, kun Asetukset on auki, joten voit kokeilla jokaista painiketta tässä.",
     gamepadNone: "Ohjainta ei löytynyt. Liitä ohjain ja paina mitä tahansa painiketta, jotta selain näkee sen.",
     gamepadConnected: (name: string) => `Yhdistetty: ${name}`,

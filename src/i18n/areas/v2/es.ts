@@ -1524,6 +1524,7 @@ export const es: AreaTranslation<typeof source> = {
     nothing: 'Nada',
     learnLabel: (slot) => `Aprender la tecla de ${slot}`,
     resetPad: 'Restablecer la configuración inicial',
+    padFunctionKeys: 'Usar F13 a F21, teclas que ningún teclado tiene',
     gamepadHelp: "Elige qué hace cada botón y cada dirección de los joysticks. Los joysticks mueven el último control deslizante usado, o la exposición, en los mismos pasos que al arrastrar, así que Deshacer lo revierte. Los mandos no hacen nada mientras Ajustes está abierto, para que puedas comprobar cada botón aquí.",
     gamepadNone: "No se ha encontrado ningún mando. Conecta uno y pulsa cualquier botón para que el navegador lo vea.",
     gamepadConnected: (name: string) => `Conectado: ${name}`,
