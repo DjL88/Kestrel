@@ -65,6 +65,11 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
   await expect(splash.getByTestId('welcome-last-project')).toContainText(remembered.name);
+  // The card shows the project's own photo (owner, 26 Nov: it showed a folder icon), read from this device's previews.
+  expect(remembered.thumbs?.keys).toHaveLength(1);
+  const thumb = splash.getByTestId('welcome-last-project-thumbs').locator('img');
+  await expect(thumb).toHaveCount(1, { timeout: 10_000 });
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await splash.getByTestId('welcome-last-project').click();
   await expect(splash).toHaveCount(0, { timeout: 10_000 });
   // The editor is showing, not the hub.
