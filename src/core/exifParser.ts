@@ -332,7 +332,7 @@ export async function parseImageExif(
     return {
       ...rating,
       editStatus,
-      cameraFocus: readCameraFocus(segments?.makerNote, parsed.Make),
+      cameraFocus: readCameraFocus(segments?.makerNote, parsed.Make, segments?.ifd0?.Orientation),
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:

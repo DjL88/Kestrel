@@ -227,6 +227,8 @@ export default function Canvas({
    */
   const keepAt = useRef<{ fx: number; fy: number; x: number; y: number } | null>(null);
   const [eyeTarget, setEyeTarget] = useState(0);
+  // Where the camera says it focused (src/core/cameraFocus.ts), drawn on the picture when the person asks.
+  const [showCameraFocus, setShowCameraFocus] = useState(false);
   /** Hold the picture point under this screen position in place through the next zoom. False when there is no frame. */
   const holdPointAt = (clientX: number, clientY: number): boolean => {
     const stage = stageRef.current;
@@ -1312,11 +1314,19 @@ export default function Canvas({
           if (x >= 0 && x <= 1 && y >= 0 && y <= 1) neutralPick.onPick({ x, y });
         }} />
     ) : undefined;
+  // The camera's AF box is in the shown picture's fractions, so like the mask outline it follows crop, rotation and zoom.
+  const cameraFocusArea = showCameraFocus ? photo.cameraFocus?.area : undefined;
+  const renderCanvasMarks = (picture: { width: number; height: number }) => {
+    const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
+    if (!cameraFocusArea) return marks;
+    return <>{marks}<CameraFocusBox picture={picture} area={cameraFocusArea} /></>;
+  };
+  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
-        maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
+        maskOutline={variant === 'edited' && alt && !compareMode && hasCanvasMarks ? renderCanvasMarks : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
         onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} />
     ) : (
@@ -1729,6 +1739,13 @@ export default function Canvas({
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, buildImageStyle(activeSize), holdingOriginal ? 'none' : filterCss)
             ))}
             {!compareMode && !holdingOriginal && renderMaskLabel()}
+            {!compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
+              <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
+                onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setShowCameraFocus((shown) => !shown); }}
+                className="absolute right-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-medium text-white hover:bg-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
+              </button>
+            )}
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}
@@ -2274,5 +2291,19 @@ export default function Canvas({
         </div>
       </div>
     </main>
+  );
+}
+
+/** The camera's AF area on the picture: a white box on a dark halo, so it reads on any photograph without relying on
+ * colour. Drawn in the picture's own pixels, inside the same SVG as the mask outline. */
+function CameraFocusBox({ picture, area }: { picture: { width: number; height: number }; area: { x: number; y: number; width: number; height: number } }) {
+  const x = area.x * picture.width, y = area.y * picture.height;
+  const width = Math.max(area.width * picture.width, 1), height = Math.max(area.height * picture.height, 1);
+  return (
+    <g data-testid="camera-focus-box" role="img" aria-label={STRINGS.canvas.cameraFocusBox} style={{ pointerEvents: 'none' }}>
+      <title>{STRINGS.canvas.cameraFocusBox}</title>
+      <rect x={x} y={y} width={width} height={height} fill="none" stroke="rgba(0,0,0,0.65)" strokeWidth={4} vectorEffect="non-scaling-stroke" />
+      <rect x={x} y={y} width={width} height={height} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+    </g>
   );
 }
