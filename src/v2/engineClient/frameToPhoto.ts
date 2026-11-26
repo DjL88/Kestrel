@@ -1,4 +1,5 @@
 import { readExternalEdit } from '../../core/externalEdit';
+import type { UnsupportedRawCompression } from '../../core/rawCompression';
 import { readHdrMergeRecipe } from '../../core/hdrMergeRecipe';
 import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { readFocusStackRecipe } from '../../core/focusStackRecipe';
@@ -156,7 +157,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
   };
 }
 
-export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean }
+export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean; /** The original is there but its compression can't be read yet. */ unsupported?: UnsupportedRawCompression }
 
 const NOT_RECORDED = engineText.notRecorded;
 const positive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -212,6 +213,7 @@ export function speciesAreaLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tag
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
+  if (urls?.unsupported) return 'unsupported';
   if (urls?.failed) return 'unavailable';
   return urls?.thumb ? 'ready' : 'importing';
 }
@@ -348,7 +350,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(readPanoramaRecipe(frame.panorama) ? { panorama: { sources: frame.panorama!.sources.map((source) => source.filename) } } : {}),
     ...(readFocusStackRecipe(frame.focusStack) ? { focusStack: { sources: frame.focusStack!.sources.map((source) => source.filename) } } : {}),
     ...(readHdrMergeRecipe(frame.hdrMerge) ? { hdrMerge: { sources: frame.hdrMerge!.sources.map((source, i) => ({ filename: source.filename, ev: frame.hdrMerge!.exposureEv[i] })) } } : {}),
-    ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
+    ...(urls?.unsupported ? {} : extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
     assistCritique: assist && matchesAutoSource(assist.run, frame)

@@ -73,6 +73,7 @@ export const sv: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Förbereder 1 miniatyr' : `Förbereder ${count} miniatyrer`),
     thumbnailStage: 'Läser och förminskar det här fotot',
     thumbnailFailed: (filename) => `Kunde inte skapa miniatyren för ${filename}. Anslut originalet igen och försök på nytt.`,
+    rawJpegXl: 'Den här RAW-filen använder JPEG XL-komprimering, som InFlight inte kan läsa ännu. Originalet är orört.',
     notConnected: (names) => `Ännu inte ansluten till InFlight-motorn, så inte tillämpat: ${names}.`,
     exportRunning: 'En export pågår redan.',
     selectOneRaw: 'Välj ett RAW-foto för att exportera dess TIFF.',

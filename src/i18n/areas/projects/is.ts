@@ -402,6 +402,7 @@ export const is: AreaTranslation<typeof source> = {
     none: 'Engin innskráningarleið sést enn. Skráðu þig út og inn aftur.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Netfang og lykilorð',
     add: (method: string) => `Bæta við ${method}`,
     passwordLabel: 'Lykilorð til að skrá sig inn með netfanginu',

@@ -99,3 +99,19 @@ test('account device management lists only the effective licence and releases an
     assert.equal((await h.call('POST', '/v1/me/devices', { body: { deviceHash: DEVICE } })).status, 401);
   } finally { await h.close(); }
 });
+
+test('Microsoft sign-in: an unproved work-account email is refused, and once proved it reaches the same account as Google', async () => {
+  const h = await start();
+  try {
+    await h.call('POST', '/v1/admin/licences/grant', { token: h.adminToken, body: { email: 'cleo@example.com', plan: 'paid', majorVersion: 1 } });
+    const viaMicrosoft = (verified: boolean) => firebaseToken(h, { email_verified: verified, firebase: { sign_in_provider: 'microsoft.com', identities: { 'microsoft.com': ['ms-oid-1'] } } });
+    // Firebase does not vouch for a Microsoft address (an organisation sets it), so the server must not take it on trust.
+    assert.equal((await h.call('POST', '/v1/auth/firebase', { body: { credential: viaMicrosoft(false) } })).status, 401);
+    const google = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h, { firebase: { sign_in_provider: 'google.com' } }) } });
+    const microsoft = await h.call('POST', '/v1/auth/firebase', { body: { credential: viaMicrosoft(true) } });
+    assert.equal(microsoft.status, 200);
+    const plans = async (token: string) => (await h.call('GET', '/v1/me/entitlements', { token })).body.plans;
+    assert.deepEqual(await plans(microsoft.body.accessToken), await plans(google.body.accessToken), 'the same email has the same access');
+    assert.ok((await plans(microsoft.body.accessToken)).length > 0);
+  } finally { await h.close(); }
+});
