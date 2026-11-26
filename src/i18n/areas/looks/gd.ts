@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Scottish Gaelic. DRAFT: written without a native speaker's check. */
+export const gd: AreaTranslation<typeof source> = {
+  heading: "Na stoidhlichean agad",
+  intro: "Sàbhail roghainnean sleamhnain an deilbh seo mar stoidhle airson dealbhan eile. Chan eil masgaichean, bearradh, lùban no ceartachaidhean lionsa na lùib.",
+  nameLabel: "Ainm airson na stoidhle seo",
+  namePlaceholder: "Mar eisimpleir, Madainn cheòthach",
+  save: "Sàbhail mar stoidhle",
+  empty: "Cha do shàbhail thu stoidhle sam bith fhathast.",
+  rename: (name: string) => `Thoir ainm ùr air ${name}`,
+  renameLabel: (name: string) => `Ainm ùr airson ${name}`,
+  renameShort: "Ainm ùr",
+  removeShort: "Sguab às",
+  renameDone: "Sàbhail an t-ainm",
+  cancel: "Sguir dheth",
+  remove: (name: string) => `Sguab às ${name}`,
+  exportLooks: "Sàbhail stoidhlichean ann am faidhle",
+  importLooks: "Cuir stoidhlichean ris à faidhle",
+  mine: "Agadsa",
+  description: "Stoidhle a shàbhail thu air an uidheam seo.",
+  saved: (name: string) => `Chaidh an stoidhle “${name}” a shàbhaladh air an uidheam seo.`,
+  updated: (name: string) => `Tha roghainnean an deilbh seo aig an stoidhle “${name}” agad a-nis.`,
+  needName: "Thoir ainm air an stoidhle an toiseach.",
+  full: "Shàbhail thu na tha ceadaichte de stoidhlichean. Sguab tè às an toiseach.",
+  nameTaken: "Tha stoidhle air a bheil an t-ainm sin agad mu thràth.",
+  removed: (name: string) => `Chaidh an stoidhle “${name}” a sguabadh às. Cumaidh dealbhan a chleachd i an roghainnean.`,
+  notSaved: "Cha b' urrainn dhuinn na stoidhlichean agad a shàbhaladh air an uidheam seo. Mairidh iad gus an dùin InFlight.",
+  imported: (added: number, replaced: number) => `Stoidhlichean air an cur ris: ${added}. Stoidhlichean air an ùrachadh: ${replaced}.`,
+  skipped: (n: number) => ` Air am fàgail às, gun roghainnean feumail: ${n}.`,
+  nothingUsable: "Chan eil stoidhlichean san fhaidhle sin le roghainnean as urrainn do InFlight cleachdadh.",
+  unreadable: "Cha b' urrainn dhuinn am faidhle sin a leughadh mar stoidhlichean.",
+  notLooks: "Chan e faidhle stoidhle InFlight a th' anns an fhaidhle sin.",
+  newer: "Thàinig am faidhle stoidhle sin à tionndadh nas ùire de InFlight. Ùraich InFlight gus a chur ris.",
+};

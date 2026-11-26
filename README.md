@@ -6,8 +6,6 @@ InFlight is a local-first culling and editing workspace for wildlife, bird, and 
 
 **Product direction for every contributor:** [InFlight product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
 
-**Product direction for every contributor:** [Kestrel product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
-
 **Current readiness and priorities:** [docs/ROADMAP.md](docs/ROADMAP.md) (the historical [end-to-end product audit](docs/history/RELEASE-GAP-AUDIT-2026-11.md) it superseded is kept for record only). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes a developed raster into the editor; this is not yet a 16-bit, colour-managed RAW workflow or verified Lightroom/DxO parity. See [docs/RAW-QUALITY-PLAN.md](docs/RAW-QUALITY-PLAN.md) for the phased plan to close that gap.
 
 **Legal/trust:** [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) (third-party licenses), [PRIVACY.md](PRIVACY.md). All three are drafts written to match current behaviour — get them reviewed before a public release, not just read.
@@ -156,7 +154,7 @@ Keep edit recipes, catalogue operations and rendering contracts shared. Use per-
 | macOS, Windows and Linux | Desktop application for the full Library and editor, local and mounted-volume folders, and camera/RAW adapters where validated. Verify Nikon SDK runtime availability per OS and CPU before committing to official Nikon rendering on that target. |
 | iOS and Android | Phone layout for culling and quick edits, tablet layout for larger previews and precise controls. Use device photo pickers and save/share sheets with tablet and touch acceptance tests. |
 | Web editor | Offline editing after the app has loaded and cached. The browser remains responsible for filesystem permissions and storage limits. |
-| Browser extension | Explicitly send a user-selected image to a InFlight workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
+| Browser extension | Explicitly send a user-selected image to an InFlight workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
 
 Keep sign-in optional. If a paid tier is added, separate entitlement from file storage. Local projects, original files and offline editing should work independently of any supported account or sync provider. Any future sync should be opt-in, limited to its stated data, and avoid uploading originals by default.
 

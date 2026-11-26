@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Finnish. DRAFT: written without a native speaker's check. */
+export const fi: AreaTranslation<typeof source> = {
+  heading: "Omat tyylisi",
+  intro: "Tallenna tämän kuvan liukusäätimet tyyliksi muille kuville. Maskit, rajaus, käyrät ja objektiivin korjaukset eivät ole mukana.",
+  nameLabel: "Tyylin nimi",
+  namePlaceholder: "Esimerkiksi Usvainen aamu",
+  save: "Tallenna tyyliksi",
+  empty: "Et ole vielä tallentanut tyylejä.",
+  rename: (name: string) => `Nimeä ${name} uudelleen`,
+  renameLabel: (name: string) => `Uusi nimi tyylille ${name}`,
+  renameShort: "Nimeä uudelleen",
+  removeShort: "Poista",
+  renameDone: "Tallenna nimi",
+  cancel: "Peruuta",
+  remove: (name: string) => `Poista ${name}`,
+  exportLooks: "Tallenna tyylit tiedostoon",
+  importLooks: "Lisää tyylejä tiedostosta",
+  mine: "Omat",
+  description: "Tyyli, jonka tallensit tälle laitteelle.",
+  saved: (name: string) => `Tyyli ”${name}” tallennettiin tälle laitteelle.`,
+  updated: (name: string) => `Tyylisi ”${name}” sai tämän kuvan asetukset.`,
+  needName: "Anna tyylille ensin nimi.",
+  full: "Olet tallentanut niin monta tyyliä kuin voi. Poista ensin yksi.",
+  nameTaken: "Sinulla on jo samanniminen tyyli.",
+  removed: (name: string) => `Tyyli ”${name}” poistettiin. Sitä käyttäneet kuvat säilyttävät asetuksensa.`,
+  notSaved: "Tyylejäsi ei voitu tallentaa tälle laitteelle. Ne säilyvät, kunnes InFlight suljetaan.",
+  imported: (added: number, replaced: number) => `Tyylejä lisätty: ${added}. Tyylejä päivitetty: ${replaced}.`,
+  skipped: (n: number) => ` Jätetty pois, ei käyttökelpoisia asetuksia: ${n}.`,
+  nothingUsable: "Tiedostossa ei ole tyylejä, joiden asetuksia InFlight voi käyttää.",
+  unreadable: "Tiedostoa ei voitu lukea tyyleinä.",
+  notLooks: "Tiedosto ei ole InFlightin tyylitiedosto.",
+  newer: "Tyylitiedosto on tehty InFlightin uudemmalla versiolla. Päivitä InFlight lisätäksesi sen.",
+};

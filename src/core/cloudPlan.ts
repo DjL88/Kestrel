@@ -6,7 +6,7 @@
  * Software: Basic is free. Pro is £29 once for the current major version, or £2.99 a month that becomes ownership of the
  * latest major version after 12 successfully paid months.
  *
- * Cloud, the same for everyone who signs in:
+ * Cloud, the same for everyone who signs in (unused free photos and downloads carry over for one month, owner 26 Nov 2026):
  *  - cloud processing: a monthly photo allowance (Basic 500, Pro 5,000), then paid from the cloud balance;
  *  - storage: Pro includes 2.5 GB, Basic none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
  *    later a fixed storage plan by Direct Debit (STORAGE_PLANS);

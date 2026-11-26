@@ -3,8 +3,7 @@ name: CI
 # - one run per PR or branch at a time (a new push cancels the old run);
 # - docs-only changes skip it (paths-ignore);
 # - npm and the Playwright browser are cached;
-# - only the V2 product's specs run (tests/v2-*, plus the website and admin pages). The retired V1 specs still run
-#   locally with `npx playwright test`; they are not worth paid minutes now that V2 is the app.
+# - every browser spec runs (the previous interface and its specs were removed on 26 Nov 2026), and any failure fails CI.
 # Python checks live in python.yml, desktop bundles in desktop.yml (both path-filtered).
 on:
   push:
@@ -55,11 +54,11 @@ jobs:
       - if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Playwright builds and serves the production app before running the tests. Desktop and phone projects.
-      # Fail fast and cheap: stop after 20 failures, and never let the browser step run past 25 minutes (everything
-      # before this step takes about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
-      - name: V2 browser tests
+      # Every spec runs and any failure fails the job; the step never runs past 25 minutes (everything before it takes
+      # about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
+      - name: Browser tests
         timeout-minutes: 25
-        run: npx playwright test tests/v2- tests/site- tests/admin- --workers=2 --max-failures=20
+        run: npx playwright test --workers=2
       # Board job p5-export: full-size exports are pixel-exact to the intended render and originals are never changed,
       # proved through the real app on synthetic files and two CC0 camera RAWs from raw.pixls.us (about 50 MB, cached,
       # pinned by SHA-256 in tests/exportExactness.ts, never committed).
@@ -69,12 +68,10 @@ jobs:
           key: raw-samples-exactness-v1
       - name: Fetch CC0 camera RAWs for the export proof
         run: node scripts/fetch-raw-samples.mjs --exactness
-      - name: Export exactness and originals untouched
-        timeout-minutes: 15
-        run: npx playwright test -c playwright.dev.config.ts tests/verified-asset-export-exactness.spec.ts --workers=1
-      - name: Download my data and Delete my account (dev-server harness)
-        timeout-minutes: 10
-        run: npx playwright test -c playwright.dev.config.ts tests/v2-dev-account-data.spec.ts --workers=2
+      # Every dev-server spec: export exactness and originals untouched, the verified-asset specs, and the account specs.
+      - name: Dev-server browser tests
+        timeout-minutes: 25
+        run: npx playwright test -c playwright.dev.config.ts --workers=2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

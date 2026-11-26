@@ -10,7 +10,7 @@ import { setSignedInHint } from './featureFlagsStore';
 export type LicenceState =
   | { status: 'none' }
   | { status: 'checking' }
-  | { status: 'valid'; online: OnlineStanding; access: AccessDecision }
+  | { status: 'valid'; online: OnlineStanding; access: AccessDecision; /** First use of this key here, for the one-time check-in; null when not asked. */ firstUseMs: number | null }
   | { status: 'account'; standing: AccountStanding; access: AccessDecision }
   | { status: 'invalid'; message: string };
 
@@ -53,7 +53,9 @@ const sync = new LicenceSync({
   appVersion,
 });
 
-const valid = (online: OnlineStanding): LicenceState => ({ status: 'valid', online, access: decideAccess(true, online, Date.now()) });
+/** When the stored key was first used on this device (see NEW_DEVICE_CHECK_IN_DAYS). Read whenever a key is loaded or saved. */
+let firstUseMs: number | null = null;
+const valid = (online: OnlineStanding): LicenceState => ({ status: 'valid', online, access: decideAccess(true, online, Date.now(), firstUseMs), firstUseMs });
 const storedKey = () => storage.getItem(KEY);
 
 /** Ask the control plane about this device's key when the stored grant is due for renewal (or never checked). */
@@ -90,6 +92,8 @@ export async function activateFromAccount(idToken: string): Promise<'pro' | 'fre
   const standing = await sync.activateAccount(idToken);
   if (!standing) return 'unreachable';
   setSignedInHint(true);
+  // Bought outright: keep the buyer's own key on this device, so Pro no longer depends on the account or our service.
+  if (standing.kind === 'active' && standing.licenceKey && !storedKey() && (await adoptKey(standing.licenceKey))) return 'pro';
   if (!storedKey()) set(standing.kind === 'no_licence' ? { status: 'none' } : accountState(standing));
   if (standing.kind === 'active') keepRenewing();
   return standing.kind === 'active' ? 'pro' : standing.kind === 'no_licence' ? 'free' : standing.kind === 'device_limit' ? 'limit' : 'revoked';
@@ -176,16 +180,33 @@ async function readStoredLicence() {
   set({ status: 'checking' });
   const result = await verifyLicence(key);
   if (!result.ok) { settle({ status: 'invalid', message: LICENCE_MESSAGES[result.reason] }); return; }
+  firstUseMs = await sync.firstUse(key, Date.now());
   settle(valid(await sync.storedStanding(key)));
   keepRenewing();
   await renewIfDue(key);
 }
+
+/** Keep a key the account handed over, exactly as a pasted one. False if it does not check out or cannot be kept. */
+async function adoptKey(key: string): Promise<boolean> {
+  const result = await verifyLicence(key);
+  if (!result.ok) return false;
+  try { localStorage.setItem(KEY, key.trim()); } catch { return false; }
+  firstUseMs = await sync.firstUse(key, Date.now());
+  set(valid(await sync.storedStanding(key)));
+  keepRenewing();
+  await renewIfDue(key, true);
+  return true;
+}
+
+/** The key kept on this device, to show the person so they can keep a copy. Null when there is none. */
+export const deviceLicenceKey = (): string | null => storedKey();
 
 /** Check a pasted key and, if it is good, keep it and activate this device when online. */
 export async function saveLicence(key: string): Promise<{ ok: true } | { ok: false; message: string }> {
   const result = await verifyLicence(key);
   if (!result.ok) return { ok: false, message: LICENCE_MESSAGES[result.reason] };
   try { localStorage.setItem(KEY, key.trim()); } catch { return { ok: false, message: 'Could not keep the key on this device. Check that storage is not full or blocked.' }; }
+  firstUseMs = await sync.firstUse(key, Date.now());
   set(valid(await sync.storedStanding(key)));
   keepRenewing();
   await renewIfDue(key, true);
@@ -201,6 +222,7 @@ export async function removeLicence() {
   }
   storage.removeItem(KEY);
   sync.forget();
+  firstUseMs = null;
   set({ status: 'none' });
 }
 
@@ -234,6 +256,8 @@ export async function attachDeviceKeyToAccount(idToken: string): Promise<'none' 
   return sync.attachKey(idToken, key);
 }
 export const freeAccountLicenceDevice = (idToken: string, activationId: string) => sync.releaseAccountDevice(idToken, activationId);
+/** Why the last device free was refused, in the server's kind words, when the yearly allowance is used up. */
+export const deviceReleaseRefusal = (): string | null => sync.releaseRefusal;
 
 /** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */
 export const startProCheckout = (idToken: string) => sync.startProCheckout(idToken);

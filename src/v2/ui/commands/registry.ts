@@ -14,7 +14,7 @@ export type CommandId =
   | 'photo.nextToReview' | 'photo.prevToReview'
   | 'photo.rate0' | 'photo.rate1' | 'photo.rate2' | 'photo.rate3' | 'photo.rate4' | 'photo.rate5'
   | 'photo.rateUp' | 'photo.rateDown'
-  | 'view.grid'
+  | 'view.grid' | 'view.loupe' | 'view.filmstrip'
   | 'view.compare'
   | 'view.fullscreen'
   | 'view.maskOverlay'
@@ -22,7 +22,7 @@ export type CommandId =
   | 'adjust.sliderUp' | 'adjust.sliderDown' | 'adjust.sliderUpMore' | 'adjust.sliderDownMore'
   | 'edit.undo' | 'edit.redo'
   | 'edit.copy' | 'edit.paste'
-  | 'edit.selectAll'
+  | 'edit.selectAll' | 'edit.selectNone'
   | 'file.export'
   | 'app.settings'
   | 'app.commandSearch';
@@ -61,6 +61,8 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'photo.rateUp', group: 'photos', label: 'One more star', worksInFields: false, allowRepeat: false },
   { id: 'photo.rateDown', group: 'photos', label: 'One fewer star', worksInFields: false, allowRepeat: false },
   { id: 'view.grid', group: 'view', label: 'All photos (grid view)', worksInFields: false, allowRepeat: false },
+  { id: 'view.loupe', group: 'view', label: 'Single photo (close the grid)', worksInFields: false, allowRepeat: false },
+  { id: 'view.filmstrip', group: 'view', label: 'Show or hide the filmstrip', worksInFields: false, allowRepeat: false },
   { id: 'view.compare', group: 'view', label: 'Compare original and edit', worksInFields: false, allowRepeat: false },
   { id: 'view.fullscreen', group: 'view', label: 'Full screen', worksInFields: false, allowRepeat: false },
   { id: 'view.maskOverlay', group: 'view', label: 'Show or hide the selected mask overlay', worksInFields: false, allowRepeat: false },
@@ -78,6 +80,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'edit.copy', group: 'edit', label: 'Copy edit settings', worksInFields: false, allowRepeat: false },
   { id: 'edit.paste', group: 'edit', label: 'Paste edit settings', worksInFields: false, allowRepeat: false },
   { id: 'edit.selectAll', group: 'edit', label: 'Select all photos', worksInFields: false, allowRepeat: false },
+  { id: 'edit.selectNone', group: 'edit', label: 'Select no photos', worksInFields: false, allowRepeat: false },
   { id: 'file.export', group: 'app', label: 'Export', worksInFields: true, allowRepeat: false },
   { id: 'app.settings', group: 'app', label: 'Settings', worksInFields: true, allowRepeat: false },
   { id: 'app.commandSearch', group: 'app', label: 'Find a command', worksInFields: true, allowRepeat: false },

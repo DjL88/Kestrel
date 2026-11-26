@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Swedish. DRAFT: written without a native speaker's check. */
+export const sv: AreaTranslation<typeof source> = {
+  heading: "Dina stilar",
+  intro: "Spara fotots reglage som en stil för andra foton. Masker, beskärning, kurvor och objektivkorrigeringar ingår inte.",
+  nameLabel: "Namn på stilen",
+  namePlaceholder: "Till exempel Dimmig morgon",
+  save: "Spara som stil",
+  empty: "Du har inte sparat några stilar än.",
+  rename: (name: string) => `Byt namn på ${name}`,
+  renameLabel: (name: string) => `Nytt namn för ${name}`,
+  renameShort: "Byt namn",
+  removeShort: "Ta bort",
+  renameDone: "Spara namn",
+  cancel: "Avbryt",
+  remove: (name: string) => `Ta bort ${name}`,
+  exportLooks: "Spara stilar i en fil",
+  importLooks: "Lägg till stilar från en fil",
+  mine: "Dina",
+  description: "En stil som du har sparat på den här enheten.",
+  saved: (name: string) => `Sparade stilen ”${name}” på den här enheten.`,
+  updated: (name: string) => `Din stil ”${name}” har nu fotots inställningar.`,
+  needName: "Ge stilen ett namn först.",
+  full: "Du har sparat så många stilar som går. Ta bort en först.",
+  nameTaken: "Du har redan en stil med det namnet.",
+  removed: (name: string) => `Tog bort stilen ”${name}”. Foton som använde den behåller sina inställningar.`,
+  notSaved: "Dina stilar kunde inte sparas på den här enheten. De finns kvar tills InFlight stängs.",
+  imported: (added: number, replaced: number) => `Stilar tillagda: ${added}. Stilar uppdaterade: ${replaced}.`,
+  skipped: (n: number) => ` Utelämnade, utan användbara inställningar: ${n}.`,
+  nothingUsable: "Filen har inga stilar med inställningar som InFlight kan använda.",
+  unreadable: "Filen kunde inte läsas som stilar.",
+  notLooks: "Filen är inte en stilfil från InFlight.",
+  newer: "Stilfilen kommer från en nyare version av InFlight. Uppdatera InFlight för att lägga till den.",
+};

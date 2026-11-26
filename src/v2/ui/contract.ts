@@ -7,6 +7,12 @@ import type { LensProfile } from '../../core/lensCorrection';
 // All components import their types ONLY from this file.
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
+/** Culling Assistant rules: minimum quality (0 to 100), keep at least and at most N per burst. */
+export interface CullRulesView { minQuality: number; keepAtLeast: number; keepAtMost: number }
+export type CullRuleWhy = 'meetsQuality' | 'burstMinimum' | 'belowQuality' | 'burstFull' | 'uncertain' | 'copy' | 'yourKeep' | 'yourChoice';
+export interface CullRankingRow { photoId: string; filename: string; score: number; outcome: 'keep' | 'review' | 'copy'; why: CullRuleWhy; burst: string | null }
+export interface CullRankingView { rows: CullRankingRow[]; notScanned: number; newKeepers: number }
+
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
 /** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
 export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
@@ -73,6 +79,17 @@ export type FeatureKey =
   | 'nextToReview'
   /** Preview: HDR merge of a bracketed burst (off by default). */
   | 'hdrMerge';
+
+/** What a cloud edit-settings job would send, shown before anything is sent. */
+export interface CloudRecipeOfferView {
+  status: 'ready' | 'unavailable';
+  /** e.g. "1.4 MB smart preview". */
+  sendLabel?: string;
+  /** e.g. "3.0 MB full original": only with the full-file opt-in on and only when estimated faster. */
+  alternativeLabel?: string;
+  /** Why nothing can be sent, in words. */
+  message?: string;
+}
 
 export type SocialPlatform =
   | 'instagram'
@@ -239,6 +256,8 @@ export interface LookPreset {
   description: string;
   previewFilter: string;
   recipeDelta: Partial<EditRecipe>;
+  /** A look the person saved on this device, rather than one that comes with Kestrel. */
+  mine?: boolean;
 }
 
 /** A piece of information a text row can show: a field the photo file records, what subject detection found, or the person's own words. */
@@ -372,6 +391,8 @@ export interface AssistSuggestion {
   colourMatch?: ColourSenseNote;
   /** The vision guardian doubted this suggestion looks natural, in words. Advice only: Apply still applies it. */
   secondOpinion?: ColourSenseNote;
+  /** Personal style (a preview, off by default): how this suggestion was leaned towards the person's own edits, in words. */
+  styleNote?: string;
 }
 
 export interface PhotoExif {
@@ -418,6 +439,8 @@ export interface Photo {
   photoTags?: { id: string; facet: import('../../core/photoTags').TagFacet; label: string; words: string[] }[];
   sharpnessScore: number;
   exif: PhotoExif;
+  /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
+  editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
@@ -584,8 +607,10 @@ export interface WorkspaceSettings {
   advanceAfterDecision: boolean;
   /** A quick one-finger flick across the photo steps to the next or previous photo (touch screens). On by default. */
   swipeBetweenPhotos: boolean;
-  /** Game controllers (Gamepad API) run commands: Settings > Keyboard > Game controller. Off by default. */
+  /** Game controllers (Gamepad API) run commands: Settings > Keyboard > Game controller. On unless turned off; nothing happens until a controller is connected. */
   gamepadEnabled?: boolean;
+  /** Settings > Keyboard > Macro pad keys: the pad's keys run their actions. On unless turned off (plug and play). */
+  padKeysEnabled?: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -624,6 +649,8 @@ export interface ExportRequest {
    * the exact original file. */
   maxLongestEdgePx?: number;
   photoIds: string[];
+  /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
+  brandKitId?: string;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -710,6 +737,8 @@ export interface WorkspaceStore {
   watermarkPresets: WatermarkPreset[];
   /** Saved overlay templates on this device (name only; the layout stays inside the store). */
   overlayTemplates: Array<{ id: string; name: string }>;
+  /** Saved brand kits on this device (K080): name and the logo they use. Absent while the brand-kits preview is off. */
+  brandKits?: Array<{ id: string; name: string; logoLabel: string }>;
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
@@ -838,6 +867,11 @@ export interface WorkspaceActions {
   startQuickStart?: () => void;
   dismissQuickStart?: () => void;
   runAutoCull: () => void;
+  /** Culling Assistant (x-std-cull-rules, a preview off by default; present only while it is on): rank every judged
+   * photo under the rules from stored observations, with no new scan. Cheap enough to call on every slider movement. */
+  rankCulling?: (rules: CullRulesView) => CullRankingView;
+  /** Keep the photos the rules propose, as one step that Undo takes back. Never rejects. Returns how many were kept. */
+  applyCullRules?: (rules: CullRulesView) => number;
   reconnectOriginal: (photoId: string) => void;
   /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
   saveDngCopy: (photoId: string) => void;
@@ -854,6 +888,15 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** Personal style (a preview, off by default; present only while it is on): forget everything learnt on this device. */
+  resetEditStyle?: () => void;
+  /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */
+  prepareCloudRecipe?: (photoId: string) => Promise<CloudRecipeOfferView>;
+  /** Sends the option the person pressed and applies the settings that come back as one undoable step. Returns what happened, in words. */
+  sendCloudRecipe?: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+  /** The separate opt-in for sending full originals. Returns what is in force afterwards. */
+  setCloudRecipeFullFile?: (on: boolean) => boolean;
+  cloudRecipeFullFileOn?: () => boolean;
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
@@ -884,6 +927,13 @@ export interface WorkspaceActions {
   /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
   denoisePhoto: (photoId: string) => void;
   applyLook: (photoId: string, lookId: string) => void;
+  /** Your own looks, kept on this device. Each returns false (with a notice) when it was refused. */
+  saveUserLook?: (photoId: string, name: string) => boolean;
+  renameUserLook?: (lookId: string, name: string) => boolean;
+  deleteUserLook?: (lookId: string) => void;
+  /** The looks file text, or null when there are no looks of your own to save. */
+  exportUserLooks?: () => string | null;
+  importUserLooks?: (text: string) => void;
   setHoveredLook: (lookId: string | null) => void;
   resetPhotoEdits: (photoId: string) => void;
   copyRecipe: () => void;
@@ -913,6 +963,11 @@ export interface WorkspaceActions {
   applyOverlayTemplate: (templateId: string, photoIds: string[]) => void;
   renameOverlayTemplate: (templateId: string, name: string) => void;
   deleteOverlayTemplate: (templateId: string) => void;
+  /** Brand kits (K080), present only while the preview is on. Save this photo's logo, colours and text style as a kit. */
+  saveBrandKit?: (photoId: string, name: string) => boolean;
+  /** Rename a kit, and with fromPhotoId take that photo's logo, colours and text style in place of the kit's own. */
+  editBrandKit?: (kitId: string, change: { name?: string; fromPhotoId?: string }) => boolean;
+  deleteBrandKit?: (kitId: string) => void;
   /** Changes only the Original output canvas; never rewrites imported pixels. */
   setOriginalOutputSize: (photoId: string, width: number, height: number) => void;
   resetOriginalOutputSize: (photoId: string) => void;

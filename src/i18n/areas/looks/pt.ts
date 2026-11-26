@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Portuguese. DRAFT: written without a native speaker's check. */
+export const pt: AreaTranslation<typeof source> = {
+  heading: "Os seus estilos",
+  intro: "Guarde as definições desta foto como estilo para outras fotos. Máscaras, recorte, curvas e correções da objetiva não estão incluídos.",
+  nameLabel: "Nome deste estilo",
+  namePlaceholder: "Por exemplo, Manhã de nevoeiro",
+  save: "Guardar como estilo",
+  empty: "Ainda não guardou nenhum estilo.",
+  rename: (name: string) => `Mudar o nome de ${name}`,
+  renameLabel: (name: string) => `Novo nome para ${name}`,
+  renameShort: "Mudar nome",
+  removeShort: "Eliminar",
+  renameDone: "Guardar nome",
+  cancel: "Cancelar",
+  remove: (name: string) => `Eliminar ${name}`,
+  exportLooks: "Guardar estilos num ficheiro",
+  importLooks: "Adicionar estilos de um ficheiro",
+  mine: "Seus",
+  description: "Um estilo que guardou neste dispositivo.",
+  saved: (name: string) => `Estilo «${name}» guardado neste dispositivo.`,
+  updated: (name: string) => `O seu estilo «${name}» tem agora as definições desta foto.`,
+  needName: "Dê primeiro um nome ao estilo.",
+  full: "Guardou o número máximo de estilos. Elimine um primeiro.",
+  nameTaken: "Já tem um estilo com esse nome.",
+  removed: (name: string) => `Estilo «${name}» eliminado. As fotos que o usavam mantêm as suas definições.`,
+  notSaved: "Não foi possível guardar os seus estilos neste dispositivo. Ficam até fechar o InFlight.",
+  imported: (added: number, replaced: number) => `Estilos adicionados: ${added}. Estilos atualizados: ${replaced}.`,
+  skipped: (n: number) => ` Deixados de fora, sem definições úteis: ${n}.`,
+  nothingUsable: "Esse ficheiro não tem estilos com definições que o InFlight possa usar.",
+  unreadable: "Não foi possível ler esse ficheiro como estilos.",
+  notLooks: "Esse ficheiro não é um ficheiro de estilos do InFlight.",
+  newer: "Esse ficheiro de estilos vem de uma versão mais recente do InFlight. Atualize o InFlight para o adicionar.",
+};

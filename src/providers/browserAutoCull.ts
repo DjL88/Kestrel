@@ -7,7 +7,10 @@ import { scanExactDuplicates } from '../core/cullDuplicateScan';
 import { countOriginalKeepers, limitAutoKeepers, type CullSuggestion } from '../core/autoCull';
 import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
+import { sharedCullObservationPool } from './cullObservationPool';
 import type { PhotoFrame } from '../core/types';
+import type { CullEvidence } from '../core/autoCull';
+import type { ScanEvidence } from '../core/cullObservationStore';
 import type { PictureSource } from '../core/pictureSource';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
@@ -19,6 +22,8 @@ export async function scanForCulling(
   preflight?: { cache: ImportCullCache; projectId: string },
   /** Which picture each photo was judged from; not called for observations cached at import (source unknown). */
   onFrameSource?: (frameId: string, source: PictureSource | undefined) => void,
+  /** Everything the scan measured, once every photo has been looked at (x-std-rescore): numbers only, for storing. */
+  onEvidence?: (scan: ScanEvidence, detectorHealthy: boolean) => void,
 ) {
   const baseById = new Map<string, CullSuggestion>();
   // A cloud IDE may omit large ONNX files. Treat object detection as optional
@@ -54,7 +59,10 @@ export async function scanForCulling(
     }
     return observation.result;
   };
-  const lanes = detectorHealthy ? Math.max(1, await detectorParallelism().catch(() => 1)) : 1;
+  // One lane per culling worker when they can run here (every core but one); otherwise as many as the detector's
+  // own workers, as before. The detector's workers are not started when the culling workers do the looking.
+  const workers = await sharedCullObservationPool().catch(() => null);
+  const lanes = workers ? workers.size : detectorHealthy ? Math.max(1, await detectorParallelism().catch(() => 1)) : 1;
   let cursor = 0;
   const analyseInLanes = async () => {
     await Promise.all(Array.from({ length: Math.min(lanes, Math.max(1, candidates.length)) }, async () => {
@@ -79,6 +87,11 @@ export async function scanForCulling(
   // Preview/subject analysis now starts BEFORE the duplicate hash pass completes.
   // Neither result is final until both independent jobs have finished.
   const { duplicates } = await collectCullEvidence(analyseInLanes, identifyDuplicates);
+  if (onEvidence) {
+    const evidence = new Map<string, CullEvidence>();
+    for (const [frameId, result] of outcome) if (result.evidence) evidence.set(frameId, result.evidence);
+    onEvidence({ evidence, duplicates }, detectorHealthy);
+  }
   // Keep the order the photos were given in, whichever finished first.
   const fallbackResults = finaliseCullEvidence(candidates.map((frame) => frame.id),
     outcome, duplicates, baseById, detectorHealthy);

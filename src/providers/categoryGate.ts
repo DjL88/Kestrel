@@ -9,6 +9,7 @@ import type { SquareCrop } from '../core/subjectCrop';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * Runs the category gate's image model (CLIP ViT-B/32, MIT, public/models) on this device and routes the picture.
@@ -78,10 +79,8 @@ function load(): Promise<Loaded> {
     const [taxonomy, vectorFile] = await Promise.all([import('../assets/subject/taxonomy.json'), import('../assets/subject/vectors.json')]);
     const categories = taxonomy.default.categories as SubjectCategory[];
     const vectors = gateVectors(vectorFile.default, categories);
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, 'clip-gate', bytes, { executionProviders: ['wasm'] });
+    const ort = await loadOrt();
+    const session = await createTimedSession(ort, 'clip-gate', bytes, ortOptions());
     return { ort, session, categories, vectors };
   })().catch((error) => {
     loading = null;

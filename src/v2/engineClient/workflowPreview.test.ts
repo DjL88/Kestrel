@@ -3,9 +3,11 @@ import test from 'node:test';
 import { COMPILED_FLAGS } from '../../core/features.ts';
 import { WORKFLOW_PREVIEW_KEYS, workflowPreviewOn } from './workflowPreview.ts';
 
-test('saved views and next-to-review ship off: compiled flags and the device switch both default to off', () => {
-  assert.equal(COMPILED_FLAGS.savedViews.default, false);
-  assert.equal(COMPILED_FLAGS.nextToReview.default, false);
+test('saved views, next-to-review and the style learner ship on through compiled flags; the device switch alone defaults to off', () => {
+  assert.equal(COMPILED_FLAGS.savedViews.default, true);
+  assert.equal(COMPILED_FLAGS.nextToReview.default, true);
+  assert.equal(COMPILED_FLAGS.editStyle.default, true);
+  assert.equal(COMPILED_FLAGS.cullRules.default, false);
   assert.equal(workflowPreviewOn('savedViews', null), false);
   assert.equal(workflowPreviewOn('nextToReview', { getItem: () => null }), false);
   assert.equal(workflowPreviewOn('nextToReview', { getItem: () => 'true' }), false);

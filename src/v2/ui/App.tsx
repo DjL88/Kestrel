@@ -35,7 +35,7 @@ import { nextToReview } from '../../core/savedViews';
 import { workflowText } from '../../i18n/areas/workflow';
 import type { SavedViewsControl } from './shell/PhotoViewControls';
 import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
-import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
+import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -73,6 +73,7 @@ const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
 const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
+const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
 const ShortcutGuide = lazyPart(() => import('./dialogs/ShortcutGuide'));
@@ -212,6 +213,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides, commandPreviews), [savedKeymap, commandPreviews]);
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
+  // Pad keys are on out of the box (plug and play) and can be turned off in Settings > Keyboard; the set-up is kept either way.
+  const padKeysOn = store.settings.padKeysEnabled !== false;
+  const activePad = React.useMemo(() => padInForce(pad, padKeysOn), [pad, padKeysOn]);
   const [gamepadProfile, setGamepadProfile] = useState<GamepadProfile>(loadGamepadProfile);
   const changeGamepadProfile = React.useCallback((next: GamepadProfile) => { saveGamepadProfile(next); setGamepadProfile(next); }, []);
   const [gamepadSeen, setGamepadSeen] = useState<{ name: string | null; lastSlot: GamepadSlot | null }>({ name: null, lastSlot: null });
@@ -232,6 +236,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
   const [collageSourceOpen, setCollageSourceOpen] = useState(false);
+  const [cullAssistantOpen, setCullAssistantOpen] = useState(false);
+  const closeCullAssistant = React.useCallback(() => setCullAssistantOpen(false), []);
   const sheetDragY = useRef<number | null>(null);
   // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
   // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
@@ -264,6 +270,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     if (mq.matches) setActivePanel(null);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
+  }, [setActivePanel]);
+
+  // An upright tablet or unfolded foldable keeps the desktop layout (rail, panels docked left or right, or floating) but
+  // opens with no panel docked, so the photo has the full width until a tool is chosen (owner, 26 Nov). Only at start:
+  // turning the device keeps whatever panel is open.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    if (window.matchMedia('(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)').matches) setActivePanel(null);
   }, [setActivePanel]);
 
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
@@ -418,6 +432,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         break;
       }
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
+      case 'view.loupe': if (store.gridViewOpen) actions.setGridViewOpen(false); break;
+      case 'view.filmstrip': actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
@@ -433,10 +449,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
       case 'edit.selectAll': selectAllShown(); break;
+      case 'edit.selectNone': actions.clearSelection(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.filmstripCollapsed, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
 
   // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
   // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
@@ -489,10 +506,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         Boolean(target?.isContentEditable);
       // A control already used this key (the Adjust tabs' arrows, Space on a focused button): never run a shortcut too.
       if (keyAlreadyHandled(target, e)) return;
-      let command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
+      let command = resolveWithPad({ event: e, keymap, pad: activePad, isMac: IS_MAC, inField });
       // A dial keeps turning the slider while that slider has focus (it counts as a field, so other keys leave it alone).
       if (!command && target instanceof HTMLInputElement && target.type === 'range') {
-        const dial = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField: false });
+        const dial = resolveWithPad({ event: e, keymap, pad: activePad, isMac: IS_MAC, inField: false });
         if (dial?.group === 'adjust') command = dial;
       }
       if (!command) return;
@@ -505,12 +522,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     window.addEventListener('keydown', handleKeyDown);
     const stopTracking = trackSliderInUse();
     return () => { window.removeEventListener('keydown', handleKeyDown); stopTracking(); };
-  }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
+  }, [store.screen, shortcutGuideOpen, keymap, activePad, runCommand]);
 
   // Game controllers (Settings > Keyboard > Game controller, off by default). The same commands as the keys, in the
   // editor only, never while Settings is open (so each button can be checked there) or a photo key while the guide is open.
   useGamepad({
-    enabled: store.settings.gamepadEnabled === true,
+    enabled: store.settings.gamepadEnabled !== false,
     profile: gamepadProfile,
     onConnection: (name) => setGamepadSeen((seen) => (seen.name === name ? seen : { name, lastSlot: name ? seen.lastSlot : null })),
     onInput: (fire, name) => { if (store.settingsOpen) setGamepadSeen({ name, lastSlot: fire.slot }); },
@@ -558,6 +575,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
+            onResetStyle={actions.resetEditStyle}
+            cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
+              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
+              : undefined}
           />
         );
       case 'adjust':
@@ -574,6 +595,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLensProfile={actions.applyLensProfile}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
+            userLookActions={actions.saveUserLook && actions.renameUserLook && actions.deleteUserLook && actions.exportUserLooks && actions.importUserLooks
+              ? { onSave: actions.saveUserLook, onRename: actions.renameUserLook, onDelete: actions.deleteUserLook, onExport: actions.exportUserLooks, onImport: actions.importUserLooks }
+              : undefined}
             onResetPhoto={actions.resetPhotoEdits}
             onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
             whitePicking={whitePickActive}
@@ -1108,6 +1132,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
+                onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 onStitchPanorama={store.features.panorama && !store.collage ? actions.stitchPanorama : undefined}
                 onFocusStack={store.features.focusStack && !store.collage ? actions.focusStackPhotos : undefined}
@@ -1296,6 +1321,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
+        brandKits={store.brandKits}
+        onSaveBrandKit={actions.saveBrandKit}
+        onEditBrandKit={actions.editBrandKit}
+        onDeleteBrandKit={actions.deleteBrandKit}
       /></React.Suspense>
 
       <TaskAlerts />
@@ -1343,6 +1372,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onClose={dismissLightroomOffer}
       /></React.Suspense>
 
+      {actions.rankCulling && actions.applyCullRules && cullAssistantOpen && <React.Suspense fallback={null}><CullAssistantDialog
+        open={cullAssistantOpen}
+        rank={actions.rankCulling}
+        onApply={actions.applyCullRules}
+        onClose={closeCullAssistant}
+      /></React.Suspense>}
+
       <React.Suspense fallback={null}><RemovedPhotosDialog
         open={store.removedOpen}
         photos={store.removedPhotos}
@@ -1357,7 +1393,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
-        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} previews={commandPreviews} /></React.Suspense>}
+        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} padKeysOn={padKeysOn} onPadKeysOnChange={(on: boolean) => actions.updateSettings({ padKeysEnabled: on })} previews={commandPreviews} /></React.Suspense>}
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
@@ -1375,7 +1411,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       /></React.Suspense>
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={pad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} previews={commandPreviews} /></React.Suspense>
+        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={activePad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} previews={commandPreviews} /></React.Suspense>
       )}
 
       {commandPaletteOpen && store.screen === 'editor' && (

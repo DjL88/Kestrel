@@ -1,4 +1,5 @@
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
+import { createOrtSession } from './ortRuntime';
 
 /**
  * Create an onnxruntime session and measure it: how long it took to load, and how long every run takes from then on
@@ -21,7 +22,7 @@ export function timeRuns(id: string, session: Session, source: 'use' | 'measure'
 export async function createTimedSession(ort: Ort, id: string, bytes: Uint8Array, options: Parameters<Ort['InferenceSession']['create']>[1],
   source: 'use' | 'measure' = 'use'): Promise<Session> {
   const started = performance.now();
-  const session = await ort.InferenceSession.create(bytes, options);
+  const session = await createOrtSession(ort, bytes, options);
   recordModelLoad(id, performance.now() - started, source);
   return timeRuns(id, session, source);
 }

@@ -12,6 +12,7 @@ import { describeHistory } from './historySteps';
 import { describeCheckpoints, describeEditVersions, readEditVersions } from '../../core/editBranches';
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
+import type { EditStatus } from '../../core/editStatus';
 import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
@@ -31,6 +32,8 @@ import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { editorText } from '../../i18n/areas/editor';
+import type { Leaning } from '../../core/editStyle';
 import { displaySpeciesName } from '../../core/speciesNames';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { speciesNameIndex } from '../../providers/speciesNames';
@@ -54,6 +57,23 @@ export interface AssistState {
   dismissed: string[];
   /** The vision guardian's second opinion on each suggestion (assistGuardian.ts). It advises; it never changes a suggestion. */
   guardian?: AssistGuardian;
+}
+
+/** The file's own edit evidence in the person's words: a short label and one sentence on what it rests on. */
+export function editStatusWords(status: EditStatus): NonNullable<Photo['editStatus']> {
+  const words = STRINGS.info;
+  const label = status.kind === 'edited-elsewhere' ? words.editStatusEdited : status.kind === 'camera' ? words.editStatusCamera : words.editStatusUnknown;
+  const first = status.evidence[0];
+  const detail = !first ? words.evidenceNone
+    : first.kind === 'develop-settings' ? words.evidenceDevelop
+      : first.kind === 'edit-history' ? (first.app ? words.evidenceApp(first.app) : words.evidenceHistory)
+        : first.kind === 'editing-app' ? words.evidenceApp(first.app)
+          : first.kind === 'content-credentials' ? words.evidenceCredentials
+            : first.kind === 'sidecar' ? (first.app ? words.evidenceSidecarApp(first.app) : words.evidenceSidecar)
+              : first.kind === 'raw-file' ? words.evidenceRaw
+              : first.kind === 'maker-notes' ? words.evidenceMakerNotes
+                : words.evidenceUnrecognised(first.app);
+  return { kind: status.kind, label, detail };
 }
 
 export function matchesAutoSource(run: AutoRun, frame: PhotoFrame): boolean {
@@ -92,6 +112,20 @@ export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullab
   }));
 }
 
+/**
+ * Personal style (a preview, off by default): how Auto's suggestion was leaned, in plain words. British English only
+ * while this is a preview; the words move into the V2 i18n area before it is switched on.
+ */
+export function styleNoteFor(leanings: readonly Leaning[] | undefined): string | undefined {
+  if (!leanings?.length) return undefined;
+  const names: Record<string, string> = { ...editorText.controls, tint: STEP_LABELS.tint ?? 'Tint', dehaze: STEP_LABELS.dehaze ?? 'Dehaze' };
+  const parts = leanings.map((leaning) => {
+    const percent = Math.round(Math.abs(leaning.multiplier - 1) * 100);
+    return `${names[leaning.key] ?? leaning.key} ${percent}% ${leaning.multiplier < 1 ? 'less' : 'more'} (from ${leaning.examples} photos)`;
+  });
+  return `Leaned towards your own edits: ${parts.join(', ')}. Learnt on this device from what you kept, undid or corrected. Nothing is sent anywhere.`;
+}
+
 export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
@@ -110,6 +144,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       colourSense: describeColourSense(candidate.colourSense),
       colourMatch: describeColourMatch(candidate.colourMatch),
       secondOpinion: guardianNote(assist.guardian, candidate.id),
+      ...(run.leanings?.length ? { styleNote: styleNoteFor(run.leanings) } : {}),
     }));
   return {
     subjectNote: run.headline,
@@ -262,6 +297,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     category: frame.subjectKind ? engineText.subjectKinds[frame.subjectKind] : '',
     photoTags: photoTagViews(frame),
     sharpnessScore: frame.cullScore ?? 0,
+    ...(exif.editStatus ? { editStatus: editStatusWords(exif.editStatus) } : {}),
     ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
       camera: exif.camera ?? NOT_RECORDED,

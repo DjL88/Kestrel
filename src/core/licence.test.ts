@@ -52,3 +52,16 @@ test('the app’s built-in public key accepts a key from the owner’s issuing t
   const key = execFileSync('node', ['tools/licence/issue.mjs'], { encoding: 'utf8' }).trim();
   assert.equal((await verifyLicence(key, LICENCE_PUBLIC_KEY)).ok, true);
 });
+
+test('a key carries the version bought: it unlocks that version and older builds, never a later paid version', async () => {
+  const { PRODUCT_MAJOR_VERSION } = await import('./licence.ts');
+  assert.equal((await verifyLicence(issue({ v: 1, plan: 'paid', id: 'abc', issuedAt: 1, major: PRODUCT_MAJOR_VERSION }), publicRaw)).ok, true);
+  // A key from before `major` existed covers InFlight 1.
+  assert.equal((await verifyLicence(issue(), publicRaw, 1)).ok, true);
+  assert.deepEqual(await verifyLicence(issue(), publicRaw, 2), { ok: false, reason: 'older_version' });
+  assert.deepEqual(await verifyLicence(issue({ v: 1, plan: 'paid', id: 'abc', issuedAt: 1, major: 1 }), publicRaw, 2), { ok: false, reason: 'older_version' });
+  assert.equal((await verifyLicence(issue({ v: 1, plan: 'paid', id: 'abc', issuedAt: 1, major: 2 }), publicRaw, 2)).ok, true);
+  // The server serves every version.
+  assert.equal((await verifyLicence(issue({ v: 1, plan: 'paid', id: 'abc', issuedAt: 1, major: 1 }), publicRaw, null)).ok, true);
+  for (const major of [0, 1.5, '2', -1]) assert.deepEqual(await verifyLicence(issue({ v: 1, plan: 'paid', id: 'abc', issuedAt: 1, major }), publicRaw), { ok: false, reason: 'format' });
+});

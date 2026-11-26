@@ -8,6 +8,7 @@ import type { SquareCrop } from '../core/subjectCrop';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
+import { createOrtSession, loadOrt } from './ortRuntime';
 
 /**
  * BioCLIP 2 species validator on the desktop (about 0.62 GB with its names; never offered on a phone or in a browser tab). It looks at
@@ -39,10 +40,8 @@ function load(): Promise<Loaded> {
     const text = new TextDecoder();
     const labels = checkValidatorLabels(JSON.parse(text.decode(labelBytes)));
     const groups = groupBytes.map((bytes) => checkGroupLabels(JSON.parse(text.decode(bytes))));
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] });
+    const ort = await loadOrt();
+    const session = await createOrtSession(ort, model);
     return { ort, session, labels, groups };
   })().catch((error) => {
     loading = null;

@@ -1,7 +1,7 @@
 import { STRINGS } from '../strings';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { availableCommands, type CommandDefinition } from '../commands/registry';
-import { chordLabel, type Keymap } from '../commands/keymap';
+import { chordLabel, chordsLabel, type Keymap } from '../commands/keymap';
 
 interface CommandPaletteProps {
   keymap: Keymap;
@@ -121,7 +121,7 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose, p
                 }`}
               >
                 <span>{command.label}</span>
-                <span className="text-[var(--text-secondary)]">{chordLabel(keymap[command.id], isMac)}</span>
+                <span className="text-[var(--text-secondary)]">{chordsLabel(command.id, keymap, isMac)}</span>
               </button>
             </li>
           ))}

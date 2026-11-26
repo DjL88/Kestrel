@@ -280,6 +280,18 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # Cloud edit settings (x-std-cloud-recipe): needs cloud processing and its runner, then its own switch. The
+        # monthly spend ceiling is always passed, so the cap is set here rather than left to the code's default.
+        for_each = merge(
+          { KCP_MONTHLY_SPEND_CEILING_PENCE = tostring(var.monthly_spend_ceiling_pence) },
+          var.cloud_processing_enabled && var.cloud_runner_image != "" && var.cloud_recipe_enabled ? { KCP_CLOUD_RECIPE_ENABLED = "1" } : {},
+        )
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         # "Learn now" in /admin starts the hourly Vertex learning tick (vertex-learning.tf).
         for_each = local.vertex_tick_enabled ? { KCP_VERTEX_LEARNING_JOB = try(google_cloud_run_v2_job.vertex_learning[0].id, "") } : {}
         content {
@@ -311,6 +323,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
         for_each = var.phase5_paddle_enabled ? merge(
           { KCP_PADDLE_ENVIRONMENT = var.phase5_paddle_environment, KCP_PADDLE_PRO_PRICE_ID = var.phase5_paddle_pro_price_id },
           var.paddle_key_rotation_enabled ? { KCP_PADDLE_KEY_PROJECT = var.project_id } : {},
+          var.phase5_paddle_promo_discount_id != "" ? { KCP_PADDLE_PROMO_DISCOUNT_ID = var.phase5_paddle_promo_discount_id } : {},
         ) : {}
         content {
           name  = env.key

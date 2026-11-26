@@ -39,13 +39,14 @@
   }
 
   const select = document.getElementById('currency-select');
-  const price = document.getElementById('pro-price');
+  // The pricing card and the plan choices (when shown) carry the same price.
+  const prices = document.querySelectorAll('#pro-price, [data-pro-price]');
   function render() {
     const locale = i18n ? i18n.language : 'en-GB';
     const auto = automatic();
     const choice = chosen();
     const currency = choice === 'auto' ? auto : choice;
-    if (price) { price.textContent = format(currency, locale); price.dataset.currency = currency; }
+    for (const price of prices) { price.textContent = format(currency, locale); price.dataset.currency = currency; }
     if (select) {
       select.textContent = '';
       const t = (key, vars) => (i18n ? i18n.t(key, vars) : `Automatic (${vars.currency})`);

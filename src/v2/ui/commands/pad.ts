@@ -1,17 +1,17 @@
 import { COMMANDS, type CommandDefinition, type CommandId, type KeyEventLike } from './registry';
-import { eventChord, resolveCommand, type Keymap } from './keymap';
+import { eventChord, keyboardMatches, resolveCommand, type Keymap } from './keymap';
 
 /**
  * Macro pad and dial support. A pad (SinLoon K1 to K6 plus a knob) is a keyboard to the computer: each slot sends a key
  * that the pad's own software was set to send. Here each slot is given the key it sends (its "chord") and the command it runs.
  * TourBox and other devices that send keys work the same way; TourBox itself is NOT VERIFIED on a real device.
  */
-export const PAD_SLOTS = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'KNOB_CCW', 'KNOB_CW'] as const;
+export const PAD_SLOTS = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'KNOB_CCW', 'KNOB_CW', 'KNOB_PRESS'] as const;
 export type PadSlot = (typeof PAD_SLOTS)[number];
 
 export const PAD_SLOT_LABELS: Record<PadSlot, string> = {
   K1: 'Key 1', K2: 'Key 2', K3: 'Key 3', K4: 'Key 4', K5: 'Key 5', K6: 'Key 6',
-  KNOB_CCW: 'Dial turned left', KNOB_CW: 'Dial turned right',
+  KNOB_CCW: 'Dial turned left', KNOB_CW: 'Dial turned right', KNOB_PRESS: 'Dial pressed',
 };
 
 export interface PadAssignment {
@@ -31,7 +31,26 @@ export const DEFAULT_PAD: PadProfile = {
   K6: { chord: 'Space', command: 'view.grid' },
   KNOB_CCW: { chord: 'ArrowLeft', command: 'photo.prev' },
   KNOB_CW: { chord: 'ArrowRight', command: 'photo.next' },
+  // V1 pads sent nothing for a dial press, so it starts unlearnt and does nothing until it is set.
+  KNOB_PRESS: { chord: '', command: null },
 };
+
+/**
+ * F13 to F21, one per slot in order. No ordinary keyboard has these keys, so a pad set to send them can never clash
+ * with a shortcut, and typing on the keyboard never sets off a pad action. Pad software (SinLoon, TourBox Console and
+ * most others) can send them.
+ */
+export const FUNCTION_KEY_CHORDS: Record<PadSlot, string> = Object.fromEntries(PAD_SLOTS.map((slot, index) => [slot, `F${13 + index}`])) as Record<PadSlot, string>;
+
+/** Every slot switched to its F13 to F21 key. Each slot keeps the action it already had, so only the keys change. */
+export function withFunctionKeys(pad: PadProfile): PadProfile {
+  return Object.fromEntries(PAD_SLOTS.map((slot) => [slot, { ...pad[slot], chord: FUNCTION_KEY_CHORDS[slot] }])) as PadProfile;
+}
+
+/** True when every slot already sends its F13 to F21 key. */
+export function usesFunctionKeys(pad: PadProfile): boolean {
+  return PAD_SLOTS.every((slot) => pad[slot].chord === FUNCTION_KEY_CHORDS[slot]);
+}
 
 export function withPadCommand(pad: PadProfile, slot: PadSlot, command: CommandId | null): PadProfile {
   return { ...pad, [slot]: { ...pad[slot], command } };
@@ -80,7 +99,8 @@ export function resolveWithPad(input: { event: KeyEventLike; keymap: Keymap; pad
   const { event, keymap, pad, isMac, inField } = input;
   if (event.isComposing || event.key === 'Process' || event.key === 'Dead' || event.keyCode === 229) return null;
   const fromKeys = resolveCommand({ event, keymap, isMac, inField });
-  const keyMatches = COMMANDS.filter((c) => keymap[c.id] === eventChord(event, isMac)).length;
+  const chord = eventChord(event, isMac);
+  const keyMatches = chord ? keyboardMatches(chord, keymap, isMac).length : 0;
   const fromPad = padCommands(event, pad, isMac);
   const ids = new Set<CommandId>(fromPad);
   if (keyMatches > 0) {
@@ -107,6 +127,15 @@ export function padGuideRows(pad: PadProfile, keymap: Keymap): Array<{ slot: Pad
     if (!chord || !command || keymap[command] === chord) return [];
     return [{ slot, chord, command }];
   });
+}
+
+/**
+ * The pad as it acts: itself while pad keys are on, or with every slot doing nothing while they are off.
+ * Turning pad keys off never forgets the set-up: each slot's key and action stay saved for when they are turned on again.
+ */
+export function padInForce(pad: PadProfile, enabled: boolean): PadProfile {
+  if (enabled) return pad;
+  return Object.fromEntries(PAD_SLOTS.map((slot) => [slot, { ...pad[slot], command: null }])) as PadProfile;
 }
 
 const STORAGE_KEY = 'inflight-v2-pad';

@@ -11,6 +11,8 @@ mod local_vision;
 #[cfg(desktop)]
 mod external_edit;
 #[cfg(desktop)]
+mod preview_cache;
+#[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
@@ -169,6 +171,76 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     Ok(tauri::ipc::Response::new(jpeg))
 }
 
+/// The app's own preview folder (x-std-disk-previews): derived pictures only, never an original.
+#[cfg(desktop)]
+fn preview_root(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path().app_data_dir().map(|dir| dir.join("previews")).map_err(|_| "The app's data folder could not be found.".to_string())
+}
+
+/// Make the disk previews (400 px, 2,200 px, and the 2,560 px smart preview) for photos named by their paths, on
+/// `threads` threads, then hold the folder to `limit_bytes`. The page sends paths, never the RAW bytes.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_build(app: tauri::AppHandle, requests: Vec<preview_cache::BuildRequest>, threads: usize, limit_bytes: Option<u64>) -> Result<Vec<preview_cache::BuildResult>, String> {
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let develop = |bytes: &[u8], extension: &str| raw::develop_any(bytes, extension, true);
+        let results = preview_cache::build_many(&root, &requests, threads, &develop);
+        if let Some(limit) = limit_bytes { preview_cache::trim(&root, limit); }
+        results
+    }).await.map_err(|_| "The previews could not be made.".to_string())
+}
+
+/// Store previews from a picture the page decoded itself (a HEIF photo): the body is a JPEG or PNG at most 2,560 px
+/// across, never the original; header `x-preview-key` is the cache key, percent-encoded.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_store(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<preview_cache::BuildResult, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No picture was sent.".into()) };
+    let key = request.headers().get("x-preview-key").and_then(|value| value.to_str().ok()).and_then(preview_cache::percent_decode)
+        .ok_or_else(|| "No cache key was given.".to_string())?;
+    let bytes = bytes.to_vec();
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || preview_cache::store_picture(&root, &key, &bytes))
+        .await.map_err(|_| "The previews could not be made.".to_string())
+}
+
+/// One stored preview as JPEG bytes, or an error when there is none.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_read(app: tauri::AppHandle, key: String, level: preview_cache::Level) -> Result<tauri::ipc::Response, String> {
+    let root = preview_root(&app)?;
+    let bytes = tauri::async_runtime::spawn_blocking(move || preview_cache::read(&root, &key, level))
+        .await.map_err(|_| "The preview could not be read.".to_string())?;
+    bytes.map(tauri::ipc::Response::new).ok_or_else(|| "missing".to_string())
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_rotate(app: tauri::AppHandle, key: String, degrees: u32) -> Result<(), String> {
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || preview_cache::rotate(&root, &key, degrees))
+        .await.map_err(|_| "The preview could not be turned.".to_string())?
+}
+
+/// How much the preview folder holds; with `limit_bytes`, first remove the least recently used beyond it.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_usage(app: tauri::AppHandle, limit_bytes: Option<u64>) -> Result<preview_cache::Usage, String> {
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || match limit_bytes { Some(limit) => preview_cache::trim(&root, limit), None => preview_cache::usage(&root) })
+        .await.map_err(|_| "The preview folder could not be read.".to_string())
+}
+
+/// Remove every stored preview. Originals, projects and edits are not touched.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_clear(app: tauri::AppHandle) -> Result<preview_cache::Usage, String> {
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || preview_cache::clear(&root))
+        .await.map_err(|_| "The preview folder could not be cleared.".to_string())
+}
+
 /// Develop a RAW file to its full-size 16-bit picture (width, height, then RGB16 samples; `kestrel_raw::rgb16_bytes`).
 /// The page runs InFlight's shared edit maths on it for the 16-bit export, exactly as the web build does.
 #[cfg(desktop)]
@@ -292,7 +364,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,

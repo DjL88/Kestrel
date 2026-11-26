@@ -6,6 +6,7 @@ import { bundledModelUrl } from './bundledModelAssets';
 import { installedModel } from './modelUpdater';
 import type { DetectorAgreement } from '../core/rfDetr';
 import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
+import { loadOrt, ortOptions, ortPlanForWorkers } from './ortRuntime';
 
 type Ort = typeof import('onnxruntime-web/wasm');
 interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
@@ -44,13 +45,8 @@ export async function detectorModelVersion(): Promise<string> {
 function load(): Promise<Loaded> {
   loading ??= (async () => {
     const { bytes } = await verifiedModel();
-    const ort = await import('onnxruntime-web/wasm').catch(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      return import('onnxruntime-web/wasm');
-    });
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, 'yolox-tiny', new Uint8Array(bytes), { executionProviders: ['wasm'] });
+    const ort = await loadOrt(undefined, true);
+    const session = await createTimedSession(ort, 'yolox-tiny', new Uint8Array(bytes), ortOptions());
     return { ort, session };
   })().catch((error) => {
     failed = true;
@@ -82,7 +78,9 @@ function startPool(): Promise<Slot[] | null> {
     }
     try {
       const slots: Slot[] = [];
-      await Promise.all(Array.from({ length: detectorWorkerCount(typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency || 4) }, () => new Promise<void>((resolve, reject) => {
+      const count = detectorWorkerCount(typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency || 4);
+      const plan = ortPlanForWorkers(count); // the workers share the cores, so several never oversubscribe the CPU
+      await Promise.all(Array.from({ length: count }, () => new Promise<void>((resolve, reject) => {
         const worker = new Worker(new URL('./detectorWorker.ts', import.meta.url), { type: 'module' });
         const slot: Slot = { worker, busy: false };
         worker.onerror = () => reject(new Error('worker failed'));
@@ -98,7 +96,7 @@ function startPool(): Promise<Slot[] | null> {
           next?.(slot);
           if (message.type === 'result') { recordModelRun('yolox-tiny', message.runMs); job.resolve(message.data as Float32Array); } else job.reject(new Error(message.message));
         };
-        worker.postMessage({ type: 'init', model: bytes.slice(0) }); // each worker keeps its own copy
+        worker.postMessage({ type: 'init', model: bytes.slice(0), ort: plan }); // each worker keeps its own copy
       })));
       return slots;
     } catch (problem) {
@@ -270,3 +268,6 @@ export async function findSubjects(source: Source, signal?: AbortSignal): Promis
       ...(agreement ? { agreement, review } : {}),
     }));
 }
+
+/** The checked detector bytes (a signed same-contract update first), for the culling workers (cullObservationPool.ts). */
+export const verifiedDetectorModel = verifiedModel;

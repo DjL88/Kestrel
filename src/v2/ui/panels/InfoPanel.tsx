@@ -5,6 +5,7 @@ import VehicleRow from './VehicleRow';
 import { hdrText } from '../../../i18n/areas/hdr';
 import { stopsLabel } from '../../engineClient/hdrMergeOps';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
+import SpeciesNameField from './SpeciesNameField';
 import type { Photo, SpeciesPlace, WorkspaceStore } from '../contract';
 import type { ExternalApp } from '../../../core/externalEdit';
 import type { SpeciesArea } from '../../../core/speciesArea';
@@ -249,6 +250,15 @@ export default function InfoPanel({
           <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
           <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
           <MetaRow label="Captured" value={photo.exif.capturedAt} />
+          {photo.editStatus && (
+            <div className="flex items-start justify-between gap-3" data-testid="edit-status">
+              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.editStatusRow}</dt>
+              <dd className="text-right">
+                <span className="text-[var(--text-primary)]">{photo.editStatus.label}</span>
+                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.editStatus.detail}</span>
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
 
@@ -268,14 +278,11 @@ export default function InfoPanel({
                   setEditingSpecies(false);
                 }}
               >
-                <input
-                  type="text"
-                  aria-label={STRINGS.panelWords.correctSpecies}
-                  autoFocus
-                  maxLength={120}
+                <SpeciesNameField
+                  label={STRINGS.panelWords.correctSpecies}
                   value={speciesDraft}
-                  onChange={(event) => setSpeciesDraft(event.target.value)}
-                  className="min-w-0 max-w-40 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                  onChange={setSpeciesDraft}
+                  className="w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
                 />
                 <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">{STRINGS.panelWords.save}</button>
                 <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>

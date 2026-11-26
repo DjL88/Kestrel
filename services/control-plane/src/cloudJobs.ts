@@ -4,11 +4,16 @@
  * Nothing here stores or logs photo bytes, file names or EXIF: only ids, the job kind and a byte count.
  */
 /** The names are the engine's own capability names (src/engine/types.ts `EngineCapability`), so a cloud runner is a drop-in. */
-export const CLOUD_KINDS = ['denoise', 'upscale', 'mask'] as const;
+export const CLOUD_KINDS = ['denoise', 'upscale', 'mask', 'recipe'] as const;
+/** `recipe` jobs (x-std-cloud-recipe) say which picture they carry; the runner repeats it in its answer. */
+export const RECIPE_INPUT_KINDS = ['smart-preview', 'original'] as const;
+export type RecipeInputKind = typeof RECIPE_INPUT_KINDS[number];
 export type CloudKind = typeof CLOUD_KINDS[number];
 export type CloudStatus = 'awaiting-upload' | 'running' | 'ready' | 'failed' | 'finished';
 
 export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number;
+  /** Recipe jobs only: the 2,560 px smart preview, or (with the person's separate opt-in) the original. */
+  inputKind?: RecipeInputKind;
   /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
   consentAtMs: number;
   /** Estimated spend reserved for this job. Older job records did not store it. */
@@ -22,7 +27,7 @@ export interface CloudRunner {
   /** Whether the person's upload has arrived. */
   inputPresent(jobId: string): Promise<boolean>;
   /** Begin processing. Called once the input is present. */
-  start(jobId: string, kind: CloudKind): Promise<void>;
+  start(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind): Promise<void>;
   /** Progress. A failure carries no text: runner messages can contain file names, so only a code reaches the client. */
   poll(jobId: string): Promise<{ state: 'running' } | { state: 'ready'; resultUrl: string } | { state: 'failed' }>;
   /** Idempotent. Must delete the input object; the bucket's lifecycle rule is only the backstop. */
@@ -32,12 +37,17 @@ export interface CloudRunner {
 }
 
 export interface CloudLedger {
-  /** Atomically takes one job from the account's allowance for the period. False when exhausted. */
+  /**
+   * Atomically takes one job from the account's allowance for the period. False when exhausted. The unused part of the
+   * period before carries into the new one (owner, 26 Nov 2026), so a period holds at most twice `limit`.
+   */
   reserve(accountId: string, nowMs: number, limit: number, periodMs: number): Promise<boolean>;
   /** Refund the period that held the reservation, if it is still tracked. */
   refund(accountId: string, reservedAtMs: number): Promise<void>;
   /** Jobs counted in the account's current period (for the usage screen). */
   periodUsed?(accountId: string, nowMs: number, periodMs: number): Promise<number>;
+  /** Photos carried over from the period before into the current one. */
+  periodCarried?(accountId: string, nowMs: number, periodMs: number): Promise<number>;
   put(record: CloudJobRecord): Promise<void>;
   get(jobId: string): Promise<CloudJobRecord | undefined>;
   /** Atomically update the status only if it still matches the caller's expected status. */
@@ -57,6 +67,11 @@ export interface CloudOptions {
   maxInputBytes: number;
   /** A shared store can commit the failed status and both refunds in one transaction. */
   settleFailed?: (jobId: string, legacySpendPence: number) => Promise<boolean>;
+  /**
+   * Recipe jobs (x-std-cloud-recipe): off unless the owner switches them on (KCP_CLOUD_RECIPE_ENABLED=1, Terraform
+   * `cloud_recipe_enabled`). `maxPreviewBytes` caps a smart-preview upload, which is about 1-3 MB.
+   */
+  recipe?: { enabled: boolean; maxPreviewBytes: number };
   /** A job still running this long after it was created is treated as failed (a crashed runner writes no marker). Default 30 minutes. */
   maxJobMs?: number;
 }
@@ -88,26 +103,45 @@ export class MemoryCloudRunner implements CloudRunner {
   async deleteResult(jobId: string) { this.results.delete(jobId); }
 }
 
+/**
+ * Photos a new period starting at `nowMs` carries from the old one (its start, and the photos it used beyond what it
+ * had carried in). Only the period just before counts:
+ * after a whole idle period, that one was wholly unused, so the full allowance carries. A paid top-up reservation
+ * (limit = MAX_SAFE_INTEGER) never carries anything.
+ */
+export function carriedPhotos(start: number, used: number, nowMs: number, limit: number, periodMs: number): number {
+  if (!Number.isSafeInteger(limit) || limit >= Number.MAX_SAFE_INTEGER || limit <= 0) return 0;
+  // Carried photos are spent first, so `used` here is what the period took beyond its own carry.
+  return nowMs - start >= 2 * periodMs ? limit : Math.min(limit, Math.max(0, limit - Math.max(0, used)));
+}
+
 export class MemoryCloudLedger implements CloudLedger {
-  private counts = new Map<string, { start: number; used: number }>();
+  private counts = new Map<string, { start: number; used: number; carried: number }>();
   private jobs = new Map<string, CloudJobRecord>();
   async reserve(accountId: string, nowMs: number, limit: number, periodMs: number) {
     let c = this.counts.get(accountId);
-    if (!c || nowMs >= c.start + periodMs) { c = { start: nowMs, used: 0 }; this.counts.set(accountId, c); }
-    if (c.used >= limit) return false;
+    if (!c || nowMs >= c.start + periodMs) {
+      c = { start: nowMs, used: 0, carried: c ? carriedPhotos(c.start, c.used - c.carried, nowMs, limit, periodMs) : 0 };
+      this.counts.set(accountId, c);
+    }
+    if (c.used >= limit + c.carried) return false;
     c.used++; return true;
   }
   async periodUsed(accountId: string, nowMs: number, periodMs: number) {
     const c = this.counts.get(accountId);
     return c && nowMs < c.start + periodMs ? c.used : 0;
   }
+  async periodCarried(accountId: string, nowMs: number, periodMs: number) {
+    const c = this.counts.get(accountId);
+    return c && nowMs < c.start + periodMs ? c.carried : 0;
+  }
   async refund(accountId: string, reservedAtMs: number) {
     const c = this.counts.get(accountId);
     if (c && reservedAtMs >= c.start && c.used > 0) c.used--;
   }
   async put(r: CloudJobRecord) {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = r;
-    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }), ...(paidMillicredits === undefined ? {} : { paidMillicredits }) });
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits, inputKind } = r;
+    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }), ...(paidMillicredits === undefined ? {} : { paidMillicredits }), ...(inputKind === undefined ? {} : { inputKind }) });
   }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
   async transition(jobId: string, from: CloudStatus, to: CloudStatus) {

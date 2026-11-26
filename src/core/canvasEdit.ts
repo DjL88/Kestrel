@@ -60,7 +60,8 @@ function applyCanvasFinishing(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: 
 import { hasActiveMasks, usesDetail } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
 import { denoiseHalo, originalDenoiseStrips, denoiseOnlyMasks } from './denoiseBands';
-import { applyCanvasTrueDetailAi, preloadTrueDetailAi, TRUEDETAIL_AI_MISSING } from './trueDetailAiCanvas';
+import { applyCanvasTrueDetailAi, preloadTrueDetailAi, trueDetailAiReady, TRUEDETAIL_AI_MISSING } from './trueDetailAiCanvas';
+import type { StageCacheUse } from './stageCache';
 
 /** Colour noise reduction runs first, on the original pixels, before tone, sharpening and masks. */
 function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
@@ -137,6 +138,65 @@ function* editCanvasStrips(canvas: HTMLCanvasElement, edit: PhotoEdit): Generato
   }
 }
 
+/**
+ * The stages before tone, in order, each with the settings it reads. They only read these settings, the canvas pixels,
+ * imageEdge and the mask context, so a key built from them names their output exactly (src/core/stageCache.ts).
+ */
+interface EarlyStage {
+  name: string;
+  /** The stage's own inputs, or null when it would leave the picture untouched. */
+  inputs(edit: PhotoEdit, imageEdge: number): unknown;
+  run(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void;
+}
+
+const EARLY_STAGES: readonly EarlyStage[] = [
+  // The stored AI result was made from the photo's own pixels, so it goes in before anything else. It blends by the
+  // subject masks, so they are part of its inputs, and it only draws once the result is decoded on this device.
+  { name: 'ai', inputs: (e) => e.trueDetailAi && trueDetailAiReady(e) ? [e.trueDetailAi, e.masks ?? null] : null,
+    run: (c, e, m) => applyCanvasTrueDetailAi(c, e, m, false) },
+  { name: 'lens', inputs: (e) => hasFringeEdit(e) || hasLensCorrection(e.lens) ? [e.lens ?? null, e.lateralCa ?? null, e.defringe ?? null] : null,
+    run: applyCanvasFringe },
+  { name: 'heal', inputs: (e) => hasHeal(e.heal) ? e.heal : null, run: applyCanvasHeal },
+  { name: 'noise', inputs: (e) => hasNoiseReduction(e) ? [e.denoise ?? 0, e.denoiseLuminance ?? 0] : null,
+    run: (c, e) => applyCanvasNoiseReduction(c, e) },
+  { name: 'dehaze', inputs: (e) => e.dehaze ? e.dehaze : null, run: (c, e, _m, edge) => applyCanvasDehaze(c, e, edge) },
+  { name: 'capture', inputs: (e, edge) => deconvolutionParams(e, edge) ? [e.captureSharpen ?? null, e.deblur ?? 0] : null,
+    run: (c, e, _m, edge) => applyCanvasCapture(c, e, edge) },
+];
+
+/**
+ * Run the early stages, starting from the deepest one a previous render already left in the stage cache, and keep the
+ * picture after each stage that ran. Without a cache every stage runs, exactly as before.
+ */
+function applyEarlyStages(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number, mask: MaskContext, use?: StageCacheUse): void {
+  const active = EARLY_STAGES.map((stage) => ({ stage, inputs: stage.inputs(edit, imageEdge) })).filter(({ inputs }) => inputs !== null);
+  if (!use || !active.length) {
+    for (const { stage } of active) stage.run(canvas, edit, mask, imageEdge);
+    return;
+  }
+  const keys: string[] = [];
+  let key = JSON.stringify([use.sourceKey, canvas.width, canvas.height, imageEdge, mask]);
+  for (const { stage, inputs } of active) {
+    key += `|${stage.name}:${JSON.stringify(inputs)}`;
+    keys.push(key);
+  }
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  let start = 0;
+  for (let i = keys.length - 1; i >= 0; i--) {
+    const snapshot = use.cache.get(keys[i]);
+    if (snapshot && snapshot.width === canvas.width && snapshot.height === canvas.height) {
+      context.putImageData(snapshot as ImageData, 0, 0);
+      start = i + 1;
+      break;
+    }
+  }
+  for (let i = start; i < active.length; i++) {
+    active[i].stage.run(canvas, edit, mask, imageEdge);
+    use.cache.set(keys[i], context.getImageData(0, 0, canvas.width, canvas.height));
+  }
+}
+
 type GpuRenderer = (canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number) => boolean;
 let gpuRenderer: GpuRenderer | null = null;
 /** Register a GPU renderer. It returns false when it cannot handle the canvas, and the CPU path runs instead. */
@@ -151,15 +211,10 @@ export function setGpuRenderer(renderer: GpuRenderer | null): void {
 export function applyCanvasPhotoEdit(
   canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge = Math.max(canvas.width, canvas.height),
   maskContext: MaskContext = fullContext(canvas.width, canvas.height),
+  stageCache?: StageCacheUse,
 ): void {
   if (isNeutralEdit(edit)) return;
-  // The stored AI result was made from the photo's own pixels, so it goes in before anything else.
-  applyCanvasTrueDetailAi(canvas, edit, maskContext, false);
-  applyCanvasFringe(canvas, edit, maskContext, imageEdge);
-  applyCanvasHeal(canvas, edit, maskContext, imageEdge);
-  applyCanvasNoiseReduction(canvas, edit);
-  applyCanvasDehaze(canvas, edit, imageEdge);
-  applyCanvasCapture(canvas, edit, imageEdge);
+  applyEarlyStages(canvas, edit, imageEdge, maskContext, stageCache);
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, imageEdge)) {
     for (const _ of editCanvasStrips(canvas, edit)) {
       // The fit preview has a bounded raster, so render it in one pass.

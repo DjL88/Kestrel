@@ -12,7 +12,7 @@ const SECRET = 'pdl_ntfset_test_only_secret';
 
 /** A fake Paddle sandbox: records created transactions; tests decide when one is completed. */
 function fakePaddle() {
-  const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string }>();
+  const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string; discount_id?: string }>();
   const state = { creates: 0, gets: 0, failGets: false };
   const view = (id: string) => {
     const t = txns.get(id)!;
@@ -38,7 +38,7 @@ function fakePaddle() {
       const body = JSON.parse(String(init.body));
       assert.equal(body.checkout.url, 'https://site.example.test/pro-checkout');
       const id = 'txn_01test' + String(txns.size).padStart(6, '0');
-      txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, status: 'ready' });
+      txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, status: 'ready', discount_id: body.discount_id });
       return Response.json({ data: view(id) }, { status: 201 });
     }
     state.gets++;
@@ -57,7 +57,7 @@ function signed(body: unknown, nowMs: number, secret = SECRET) {
   return { raw, headers: { 'content-type': 'application/json', 'paddle-signature': `ts=${ts};h1=${h1}` } };
 }
 
-async function setup(requireAdminSwitch = false) {
+async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
   const paddle = fakePaddle();
   let bound: ReturnType<typeof paddleProCheckout> | undefined;
   let settle: ReturnType<typeof paddleProSettlement> | undefined;
@@ -83,6 +83,7 @@ async function setup(requireAdminSwitch = false) {
     priceId: PRICE,
     checkoutUrl: 'https://site.example.test/pro-checkout',
     settle,
+    promoDiscountId,
     now: () => harness.clock.now,
   });
   const webhook = (body: unknown, secret?: string) => {
@@ -228,4 +229,34 @@ test('Paddle-Signature: right secret and fresh timestamp only; any h1 during a r
   assert.equal(verifyPaddleSignature(body, `h1=${h1}`, SECRET, now), false);
   assert.equal(verifyPaddleSignature(body, undefined, SECRET, now), false);
   assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${h1}`, '', now), false);
+});
+
+test('offer discount (Black Friday): only a checkout started while proPromo is on gets it', async () => {
+  const { harness: h, paddle, orders } = await setup(false, 'dsc_01testblackfriday');
+  try {
+    const day = 86_400_000;
+    const startsAtMs = Date.UTC(2026, 10, 27);
+    const endsAtMs = startsAtMs + 4 * day;
+    const set = await h.call('POST', '/v1/admin/flags/set', { token: h.adminToken, body: { key: 'proPromo', flag: { default: false, rules: [{ audience: { kind: 'any' }, enabled: true, startsAtMs, endsAtMs }] } } });
+    assert.equal(set.status, 200, JSON.stringify(set.body));
+    const startFor = async (email: string) => {
+      const me = await buyer(h, email);
+      const r = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
+      assert.equal(r.status, 201, JSON.stringify(r.body));
+      return r.body.checkoutId as string;
+    };
+    // Before the offer: full price.
+    const before = await startFor('early@example.test');
+    assert.equal(paddle.txns.get(before)!.discount_id, undefined);
+    assert.equal(orders.get(before)!.discountId, undefined);
+    // During the offer: Paddle gets the discount, and the order records it.
+    h.clock.now = startsAtMs + 60_000;
+    const during = await startFor('friday@example.test');
+    assert.equal(paddle.txns.get(during)!.discount_id, 'dsc_01testblackfriday');
+    assert.equal(orders.get(during)!.discountId, 'dsc_01testblackfriday');
+    // The day after the last day: full price again.
+    h.clock.now = endsAtMs;
+    const after = await startFor('late@example.test');
+    assert.equal(paddle.txns.get(after)!.discount_id, undefined);
+  } finally { await h.close(); }
 });

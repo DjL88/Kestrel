@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Dutch (u). DRAFT: written without a native speaker's check. */
+export const nl: AreaTranslation<typeof source> = {
+  heading: "Uw stijlen",
+  intro: "Bewaar de schuifregelaars van deze foto als stijl voor andere foto's. Maskers, uitsnede, curven en lenscorrecties horen er niet bij.",
+  nameLabel: "Naam voor deze stijl",
+  namePlaceholder: "Bijvoorbeeld: Mistige ochtend",
+  save: "Bewaren als stijl",
+  empty: "U hebt nog geen stijlen bewaard.",
+  rename: (name: string) => `${name} hernoemen`,
+  renameLabel: (name: string) => `Nieuwe naam voor ${name}`,
+  renameShort: "Hernoemen",
+  removeShort: "Verwijderen",
+  renameDone: "Naam bewaren",
+  cancel: "Annuleren",
+  remove: (name: string) => `${name} verwijderen`,
+  exportLooks: "Stijlen in een bestand bewaren",
+  importLooks: "Stijlen uit een bestand toevoegen",
+  mine: "Van u",
+  description: "Een stijl die u op dit apparaat hebt bewaard.",
+  saved: (name: string) => `Stijl ‘${name}’ op dit apparaat bewaard.`,
+  updated: (name: string) => `Uw stijl ‘${name}’ heeft nu de instellingen van deze foto.`,
+  needName: "Geef de stijl eerst een naam.",
+  full: "U hebt het hoogste aantal stijlen bewaard. Verwijder er eerst een.",
+  nameTaken: "U hebt al een stijl met die naam.",
+  removed: (name: string) => `Stijl ‘${name}’ verwijderd. Foto's die hem gebruikten houden hun instellingen.`,
+  notSaved: "Uw stijlen konden niet op dit apparaat worden bewaard. Ze blijven tot InFlight sluit.",
+  imported: (added: number, replaced: number) => `Stijlen toegevoegd: ${added}. Stijlen bijgewerkt: ${replaced}.`,
+  skipped: (n: number) => ` Weggelaten, zonder bruikbare instellingen: ${n}.`,
+  nothingUsable: "Dat bestand heeft geen stijlen met instellingen die InFlight kan gebruiken.",
+  unreadable: "Dat bestand kon niet als stijlen worden gelezen.",
+  notLooks: "Dat bestand is geen stijlbestand van InFlight.",
+  newer: "Dat stijlbestand komt uit een nieuwere versie van InFlight. Werk InFlight bij om het toe te voegen.",
+};

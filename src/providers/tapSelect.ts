@@ -1,6 +1,6 @@
 import { createOffThreadSession, type ModelTensor, type OffThreadSession } from './offThreadSession';
 import { EFFICIENTSAM_TI } from '../core/optionalModels';
-import { SAM_INPUT, bestSamMask, samInput, samMaskSize, samPoints, unionSamMasks, type SamMask, type SamPrompt } from '../core/efficientSam';
+import { SAM_INPUT, bestSamMask, samInput, samMaskSize, samPoints, unionSamMasks, type SamBox, type SamMask, type SamPrompt } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
 
@@ -117,6 +117,31 @@ export async function selectSubjects(key: string, subjects: readonly SamPrompt[]
     results.push(bestSamMask(out.output_masks.data, out.iou_predictions.data, mask.w, mask.h));
   }
   return results;
+}
+
+/**
+ * Box-prompted masks for culling (x-std-mask-sharpness): reads one picture already at 1024 x 1024 and answers each box
+ * (in mask pixels of `size`), without keeping the encoding, so the editor's kept encodings are never pushed out.
+ */
+export async function segmentBoxes(input: Float32Array, boxes: readonly SamBox[], size: { w: number; h: number }): Promise<Array<SamMask | null>> {
+  const { encoder, decoder } = await load();
+  const out = await encoder.run({ batched_images: { data: input, dims: [1, 3, SAM_INPUT, SAM_INPUT] } });
+  const embedding = out.image_embeddings;
+  if (!embedding) throw new Error('The tap-to-select model returned an unexpected result.');
+  const masks: Array<SamMask | null> = [];
+  for (const box of boxes) {
+    const points = samPoints({ box });
+    if (!points) { masks.push(null); continue; }
+    const answer = await decoder.run({
+      image_embeddings: embedding,
+      batched_point_coords: { data: points.coords, dims: [1, 1, points.count, 2] },
+      batched_point_labels: { data: points.labels, dims: [1, 1, points.count] },
+      orig_im_size: { data: BigInt64Array.from([BigInt(size.h), BigInt(size.w)]), dims: [2] },
+    });
+    if (!answer.output_masks || !answer.iou_predictions) throw new Error('The tap-to-select model returned an unexpected result.');
+    masks.push(bestSamMask(answer.output_masks.data, answer.iou_predictions.data, size.w, size.h));
+  }
+  return masks;
 }
 
 export { unionSamMasks };

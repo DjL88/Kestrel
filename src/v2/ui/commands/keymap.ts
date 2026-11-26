@@ -31,6 +31,8 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'help.toggle': '?',
       'photo.flag': 'KeyF',
       'view.grid': 'KeyG',
+      'view.loupe': 'KeyE',
+      'view.filmstrip': 'F6',
       'view.compare': 'Backslash',
       'view.maskOverlay': 'KeyO',
       'view.fullscreen': 'Mod+Shift+KeyF',
@@ -39,6 +41,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.copy': 'Mod+Shift+KeyC',
       'edit.paste': 'Mod+Shift+KeyV',
       'edit.selectAll': 'Mod+KeyA',
+      'edit.selectNone': 'Mod+Shift+KeyA',
       'file.export': 'Mod+KeyE',
       'app.settings': 'Mod+Comma',
       'app.commandSearch': 'Mod+KeyK',
@@ -51,6 +54,8 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'help.toggle': '?',
       'photo.flag': 'KeyP',
       'view.grid': 'KeyG',
+      'view.loupe': 'KeyE',
+      'view.filmstrip': 'F6',
       'view.compare': 'Backslash',
       'view.maskOverlay': 'KeyO',
       'view.fullscreen': 'KeyF',
@@ -59,6 +64,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.copy': 'Mod+Shift+KeyC',
       'edit.paste': 'Mod+Shift+KeyV',
       'edit.selectAll': 'Mod+KeyA',
+      'edit.selectNone': 'Mod+KeyD',
       'file.export': 'Mod+Shift+KeyE',
       'app.settings': 'Mod+Comma',
       'app.commandSearch': 'Mod+KeyK',
@@ -145,7 +151,7 @@ export function resolveCommand({ event, keymap, isMac, inField }: ResolveInput):
   if (event.isComposing || event.key === 'Process' || event.key === 'Dead' || event.keyCode === 229) return null;
   const chord = eventChord(event, isMac);
   if (!chord) return null;
-  const matches = COMMANDS.filter((command) => keymap[command.id] === chord);
+  const matches = keyboardMatches(chord, keymap, isMac);
   if (matches.length !== 1) return null;
   const [command] = matches;
   if (inField && !command.worksInFields) return null;
@@ -243,11 +249,11 @@ export function importKeymap(raw: string): ImportKeymapResult {
   }
   if (typeof parsed !== 'object' || parsed === null) return { ok: false, error: 'That file is not a keymap export.' };
   const candidate = parsed as Partial<KeymapExportFile>;
-  if (candidate.kind !== KEYMAP_EXPORT_KIND) return { ok: false, error: 'That file is not a Kestrel keymap export.' };
+  if (candidate.kind !== KEYMAP_EXPORT_KIND) return { ok: false, error: 'That file is not an InFlight keymap export.' };
   if (candidate.version !== KEYMAP_EXPORT_VERSION) {
-    return { ok: false, error: `This keymap was saved in a format (${JSON.stringify(candidate.version)}) this version of Kestrel does not read.` };
+    return { ok: false, error: `This keymap was saved in a format (${JSON.stringify(candidate.version)}) this version of InFlight does not read.` };
   }
-  if (!isPresetId(candidate.preset)) return { ok: false, error: 'That file does not name a key set Kestrel knows.' };
+  if (!isPresetId(candidate.preset)) return { ok: false, error: 'That file does not name a key set InFlight knows.' };
   const { overrides, dropped } = sanitizeOverrides(candidate.overrides);
   return { ok: true, keymap: { preset: candidate.preset, overrides }, dropped };
 }
@@ -284,4 +290,33 @@ export function keyAlreadyHandled(
   const role = (target.getAttribute?.('role') || '').toLowerCase();
   const inputType = tag === 'INPUT' ? (target.type || target.getAttribute?.('type') || 'text').toLowerCase() : '';
   return PRESS_TAGS.has(tag) || PRESS_INPUT_TYPES.has(inputType) || PRESS_ROLES.has(role);
+}
+
+/**
+ * Each platform's own second key for a few commands, so habits from other apps work without any set-up:
+ * Ctrl+Y redoes and F11 is full screen on Windows and Linux. A second key acts only while its command still has a key
+ * (clearing the command clears both) and only while no command uses that key itself (a person's own choice always wins).
+ */
+const PLATFORM_ALTERNATES: ReadonlyArray<{ id: CommandId; chord: string; mac: boolean }> = [
+  { id: 'edit.redo', chord: 'Mod+KeyY', mac: false },
+  { id: 'view.fullscreen', chord: 'F11', mac: false },
+];
+
+/** The second keys in force for one command on this platform. */
+export function alternateChords(id: CommandId, keymap: Keymap, isMac: boolean): string[] {
+  if (!keymap[id]) return [];
+  const used = new Set(Object.values(keymap));
+  return PLATFORM_ALTERNATES.filter((alt) => alt.id === id && alt.mac === isMac && !used.has(alt.chord)).map((alt) => alt.chord);
+}
+
+/** The commands a key press means from the keyboard: the keymap's own keys first, then each platform's second keys. */
+export function keyboardMatches(chord: string, keymap: Keymap, isMac: boolean): CommandDefinition[] {
+  const direct = COMMANDS.filter((command) => keymap[command.id] === chord);
+  if (direct.length > 0) return direct;
+  return COMMANDS.filter((command) => alternateChords(command.id, keymap, isMac).includes(chord));
+}
+
+/** A command's keys as the person reads them, the second key after a slash: "Ctrl+Shift+Z / Ctrl+Y". */
+export function chordsLabel(id: CommandId, keymap: Keymap, isMac: boolean): string {
+  return [chordLabel(keymap[id], isMac), ...alternateChords(id, keymap, isMac).map((chord) => chordLabel(chord, isMac))].join(' / ');
 }

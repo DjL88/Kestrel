@@ -5,7 +5,7 @@
  * The existing fetch script fails closed on missing bytes or SHA-256 mismatch.
  */
 import { spawnSync } from 'node:child_process';
-import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings } from './build-desktop-guard.mjs';
+import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, releaseModelSource } from './build-desktop-guard.mjs';
 import { loadEnv } from 'vite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,8 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 try {
 assertReleaseBuildArgs(process.argv.slice(2));
 // The same .env files Vite reads for the app, plus the environment, so the check sees what the build will see.
-if ((process.env.KESTREL_RELEASE ?? '1') !== '0') assertReleaseOnlineSettings({ ...loadEnv('production', root, 'VITE_'), ...process.env });
+const buildEnv = { ...loadEnv('production', root, 'VITE_'), ...process.env };
+if ((process.env.KESTREL_RELEASE ?? '1') !== '0') assertReleaseOnlineSettings(buildEnv);
 const prepared = spawnSync(npm, ['run', 'model:species'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
 assertChildSucceeded(prepared, 'Species model preparation');
 const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
@@ -24,6 +25,8 @@ const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
   stdio: 'inherit',
   shell: process.platform === 'win32',
   env: { ...process.env,
+    // Model packs and model updates come from the models bucket, checked against the pinned manifest key.
+    ...releaseModelSource(buildEnv),
     VITE_SPECIES_MODEL_URL: '/models/bioclip-image-int8.onnx',
     VITE_SPECIES_MODEL_BUNDLED: 'true',
     // Belt and braces with the Tauri CLI's own TAURI_ENV_PLATFORM: a desktop build must never ship the caching web

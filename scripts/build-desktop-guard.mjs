@@ -24,6 +24,22 @@ export const RELEASE_ONLINE_SETTINGS = [
   'VITE_GOOGLE_SIGNIN_CLIENT_ID', 'VITE_KESTREL_SITE_URL', 'VITE_KESTREL_CONTROL_PLANE_URL', 'VITE_KESTREL_GRANT_KEYS',
 ];
 
+/**
+ * Where installers get optional model packs and model updates: the models bucket and the public half of the one manifest
+ * key (infra/gcp/variables.tf model_manifest_keys). Public build settings, not secrets. Owner approved shipping them in
+ * release builds on 26 Nov 2026. A value already set in .env.local or the environment wins.
+ */
+export const RELEASE_MODEL_SOURCE = {
+  VITE_KESTREL_MODEL_BASE_URL: 'https://storage.googleapis.com/kestrel-hosting-kestrel-models',
+  VITE_KESTREL_MODEL_KEYS: 'kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw=',
+};
+
+/** The model source settings for a release build: the given ones where set, the pinned public ones otherwise. */
+export function releaseModelSource(env) {
+  return Object.fromEntries(Object.entries(RELEASE_MODEL_SOURCE).map(([name, fallback]) =>
+    [name, typeof env[name] === 'string' && env[name].trim() !== '' ? env[name] : fallback]));
+}
+
 /** Refuse a release build that is missing any of them, naming each one. */
 export function assertReleaseOnlineSettings(env) {
   const missing = RELEASE_ONLINE_SETTINGS.filter((name) => typeof env[name] !== 'string' || env[name].trim() === '');

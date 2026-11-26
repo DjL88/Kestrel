@@ -3,7 +3,7 @@
  * A job document holds ids, kind, byte count, status and the time of the person's consent. Never photo bytes, file
  * names, EXIF or upload URLs. Quota reservation and conditional job status updates use Firestore transactions.
  */
-import type { CloudJobRecord, CloudLedger, CloudStatus } from './cloudJobs.ts';
+import { carriedPhotos, type CloudJobRecord, type CloudLedger, type CloudStatus } from './cloudJobs.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 import { firestoreSpendRef } from './spendGuard.ts';
 
@@ -20,9 +20,10 @@ export class FirestoreCloudLedger implements CloudLedger {
       const d = snap.exists ? snap.data()! : undefined;
       let start = typeof d?.periodStartMs === 'number' ? d.periodStartMs : nowMs;
       let used = typeof d?.used === 'number' ? d.used : 0;
-      if (nowMs - start >= periodMs) { start = nowMs; used = 0; }
-      const granted = used < limit;
-      tx.set(ref, { accountId, periodStartMs: start, used: granted ? used + 1 : used });
+      let carried = typeof d?.carried === 'number' ? d.carried : 0;
+      if (nowMs - start >= periodMs) { carried = carriedPhotos(start, used - carried, nowMs, limit, periodMs); start = nowMs; used = 0; }
+      const granted = used < limit + carried;
+      tx.set(ref, { accountId, periodStartMs: start, used: granted ? used + 1 : used, carried });
       return granted;
     });
   }
@@ -32,6 +33,13 @@ export class FirestoreCloudLedger implements CloudLedger {
     const d = snap.exists ? snap.data()! : undefined;
     if (typeof d?.periodStartMs !== 'number' || nowMs - d.periodStartMs >= periodMs) return 0;
     return typeof d.used === 'number' ? d.used : 0;
+  }
+
+  async periodCarried(accountId: string, nowMs: number, periodMs: number): Promise<number> {
+    const snap = await this.db.collection(USAGE).doc(accountId).get();
+    const d = snap.exists ? snap.data()! : undefined;
+    if (typeof d?.periodStartMs !== 'number' || nowMs - d.periodStartMs >= periodMs) return 0;
+    return typeof d.carried === 'number' ? d.carried : 0;
   }
 
   async refund(accountId: string, reservedAtMs: number): Promise<void> {
@@ -45,11 +53,12 @@ export class FirestoreCloudLedger implements CloudLedger {
   }
 
   async put(record: CloudJobRecord): Promise<void> {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = record;
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits, inputKind } = record;
     await this.db.collection(JOBS).doc(jobId).set({
       jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs,
       ...(spendPence === undefined ? {} : { spendPence }),
       ...(paidMillicredits === undefined ? {} : { paidMillicredits }),
+      ...(inputKind === undefined ? {} : { inputKind }),
     });
   }
 
@@ -63,6 +72,7 @@ export class FirestoreCloudLedger implements CloudLedger {
       createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs),
       ...(typeof d.spendPence === 'number' ? { spendPence: d.spendPence } : {}),
       ...(typeof d.paidMillicredits === 'number' ? { paidMillicredits: d.paidMillicredits } : {}),
+      ...(d.inputKind === 'smart-preview' || d.inputKind === 'original' ? { inputKind: d.inputKind as CloudJobRecord['inputKind'] } : {}),
     };
   }
 

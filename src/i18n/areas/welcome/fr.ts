@@ -28,4 +28,16 @@ export const fr: AreaTranslation<typeof source> = {
     forget: "Vos projets, choix, retouches et aperçus sont gardés dans ce navigateur. Effacer les données de navigation, utiliser une fenêtre privée ou désinstaller le navigateur peut les supprimer. Vos photos originales ne sont jamais stockées ni modifiées ici : elles ne risquent rien.",
     backupHint: "Par prudence, faites une sauvegarde depuis les options du projet et gardez-la, avec vos originaux, ailleurs que dans ce navigateur.",
   },
+  diskPreviews: {
+    title: "Aperçus sur cet ordinateur",
+    intro: "InFlight garde trois petites images de chaque photo RAW dans son propre dossier : une vignette, une copie de contrôle et un aperçu dynamique de 2 560 px. Vous pouvez continuer à retoucher une photo quand son disque est débranché. L’export demande toujours l’original. Vos originaux ne sont jamais modifiés.",
+    using: "{used} utilisés pour {count} photos.",
+    checking: "Vérification du dossier des aperçus…",
+    limitLabel: "Taille maximale",
+    limitDefault: "{size} (conseillé pour cet ordinateur)",
+    limitHint: "Environ {count} photos tiennent. Quand le dossier est plein, les aperçus que vous n’avez pas regardés depuis le plus longtemps sont retirés. Ils sont refaits quand vous rouvrez ces photos avec leur disque branché.",
+    clear: "Retirer tous les aperçus",
+    cleared: "Aperçus retirés. Ils sont refaits quand vous regardez les photos.",
+    failed: "Le dossier des aperçus n’a pas pu être lu.",
+  },
 };

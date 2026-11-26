@@ -10,7 +10,7 @@ import { AccountDataPanel } from './AccountDataPanel';
 import { accountDataClient } from '../providers/accountDataClient';
 import { downloadExport } from '../providers/browserExport';
 import { useAccess } from '../providers/useAccess';
-import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, deviceLicenceKey, deviceReleaseRefusal, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
@@ -228,7 +228,7 @@ export function AccountAndLicenceSettings() {
     return runAccountAction(async () => {
       const token = await firebaseAuth.idToken(true);
       if (!token || !(await freeAccountLicenceDevice(token, activationId))) {
-        setAccountNote('Could not confirm that the device slot was freed. Check the list again.');
+        setAccountNote(deviceReleaseRefusal() ?? 'Could not confirm that the device slot was freed. Check the list again.');
         return;
       }
       setAccountDevices(await accountLicenceDevices(token));
@@ -383,10 +383,12 @@ export function AccountAndLicenceSettings() {
       <section aria-labelledby="licence-h" className="space-y-3">
         <h3 id="licence-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">{t.licence.licenceKey}</h3>
         {licence.status === 'account' && licence.standing.kind === 'active' && licence.access.pro && (
-          <p role="status">InFlight Pro is active on this device. Offline until {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(licence.standing.grant.offlineUntilMs)}.</p>
+          <p role="status">{plan.kind === 'pro-account' && plan.owned
+            ? 'InFlight Pro is yours on this device. It keeps working with or without a connection.'
+            : <>InFlight Pro is active on this device. Offline until {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(licence.standing.grant.offlineUntilMs)}.</>}</p>
         )}
         {licence.status === 'valid'
-          ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>
+          ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /><KeptKey /></>
           : (licence.status !== 'account' || !licence.access.pro) && <p>{t.licence.notUnlocked(DEV_PRO_PREVIEW_MODE)}</p>}
         {licence.status === 'invalid' && <p role="alert" className="text-[var(--account-warning,#fde68a)]">{licence.message}</p>}
         {licence.status !== 'valid' ? (
@@ -414,6 +416,26 @@ export function AccountAndLicenceSettings() {
         {note && <p role={note.good ? 'status' : 'alert'} className={note.good ? 'text-[var(--account-foreground,#a7f3d0)]' : 'text-[var(--account-warning,#fde68a)]'}>{note.text}</p>}
         <p className="text-xs text-[var(--account-muted,#a1a1aa)]">{t.licence.noAccount}</p>
       </section>
+    </div>
+  );
+}
+
+/** The key kept on this device, so the owner can copy it for another device or keep it safe. */
+function KeptKey() {
+  const [copied, setCopied] = useState(false);
+  const key = deviceLicenceKey();
+  if (!key) return null;
+  return (
+    <div className="space-y-1">
+      <label className="block">{t.licence.yourKey}
+        <input id="kept-licence-key" readOnly value={key} onFocus={(event) => event.currentTarget.select()}
+          className="mt-1 w-full rounded-md border border-white/15 bg-black/20 px-3 py-2 font-mono text-xs text-zinc-100" />
+      </label>
+      <p className="text-xs text-[var(--account-muted,#a1a1aa)]">{t.licence.yourKeyHint}</p>
+      <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300"
+        onClick={() => {
+          navigator.clipboard?.writeText(key).then(() => setCopied(true), () => (document.getElementById('kept-licence-key') as HTMLInputElement | null)?.select());
+        }}>{copied ? t.licence.keyCopied : t.licence.copyKey}</button>
     </div>
   );
 }

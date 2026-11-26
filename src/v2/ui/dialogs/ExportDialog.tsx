@@ -16,6 +16,7 @@ import {
   DEFAULT_EXPORT_SETTINGS, MAX_PRESET_NAME, deletePreset, exportTargetFor, readPresets, requestFromSettings, savePreset, settingsMatch,
   writeLastExport, writePresets, type ExportSettings, type SavedExportPreset,
 } from '../../engineClient/exportSettings';
+import BrandKitSection, { type BrandKitChoice } from './BrandKitSection';
 
 const deviceStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
   try { return window.localStorage; } catch { return null; }
@@ -27,6 +28,11 @@ interface ExportDialogProps {
   selectedPhotoIds: string[];
   onClose: () => void;
   onExport: (request: ExportRequest) => void;
+  /** Brand kits (K080). Absent while the preview is off, and then the section is not shown. */
+  brandKits?: BrandKitChoice[];
+  onSaveBrandKit?: (photoId: string, name: string) => boolean;
+  onEditBrandKit?: (kitId: string, change: { name?: string; fromPhotoId?: string }) => boolean;
+  onDeleteBrandKit?: (kitId: string) => void;
 }
 
 const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; sizeIds: string[] }> = [
@@ -44,6 +50,10 @@ export default function ExportDialog({
   selectedPhotoIds,
   onClose,
   onExport,
+  brandKits,
+  onSaveBrandKit,
+  onEditBrandKit,
+  onDeleteBrandKit,
 }: ExportDialogProps) {
   const d = DEFAULT_EXPORT_SETTINGS;
   const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>(d.fileFormat);
@@ -61,6 +71,7 @@ export default function ExportDialog({
   const [presetId, setPresetId] = useState('');
   const [presetName, setPresetName] = useState('');
   const [presetNote, setPresetNote] = useState('');
+  const [brandKitId, setBrandKitId] = useState('');
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
@@ -151,7 +162,9 @@ export default function ExportDialog({
     const settings = currentSettings();
     const target = exportTargetFor(photo, selectedPhotoIds, nativeFolder, selectedGroupIds);
     if (!rawMaster) { const store = deviceStorage(); if (store) writeLastExport(store, settings); }
-    onExport(requestFromSettings(settings, target, rawMaster, rawMasterFormat));
+    const request = requestFromSettings(settings, target, rawMaster, rawMasterFormat);
+    const kit = !rawMaster && brandKits?.some((item) => item.id === brandKitId) ? brandKitId : '';
+    onExport(kit ? { ...request, brandKitId: kit } : request);
   };
 
   return (
@@ -218,6 +231,10 @@ export default function ExportDialog({
               </div>
               {presetNote && <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{presetNote}</p>}
             </section>
+            {brandKits && onSaveBrandKit && onEditBrandKit && onDeleteBrandKit && (
+              <BrandKitSection kits={brandKits} chosenId={brandKitId} onChoose={setBrandKitId} photoId={photo.id}
+                onSave={onSaveBrandKit} onEdit={onEditBrandKit} onDelete={onDeleteBrandKit} />
+            )}
             <section className="space-y-2">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                 {STRINGS.exportDialog.destinationHeading}

@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Italian (Lei). DRAFT: written without a native speaker's check. */
+export const it: AreaTranslation<typeof source> = {
+  heading: "I Suoi stili",
+  intro: "Salvi i cursori di questa foto come stile per altre foto. Maschere, ritaglio, curve e correzioni dell'obiettivo non sono inclusi.",
+  nameLabel: "Nome di questo stile",
+  namePlaceholder: "Per esempio, Mattino nebbioso",
+  save: "Salva come stile",
+  empty: "Non ha ancora salvato nessuno stile.",
+  rename: (name: string) => `Rinomina ${name}`,
+  renameLabel: (name: string) => `Nuovo nome per ${name}`,
+  renameShort: "Rinomina",
+  removeShort: "Elimina",
+  renameDone: "Salva nome",
+  cancel: "Annulla",
+  remove: (name: string) => `Elimina ${name}`,
+  exportLooks: "Salva gli stili in un file",
+  importLooks: "Aggiungi stili da un file",
+  mine: "Suoi",
+  description: "Uno stile salvato su questo dispositivo.",
+  saved: (name: string) => `Stile «${name}» salvato su questo dispositivo.`,
+  updated: (name: string) => `Il Suo stile «${name}» ora ha le impostazioni di questa foto.`,
+  needName: "Dia prima un nome allo stile.",
+  full: "Ha salvato il numero massimo di stili. Ne elimini uno prima.",
+  nameTaken: "Ha già uno stile con quel nome.",
+  removed: (name: string) => `Stile «${name}» eliminato. Le foto che lo usavano mantengono le loro impostazioni.`,
+  notSaved: "Non è stato possibile salvare i Suoi stili su questo dispositivo. Resteranno fino alla chiusura di InFlight.",
+  imported: (added: number, replaced: number) => `Stili aggiunti: ${added}. Stili aggiornati: ${replaced}.`,
+  skipped: (n: number) => ` Esclusi, senza impostazioni utilizzabili: ${n}.`,
+  nothingUsable: "Quel file non ha stili con impostazioni che InFlight può usare.",
+  unreadable: "Quel file non è stato letto come stili.",
+  notLooks: "Quel file non è un file di stili di InFlight.",
+  newer: "Quel file di stili viene da una versione più recente di InFlight. Aggiorni InFlight per aggiungerlo.",
+};

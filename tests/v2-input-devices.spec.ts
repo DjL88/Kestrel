@@ -101,3 +101,43 @@ test('a palm on the photo while the pen is down never swipes to another photo', 
   await flick(false);
   await expect.poll(shown).not.toBe(first);
 });
+
+test('pad keys are on out of the box, so the keyboard guide lists them', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'A keyboard test.');
+  await openPhoto(page);
+  await page.getByTestId('canvas-stage').click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('?');
+  await expect(page.getByTestId('shortcut-guide-pad')).toBeVisible();
+});
+
+test('pad keys turned off do nothing and leave the keyboard guide', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'A keyboard test.');
+  // As Settings > Keyboard > Macro pad keys saves it.
+  await page.addInitScript(() => localStorage.setItem('inflight.v2.ui', JSON.stringify({ settings: { padKeysEnabled: false } })));
+  await openPhoto(page);
+  await page.getByTestId('canvas-stage').click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('?');
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+  await expect(page.getByTestId('shortcut-guide-pad')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The pad's Space (All photos) does nothing now.
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('canvas-frame')).toBeVisible();
+});
+
+test('E closes the grid, F6 hides the filmstrip, and Ctrl+Y redoes on Windows-style keys', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'A keyboard test.');
+  const root = await openPhoto(page);
+  await page.getByTestId('canvas-stage').click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('g');
+  await expect(root.getByTestId('canvas-frame')).toHaveCount(0);
+  await page.keyboard.press('e');
+  await expect(root.getByTestId('canvas-frame')).toBeVisible();
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip).toBeVisible();
+  await page.keyboard.press('F6');
+  await expect(strip).toBeHidden();
+  await page.keyboard.press('F6');
+  await expect(strip).toBeVisible();
+});

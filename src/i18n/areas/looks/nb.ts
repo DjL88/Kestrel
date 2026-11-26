@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
+export const nb: AreaTranslation<typeof source> = {
+  heading: "Dine stiler",
+  intro: "Lagre dette bildets glidebrytere som en stil for andre bilder. Masker, beskjæring, kurver og objektivrettinger er ikke med.",
+  nameLabel: "Navn på stilen",
+  namePlaceholder: "For eksempel Tåkete morgen",
+  save: "Lagre som stil",
+  empty: "Du har ikke lagret noen stiler ennå.",
+  rename: (name: string) => `Gi ${name} nytt navn`,
+  renameLabel: (name: string) => `Nytt navn på ${name}`,
+  renameShort: "Gi nytt navn",
+  removeShort: "Slett",
+  renameDone: "Lagre navn",
+  cancel: "Avbryt",
+  remove: (name: string) => `Slett ${name}`,
+  exportLooks: "Lagre stiler i en fil",
+  importLooks: "Legg til stiler fra en fil",
+  mine: "Dine",
+  description: "En stil du har lagret på denne enheten.",
+  saved: (name: string) => `Lagret stilen «${name}» på denne enheten.`,
+  updated: (name: string) => `Stilen din «${name}» har nå innstillingene fra dette bildet.`,
+  needName: "Gi stilen et navn først.",
+  full: "Du har lagret så mange stiler som mulig. Slett en først.",
+  nameTaken: "Du har allerede en stil med det navnet.",
+  removed: (name: string) => `Slettet stilen «${name}». Bilder som brukte den, beholder innstillingene sine.`,
+  notSaved: "Stilene dine kunne ikke lagres på denne enheten. De varer til InFlight lukkes.",
+  imported: (added: number, replaced: number) => `Stiler lagt til: ${added}. Stiler oppdatert: ${replaced}.`,
+  skipped: (n: number) => ` Utelatt, uten brukbare innstillinger: ${n}.`,
+  nothingUsable: "Den filen har ingen stiler med innstillinger InFlight kan bruke.",
+  unreadable: "Den filen kunne ikke leses som stiler.",
+  notLooks: "Den filen er ikke en stilfil fra InFlight.",
+  newer: "Den stilfilen er laget av en nyere versjon av InFlight. Oppdater InFlight for å legge den til.",
+};

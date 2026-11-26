@@ -1,4 +1,4 @@
-//! Local vision-language model for Kite44 (issue #703): SmolVLM2-500M, int8, run on this device with ONNX Runtime.
+//! Local vision-language model for InFlight (issue #703): SmolVLM2-500M, int8, run on this device with ONNX Runtime.
 //! Nothing here touches the network; the model files come from a directory the app has already verified against
 //! pinned SHA-256 digests (see scripts/models/manifest.json). One image in, plain text out. The text is only ever
 //! read by the app as an observation to be validated; it is never run, fetched or trusted as an edit.

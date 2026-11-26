@@ -28,4 +28,16 @@ export const nl: AreaTranslation<typeof source> = {
     forget: "Uw projecten, keuzes, bewerkingen en voorbeelden staan in deze browser. Browsegegevens wissen, een privévenster gebruiken of de browser verwijderen kan ze weghalen. Uw originele foto's worden hier nooit opgeslagen of gewijzigd, dus die zijn veilig.",
     backupHint: "Maak voor de zekerheid een projectback-up via de projectopties en bewaar die, samen met uw originelen, buiten deze browser.",
   },
+  diskPreviews: {
+    title: "Voorbeelden op deze computer",
+    intro: "InFlight bewaart van elke RAW-foto drie kleine beelden in een eigen map: een miniatuur, een kijkkopie en een slim voorbeeld van 2560 px. U kunt een foto blijven bewerken als de schijf niet is aangesloten. Voor exporteren is het origineel nog steeds nodig. Uw originelen worden nooit gewijzigd.",
+    using: "{used} in gebruik voor {count} foto’s.",
+    checking: "De map met voorbeelden wordt gecontroleerd…",
+    limitLabel: "Maximale grootte",
+    limitDefault: "{size} (aangeraden voor deze computer)",
+    limitHint: "Er passen ongeveer {count} foto’s in. Als de map vol is, gaan de voorbeelden weg die u het langst niet hebt bekeken. Ze worden opnieuw gemaakt als u die foto’s weer opent met de schijf aangesloten.",
+    clear: "Alle voorbeelden verwijderen",
+    cleared: "Voorbeelden verwijderd. Ze worden opnieuw gemaakt als u foto’s bekijkt.",
+    failed: "De map met voorbeelden kon niet worden gelezen.",
+  },
 };

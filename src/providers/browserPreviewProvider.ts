@@ -1,3 +1,4 @@
+import { deviceMemoryBudget } from './deviceBudget';
 import {
   loadOfflinePreview,
   loadOfflinePreviewPair,
@@ -19,21 +20,39 @@ import {
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
 import type { PictureSource } from '../core/pictureSource';
-import { materialize, type RangeBlob } from './rangeBlob';
+import { EXIF_HEAD_BYTES, headBlob, materialize, type RangeBlob } from './rangeBlob';
 import type { LinkedRange } from './linkedOriginals';
+import { diskPreviewStore, type DiskBuildRequest, type DiskBuildResult, type DiskPreviewLevel, type DiskPreviewStore } from './diskPreviewCache';
+import type { RawCodec } from '../core/pictureSource';
+import type { AsShotWhite } from '../core/asShotWhite';
 
 /** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
-export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
+export interface LinkedInfo {
+  read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange>;
+  /** Desktop app: where the original is, and the SHA-256 of the bytes added, so the app can make its disk previews itself. */
+  path?: string; sha256?: string;
+}
 
-const MAX_FULL_PREVIEW_CACHE = 24;
+/** What making one photo's disk previews found out, for the labels and the white-balance control. */
+export interface DiskPreviewOutcome { codec?: RawCodec; white?: AsShotWhite | null }
+
+// How many of each stay in memory comes from the device's memory budget (src/core/memoryBudget.ts): 24 and 8 on a
+// standard device, fewer on a phone with little memory, more on a big desktop.
+const MAX_FULL_PREVIEW_CACHE = deviceMemoryBudget().fullPreviews;
 // Full-sensor JPEGs can be tens of MB each; a 500-photo session must not pin them all.
-const MAX_DEVELOPED_FULL_CACHE = 8;
+const MAX_DEVELOPED_FULL_CACHE = deviceMemoryBudget().developedRaws;
 /** Preview addresses whose picture source is remembered (a few bytes each). */
 const MAX_TAGGED_URLS = 4096;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
 const THUMB_MAX_WIDTH = 400;
 const REVIEW_MAX_WIDTH = 2200;
 const MAX_CACHED_PREVIEW_BYTES = 1024 * 1024;
+/** Disk previews of non-RAW photos (desktop app). Raise the number when they must be made again. */
+const DISK_PICTURE_PREFIX = 'picture-v1:';
+const SMART_MAX_EDGE = 2560;
+const MAX_HANDED_PICTURE_BYTES = 16 * 1024 * 1024;
+/** How long imported photos gather before one call reads them all from their paths. */
+const DISK_PICTURE_BATCH_MS = 150;
 
 export type { OfflinePreviewPair } from './offlinePreviewCache';
 
@@ -61,7 +80,11 @@ export class BrowserRawDecoder implements RawDecoder {
 }
 
 export class BrowserPreviewProvider implements PreviewProvider {
-  constructor(private readonly offlinePreviewCache: OfflinePreviewCache = persistentPreviewCache) {}
+  constructor(
+    private readonly offlinePreviewCache: OfflinePreviewCache = persistentPreviewCache,
+    /** The desktop app's preview cache on disk (diskPreviewCache.ts); null in a browser and on phones. */
+    private readonly diskPreviews: DiskPreviewStore | null = diskPreviewStore(),
+  ) {}
 
   private localBlobs = new Map<string, Blob>();
   private thumbUrlCache = new Map<string, string>();
@@ -150,6 +173,23 @@ export class BrowserPreviewProvider implements PreviewProvider {
     };
   }
 
+  /**
+   * The first bytes of the original, for reading its metadata later. A held original is sliced; a linked one is read by
+   * range, never whole, so a 50 MB RAW costs one megabyte. undefined when the original is not reachable now.
+   */
+  async readOriginalHead(stableKey: string, bytes = EXIF_HEAD_BYTES): Promise<Blob | undefined> {
+    const held = this.localBlobs.get(stableKey);
+    if (held) return held.slice(0, Math.min(held.size, bytes));
+    const link = this.linked.get(stableKey);
+    if (!link?.openRange) return undefined;
+    const range = await link.openRange();
+    try {
+      return await headBlob(range.blob, bytes);
+    } finally {
+      await range.close().catch(() => undefined);
+    }
+  }
+
   /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */
   async ensureOriginal(stableKey: string, priority: ReadPriority = 'background'): Promise<Blob | undefined> {
     const held = this.localBlobs.get(stableKey);
@@ -226,12 +266,70 @@ export class BrowserPreviewProvider implements PreviewProvider {
         fileSize: info?.size ?? original.size,
         lastModified: info?.lastModified ?? (typeof File !== 'undefined' && original instanceof File ? original.lastModified : undefined),
       });
+      if (!isRawPreviewFile(filename)) this.queueDiskPicture(stableKey, filename, cacheKey, bitmap);
       const saved = await this.offlinePreviewCache.savePreviewPair(cacheKey, previews);
       if (!saved) this.rememberOfflinePreview(cacheKey, previews);
       return saved;
     } finally {
       bitmap.close();
     }
+  }
+
+  /** The disk previews of a JPEG, PNG, TIFF or HEIF photo (desktop app): a separate key from a RAW's develop. */
+  private diskPictureKey(frame: PhotoFrame): string {
+    return `${DISK_PICTURE_PREFIX}${this.offlineCacheKey(frame)}`;
+  }
+
+  /** The desktop app can keep disk previews of this non-RAW photo: a linked file whose bytes are known by hash. */
+  private canStoreDiskPicture(stableKey: string, filename: string): boolean {
+    const linked = this.linked.get(stableKey);
+    return Boolean(this.diskPreviews && !isRawPreviewFile(filename) && linked?.path && linked.sha256);
+  }
+
+  /** Photos waiting to be read from their paths in one call, so the app makes several at once. */
+  private diskPictureBatch: { request: DiskBuildRequest; stableKey: string }[] = [];
+  private diskPictureTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Make a non-RAW photo's disk previews, in the background and best-effort (the IndexedDB copy is already there).
+   * A JPEG, PNG or TIFF is read by the app from its path, a few photos per call. A HEIF only the system viewer can open,
+   * so the page hands over the picture it already decoded, at the smart preview's 2,560 px, never the original.
+   */
+  private queueDiskPicture(stableKey: string, filename: string, cacheKey: string, bitmap: ImageBitmap): void {
+    const store = this.diskPreviews;
+    if (!store || !this.canStoreDiskPicture(stableKey, filename)) return;
+    const key = `${DISK_PICTURE_PREFIX}${cacheKey}`;
+    const linked = this.linked.get(stableKey)!;
+    if (isHeifFile(filename)) {
+      // encodePreview draws the bitmap before its first wait, so the caller may close it straight after this call.
+      void encodePreview(bitmap, SMART_MAX_EDGE, MAX_HANDED_PICTURE_BYTES)
+        .then((picture) => this.linked.get(stableKey) === linked ? store.store(key, picture) : undefined)
+        .then((result) => { if (result?.status === 'built') this.announceDiskPicture(stableKey); })
+        .catch(() => undefined);
+      return;
+    }
+    this.diskPictureBatch.push({ stableKey, request: { key, path: linked.path!, size: linked.size > 0 ? linked.size : undefined, sha256: linked.sha256! } });
+    if (this.diskPictureTimer) return;
+    this.diskPictureTimer = setTimeout(() => {
+      this.diskPictureTimer = null;
+      const batch = this.diskPictureBatch.splice(0);
+      void store.build(batch.map((item) => item.request)).then((results) => {
+        for (const item of batch) {
+          if (results.find((result) => result.key === item.request.key)?.status === 'built') this.announceDiskPicture(item.stableKey);
+        }
+      }).catch(() => undefined);
+    }, DISK_PICTURE_BATCH_MS);
+  }
+
+  /** Forget remembered offline fallbacks for this photo, so a view without the original asks for the smart preview. */
+  private announceDiskPicture(stableKey: string): void {
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
+  }
+
+  /** A non-RAW photo's stored disk preview (desktop app), or null. */
+  private async diskPicture(frame: PhotoFrame, level: DiskPreviewLevel): Promise<Blob | null> {
+    if (!this.diskPreviews || isRawPreviewFile(frame.filename)) return null;
+    return this.diskPreviews.read(this.diskPictureKey(frame), level).catch(() => null);
   }
 
   /** Decoded HEIF pictures, tied to the original they came from, so each original is decoded once while it is held. */
@@ -318,10 +416,129 @@ export class BrowserPreviewProvider implements PreviewProvider {
   async developedReview(frame: PhotoFrame): Promise<OfflinePreviewPair | null> {
     const key = this.developedCacheKey(frame);
     if (this.developedReviews.has(key)) return this.developedReviews.get(key) ?? null;
-    const pair = await this.offlinePreviewCache.loadPreviewPair(key).catch(() => null);
+    // The desktop app's disk previews first (made from the file's path), then this browser's IndexedDB copy.
+    const pair = await this.diskPair(key) ?? await this.offlinePreviewCache.loadPreviewPair(key).catch(() => null);
     // Another call may have stored a fresh one meanwhile; keep that.
     if (!this.developedReviews.get(key)) this.developedReviews.set(key, pair);
     return this.developedReviews.get(key) ?? null;
+  }
+
+  private async diskPair(key: string): Promise<OfflinePreviewPair | null> {
+    if (!this.diskPreviews) return null;
+    const [thumbnail, review] = await Promise.all([this.diskPreviews.read(key, 'thumb'), this.diskPreviews.read(key, 'review')]).catch(() => [null, null]);
+    return thumbnail && review ? { thumbnail, review } : null;
+  }
+
+  /**
+   * The 2,560 px smart preview on disk (desktop app), developed from the RAW's sensor data. The editor works on it like
+   * any preview, so a photo stays editable while its drive is unplugged; export still needs the original.
+   */
+  async smartPreview(frame: PhotoFrame): Promise<Blob | null> {
+    if (!this.diskPreviews || !isRawPreviewFile(frame.filename)) return null;
+    return this.diskPreviews.read(this.developedCacheKey(frame), 'smart').catch(() => null);
+  }
+
+  /** The desktop app can make this photo's disk previews from its path: a linked RAW whose bytes are known by hash. */
+  canBuildDiskPreviews(frame: PhotoFrame): boolean {
+    const linked = this.linked.get(frame.stableKey);
+    return Boolean(this.diskPreviews && isRawPreviewFile(frame.filename) && linked?.path && linked.sha256);
+  }
+
+  /**
+   * Disk builds already asked for, by cache key, so read-ahead and the photo's own turn share one develop. An entry is
+   * kept until that photo's own turn takes it, so the next photos' turns find theirs done and the following call
+   * develops a fresh group together.
+   */
+  private diskBuilds = new Map<string, Promise<DiskBuildResult | undefined>>();
+
+  /**
+   * Make this photo's disk previews in the desktop app, from its path (no bytes cross into the page), together with up
+   * to a few more from `alongside` on the app's own threads. Then match the camera's orientation, as the page-side
+   * develop does, and tell the tiles to redraw. Rejects in plain words when the photo could not be developed.
+   */
+  async buildDiskPreviews(frame: PhotoFrame, alongside: readonly PhotoFrame[] = [], signal?: AbortSignal): Promise<DiskPreviewOutcome> {
+    const store = this.diskPreviews;
+    if (!store || !this.canBuildDiskPreviews(frame)) throw new Error(`${frame.filename} has no path for a disk preview.`);
+    const stableKey = frame.stableKey;
+    const linked = this.linked.get(stableKey)!;
+    const epoch = this.cacheEpoch;
+    const revision = this.sourceRevisions.get(stableKey) ?? 0;
+    const isCurrent = () => !signal?.aborted && epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(stableKey) ?? 0)
+      && this.linked.get(stableKey) === linked;
+    const key = this.developedCacheKey(frame);
+
+    const batch = this.diskBuilds.has(key) ? [] : [frame, ...alongside].filter((item, index, all) =>
+      all.findIndex((other) => other.stableKey === item.stableKey) === index && this.canBuildDiskPreviews(item)
+      && !this.diskBuilds.has(this.developedCacheKey(item)));
+    if (batch.length) {
+      const requests = batch.map((item) => {
+        const info = this.linked.get(item.stableKey)!;
+        return { key: this.developedCacheKey(item), path: info.path!, size: info.size > 0 ? info.size : undefined, sha256: info.sha256! };
+      });
+      const call = store.build(requests);
+      for (const request of requests) {
+        const task = call.then((results) => results.find((result) => result.key === request.key));
+        // A failed call is asked again on that photo's own turn.
+        task.catch(() => { if (this.diskBuilds.get(request.key) === task) this.diskBuilds.delete(request.key); });
+        this.diskBuilds.set(request.key, task);
+      }
+    }
+    const own = this.diskBuilds.get(key);
+    const result = await own;
+    if (this.diskBuilds.get(key) === own) this.diskBuilds.delete(key);
+    if (!result || result.status === 'failed') throw new Error(result?.error ?? `${frame.filename} could not be developed.`);
+    if (!isCurrent()) throw new Error(`The source for ${frame.filename} changed while developing it.`);
+
+    if (result.status === 'built') {
+      // The sensor data is stored sideways-on and some cameras' flags say "normal" for an upright portrait: the camera's
+      // own preview, read from just its part of the file, is the guide.
+      const thumbnail = await store.read(key, 'thumb');
+      const embedded = await this.embeddedPreview(stableKey, linked);
+      if (thumbnail && embedded) {
+        const { previewTurn } = await import('./rawDevelop');
+        const turn = await previewTurn(thumbnail, embedded);
+        if (turn !== 0 && isCurrent()) await store.rotate(key, turn).catch(() => undefined);
+      }
+    }
+    const review = await store.read(key, 'review');
+    const { readAsShotWhiteFromBlob } = await import('../core/asShotWhite');
+    const white = review ? await readAsShotWhiteFromBlob(review).catch(() => null) : null;
+    if (!isCurrent()) throw new Error(`The source for ${frame.filename} changed while developing it.`);
+    this.developedReviews.delete(key);
+    this.announceDeveloped(stableKey, revision);
+    return { codec: result.codec, white };
+  }
+
+  /** The camera's own preview from a linked RAW, read from just that part of the file; null on any doubt. */
+  private async embeddedPreview(stableKey: string, linked: LinkedInfo): Promise<Blob | null> {
+    if (!linked.openRange) return null;
+    let range: LinkedRange | null = null;
+    try {
+      range = await linked.openRange();
+      const preview = await extractNefPreview(range.blob as unknown as Blob);
+      if (!preview) return null;
+      const bytes = await materialize(preview, 'image/jpeg');
+      return await range.verify() && this.linked.get(stableKey) === linked ? bytes : null;
+    } catch {
+      return null;
+    } finally {
+      await range?.close().catch(() => undefined);
+    }
+  }
+
+  /** A developed picture replaced the embedded preview: views showing this original ask again. */
+  private announceDeveloped(stableKey: string, revision: number | undefined): void {
+    // An explicit full develop stays preferred.
+    if (!this.developed.has(stableKey)) {
+      this.sourceRevisions.set(stableKey, (revision ?? 0) + 1);
+      this.invalidateFullPreview(stableKey);
+    }
+    for (const [frameId, url] of this.thumbUrlCache) {
+      if (this.thumbFrameKeys.get(frameId) !== stableKey) continue;
+      URL.revokeObjectURL(url);
+      this.thumbUrlCache.delete(frameId);
+    }
+    this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
   }
 
   /** Keep a picture developed from the RAW, made small, and tell the tiles showing this original to redraw. */
@@ -349,17 +566,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.developedReviews.set(key, pair);
     await this.offlinePreviewCache.savePreviewPair(key, pair, MAX_RAW_DEVELOP_PREVIEW_BYTES).catch(() => false);
     if (!isCurrent()) return false;
-    // Replace the embedded preview, including one still being read. An explicit full develop stays preferred.
-    if (!this.developed.has(stableKey)) {
-      this.sourceRevisions.set(stableKey, (revision ?? 0) + 1);
-      this.invalidateFullPreview(stableKey);
-    }
-    for (const [frameId, url] of this.thumbUrlCache) {
-      if (this.thumbFrameKeys.get(frameId) !== stableKey) continue;
-      URL.revokeObjectURL(url);
-      this.thumbUrlCache.delete(frameId);
-    }
-    this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
+    // Replace the embedded preview, including one still being read.
+    this.announceDeveloped(stableKey, revision);
     return true;
   }
 
@@ -532,10 +740,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
     // camera's embedded JPEG; do not treat it as a sensor-quality RAW master.
     if (!this.developed.has(key) && isRawPreviewFile(frame.filename)) {
       const saved = await this.developedReview(frame);
+      // On the desktop the 2,560 px smart preview is the editor's picture until a full develop: it is there with the
+      // drive unplugged, so the photo stays editable. Export still asks for the original (isOfflineFallback).
+      const smart = saved?.review ? await this.smartPreview(frame) : null;
       if (saved?.review && epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(key) ?? 0)) {
         const ready = this.fullUrlCache.get(key);
         if (ready) return ready;
-        const url = this.tagUrl(URL.createObjectURL(saved.review), 'raw-review');
+        const url = this.tagUrl(URL.createObjectURL(smart ?? saved.review), 'raw-review');
         this.fullUrlCache.set(key, url);
         this.offlineFullKeys.add(key);
         this.fullUrlOrder.push(key);
@@ -560,7 +771,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const raw = isRawPreviewFile(frame.filename);
       const fullDevelop = this.developed.get(key);
       const savedDevelop = !fullDevelop && !cachedPreviews?.review && raw ? (await this.developedReview(frame))?.review : undefined;
-      const offline = fullDevelop ?? cachedPreviews?.review ?? savedDevelop ?? await loadOfflinePreview(cacheKey);
+      // A JPEG or HEIF on the desktop: the 2,560 px smart preview from the disk cache, so it stays editable unplugged.
+      const smartPicture = raw ? null : await this.diskPicture(frame, 'smart');
+      const offline = fullDevelop ?? smartPicture ?? cachedPreviews?.review ?? savedDevelop ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
       const offlineSource: PictureSource = !raw ? 'original' : fullDevelop ? 'raw-full' : savedDevelop ? 'raw-review' : 'camera-preview';
       if (epoch !== this.cacheEpoch) return '';
@@ -635,6 +848,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   clear(): void {
     this.cacheEpoch += 1;
+    this.diskPictureBatch = [];
+    if (this.diskPictureTimer) clearTimeout(this.diskPictureTimer);
+    this.diskPictureTimer = null;
     this.offlinePreviewEpoch += 1;
     this.pendingFull.clear();
     for (const url of this.thumbUrlCache.values()) {
@@ -656,6 +872,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.developed.clear();
     this.developing.clear();
     this.developedReviews.clear();
+    this.diskBuilds.clear();
     this.thumbFrameKeys.clear();
     this.pendingThumbs.clear();
     this.sourceRevisions.clear();
@@ -685,7 +902,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     const cacheKey = this.offlineCacheKey(frame);
     const shownAs: PictureSource = isRawPreviewFile(frame.filename) ? 'camera-preview' : 'original';
-    const offline = await loadOfflinePreview(cacheKey);
+    const offline = await this.diskPicture(frame, 'thumb') ?? await loadOfflinePreview(cacheKey);
     if (offline) {
       const url = this.tagUrl(URL.createObjectURL(offline), shownAs);
       return this.rememberThumbnailUrl(frame, url, revision, epoch);

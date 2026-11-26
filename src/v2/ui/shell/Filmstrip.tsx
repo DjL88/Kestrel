@@ -15,6 +15,9 @@ import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 import { SearchNote } from './SearchNote';
 
+/** English only while the Culling Assistant is a preview (x-std-cull-rules); moves into the V2 i18n area before it is switched on. */
+const CULL_ASSISTANT_LABEL = 'Culling Assistant';
+
 interface FilmstripProps {
   photos: Photo[];
   activePhoto: Photo | null;
@@ -58,6 +61,8 @@ interface FilmstripProps {
   onImport: () => void;
   onImportFolder: () => void;
   onRunAutoCull: () => void;
+  /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
+  onOpenCullAssistant?: () => void;
   onExportSelected: () => void;
   /** Two selected photos open side by side. */
   onCompareSelected?: () => void;
@@ -114,6 +119,7 @@ export default function Filmstrip({
   onImport,
   onImportFolder,
   onRunAutoCull,
+  onOpenCullAssistant,
   onExportSelected,
   onCompareSelected,
   onCreateCollage,
@@ -346,6 +352,12 @@ export default function Filmstrip({
             </span>
             <ProBadge feature="smartCulling" />
           </button>
+          )}
+          {onOpenCullAssistant && !hideAutoCull && !collageMode && (
+            <button type="button" onClick={onOpenCullAssistant} data-testid="open-cull-assistant"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap">
+              <span>{CULL_ASSISTANT_LABEL}</span>
+            </button>
           )}
         </div>
 

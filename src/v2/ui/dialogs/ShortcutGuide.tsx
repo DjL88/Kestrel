@@ -1,7 +1,7 @@
 import { STRINGS } from '../strings';
 import React, { useEffect, useRef } from 'react';
 import { COMMAND_GROUP_LABELS, availableCommands, commandById, type CommandGroup } from '../commands/registry';
-import { chordLabel, type Keymap } from '../commands/keymap';
+import { chordLabel, chordsLabel, type Keymap } from '../commands/keymap';
 import { PAD_SLOT_LABELS, padGuideRows, type PadProfile } from '../commands/pad';
 
 interface ShortcutGuideProps {
@@ -56,7 +56,7 @@ export default function ShortcutGuide({ keymap, pad, isMac, onClose, previews = 
                 {commands.filter((command) => command.group === group).map((command) => (
                   <React.Fragment key={command.id}>
                     <dt className="text-[var(--text-secondary)]">{command.label}</dt>
-                    <dd className="text-right font-medium">{chordLabel(keymap[command.id], isMac)}</dd>
+                    <dd className="text-right font-medium">{chordsLabel(command.id, keymap, isMac)}</dd>
                   </React.Fragment>
                 ))}
               </dl>

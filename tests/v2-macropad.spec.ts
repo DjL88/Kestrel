@@ -39,3 +39,26 @@ test('?v2 Settings > Keyboard shows the last pad key, learns a new key and repor
   await root.getByRole('button', { name: 'Reset pad to the starting set-up' }).click();
   await expect(root.getByRole('alert')).toHaveCount(0);
 });
+
+test('?v2 Settings > Keyboard: the dial press can be learnt, and F13 to F21 moves the pad off keyboard keys', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  // Playwright's keyboard has no F13 and up, so the pad's key is sent as the browser would deliver it.
+  const padSends = (code: string) => page.evaluate((c) => document.body.dispatchEvent(new KeyboardEvent('keydown', { code: c, key: c, bubbles: true })), code);
+  await openV2Settings(page);
+  await root.getByRole('tab', { name: 'Keyboard' }).or(root.getByRole('button', { name: 'Keyboard' })).first().click();
+  // The dial press starts idle; learning a key for it is reported like any slot.
+  await root.getByRole('button', { name: 'Learn the key for Dial pressed' }).click();
+  await padSends('F21');
+  await padSends('F21');
+  await expect(root.getByTestId('pad-last-key')).toContainText('Dial pressed');
+  // F13 to F21: Key 1 now sends F13, and the button says it's already done.
+  const useFKeys = root.getByRole('button', { name: 'Use F13 to F21, keys no keyboard has' });
+  await useFKeys.click();
+  await expect(useFKeys).toBeDisabled();
+  await padSends('F13');
+  await expect(root.getByTestId('pad-last-key')).toContainText('Key 1');
+  await expect(root.getByRole('alert')).toHaveCount(0);
+  await root.getByRole('button', { name: 'Reset pad to the starting set-up' }).click();
+  await expect(useFKeys).toBeEnabled();
+});

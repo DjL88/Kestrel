@@ -119,12 +119,12 @@ test('a keymap exports and re-imports to the exact same keymap', () => {
 test('import refuses a file that is not JSON, not a keymap export, or from a newer format version', () => {
   assert.deepEqual(importKeymap('not json'), { ok: false, error: 'That file is not valid JSON.' });
   assert.deepEqual(importKeymap('null'), { ok: false, error: 'That file is not a keymap export.' });
-  assert.deepEqual(importKeymap('[]'), { ok: false, error: 'That file is not a Kestrel keymap export.' });
-  assert.deepEqual(importKeymap(JSON.stringify({ foo: 'bar' })), { ok: false, error: 'That file is not a Kestrel keymap export.' });
+  assert.deepEqual(importKeymap('[]'), { ok: false, error: 'That file is not an InFlight keymap export.' });
+  assert.deepEqual(importKeymap(JSON.stringify({ foo: 'bar' })), { ok: false, error: 'That file is not an InFlight keymap export.' });
   const future = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 99, preset: 'inflight', overrides: {} }));
   assert.equal(future.ok, false);
   const badPreset = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 1, preset: 'photomechanic', overrides: {} }));
-  assert.deepEqual(badPreset, { ok: false, error: 'That file does not name a key set Kestrel knows.' });
+  assert.deepEqual(badPreset, { ok: false, error: 'That file does not name a key set InFlight knows.' });
 });
 
 test('import drops an unknown command id or an overlong chord, and names what it dropped, without failing the rest', () => {
@@ -186,4 +186,31 @@ test('+ and - zoom from either key of the pair and the number pad, and Cmd/Ctrl 
   assert.equal(run({ code: 'Minus', key: '-', ctrlKey: true }), null);
   // Typing a minus sign in a number field never zooms.
   assert.equal(resolveCommand({ event: key({ code: 'Minus', key: '-' }), keymap: map, isMac: false, inField: true }), null);
+});
+
+test('Ctrl+Y redoes and F11 is full screen on Windows, alongside the key set, and never on a Mac', async () => {
+  const { keyboardMatches, chordsLabel, alternateChords } = await import('./keymap');
+  const map = effectiveKeymap('inflight');
+  const run = (init: Partial<KeyboardEvent> & { code: string; key: string }, isMac: boolean) => resolveCommand({ event: key(init), keymap: map, isMac, inField: false })?.id ?? null;
+  assert.equal(run({ code: 'KeyY', key: 'y', ctrlKey: true }, false), 'edit.redo');
+  assert.equal(run({ code: 'KeyZ', key: 'z', ctrlKey: true, shiftKey: true }, false), 'edit.redo');
+  assert.equal(run({ code: 'F11', key: 'F11' }, false), 'view.fullscreen');
+  assert.equal(run({ code: 'KeyY', key: 'y', metaKey: true }, true), null);
+  assert.equal(chordsLabel('edit.redo', map, false), 'Ctrl+Shift+Z / Ctrl+Y');
+  assert.equal(chordsLabel('edit.redo', map, true), 'Cmd+Shift+Z');
+  // A person's own key wins: Ctrl+Y given to Export means Export, and Redo keeps only its own key.
+  const mine = { ...map, 'file.export': 'Mod+KeyY' };
+  assert.deepEqual(keyboardMatches('Mod+KeyY', mine, false).map((c) => c.id), ['file.export']);
+  assert.deepEqual(alternateChords('edit.redo', mine, false), []);
+  // Clearing Redo clears its second key too.
+  const cleared = { ...map }; delete cleared['edit.redo'];
+  assert.equal(resolveCommand({ event: key({ code: 'KeyY', key: 'y', ctrlKey: true }), keymap: cleared, isMac: false, inField: false }), null);
+});
+
+test('Lightroom keys: E for a single photo, F6 for the filmstrip, Cmd/Ctrl+D to select no photos', () => {
+  const lr = effectiveKeymap('lightroom');
+  assert.equal(lr['view.loupe'], 'KeyE');
+  assert.equal(lr['view.filmstrip'], 'F6');
+  assert.equal(lr['edit.selectNone'], 'Mod+KeyD');
+  assert.equal(effectiveKeymap('inflight')['edit.selectNone'], 'Mod+Shift+KeyA');
 });

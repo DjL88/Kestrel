@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { STRINGS } from '../strings';
 import { COMMANDS, COMMAND_GROUP_LABELS, availableCommands, type CommandGroup, type CommandId } from '../commands/registry';
 import {
-  PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
+  PRESETS, chordLabel, chordsLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
 } from '../commands/keymap';
-import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
+import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, usesFunctionKeys, withFunctionKeys, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
 
 interface KeyboardSettingsProps {
   saved: SavedKeymap;
@@ -13,6 +13,9 @@ interface KeyboardSettingsProps {
   onChange: (next: SavedKeymap) => void;
   pad: PadProfile;
   onPadChange: (next: PadProfile) => void;
+  /** Settings > Keyboard > Macro pad keys. On unless turned off; the slots below stay saved either way. */
+  padKeysOn?: boolean;
+  onPadKeysOnChange?: (on: boolean) => void;
   /** Preview features that are on: their commands are listed only then. */
   previews?: Partial<Record<'nextToReview', boolean>>;
 }
@@ -21,7 +24,7 @@ const GROUPS: CommandGroup[] = ['photos', 'view', 'adjust', 'edit', 'app'];
 const buttonClass = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-primary)] disabled:opacity-40';
 
 /** Settings > Keyboard: pick a keymap, change or clear any command's key, reset. A clash is shown in words and never resolved by guessing. */
-export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadChange, previews = {} }: KeyboardSettingsProps) {
+export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadChange, padKeysOn = true, onPadKeysOnChange, previews = {} }: KeyboardSettingsProps) {
   const commands = availableCommands(previews);
   const [capturing, setCapturing] = useState<CommandId | null>(null);
   const [learning, setLearning] = useState<PadSlot | null>(null);
@@ -98,7 +101,8 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
     return () => window.removeEventListener('keydown', onKey);
   }, [isMac, pad]);
 
-  const padProblems = padClashes(pad, keymap);
+  // With pad keys off nothing on the pad can clash, so no warning is shown.
+  const padProblems = padKeysOn ? padClashes(pad, keymap) : [];
 
   return (
     <div className="space-y-4">
@@ -148,7 +152,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
                     <span className="text-[var(--text-primary)]">{command.label}{changed ? STRINGS.keyboardKeys.changedSuffix : ''}</span>
                     <span className="flex items-center gap-1.5">
                       <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                        {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chordLabel(chord, isMac)}
+                        {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chord ? chordsLabel(command.id, keymap, isMac) : chordLabel(chord, isMac)}
                       </kbd>
                       <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.changeLabel(command.label)} onClick={() => setCapturing(capturing === command.id ? null : command.id)}>
                         {capturing === command.id ? STRINGS.keyboardKeys.cancel : STRINGS.keyboardKeys.change}
@@ -171,6 +175,17 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
       {Object.keys(conflicts).length === 0 && <p className="text-xs text-[var(--text-secondary)]">{STRINGS.keyboardKeys.noClashes}</p>}
       <section aria-labelledby="v2-pad-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
         <h3 id="v2-pad-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.keyboardKeys.padHeading}</h3>
+        <div className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+          <div>
+            <h4 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.keyboardKeys.padKeysLabel}</h4>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.keyboardKeys.padKeysDesc}</p>
+          </div>
+          <button type="button" role="switch" aria-checked={padKeysOn} aria-label={STRINGS.keyboardKeys.padKeysLabel} data-testid="pad-keys-switch"
+            onClick={() => onPadKeysOnChange?.(!padKeysOn)}
+            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${padKeysOn ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
+            {padKeysOn ? STRINGS.layers.on : STRINGS.layers.off}
+          </button>
+        </div>
         <p className="text-xs text-[var(--text-secondary)]">
           {STRINGS.keyboardKeys.padHelp}
         </p>
@@ -210,7 +225,10 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
             </div>
           ))}
         </div>
-        <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>{STRINGS.keyboardKeys.resetPad}</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>{STRINGS.keyboardKeys.resetPad}</button>
+          <button type="button" className={buttonClass} disabled={usesFunctionKeys(pad)} onClick={() => onPadChange(withFunctionKeys(pad))}>{STRINGS.keyboardKeys.padFunctionKeys}</button>
+        </div>
       </section>
     </div>
   );

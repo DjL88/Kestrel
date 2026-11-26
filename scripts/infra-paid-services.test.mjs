@@ -47,3 +47,11 @@ test('the daily account deletion job is off unless the owner switches it on, and
   assert.match(tf, /schedule\s*=\s*"30 3 \* \* \*"/);
   assert.match(tf, /src\/runAccountDeletions\.ts/);
 });
+
+test('cloud edit settings (x-std-cloud-recipe) stay off until the owner switches them on, under a set spend ceiling', () => {
+  const vars = code('variables.tf');
+  assert.match(vars, /variable "cloud_recipe_enabled"\s*\{[^}]*default\s*=\s*false/s);
+  assert.match(vars, /variable "monthly_spend_ceiling_pence"\s*\{[^}]*default\s*=\s*1500\b/s);
+  const plane = code('control-plane.tf');
+  assert.match(plane, /var\.cloud_processing_enabled && var\.cloud_runner_image != "" && var\.cloud_recipe_enabled \? \{ KCP_CLOUD_RECIPE_ENABLED = "1" \}/);
+});

@@ -5,12 +5,6 @@ test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name === 'phone', 'the V2 phone layout is checked in a later slice');
 });
 
-test('V2 is off by default and the current app is untouched', async ({ page }) => {
-  await page.goto('/?v2=0');
-  await expect(page.locator('.inflight-v2')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'New project' })).toBeVisible();
-});
-
 test('?v2&stub=1 shows the sample-data hub, opens a project and toggles Compare', async ({ page }) => {
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
@@ -24,13 +18,6 @@ test('?v2&stub=1 shows the sample-data hub, opens a project and toggles Compare'
   await compare.click();
   await expect(compare).toHaveAttribute('aria-pressed', 'true');
   await expect(root.getByText('Before', { exact: true }).first()).toBeVisible();
-});
-
-test('leaving V2 with ?v2=0 restores the current app', async ({ page }) => {
-  await page.goto('/?v2');
-  await expect(page.locator('.inflight-v2')).toBeVisible();
-  await page.goto('/?v2=0');
-  await expect(page.locator('.inflight-v2')).toHaveCount(0);
 });
 
 test('?v2 runs on the real catalogue: create, import, flag, rate, reload and the photos are still there', async ({ page }) => {
