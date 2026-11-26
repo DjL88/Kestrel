@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { basename, dirname, join, resolve } from 'node:path';
 import { loadEnv } from 'vite';
 import { planPublish, type InstallerFile } from '../../src/core/publishPlan.ts';
+import { releaseModelSource } from '../build-desktop-guard.mjs';
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 function arg(name: string): string | undefined {
@@ -58,7 +59,8 @@ const plan = planPublish({
   installers: installerFiles(arg('installers')),
   modelVersion,
   visionModels: json('scripts/models/manifest.json').models,
-  buildEnv: { ...loadEnv('production', root, 'VITE_'), ...process.env },
+  // What `npm run desktop:build` would use: .env files, the environment, and the pinned model source it adds.
+  buildEnv: (() => { const env = { ...loadEnv('production', root, 'VITE_'), ...process.env }; return { ...env, ...releaseModelSource(env) }; })(),
   commit,
 });
 

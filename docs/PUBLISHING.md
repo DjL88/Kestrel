@@ -45,14 +45,15 @@ address of every file. On 26 November:
 
 - **Ready:** RF-DETR Nano, EfficientSAM-Ti (encoder and decoder), NAFNet, BiRefNet-lite, and the six BioCLIP 2 species lists.
 - **Needs `--allow-large`:** the BioCLIP 2 image model (580 MiB). Apps built before the 1 GiB limit refuse a manifest with a
-  file over 256 MiB, so list it only in a later manifest revision once installed apps are updated, or leave it out at launch.
+  file over 256 MiB. Owner decision, 26 Nov 2026: it ships at launch, so the launch manifest is signed with `--allow-large`.
 - **Held:** CLIP text search. Its size is not pinned yet, so the app keeps the pack out of sight and the dry run will not list it.
 - **Not mirrored:** the local vision models (SmolVLM2-500M, Florence-2-base). `scripts/models/acquire.py` fetches them from
   their authors at the revision pinned in `scripts/models/manifest.json` and checks every file. Copying them into our bucket
   would need a second packaging contract and goes over the single-file limits above, so it is a separate decision.
 
 A release build offers packs only when it has `VITE_KESTREL_MODEL_BASE_URL=https://storage.googleapis.com/kestrel-hosting-kestrel-models`
-and `VITE_KESTREL_MODEL_KEYS` (the public `kestrel-2026-11` key in `.env.example`). No build sets them yet; the dry run says so.
+and `VITE_KESTREL_MODEL_KEYS` (the public `kestrel-2026-11` key). `npm run desktop:build` and the V2Proto image set both by
+default since 26 Nov 2026 (`RELEASE_MODEL_SOURCE` in `scripts/build-desktop-guard.mjs`); a value in `.env.local` wins.
 
 ## Order of a launch publish
 
@@ -68,11 +69,11 @@ and `VITE_KESTREL_MODEL_KEYS` (the public `kestrel-2026-11` key in `.env.example
 Each of these spends money, reads a key or changes something people can see, so an agent prepares it and stops:
 
 1. Say go for the commit to promote.
-2. Add the two model settings above to the release build settings on the Mac and the Windows laptop.
+2. ~~Add the two model settings to the release builds~~: done in code, 26 Nov.
 3. Read the manifest signing key to sign the model manifest.
 4. Upload the model packs (about 0.9 GB) to the public models bucket. Every download is billed as egress: 100 people taking
    every pack is about 90 GB.
-5. Decide whether the BioCLIP 2 image model ships at launch or in a later manifest revision.
+5. ~~Decide on the BioCLIP 2 image model~~: ships at launch (owner, 26 Nov).
 6. Upload installers and update `latest.json` (the website download cards change within five minutes).
 7. Deploy the website to Firebase Hosting.
 8. Publish the draft GitHub release, which starts desktop updates.
