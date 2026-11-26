@@ -1,4 +1,4 @@
-import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
+import { LANGUAGES, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { AiProviderSetup } from './AiProviderSetup';
 import { StorageConnections } from './StorageConnections';
@@ -740,13 +740,10 @@ export default function SettingsDialog({
                 >
                   {LANGUAGES.map((option) => (
                     <option key={option.code} value={option.code}>
-                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : option.status === 'draft' ? STRINGS.settings.language.draftSuffix : ''}
+                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : ''}
                     </option>
                   ))}
                 </select>
-                {languageOption(language).status === 'draft' && (
-                  <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.language.draftNote}</p>
-                )}
               </div>
             )}
           </div>
