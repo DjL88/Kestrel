@@ -31,6 +31,9 @@ import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
+import { nextToReview } from '../../core/savedViews';
+import { workflowText } from '../../i18n/areas/workflow';
+import type { SavedViewsControl } from './shell/PhotoViewControls';
 import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -201,7 +204,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
-  const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides), [savedKeymap]);
+  // Preview features with their own commands. A preview that is off has no keys and is not listed anywhere.
+  const commandPreviews = React.useMemo(() => ({ nextToReview: store.features.nextToReview === true }), [store.features.nextToReview]);
+  const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides, commandPreviews), [savedKeymap, commandPreviews]);
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
@@ -349,10 +354,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // such as Flagged never lets an edit or an export reach photos that are hidden.
   // Photos found by what the picture shows (search by description), added to the word matches.
   const pictureIds = React.useMemo(() => (store.searchPictureIds ? new Set(store.searchPictureIds) : null), [store.searchPictureIds]);
-  const shownPhotoIds = React.useMemo(() => viewPhotos(store.photos, {
+  const shownPhotos = React.useMemo(() => viewPhotos(store.photos, {
     filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating,
     sort: store.filmstripSort, tag: store.filmstripTag ?? null, pictureIds,
-  }).map((photo) => photo.id), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, pictureIds]);
+  }), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, pictureIds]);
+  const shownPhotoIds = React.useMemo(() => shownPhotos.map((photo) => photo.id), [shownPhotos]);
+  // Saved views (preview, off by default): the filters in force, and putting a saved set back through the same setters.
+  const savedViewsControl = React.useMemo<SavedViewsControl | undefined>(() => !store.features.savedViews ? undefined : {
+    current: { filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating, sort: store.filmstripSort, tag: store.filmstripTag ?? null },
+    onApply: (criteria) => {
+      actions.setFilmstripFilter(criteria.filter);
+      actions.setFilmstripSearch(criteria.search);
+      actions.setFilmstripMinRating(criteria.minRating);
+      actions.setFilmstripSort(criteria.sort);
+      actions.setFilmstripTag?.(criteria.tag);
+    },
+  }, [store.features.savedViews, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, actions]);
   const selectShownPhoto = React.useCallback((photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) =>
     actions.selectPhoto(photoId, modifiers?.shift ? { ...modifiers, order: shownPhotoIds } : modifiers), [actions, shownPhotoIds]);
   const selectAllShown = React.useCallback(() => actions.selectAllPhotos(shownPhotoIds), [actions, shownPhotoIds]);
@@ -380,6 +397,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         break;
       case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
       case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
+      case 'photo.nextToReview': case 'photo.prevToReview': {
+        if (!store.features.nextToReview) break;
+        const delta = command.id === 'photo.nextToReview' ? 1 : -1;
+        const target = nextToReview(shownPhotos, activePhoto?.id, delta);
+        if (target) actions.selectPhoto(target.id);
+        else actions.showNotice?.(delta === 1 ? workflowText.noneAhead : workflowText.noneBehind);
+        break;
+      }
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
@@ -399,7 +424,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
 
   // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
   // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
@@ -942,6 +967,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSetSort={actions.setFilmstripSort}
                   tagFilter={store.filmstripTag ?? null}
                   onSetTagFilter={actions.setFilmstripTag}
+                  savedViews={savedViewsControl}
                   onSelectPhoto={selectShownPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
@@ -1031,6 +1057,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onSetSort={actions.setFilmstripSort}
                 tagFilter={store.filmstripTag ?? null}
                 onSetTagFilter={actions.setFilmstripTag}
+                savedViews={savedViewsControl}
                 quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}
@@ -1302,7 +1329,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
-        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} /></React.Suspense>}
+        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} previews={commandPreviews} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
         assistMode={store.assistMode}
@@ -1319,7 +1346,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       /></React.Suspense>
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={pad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} /></React.Suspense>
+        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={pad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} previews={commandPreviews} /></React.Suspense>
       )}
 
       {commandPaletteOpen && store.screen === 'editor' && (
@@ -1328,6 +1355,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           isMac={IS_MAC}
           onRunCommand={runCommand}
           onClose={() => setCommandPaletteOpen(false)}
+          previews={commandPreviews}
         /></React.Suspense>
       )}
 

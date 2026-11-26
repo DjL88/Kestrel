@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { STRINGS } from '../strings';
-import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup, type CommandId } from '../commands/registry';
+import { COMMANDS, COMMAND_GROUP_LABELS, availableCommands, type CommandGroup, type CommandId } from '../commands/registry';
 import {
   PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
@@ -13,13 +13,16 @@ interface KeyboardSettingsProps {
   onChange: (next: SavedKeymap) => void;
   pad: PadProfile;
   onPadChange: (next: PadProfile) => void;
+  /** Preview features that are on: their commands are listed only then. */
+  previews?: Partial<Record<'nextToReview', boolean>>;
 }
 
 const GROUPS: CommandGroup[] = ['photos', 'view', 'adjust', 'edit', 'app'];
 const buttonClass = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-primary)] disabled:opacity-40';
 
 /** Settings > Keyboard: pick a keymap, change or clear any command's key, reset. A clash is shown in words and never resolved by guessing. */
-export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadChange }: KeyboardSettingsProps) {
+export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadChange, previews = {} }: KeyboardSettingsProps) {
+  const commands = availableCommands(previews);
   const [capturing, setCapturing] = useState<CommandId | null>(null);
   const [learning, setLearning] = useState<PadSlot | null>(null);
   const [lastKey, setLastKey] = useState<{ chord: string; slot: PadSlot | null } | null>(null);
@@ -49,7 +52,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
         : STRINGS.keyboardKeys.importedSkipped(PRESETS[result.keymap.preset].label, result.dropped.join(', '))
     );
   };
-  const keymap = effectiveKeymap(saved.preset, saved.overrides);
+  const keymap = effectiveKeymap(saved.preset, saved.overrides, previews);
   const conflicts = findConflicts(keymap);
   const labelOf = (id: CommandId) => COMMANDS.find((command) => command.id === id)?.label ?? id;
 
@@ -135,7 +138,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
         <section key={group} aria-labelledby={`v2-keys-${group}`} className="space-y-1">
           <h3 id={`v2-keys-${group}`} className="text-xs font-semibold text-[var(--text-primary)]">{COMMAND_GROUP_LABELS[group]}</h3>
           <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
-            {COMMANDS.filter((command) => command.group === group).map((command) => {
+            {commands.filter((command) => command.group === group).map((command) => {
               const chord = keymap[command.id];
               const clash = chord ? commandsUsing(keymap, chord, command.id) : [];
               const changed = command.id in saved.overrides;
@@ -195,7 +198,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
                   className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                 >
                   <option value="">{STRINGS.keyboardKeys.nothing}</option>
-                  {COMMANDS.map((command) => <option key={command.id} value={command.id}>{command.label}</option>)}
+                  {commands.map((command) => <option key={command.id} value={command.id}>{command.label}</option>)}
                 </select>
                 <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)]">
                   {learning === slot ? STRINGS.keyboardKeys.pressAKey : chordLabel(pad[slot].chord, isMac)}

@@ -11,6 +11,7 @@ export type CommandId =
   | 'help.toggle'
   | 'photo.flag' | 'photo.reject' | 'photo.unflag'
   | 'photo.next' | 'photo.prev'
+  | 'photo.nextToReview' | 'photo.prevToReview'
   | 'photo.rate0' | 'photo.rate1' | 'photo.rate2' | 'photo.rate3' | 'photo.rate4' | 'photo.rate5'
   | 'view.grid'
   | 'view.compare'
@@ -36,6 +37,8 @@ export interface CommandDefinition {
   worksInFields: boolean;
   /** A held key repeats the command. Decisions never repeat. */
   allowRepeat: boolean;
+  /** A preview feature: the command exists only while this feature is on (hidden from the guide, search and keys otherwise). */
+  preview?: 'nextToReview';
 }
 
 export const COMMANDS: readonly CommandDefinition[] = [
@@ -45,6 +48,8 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'photo.unflag', group: 'photos', label: 'Clear flag or set aside', worksInFields: false, allowRepeat: false },
   { id: 'photo.next', group: 'photos', label: 'Next photo', worksInFields: false, allowRepeat: true },
   { id: 'photo.prev', group: 'photos', label: 'Previous photo', worksInFields: false, allowRepeat: true },
+  { id: 'photo.nextToReview', group: 'photos', label: 'Next photo to review', worksInFields: false, allowRepeat: true, preview: 'nextToReview' },
+  { id: 'photo.prevToReview', group: 'photos', label: 'Previous photo to review', worksInFields: false, allowRepeat: true, preview: 'nextToReview' },
   { id: 'photo.rate0', group: 'photos', label: 'Clear rating', worksInFields: false, allowRepeat: false },
   { id: 'photo.rate1', group: 'photos', label: 'Rate 1 star', worksInFields: false, allowRepeat: false },
   { id: 'photo.rate2', group: 'photos', label: 'Rate 2 stars', worksInFields: false, allowRepeat: false },
@@ -81,6 +86,11 @@ export const COMMAND_GROUP_LABELS: Record<CommandGroup, string> = {
   edit: 'Edit',
   app: 'App',
 };
+
+/** The commands a person can use now: every ordinary command, plus a preview's commands only while that preview is on. */
+export function availableCommands(previews: Partial<Record<NonNullable<CommandDefinition['preview']>, boolean>> = {}): CommandDefinition[] {
+  return COMMANDS.filter((command) => !command.preview || previews[command.preview] === true);
+}
 
 export function commandById(id: CommandId): CommandDefinition {
   const found = COMMANDS.find((command) => command.id === id);

@@ -12,6 +12,8 @@ export type Keymap = Partial<Record<CommandId, string>>;
 const RATINGS: Keymap = {
   'view.zoomIn': 'Equal', 'view.zoomOut': 'Minus',
   'photo.next': 'ArrowRight', 'photo.prev': 'ArrowLeft', 'photo.reject': 'KeyX', 'photo.unflag': 'KeyU',
+  // Preview (off by default): N jumps to the next photo with no decision yet, Shift+N back. They only act while it is on.
+  'photo.nextToReview': 'KeyN', 'photo.prevToReview': 'Shift+KeyN',
   'photo.rate0': 'Digit0', 'photo.rate1': 'Digit1', 'photo.rate2': 'Digit2',
   'photo.rate3': 'Digit3', 'photo.rate4': 'Digit4', 'photo.rate5': 'Digit5',
 };
@@ -73,13 +75,17 @@ export function isPresetId(value: unknown): value is PresetId {
 /** A person's own changes on top of a preset. An empty string means "deliberately unbound". */
 export type Overrides = Partial<Record<CommandId, string>>;
 
-/** The chords in force: the preset, then the person's overrides. */
-export function effectiveKeymap(preset: PresetId, overrides: Overrides = {}): Keymap {
+/**
+ * The chords in force: the preset, then the person's overrides. A preview feature's commands keep their chords only
+ * while that preview is on, so a preview that is off never takes a key or makes another command's key ambiguous.
+ */
+export function effectiveKeymap(preset: PresetId, overrides: Overrides = {}, previews: Partial<Record<NonNullable<CommandDefinition['preview']>, boolean>> = {}): Keymap {
   const merged: Keymap = { ...PRESETS[preset].keymap };
   for (const [id, chord] of Object.entries(overrides) as [CommandId, string][]) {
     if (chord === '') delete merged[id];
     else merged[id] = chord;
   }
+  for (const command of COMMANDS) if (command.preview && previews[command.preview] !== true) delete merged[command.id];
   return merged;
 }
 

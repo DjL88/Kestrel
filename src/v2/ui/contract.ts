@@ -66,7 +66,11 @@ export type FeatureKey =
   /** Preview: focus stacking (off by default). */
   | 'focusStack'
   /** Preview: panorama stitching (off by default). */
-  | 'panorama';
+  | 'panorama'
+  /** Preview: named saved views of the filmstrip's filters (off by default). */
+  | 'savedViews'
+  /** Preview: keys that jump to the next or previous photo still to review (off by default). */
+  | 'nextToReview';
 
 export type SocialPlatform =
   | 'instagram'
@@ -1044,6 +1048,8 @@ export interface WorkspaceActions {
   toggleAiProvider: (providerId: AiProviderConfig['id']) => void;
   toggleStorageConnector: (connectorId: StorageConnector['id']) => void;
   clearNotice: () => void;
+  /** Shows a short message in the usual notice (for a key that had nothing to do, for example). */
+  showNotice?: (message: string) => void;
 }
 
 /** Background suitability chosen when importing watermark artwork. */

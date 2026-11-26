@@ -3,6 +3,71 @@ import { createPortal } from 'react-dom';
 import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import { workflowText } from '../../../i18n/areas/workflow';
+import { MAX_SAVED_VIEWS, deleteView, loadSavedViews, matchingView, saveView, storeSavedViews, type SavedView, type ViewCriteria } from '../../../core/savedViews';
+
+/** Saved views (a preview behind its flag): what is shown now, and how to put a saved one back. */
+export interface SavedViewsControl {
+  current: ViewCriteria;
+  onApply: (criteria: ViewCriteria) => void;
+}
+
+const deviceStorage = (): Storage | null => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
+const newViewId = () => `view-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+/** Name and keep the filters in force, and put a saved set back with one choice. Kept on this device only. */
+function SavedViews({ control }: { control: SavedViewsControl }) {
+  const [views, setViews] = useState<SavedView[]>(() => loadSavedViews(deviceStorage()));
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const shown = matchingView(views, control.current);
+  const keep = (next: SavedView[], said: string) => {
+    setViews(next);
+    setMessage(storeSavedViews(deviceStorage(), next) ? said : workflowText.notStored);
+  };
+  const save = () => {
+    const result = saveView(views, name, control.current, newViewId);
+    if (!result.ok) {
+      setMessage(result.reason === 'empty-name' ? workflowText.emptyName : result.reason === 'full' ? workflowText.full(MAX_SAVED_VIEWS) : workflowText.notStored);
+      return;
+    }
+    keep(result.views, result.replaced ? workflowText.replaced(result.view.name) : workflowText.saved(result.view.name));
+    setName('');
+  };
+  return (
+    <section aria-label={workflowText.title} data-testid="saved-views" className="space-y-2 border-t border-[var(--border-subtle)] pt-3">
+      <h3 className="text-[0.6875rem] font-semibold text-[var(--text-secondary)]">{workflowText.title}</h3>
+      {views.length === 0 ? <p className="text-[0.6875rem] text-[var(--text-muted)]">{workflowText.none}</p> : (
+        <ul className="max-h-40 space-y-1 overflow-y-auto">
+          {views.map((view) => (
+            <li key={view.id} className="flex items-center gap-1">
+              <button type="button" onClick={() => { control.onApply(view.criteria); setMessage(workflowText.showing(view.name)); }}
+                aria-label={workflowText.show(view.name)} aria-current={shown?.id === view.id ? 'true' : undefined}
+                className={`min-h-8 flex-1 truncate rounded-[var(--radius-sm)] px-2 text-left text-xs hover:bg-[var(--bg-surface-hover)] ${
+                  shown?.id === view.id ? 'border border-[var(--border-default)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                {shown?.id === view.id && <span aria-hidden="true">✓ </span>}{view.name}
+              </button>
+              <button type="button" onClick={() => keep(deleteView(views, view.id), '')} aria-label={workflowText.remove(view.name)} title={workflowText.remove(view.name)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]">
+                <span aria-hidden="true">×</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="flex gap-1" onSubmit={(event) => { event.preventDefault(); save(); }}>
+        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={60} aria-label={workflowText.nameLabel} placeholder={workflowText.nameLabel}
+          data-testid="saved-view-name"
+          className="h-8 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+        <button type="submit" className="h-8 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+          {workflowText.save}
+        </button>
+      </form>
+      <p role="status" className="min-h-[1rem] text-[0.6875rem] text-[var(--text-secondary)]">{message}</p>
+      <p className="text-[0.6875rem] text-[var(--text-muted)]">{workflowText.hint}</p>
+    </section>
+  );
+}
 
 const SORTS: PhotoSort[] = ['shoot', 'captured-oldest', 'captured-newest', 'filename', 'rating', 'best'];
 
@@ -45,13 +110,15 @@ export function DecisionFilter({ photos, filter, onSetFilter, compact = false }:
 }
 
 /** A "Sort and filter" button that opens rating and order choices. When either differs from the default, the button says so in words. */
-export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensUp = true }: {
+export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensUp = true, savedViews }: {
   minRating: number;
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
   onSetSort: (sort: PhotoSort) => void;
   /** The filmstrip sits at the bottom, so its menu opens upwards; the grid's header opens it downwards. */
   opensUp?: boolean;
+  /** Saved views: present only while that preview is on. */
+  savedViews?: SavedViewsControl;
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ right: number; top: number; bottom: number } | null>(null);
@@ -124,6 +191,7 @@ export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensU
               {STRINGS.filmstrip.resetView}
             </button>
           )}
+          {savedViews && <SavedViews control={savedViews} />}
         </div>,
         document.querySelector('.inflight-v2') ?? document.body,
       )}
