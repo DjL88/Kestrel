@@ -2242,6 +2242,70 @@ export const source = {
     photosFrom: (project: string) => `From ${project}`,
   },
 
+  // Quick setup at first run (src/core/quickSetup.ts). Every step can be skipped; it can be run again from Settings.
+  setup: {
+    title: 'Quick setup',
+    stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
+    skipSetup: 'Skip setup',
+    skipStep: 'Skip this step',
+    next: 'Next',
+    back: 'Back',
+    finish: 'Finish',
+    runAgain: 'Run quick setup again',
+    runAgainDesc: 'Language, what you shoot, Pro, cloud, Flight mode and AI extras. About a minute; every step can be skipped.',
+    appliedFromAccount: 'Your settings from your account are on this device too.',
+    language: { title: 'Choose your language', body: 'You can change it later in Settings.', restartNote: 'InFlight restarts in the new language and carries on with setup.' },
+    about: {
+      title: 'What do you shoot?',
+      body: 'Choose any that fit. This only tailors the suggestions; nothing is locked.',
+      genres: {
+        wildlife: 'Wildlife and birds', sport: 'Sport and motorsport', aviation: 'Aircraft', weddings: 'Weddings and events',
+        portraits: 'Portraits', landscape: 'Landscape and travel', everyday: 'Family and everyday',
+      },
+      experienceLabel: 'How much editing have you done?',
+      experience: { new: 'New to it', some: 'Some', pro: 'A lot (professional)' },
+      experienceHint: {
+        new: 'Simple controls and tips on screen.',
+        some: 'The usual controls.',
+        pro: 'Advanced controls shown from the start.',
+      },
+    },
+    pro: {
+      title: 'Basic is free. Pro adds more.',
+      body: 'Basic stays free and fully usable: import, cull, edit and export, offline. Pro adds assisted culling, species suggestions and the online helper.',
+      monthly: (price: string) => `Monthly: ${price}`,
+      annual: (price: string) => `Yearly: ${price}`,
+      cancelNote: 'Cancel any time. Your projects, edits and exports are never locked.',
+      choose: 'Get Pro',
+      chosen: 'Settings opens at Pro when setup ends, so you can subscribe.',
+      stayBasic: 'Stay on Basic',
+    },
+    cloud: {
+      title: 'Cloud, or just this device?',
+      body: 'Sign in to back up your catalogue, keep your settings on every device and connect Google Drive, OneDrive or Dropbox. Or stay local: everything works offline.',
+      signIn: 'Sign in',
+      stayLocal: 'Stay on this device',
+      signedIn: (name: string) => `Signed in as ${name}.`,
+      signedInNoName: 'Signed in.',
+      connectDrives: 'Connect a drive when setup ends',
+      drivesNote: 'Settings opens at Storage when setup ends.',
+    },
+    flight: {
+      title: 'How much help would you like?',
+      body: 'This is the Flight mode for new projects. Each project can change it at any time.',
+      suggested: 'Suggested from your answers',
+    },
+    extras: {
+      title: 'Optional AI extras',
+      body: 'Each one runs on this device and works offline once downloaded. Ticked ones suit what you shoot. You can add or remove them later in Settings → Models.',
+      none: 'No extras to download: they are already on this device, or this version doesn\'t offer them.',
+      size: (mb: string) => `${mb} MB`,
+      download: 'Download and finish',
+      background: 'Downloads carry on in the background. Settings → Models shows how they are going.',
+      offline: 'Downloads need a connection. You can add them later in Settings → Models.',
+    },
+  },
+
   // Live shoot: a watched (hot) folder
   liveShoot: {
     watch: 'Shoot live',

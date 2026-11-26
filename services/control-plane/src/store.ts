@@ -141,6 +141,12 @@ export interface Store {
   setAccountStatus(accountId: string, status: AccountStatus): Promise<void>;
   /** The standing "use Gemini" account preference (see AccountRecord.aiConsent). */
   setAiConsent(accountId: string, consent: boolean): Promise<void>;
+  /**
+   * The person's app preferences kept with the account (quick setup's answers: language, what they shoot, experience,
+   * cloud choice, Flight mode, finished). Small, checked by the route, and removed with the account.
+   */
+  getPreferences(accountId: string): Promise<Record<string, unknown> | undefined>;
+  setPreferences(accountId: string, preferences: Record<string, unknown>): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
   /**
    * Account deletion (accountErasure.ts), atomic: the account row and its email link, every refresh token, the AI
