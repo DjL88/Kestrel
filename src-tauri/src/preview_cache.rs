@@ -237,6 +237,38 @@ pub fn build_one(root: &Path, request: &BuildRequest, develop: &(dyn Fn(&[u8], &
     }
 }
 
+/// The largest picture the page may hand over itself (a HEIF the system decoded, re-encoded at 2,560 px).
+const MAX_HANDED_BYTES: usize = 64 * 1024 * 1024;
+
+/// Store previews from a picture the page decoded itself: a HEIF photo, which only the system's own viewer can open.
+/// The page sends a JPEG or PNG no bigger than the smart preview, never the original file.
+pub fn store_picture(root: &Path, key: &str, bytes: &[u8]) -> BuildResult {
+    let failed = |error: &str| BuildResult { key: key.to_string(), status: "failed", made_from: None, codec: None, error: Some(error.to_string()) };
+    if key.is_empty() || key.len() > 4096 { return failed("No cache key was given."); }
+    if bytes.is_empty() || bytes.len() > MAX_HANDED_BYTES { return failed("This picture is too large for a preview."); }
+    let format = match image::guess_format(bytes) { Ok(format @ (ImageFormat::Jpeg | ImageFormat::Png)) => format, _ => return failed("This picture could not be read.") };
+    let picture = match image::load_from_memory_with_format(bytes, format) { Ok(picture) => picture, Err(_) => return failed("This picture could not be read.") };
+    match store(root, key, &picture, "picture", None) {
+        Ok(()) => BuildResult { key: key.to_string(), status: "built", made_from: Some("picture"), codec: None, error: None },
+        Err(error) => failed(&error),
+    }
+}
+
+/// Percent-decoding for a key sent in a request header (the page encodes it with encodeURIComponent).
+pub fn percent_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        if bytes[at] == b'%' {
+            let hex = std::str::from_utf8(bytes.get(at + 1..at + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            at += 3;
+        } else { out.push(bytes[at]); at += 1; }
+    }
+    String::from_utf8(out).ok()
+}
+
 /// Build many at once on `threads` threads (from the page's memory budget). Results come back in the order asked.
 pub fn build_many(root: &Path, requests: &[BuildRequest], threads: usize, develop: &(dyn Fn(&[u8], &str) -> Result<Vec<u8>, String> + Sync)) -> Vec<BuildResult> {
     use rayon::prelude::*;
@@ -479,6 +511,27 @@ mod tests {
         assert_eq!(jpeg_comment(&read(&root, "r", Level::Review).unwrap()).unwrap(), b"note");
         assert!(rotate(&root, "r", 45).is_err());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_picture_the_page_decoded_is_stored_in_three_sizes() {
+        let dir = scratch("handed");
+        let root = dir.join("previews");
+        let result = store_picture(&root, "heif", &synthetic_jpeg(2560, 1920));
+        assert_eq!(result.status, "built", "{result:?}");
+        assert_eq!(dims(&read(&root, "heif", Level::Thumb).unwrap()), (400, 300));
+        assert_eq!(dims(&read(&root, "heif", Level::Smart).unwrap()), (2560, 1920));
+        assert_eq!(store_picture(&root, "bad", b"not a picture").status, "failed");
+        assert_eq!(store_picture(&root, "", &synthetic_jpeg(8, 8)).status, "failed");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn header_keys_decode_exactly() {
+        assert_eq!(percent_decode("%5B%22a%22%2C%22%C3%A9t%C3%A9.heic%22%5D").unwrap(), "[\"a\",\"été.heic\"]");
+        assert_eq!(percent_decode("plain").unwrap(), "plain");
+        assert!(percent_decode("%zz").is_none());
+        assert!(percent_decode("%4").is_none());
     }
 
     #[test]

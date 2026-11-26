@@ -31,6 +31,8 @@ export interface DiskPreviewUsage { bytes: number; entries: number }
 
 export interface DiskPreviewStore {
   build(requests: DiskBuildRequest[]): Promise<DiskBuildResult[]>;
+  /** Previews from a picture the page decoded itself (a HEIF photo), at most 2,560 px across; never the original. */
+  store(key: string, picture: Blob): Promise<DiskBuildResult>;
   read(key: string, level: DiskPreviewLevel): Promise<Blob | null>;
   rotate(key: string, degrees: 90 | 180 | 270): Promise<void>;
   usage(limitBytes?: number): Promise<DiskPreviewUsage>;
@@ -53,15 +55,19 @@ export function saveDiskPreviewLimit(gb: number | null): void {
 
 export const currentDiskPreviewLimitBytes = () => diskPreviewLimitBytes(storedDiskPreviewLimit(), deviceMemoryBudget());
 
-async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+async function invoke<T>(command: string, args?: Record<string, unknown>, options?: { headers: Record<string, string> }): Promise<T> {
   const { invoke: call } = await import('@tauri-apps/api/core');
-  return call<T>(command, args);
+  return call<T>(command, args, options);
 }
 
 const desktopStore: DiskPreviewStore = {
   build: (requests) => invoke<DiskBuildResult[]>('preview_cache_build', {
     requests, threads: diskPreviewThreads(deviceMemoryBudget()), limitBytes: currentDiskPreviewLimitBytes(),
   }),
+  async store(key, picture) {
+    const bytes = new Uint8Array(await picture.arrayBuffer());
+    return invoke<DiskBuildResult>('preview_cache_store', bytes as unknown as Record<string, unknown>, { headers: { 'x-preview-key': encodeURIComponent(key) } });
+  },
   async read(key, level) {
     try {
       const bytes = await invoke<ArrayBuffer>('preview_cache_read', { key, level });
