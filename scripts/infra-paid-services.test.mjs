@@ -39,3 +39,11 @@ test('the learning tick has no retries and runs hourly; the scheduler does not r
   assert.match(tf, /retry_count\s*=\s*0/);
   assert.match(tf, /schedule\s*=\s*"17 \* \* \* \*"/);
 });
+
+test('the daily account deletion job is off unless the owner switches it on, and runs once a day', () => {
+  const tf = code('account-deletions.tf');
+  assert.match(tf, /variable "account_deletion_enabled"\s*\{[^}]*default\s*=\s*false/s);
+  for (const r of tf.matchAll(/resource\s+"[^"]+"\s+"[^"]+"\s*\{\s*count\s*=\s*([^\n]+)/g)) assert.match(r[1], /^local\.account_deletion_enabled/);
+  assert.match(tf, /schedule\s*=\s*"30 3 \* \* \*"/);
+  assert.match(tf, /src\/runAccountDeletions\.ts/);
+});

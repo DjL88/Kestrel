@@ -40,4 +40,4 @@ kestrel-raw = { path = "../crates/kestrel-raw", default-features = false, featur
 rayon = "1"
 kestrel-vision = { path = "../crates/kestrel-vision" }
 sha2 = "0.10"
-image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "tiff", "png"] }

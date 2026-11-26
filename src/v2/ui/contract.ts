@@ -452,6 +452,8 @@ export interface Photo {
   histogram?: PhotoHistogram | null;
   /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
    * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  /** This photo came back from another editor: where from, when, and at what bit depth. */
+  externalEdit?: import('../../core/externalEdit').ExternalEditRecord;
   /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
   dngCopy?: boolean;
   /** This photo is a focus stack made in InFlight: the photos it was made from, in order. */
@@ -670,6 +672,11 @@ export interface WorkspaceStore {
   activeProjectId: string | null;
   /** The open project's "Where were these taken?" choice, the home regions it falls back to, and a GPS suggestion. */
   speciesPlace?: SpeciesPlace | null;
+  /** Editing in another app: the apps chosen before and the photos out in one now. Absent where it cannot work (the web). */
+  externalEditor?: {
+    apps: import('../../core/externalEdit').ExternalApp[];
+    watching: Record<string, { appName: string; state: 'sending' | 'waiting' | 'saving' | 'bringing-back'; returned: number }>;
+  } | null;
   /** Present only when the active project is a collage; normal Photography workspaces remain unchanged. */
   collage?: import('../../core/collage').CollageDocument | null;
   photos: Photo[];
@@ -816,6 +823,10 @@ export interface WorkspaceActions {
   reconnectOriginal: (photoId: string) => void;
   /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
   saveDngCopy: (photoId: string) => void;
+  /** Desktop: send a 16-bit TIFF of the current edit to another app and bring each save back as a new photo. */
+  editInOtherApp?: (photoId: string, app: import('../../core/externalEdit').ExternalApp | 'choose' | 'default') => void;
+  /** Stop watching the file sent to another app. The file stays in InFlight's working folder. */
+  stopExternalEdit?: (photoId: string) => void;
   /** Develop a RAW from its sensor data at full size, as one Tasks item. The original is only read. */
   developFullSize: (photoId: string) => void;
   toggleDemoUnavailable: () => void;

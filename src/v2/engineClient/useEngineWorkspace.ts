@@ -97,6 +97,8 @@ import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { useExternalEdits } from './useExternalEdits';
+import { placeBeside, readExternalEdit, returnedExif, type ExternalEditRecord } from '../../core/externalEdit';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
@@ -1623,6 +1625,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, []);
 
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
+  const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
     /** Fields to add to a photo as it is read (a focus stack's recipe), by its picked key. */
     attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
@@ -1685,10 +1688,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           // A one-photo loader has index one. Give each imported frame its
           // distinct stable project index before inserting it into React.
           const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
+          // Brought back from another editor: where it came from, and the original's capture details (the PNG has none).
+          const externalEdit = externalReturns.current.get(pickedKey(item.file));
+          const fromFrame = externalEdit ? stateRef.current?.frames.find((candidate) => candidate.id === externalEdit.fromFrameId) : undefined;
           const frames = result.frames.map(frame => ({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
             ...(cloudPhoto ? { cloudPhoto } : {}),
+            ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
             ...(attach?.(pickedKey(item.file)) ?? {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
@@ -1732,6 +1739,68 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setImporting(false);
     }
   }, []);
+
+  // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
+  // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
+  const externalEdits = useExternalEdits({
+    frameOf: (photoId) => stateRef.current?.frames.find((frame) => frame.id === photoId && frame.removedAt == null),
+    renderEdit: async (frame) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) throw new Error(engineText.workspace.exportStopped);
+      const request: ExportRequest = {
+        photoIds: [frame.id], sizeIds: [ORIGINAL_FORMAT_ID], groupIds: [], destination: 'local-individual', fileFormat: 'png',
+        includeAfter: true, includeBefore: false, includeOriginal: false, includeOverlay: false, includeWatermark: false, includeVideo: false,
+      };
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) throw new Error(plan.error);
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      if (!job || !variant) throw new Error(engineText.workspace.exportStopped);
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      const ticket = await engineScheduler.submit({
+        title: v2Text.externalEdit.sending, kind: 'export', location: 'local', resource: 'gpu', priority: 6, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) throw new Error(failure || engineText.workspace.exportStopped);
+      return file;
+    },
+    importReturned: async (picked, record) => {
+      if (importController.current) return false;
+      const key = pickedKey(picked);
+      externalReturns.current.set(key, record);
+      try {
+        await importPhotos([picked]);
+      } finally {
+        externalReturns.current.delete(key);
+      }
+      const isThis = (frame: PhotoFrame) => {
+        const stored = readExternalEdit(frame.externalEdit);
+        return stored?.fromFrameId === record.fromFrameId && stored.sentAt === record.sentAt && stored.round === record.round;
+      };
+      if (!stateRef.current?.frames.some(isThis)) return false;
+      mutate((current) => ({ ...current, frames: placeBeside(current.frames, current.frames.filter(isThis).map((frame) => frame.id), record.fromFrameId) }));
+      return true;
+    },
+    notify: (message) => setNotice(message),
+  });
 
   /**
    * Reconnect originals the catalogue can no longer read (moved, renamed, or a browser session that lost its blob),
@@ -2031,6 +2100,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         }
       })();
     },
+    editInOtherApp: (photoId, app) => externalEdits.editInOtherApp(photoId, app),
+    stopExternalEdit: (photoId) => externalEdits.stopExternalEdit(photoId),
     saveDngCopy: (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       if (!frame || !dngCopyOffered(frame, canExportRawMaster())) {
@@ -2964,6 +3035,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
     speciesPlace,
+    externalEditor: externalEdits.store,
     collage: readCollage(state?.shoot.collage),
     photos,
     removedPhotos,
@@ -2993,7 +3065,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace]);
+  }), [searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
 
   return { store, actions };
 }

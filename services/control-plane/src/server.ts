@@ -1,12 +1,12 @@
 import { createServer } from 'node:http';
-import { createApp, learningSubjectFor, openApi } from './app.ts';
+import { createApp, openApi } from './app.ts';
 import { CloudDemoStudio } from './demoStudio.ts';
 import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
 import { paddleProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
 import { paddleRefundRevocation } from './commerce/paddleRefunds.ts';
 import { accountMerges } from './accountMerge.ts';
-import { accountErasure } from './accountErasure.ts';
+import { buildAccountErasure } from './accountErasureWiring.ts';
 import { paddleApi } from './commerce/paddle.ts';
 import { rotatingKeySource, secretManagerSecret } from './commerce/paddleKeyRotation.ts';
 import { paddleProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
@@ -69,10 +69,8 @@ const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.e
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
 // Merging two accounts (accountMerge.ts): needs Firestore for its records; moves what the optional services hold.
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
-// Download my data and Delete my account (accountErasure.ts): needs Firestore for its records; clears what the optional services hold.
-const learningSink = optional.learningWithdrawal ?? optional.learning;
-const erasure = firestore ? accountErasure({ db: firestore as unknown as FirestoreLike, store, collab: optional.collab, cloudPhotos: optional.cloudPhotos?.store, gallery: optional.gallery, push: optional.push, contacts: optional.contacts, notices: optional.notices, balance: optional.cloudBalance, safeCopy: optional.safeCopy?.catalog,
-  learning: learningSink ? { forget: (accountId) => learningSink.deleteBySubject(learningSubjectFor(accountId)) } : undefined, now: () => Date.now() }) : undefined;
+// Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
+const erasure = firestore ? await buildAccountErasure(firestore as unknown as FirestoreLike, store as FirestoreStore) : undefined;
 const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));

@@ -1,3 +1,4 @@
+import { readExternalEdit } from '../../core/externalEdit';
 import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { readFocusStackRecipe } from '../../core/focusStackRecipe';
 import { applyFormats, applySizeLinked } from './formatOps';
@@ -304,6 +305,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
+    ...(readExternalEdit(frame.externalEdit) ? { externalEdit: readExternalEdit(frame.externalEdit) } : {}),
     ...(extras.dngCopy ? { dngCopy: true } : {}),
     ...(readFocusStackRecipe(frame.focusStack) ? { focusStack: { sources: frame.focusStack!.sources.map((source) => source.filename) } } : {}),
     ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
