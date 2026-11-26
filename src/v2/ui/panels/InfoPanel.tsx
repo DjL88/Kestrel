@@ -5,6 +5,7 @@ import VehicleRow from './VehicleRow';
 import { hdrText } from '../../../i18n/areas/hdr';
 import { stopsLabel } from '../../engineClient/hdrMergeOps';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
+import SpeciesNameField from './SpeciesNameField';
 import type { Photo, SpeciesPlace, WorkspaceStore } from '../contract';
 import type { ExternalApp } from '../../../core/externalEdit';
 import type { SpeciesArea } from '../../../core/speciesArea';
@@ -277,14 +278,11 @@ export default function InfoPanel({
                   setEditingSpecies(false);
                 }}
               >
-                <input
-                  type="text"
-                  aria-label={STRINGS.panelWords.correctSpecies}
-                  autoFocus
-                  maxLength={120}
+                <SpeciesNameField
+                  label={STRINGS.panelWords.correctSpecies}
                   value={speciesDraft}
-                  onChange={(event) => setSpeciesDraft(event.target.value)}
-                  className="min-w-0 max-w-40 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                  onChange={setSpeciesDraft}
+                  className="w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
                 />
                 <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">{STRINGS.panelWords.save}</button>
                 <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>
