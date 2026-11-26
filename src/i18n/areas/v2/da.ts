@@ -567,6 +567,9 @@ export const da: AreaTranslation<typeof source> = {
     gridViewToggle: 'Gitter med alle fotos',
     fullScreenEnter: 'Fuld skærm',
     fullScreenExit: 'Afslut fuld skærm',
+    canvasOnlyEnter: 'Kun lærred: skjul bjælker og paneler (L)',
+    canvasOnlyExit: 'Vis bjælker og paneler igen (L)',
+    canvasOnlyBack: 'Vis paneler',
     zoomFit: 'Tilpas',
   },
   autoCheck: {

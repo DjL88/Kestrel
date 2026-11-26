@@ -567,6 +567,9 @@ export const pt: AreaTranslation<typeof source> = {
     gridViewToggle: 'Grelha de todas as fotografias',
     fullScreenEnter: 'Ecrã inteiro',
     fullScreenExit: 'Sair do ecrã inteiro',
+    canvasOnlyEnter: 'Só a tela: ocultar barras e painéis (L)',
+    canvasOnlyExit: 'Mostrar de novo as barras e os painéis (L)',
+    canvasOnlyBack: 'Mostrar painéis',
     zoomFit: 'Ajustar',
   },
   autoCheck: {

@@ -115,6 +115,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
+   * zoom bar. Separate from full screen (which hides the window's own frame); the two can be used together. */
+  const [canvasOnly, setCanvasOnly] = useState(false);
   // The enlargement preview: the export's own picture of one format. Null result while it is being made.
   const [enlargement, setEnlargement] = useState<{ photoId: string; sizeId: string; result: EnlargementPreviewResult | null } | null>(null);
   const enlargementRequest = React.useRef(0);
@@ -396,6 +399,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     sort: store.filmstripSort, tag: store.filmstripTag ?? null, pictureIds,
   }), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, pictureIds]);
   const shownPhotoIds = React.useMemo(() => shownPhotos.map((photo) => photo.id), [shownPhotos]);
+  // The photos either side of the open one, in the filmstrip's order: their eye, subject and focus point are found in
+  // the background, so 100% and Zoom to eye are instant when they are opened.
+  const activePhotoId = activePhoto?.id;
+  const neighbourPhotos = React.useMemo(() => {
+    const at = shownPhotos.findIndex((photo) => photo.id === activePhotoId);
+    if (at < 0) return [];
+    return [shownPhotos[at + 1], shownPhotos[at - 1], shownPhotos[at + 2]]
+      .filter((photo): photo is NonNullable<typeof photo> => Boolean(photo))
+      .map((photo) => ({ id: photo.id, previewUrl: photo.previewUrl }));
+  }, [shownPhotos, activePhotoId]);
   // Saved views (preview, off by default): the filters in force, and putting a saved set back through the same setters.
   const savedViewsControl = React.useMemo<SavedViewsControl | undefined>(() => !store.features.savedViews ? undefined : {
     current: { filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating, sort: store.filmstripSort, tag: store.filmstripTag ?? null },
@@ -453,6 +466,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'view.filmstrip': actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
+      case 'view.canvasOnly': setCanvasOnly((on) => !on); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
       case 'view.zoomIn': case 'view.zoomOut': case 'view.zoomFit': case 'view.zoom100':
         window.dispatchEvent(new CustomEvent(CANVAS_ZOOM_EVENT, { detail: { action: ({ 'view.zoomIn': 'in', 'view.zoomOut': 'out', 'view.zoomFit': 'fit', 'view.zoom100': 'actual' } as const)[command.id] } }));
@@ -796,6 +810,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
+  const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
   const sheetOpen = isMobile && Boolean(store.activePanel) && !composingCollage;
   useEffect(() => {
     const sheet = sheetRef.current;
@@ -929,7 +945,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               event.target.value = '';
               if (file) actions.readLightroomCatalogue(file);
             }} />
-          <TopBar
+          {!canvasOnlyShown && <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
             keymap={keymap}
@@ -981,12 +997,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             }
             hasActivePhoto={Boolean(activePhoto)}
             onToggleDemoUnavailable={useStore === useWorkspace ? actions.toggleDemoUnavailable : undefined}
-          />
+          />}
 
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetHeight ? 'v2-sheet-open' : ''}`}
             style={sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
-            {(!store.collage || collageEditingId) && <Rail
+            {(!store.collage || collageEditingId) && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
@@ -1004,7 +1020,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             />}
 
             {/* Left-docked panel (desktop/tablet only) */}
-            {!isMobile && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
+            {!isMobile && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1120,10 +1136,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
                   onToggleFullScreen={actions.toggleFullScreen}
+                  neighbourPhotos={neighbourPhotos}
+                  canvasOnly={canvasOnlyShown}
+                  onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
                 />
               )}
 
-              <Filmstrip
+              {!canvasOnlyShown && <Filmstrip
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}
@@ -1180,11 +1199,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
                 onCompareSelected={() => { actions.setGridViewOpen(false); actions.setCompareMode(true); }}
-              />
+              />}
             </div>
 
             {/* Right-docked panel (desktop/tablet only) */}
-            {!isMobile && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
+            {!isMobile && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1200,7 +1219,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             )}
 
             {/* Undocked windows: independent on large displays, one on compact screens. */}
-            {!isMobile && !composingCollage && shownFloatingPanelIds.map((panelId) => {
+            {!isMobile && !composingCollage && !canvasOnlyShown && shownFloatingPanelIds.map((panelId) => {
               const state = store.panels[panelId];
               return (
                 <DockPanel
@@ -1221,7 +1240,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           </div>
 
           {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
-          {isMobile && !composingCollage && (
+          {isMobile && !composingCollage && !canvasOnlyShown && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
               className="flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]"

@@ -570,6 +570,9 @@ export const ga: AreaTranslation<typeof source> = {
     gridViewToggle: 'Greille na ngrianghraf go léir',
     fullScreenEnter: 'Lánscáileán',
     fullScreenExit: 'Fág an lánscáileán',
+    canvasOnlyEnter: 'An chanbhás amháin: folaigh na barraí agus na painéil (L)',
+    canvasOnlyExit: 'Taispeáin na barraí agus na painéil arís (L)',
+    canvasOnlyBack: 'Taispeáin painéil',
     zoomFit: 'Oiriúnaigh',
   },
   autoCheck: {

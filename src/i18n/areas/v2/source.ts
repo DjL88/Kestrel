@@ -603,6 +603,9 @@ export const source = {
     gridViewToggle: 'All photos grid',
     fullScreenEnter: 'Enter full screen',
     fullScreenExit: 'Exit full screen',
+    canvasOnlyEnter: 'Canvas only: hide the bars and panels (L)',
+    canvasOnlyExit: 'Show the bars and panels again (L)',
+    canvasOnlyBack: 'Show panels',
     zoomFit: 'Fit',
   },
 

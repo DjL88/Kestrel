@@ -568,6 +568,9 @@ export const gd: AreaTranslation<typeof source> = {
     gridViewToggle: 'Griod de na dealbhan uile',
     fullScreenEnter: 'Làn-sgrìn',
     fullScreenExit: 'Fàg an làn-sgrìn',
+    canvasOnlyEnter: 'An canabhas a-mhàin: falaich na bàraichean is na panalan (L)',
+    canvasOnlyExit: 'Seall na bàraichean is na panalan a-rithist (L)',
+    canvasOnlyBack: 'Seall panalan',
     zoomFit: 'Co-fhreagair',
   },
   autoCheck: {

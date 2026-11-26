@@ -2,7 +2,7 @@ import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, keyboardZoomTarget, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
+import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
@@ -32,7 +32,7 @@ import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
-import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
+import { cameraFocusPoint, chooseActualFocus, focusOnScreen, focusZoom, lookForZoomFocus, pictureIn, warmZoomTargets, type PictureBox, type ZoomFocus } from '../../engineClient/eyeZoom';
 import { shouldDevelopOnZoom } from '../utils/zoomFullDevelop';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
@@ -114,6 +114,11 @@ interface CanvasProps {
   onDevelopFullSize?: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
+  /** The photos shown either side of this one, so their eye, subject and focus point are found before they are opened. */
+  neighbourPhotos?: readonly { id: string; previewUrl: string }[];
+  /** Canvas only is on: the header, rail, panels and filmstrip are hidden, so the canvas offers the way back. */
+  canvasOnly?: boolean;
+  onToggleCanvasOnly?: () => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
   onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
@@ -192,6 +197,9 @@ export default function Canvas({
   onSetZoom,
   onZoomPastPreview,
   onToggleFullScreen,
+  neighbourPhotos,
+  canvasOnly = false,
+  onToggleCanvasOnly,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -204,12 +212,35 @@ export default function Canvas({
   const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
   zoomRef.current = canvasZoom;
+  const photoRef = useRef(photo);
+  photoRef.current = photo;
+  const neighboursRef = useRef(neighbourPhotos);
+  neighboursRef.current = neighbourPhotos;
   const setZoomRef = useRef(onSetZoom);
   setZoomRef.current = onSetZoom;
   const zoomAnchor = useRef<{ x: number; y: number; left: number; top: number; zoom: number } | null>(null);
-  /** Zoom to eye: after the zoom is laid out, scroll this point (a share across the frame) to the middle of the view. */
-  const centreOn = useRef<{ fx: number; fy: number } | null>(null);
+  /**
+   * After a zoom is laid out, scroll so this point of the picture (a share across the frame, fx and fy) sits at this
+   * place in the view (x and y from the stage's top left). Measured from the real layout on both sides, so the stage's
+   * padding and the centring of a picture smaller than the view no longer throw the zoom somewhere else.
+   */
+  const keepAt = useRef<{ fx: number; fy: number; x: number; y: number } | null>(null);
   const [eyeTarget, setEyeTarget] = useState(0);
+  /** Hold the picture point under this screen position in place through the next zoom. False when there is no frame. */
+  const holdPointAt = (clientX: number, clientY: number): boolean => {
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    if (!stage || !frame) return false;
+    const frameRect = frame.getBoundingClientRect();
+    if (!(frameRect.width > 0 && frameRect.height > 0)) return false;
+    const stageRect = stage.getBoundingClientRect();
+    keepAt.current = {
+      fx: (clientX - frameRect.left) / frameRect.width, fy: (clientY - frameRect.top) / frameRect.height,
+      x: clientX - stageRect.left, y: clientY - stageRect.top,
+    };
+    setEyeTarget((count) => count + 1);
+    return true;
+  };
 
   // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
   // Listen non-passively on the whole canvas column (the photo, the margin round it and the bar above it), so a pinch
@@ -220,13 +251,21 @@ export default function Canvas({
     const column = columnEl;
     if (!stage || !column) return;
     const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
+      // A trackpad pinch arrives as Ctrl+wheel; a mouse wheel's notches zoom too, as in most photo editors. A trackpad's
+      // two-finger scroll (no modifier, smooth small steps) still scrolls the zoomed picture.
+      const mouseNotch = !event.ctrlKey && !event.metaKey && isMouseWheelNotch(event);
+      if (!event.ctrlKey && !event.metaKey && !mouseNotch) return;
       // A text or number field keeps its own Ctrl+wheel. Over a toolbar button the pinch still zooms the photo.
       if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // A plain wheel over the toolbar, the zoom bar or a menu is not a zoom.
+      if (mouseNotch && !(event.target instanceof Node && stage.contains(event.target))) return;
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
-      const next = nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
+      const next = mouseNotch ? mouseWheelZoom(zoomRef.current, event.deltaY) : nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
       if (next === zoomRef.current) return;
+      const atX = clamp(event.clientX, rect.left, rect.left + rect.width);
+      const atY = clamp(event.clientY, rect.top, rect.top + rect.height);
+      if (holdPointAt(atX, atY)) { zoomRef.current = next; setZoomRef.current(next); return; }
       zoomAnchor.current = {
         // A pinch over the bar above the stage anchors on the nearest point of the stage.
         x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
@@ -250,7 +289,7 @@ export default function Canvas({
       const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
       const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
       const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
-      zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
+      if (!holdPointAt(rect.left + x, rect.top + y)) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
@@ -289,15 +328,15 @@ export default function Canvas({
   }, [canvasZoom]);
   useLayoutEffect(() => {
     const stage = stageRef.current;
-    const point = centreOn.current;
+    const point = keepAt.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (!stage || !point || !frame) return;
-    centreOn.current = null;
+    keepAt.current = null;
     // Measured after layout, so centring, padding and the frame's own zoom are all accounted for.
     const frameRect = frame.getBoundingClientRect();
     const stageRect = stage.getBoundingClientRect();
-    stage.scrollLeft += frameRect.left + point.fx * frameRect.width - (stageRect.left + stage.clientWidth / 2);
-    stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + stage.clientHeight / 2);
+    stage.scrollLeft += frameRect.left + point.fx * frameRect.width - (stageRect.left + point.x);
+    stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + point.y);
   }, [canvasZoom, eyeTarget]);
 
   // The zoom bar stays fixed over the canvas. It can be undocked: drag its grip (or use the arrow keys on it) to move
@@ -356,17 +395,18 @@ export default function Canvas({
   /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
   const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
   useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
-  // Zoom to eye looks ahead: once a photo has been on screen a moment, find a confident eye, else the subject, else
-  // the centre, so the zoom menu can name where it will go. Only the view moves; nothing is judged sharp.
-  const [zoomFocus, setZoomFocus] = useState<{ photoId: string; focus: ZoomFocus } | null>(null);
+  // Zoom to eye and 100% look ahead: as soon as a photo is shown (and for the photos either side of it), find the eye,
+  // else the subject, else the centre, from the preview, so the zoom menu can name where it will go and both zooms are
+  // instant. Only the view moves; nothing is judged sharp.
+  const [zoomFocus, setZoomFocus] = useState<{ photoId: string; focus: ZoomFocus; subject: PictureBox | null } | null>(null);
   const focusSearch = useRef<{ photoId: string; promise: Promise<ZoomFocus | null> } | null>(null);
   const findZoomFocus = (photoId: string): Promise<ZoomFocus | null> => {
     if (focusSearch.current?.photoId === photoId) return focusSearch.current.promise;
-    const frame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
-    if (!frame) return Promise.resolve(null);
-    const promise = lookForZoomFocus(frame).then((lookup) => {
+    const previewUrl = photoRef.current?.id === photoId ? photoRef.current.previewUrl : '';
+    if (!previewUrl) return Promise.resolve(null);
+    const promise = lookForZoomFocus(photoId, previewUrl).then((lookup) => {
       if (lookup.kind !== 'ready') { if (focusSearch.current?.photoId === photoId) focusSearch.current = null; return null; }
-      setZoomFocus((current) => (focusSearch.current?.photoId === photoId ? { photoId, focus: lookup.focus } : current));
+      setZoomFocus((current) => (focusSearch.current?.photoId === photoId ? { photoId, focus: lookup.focus, subject: lookup.subject } : current));
       return lookup.focus;
     });
     focusSearch.current = { photoId, promise };
@@ -375,11 +415,16 @@ export default function Canvas({
   const focusKind = zoomFocus && zoomFocus.photoId === photo?.id ? zoomFocus.focus.kind : null;
   useEffect(() => {
     const photoId = photo?.id;
-    if (!photoId || focusSearch.current?.photoId === photoId) return;
-    // A short wait, so flicking through photos never queues a search for each one.
-    const timer = window.setTimeout(() => { void findZoomFocus(photoId); }, 1200);
+    if (!photoId) return;
+    if (focusSearch.current?.photoId === photoId && zoomFocus?.photoId === photoId) return;
+    focusSearch.current = null;
+    // A short wait, so flicking through photos never queues a search for each one. Found results are kept, so coming
+    // back to a photo is instant.
+    const timer = window.setTimeout(() => {
+      void findZoomFocus(photoId).then(() => { if (photoRef.current?.id === photoId) warmZoomTargets(neighboursRef.current ?? []); });
+    }, 250);
     return () => window.clearTimeout(timer);
-  }, [photo?.id]);
+  }, [photo?.id, photo?.previewUrl]);
   useEffect(() => {
     if (!zoomMenuOpen) return;
     const onPointer = (event: PointerEvent) => {
@@ -476,6 +521,8 @@ export default function Canvas({
     origB: number;
     /** The format's crop when the drag started (zoom and pan). */
     crop?: CropTransform;
+    /** A pan dragged on one pane of a split format: how many panes the picture runs across. */
+    panes?: number;
     /** Overlay drags: the dragged box and its neighbour as % of the frame, the box centre on screen, and the starting values. */
     snap?: SnapGeometry;
     centre?: { x: number; y: number };
@@ -621,8 +668,11 @@ export default function Canvas({
 
   const MAX_CROP_ZOOM = 8;
   /** How far the picture can be moved under the crop window (in % of the frame) before its edge shows. */
+  // A split format's panes show one picture across them all, and its pan is a share of that whole composition (as
+  // export moves it). The limits must come from the composition's shape, not one pane's: with one pane's, a picture
+  // across two square panes could slide sideways past its edge but not up and down at all.
   const panLimits = (size: SizePreset, zoom: number) =>
-    cropPanLimits(pictureAspect ? { width: pictureAspect, height: 1 } : photo.pixelSize, { width: frameAspectOf(size), height: 1 }, zoom);
+    cropPanLimits(pictureAspect ? { width: pictureAspect, height: 1 } : photo.pixelSize, { width: frameAspectOf(size) * splitCountFor(size.id), height: 1 }, zoom);
 
   const handleFramePointerDown = (
     e: React.PointerEvent<HTMLElement>,
@@ -636,10 +686,13 @@ export default function Canvas({
     const rect = frameEl?.getBoundingClientRect();
     let origA = 0;
     let origB = 0;
+    let panes = 1;
     if (kind === 'pan') {
       origA = size.crop.panX;
       origB = size.crop.panY;
       setDraggingType('pan');
+      // Dragged on one pane of a split format: the pan is a share of all the panes together.
+      panes = frameEl?.closest('[data-testid="split-composition"]') ? splitCountFor(size.id) : 1;
     } else if (kind === 'text') {
       const box = e.currentTarget.getBoundingClientRect();
       origA = rect?.width ? (box.left + box.width / 2 - rect.left) / rect.width * 100 : group.overlay.textX;
@@ -715,6 +768,7 @@ export default function Canvas({
       startY: e.clientY,
       origA,
       origB,
+      panes,
       crop: size.crop,
       rect,
     };
@@ -756,7 +810,7 @@ export default function Canvas({
       const limits = panLimits(photo.sizes.find((size) => size.id === drag.sizeId) ?? activeSize, drag.crop?.zoom ?? 1);
       onUpdateCrop(photo.id, drag.sizeId, {
         // Rounded first, then held to the limit: rounding after the clamp could move the picture past its own edge.
-        panX: clamp(Math.round(drag.origA + (dx / width) * 100), -limits.x, limits.x),
+        panX: clamp(Math.round(drag.origA + (dx / (width * (drag.panes ?? 1))) * 100), -limits.x, limits.x),
         panY: clamp(Math.round(drag.origB + (dy / height) * 100), -limits.y, limits.y),
       });
     } else if (drag.kind === 'move-frame') {
@@ -1368,10 +1422,40 @@ export default function Canvas({
   };
   const zoomAroundCentre = (next: number) => {
     const stage = stageRef.current;
-    if (stage) zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
+    if (stage) {
+      const rect = stage.getBoundingClientRect();
+      if (!holdPointAt(rect.left + stage.clientWidth / 2, rect.top + stage.clientHeight / 2)) {
+        zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
+      }
+    }
     onSetZoom(next);
   };
+  /**
+   * 100%: one picture pixel per screen pixel, centred on where the camera says it focused, else a clear eye, else the
+   * subject, else the middle of the picture. Pressed again at 100%, it goes back to Fit.
+   */
+  const zoomToActual = () => {
+    const next = keyboardZoomTarget('actual', canvasZoom, fitScale);
+    if (next === null) return;
+    if (next === 1 || !photo) { zoomAroundCentre(next); return; }
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    const picture = frame ? pictureIn(frame) : null;
+    const shown = picture ? (picture instanceof HTMLImageElement ? { width: picture.naturalWidth, height: picture.naturalHeight } : { width: picture.width, height: picture.height }) : null;
+    const known = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus : null;
+    const focus = chooseActualFocus(activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null, known?.focus ?? null, known?.subject ?? null);
+    const at = frame ? focusOnScreen(frame, focus) : null;
+    if (!stage || !at) { zoomAroundCentre(next); return; }
+    const frameRect = frame!.getBoundingClientRect();
+    keepAt.current = {
+      fx: (at.clientX - frameRect.left) / frameRect.width, fy: (at.clientY - frameRect.top) / frameRect.height,
+      x: stage.clientWidth / 2, y: stage.clientHeight / 2,
+    };
+    setEyeTarget((count) => count + 1);
+    if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
+  };
   zoomKeyRef.current = (action) => {
+    if (action === 'actual') { zoomToActual(); return; }
     const next = keyboardZoomTarget(action, canvasZoom, fitScale);
     if (next !== null && Math.abs(next - canvasZoom) > 0.0005) zoomAroundCentre(next);
   };
@@ -1391,7 +1475,7 @@ export default function Canvas({
       setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeUnavailable : STRINGS.canvas.eyeNone, busy: false });
       return;
     }
-    const point = { fx: clamp((at.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((at.clientY - frameRect.top) / frameRect.height, 0, 1) };
+    const point = { fx: clamp((at.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((at.clientY - frameRect.top) / frameRect.height, 0, 1), x: stage.clientWidth / 2, y: stage.clientHeight / 2 };
     // 100% (one picture pixel per screen pixel) is the honest view for checking detail; at least 2× when the size is unknown.
     const target = focusZoom(focus, {
       current: canvasZoom,
@@ -1399,8 +1483,8 @@ export default function Canvas({
       pictureOnScreen: at.picture,
       view: { width: stage.clientWidth, height: stage.clientHeight },
     });
-    setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeFound : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
-    centreOn.current = point;
+    setEyeNote({ text: focus.kind === 'eye' ? (focus.sure ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe) : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
+    keepAt.current = point;
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
   };
@@ -2034,6 +2118,20 @@ export default function Canvas({
           </div>
         )}
 
+        {canvasOnly && onToggleCanvasOnly && (
+          <button
+            type="button"
+            data-capture-ignore
+            data-testid="canvas-only-exit"
+            title={STRINGS.canvas.canvasOnlyExit}
+            aria-label={STRINGS.canvas.canvasOnlyExit}
+            onClick={onToggleCanvasOnly}
+            className="absolute right-3 top-3 z-30 inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)] shadow hover:bg-[var(--bg-surface-hover)]"
+          >
+            <BrandIcon name="panel" size={14} />
+            {STRINGS.canvas.canvasOnlyBack}
+          </button>
+        )}
         {shotNote && (
           <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">{shotNote}</p>
         )}
@@ -2096,10 +2194,11 @@ export default function Canvas({
                 className="absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]">
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
-                  { id: '100', label: STRINGS.canvas.zoomActual, run: () => zoomAroundCentre(fitScale ? 1 / fitScale : 1), current: actualPercent === 100 },
+                  { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
                   { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}
                     className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
                     <span>{item.label}</span>
@@ -2141,8 +2240,22 @@ export default function Canvas({
             onClick={() => void grabScreenshot()}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
-            <BrandIcon name="save" size={15} />
+            <BrandIcon name="select-area" size={15} />
           </button>
+
+          {onToggleCanvasOnly && (
+            <button
+              type="button"
+              data-testid="canvas-only-toggle"
+              title={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
+              aria-label={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
+              aria-pressed={canvasOnly}
+              onClick={onToggleCanvasOnly}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
+            >
+              <BrandIcon name="panel-collapse" size={15} />
+            </button>
+          )}
 
           <button
             type="button"

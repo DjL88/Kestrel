@@ -567,6 +567,9 @@ export const de: AreaTranslation<typeof source> = {
     gridViewToggle: 'Raster aller Fotos',
     fullScreenEnter: 'Vollbild',
     fullScreenExit: 'Vollbild beenden',
+    canvasOnlyEnter: 'Nur Arbeitsfläche: Leisten und Bedienfelder ausblenden (L)',
+    canvasOnlyExit: 'Leisten und Bedienfelder wieder einblenden (L)',
+    canvasOnlyBack: 'Bedienfelder zeigen',
     zoomFit: 'Einpassen',
   },
   autoCheck: {

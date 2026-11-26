@@ -568,6 +568,9 @@ export const fi: AreaTranslation<typeof source> = {
     gridViewToggle: 'Kaikkien kuvien ruudukko',
     fullScreenEnter: 'Koko näyttö',
     fullScreenExit: 'Poistu koko näytöstä',
+    canvasOnlyEnter: 'Vain kangas: piilota palkit ja paneelit (L)',
+    canvasOnlyExit: 'Näytä palkit ja paneelit taas (L)',
+    canvasOnlyBack: 'Näytä paneelit',
     zoomFit: 'Sovita',
   },
   autoCheck: {
