@@ -99,7 +99,9 @@ import { readCrops } from './cropOps';
 import { readFormatHistory, recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
-import { runAuto } from './runAuto';
+import { runAuto, type AutoRun } from './runAuto';
+import { learnedLeanings, recordOutcome, type StyleKey } from '../../core/editStyle';
+import { loadEditStyle, resetEditStyle, saveEditStyle } from './editStyleStore';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, autopilotSkippedEdited, autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
@@ -1656,6 +1658,36 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return 'Applied the cloud\'s edit settings. Undo takes them back.';
   }, [editFrames]);
 
+  // Personal editing style (x-spec-personal-style, a preview that is off by default): when Auto's edit is applied, the
+  // photo is remembered; when the person moves on, what they kept, undid or corrected is learnt on this device only.
+  // Auto leans only after enough consistent examples (src/core/editStyle.ts). Nothing is ever sent anywhere.
+  const editStyleOn = workflowPreviewOn('editStyle');
+  const pendingStyle = useRef(new Map<string, { base: PhotoEdit; applied: PhotoEdit; multipliers: Partial<Record<StyleKey, number>> }>());
+  const noteAutoApplied = useCallback((frameId: string, run: AutoRun, applied: PhotoEdit) => {
+    if (!editStyleOn) return;
+    pendingStyle.current.set(frameId, { base: run.plan.base, applied, multipliers: Object.fromEntries((run.leanings ?? []).map((leaning) => [leaning.key, leaning.multiplier])) });
+  }, [editStyleOn]);
+  const settleStyle = useCallback((frameId: string) => {
+    const pending = pendingStyle.current.get(frameId);
+    if (!pending) return;
+    pendingStyle.current.delete(frameId);
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
+    if (!frame || frame.removedAt != null) return;
+    saveEditStyle(recordOutcome(loadEditStyle(), { ...pending, final: frame.edit ?? DEFAULT_EDIT, at: Date.now() }));
+  }, []);
+  const styleWatch = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = styleWatch.current;
+    const current = screen === 'editor' ? activeFrame?.id ?? null : null;
+    styleWatch.current = current;
+    if (previous && previous !== current) settleStyle(previous);
+  }, [screen, activeFrame?.id, settleStyle]);
+  const forgetEditStyle = useCallback(() => {
+    resetEditStyle();
+    pendingStyle.current.clear();
+    setNotice('Kestrel has forgotten your editing style. Auto\'s suggestions are its own again.');
+  }, []);
+
   const applyAuto = useCallback((frameId: string, candidateId?: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -1665,7 +1697,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
     if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
     editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit, { by: 'auto', notes: assist.run.detail });
-  }, [assists, editFrames]);
+    noteAutoApplied(frameId, assist.run, candidate.edit);
+  }, [assists, editFrames, noteAutoApplied]);
 
   // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
   // the photo already looked natural and was left alone. The vision guardian's second opinion comes first: a clear "no"
@@ -1721,7 +1754,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         itemId: item => item.id, itemLabel: item => item.name,
         runItem: async (_, __, ctx) => {
           ctx.stage(engineText.workspace.checkStage);
-          const run = await runAuto(frame, provider.current!, ctx.signal);
+          const run = await runAuto(frame, provider.current!, ctx.signal, editStyleOn ? learnedLeanings(loadEditStyle()) : []);
           ctx.checkCancelled();
           if (!isCurrent()) return;
           if (!run) return;
@@ -1761,6 +1794,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
                 ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
+            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) noteAutoApplied(frame.id, run, run.plan.proposal); });
           };
           for (const candidate of hasLocalVision() ? order : []) {
             ctx.stage(engineText.workspace.secondOpinionStage);
@@ -3015,6 +3049,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       void runExportAction(request);
     },
     applyAssistSuggestion: applyAuto,
+    ...(editStyleOn ? { resetEditStyle: forgetEditStyle } : {}),
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     ...(cullRulesOn ? { rankCulling, applyCullRules: applyCullRulesFor } : {}),
     ...(cloudRecipeOn ? {
@@ -3506,7 +3541,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in

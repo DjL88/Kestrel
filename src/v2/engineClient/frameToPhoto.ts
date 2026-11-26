@@ -32,6 +32,8 @@ import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { editorText } from '../../i18n/areas/editor';
+import type { Leaning } from '../../core/editStyle';
 import { displaySpeciesName } from '../../core/speciesNames';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { speciesNameIndex } from '../../providers/speciesNames';
@@ -110,6 +112,20 @@ export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullab
   }));
 }
 
+/**
+ * Personal style (a preview, off by default): how Auto's suggestion was leaned, in plain words. British English only
+ * while this is a preview; the words move into the V2 i18n area before it is switched on.
+ */
+export function styleNoteFor(leanings: readonly Leaning[] | undefined): string | undefined {
+  if (!leanings?.length) return undefined;
+  const names: Record<string, string> = { ...editorText.controls, tint: STEP_LABELS.tint ?? 'Tint', dehaze: STEP_LABELS.dehaze ?? 'Dehaze' };
+  const parts = leanings.map((leaning) => {
+    const percent = Math.round(Math.abs(leaning.multiplier - 1) * 100);
+    return `${names[leaning.key] ?? leaning.key} ${percent}% ${leaning.multiplier < 1 ? 'less' : 'more'} (from ${leaning.examples} photos)`;
+  });
+  return `Leaned towards your own edits: ${parts.join(', ')}. Learnt on this device from what you kept, undid or corrected. Nothing is sent anywhere.`;
+}
+
 export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
@@ -128,6 +144,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       colourSense: describeColourSense(candidate.colourSense),
       colourMatch: describeColourMatch(candidate.colourMatch),
       secondOpinion: guardianNote(assist.guardian, candidate.id),
+      ...(run.leanings?.length ? { styleNote: styleNoteFor(run.leanings) } : {}),
     }));
   return {
     subjectNote: run.headline,

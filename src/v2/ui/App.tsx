@@ -575,6 +575,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
+            onResetStyle={actions.resetEditStyle}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
               ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
               : undefined}

@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { PhotoFrame } from '../../core/types.ts';
 import { recordEdit } from '../../core/editHistory.ts';
 import { forkEditCheckpoint, ROOT_VERSION_ID, switchEditVersion } from '../../core/editBranches.ts';
-import { BLANK_IMAGE, frameToPhoto, shootToProject, taskToInfo, tileStateFor } from './frameToPhoto.ts';
+import { BLANK_IMAGE, frameToPhoto, shootToProject, styleNoteFor, taskToInfo, tileStateFor } from './frameToPhoto.ts';
 
 const frame = (patch: Partial<PhotoFrame> = {}): PhotoFrame => ({
   id: 'f1', stableKey: 'k1', filename: 'IMG_0001.NEF', sequenceIndex: 1, decision: 'unreviewed',
@@ -322,4 +322,11 @@ test('each view says which picture of a RAW it shows, from what the provider rec
   assert.deepEqual(early.picture, { preview: { kind: 'camera' }, thumb: { kind: 'camera' } });
   assert.equal(frameToPhoto(frame({ filename: 'bird.jpg' }), urls, { sources: { preview: 'original', thumb: 'original' } }).picture, undefined);
   assert.equal(frameToPhoto(frame(), urls).picture, undefined, 'no recorded source, no label');
+});
+
+test('personal style says in plain words how Auto was leaned, and nothing when it was not', () => {
+  assert.equal(styleNoteFor(undefined), undefined);
+  assert.equal(styleNoteFor([]), undefined);
+  const note = styleNoteFor([{ key: 'exposure', multiplier: 0.75, examples: 6, outliers: 0 }, { key: 'shadows', multiplier: 1.2, examples: 9, outliers: 1 }]);
+  assert.equal(note, 'Leaned towards your own edits: Exposure 25% less (from 6 photos), Shadows 20% more (from 9 photos). Learnt on this device from what you kept, undid or corrected. Nothing is sent anywhere.');
 });

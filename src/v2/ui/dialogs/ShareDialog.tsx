@@ -4,6 +4,8 @@ import { initialsOf } from '../../../core/editingSequence';
 import { CollabError, type CollabClient, type CollabInvite, type CollabProjectView } from '../../../providers/collabClient';
 import { STRINGS } from '../strings';
 import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
+import { MAX_PORTFOLIO_PHOTOS, buildPortfolioHtml, portfolioFileName, type PortfolioPhoto } from '../../../core/portfolioPage';
+import { saveExportFile } from '../../../providers/browserExport';
 import GalleryFeedbackPanel from './GalleryFeedbackPanel';
 import CloudPhotosPanel, { type LocalCloudPhoto } from './CloudPhotosPanel';
 import { readSharedLink, writeSharedLink } from './sharedLinks';
@@ -54,6 +56,9 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   const [gallery, setGallery] = useState({ days: 14, password: '', allowComments: true, allowFavourites: true, allowApproval: true, allowDownloads: false, watermark: true });
   const [galleryLink, setGalleryLink] = useState<string | null>(null);
   const [published, setPublished] = useState(0);
+  const [portfolio, setPortfolio] = useState({ title: '', byline: '', captions: false });
+  const [portfolioBusy, setPortfolioBusy] = useState(false);
+  const [portfolioNote, setPortfolioNote] = useState<string | null>(null);
 
   const explain = useCallback((error: unknown) => {
     const kind = error instanceof CollabError ? error.kind : 'network';
@@ -68,7 +73,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
 
   useEffect(() => {
     if (!open) return;
-    setView(null); setInvites([]); setProblem(null); setNote(null); setGalleryLink(null);
+    setView(null); setInvites([]); setProblem(null); setNote(null); setGalleryLink(null); setPortfolioNote(null);
     if (!client.configured) { setProblem(t.notConfigured); return; }
     const linked = localProjectId ? readSharedLink(localProjectId) : null;
     void run(async () => {
@@ -128,6 +133,35 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
     setGalleryLink(`${siteUrl.replace(/\/+$/, '')}/gallery#t=${encodeURIComponent(made.linkToken)}`);
     setNote([t.galleryDone(made.published), skipped ? t.gallerySkipped(skipped) : ''].filter(Boolean).join(' '));
   });
+  // Offline portfolio: made and saved on this device only. Needs no account, and nothing is sent anywhere.
+  const savePortfolio = async () => {
+    if (!renderPreview || portfolioBusy || !selectedPhotoIds.length || selectedPhotoIds.length > MAX_PORTFOLIO_PHOTOS) return;
+    setPortfolioBusy(true); setPortfolioNote(null);
+    try {
+      const photos: PortfolioPhoto[] = [];
+      for (const photoId of selectedPhotoIds) {
+        const jpeg = await renderPreview(photoId);
+        if (!jpeg) continue;
+        const image = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error ?? new Error('Could not read the preview.'));
+          reader.readAsDataURL(jpeg.type ? jpeg : new Blob([jpeg], { type: 'image/jpeg' }));
+        });
+        const size = await createImageBitmap(jpeg).then((bitmap) => { const s = { width: bitmap.width, height: bitmap.height }; bitmap.close(); return s; }, () => ({}));
+        photos.push({ image, ...size, ...(portfolio.captions ? { caption: photoName(photoId) } : {}) });
+      }
+      const skipped = selectedPhotoIds.length - photos.length;
+      if (!photos.length) { setPortfolioNote(t.gallerySkipped(skipped)); return; }
+      const title = portfolio.title.trim() || projectName.trim() || 'Portfolio';
+      const html = buildPortfolioHtml({ title, byline: portfolio.byline, lang: document.documentElement.lang || 'en-GB', photos,
+        labels: { photo: t.portfolioPhoto, footer: t.portfolioFooter } });
+      const saved = await saveExportFile(new Blob([html], { type: 'text/html' }), portfolioFileName(title), new AbortController().signal);
+      if (saved) setPortfolioNote([t.portfolioSaved(photos.length), skipped ? t.gallerySkipped(skipped) : ''].filter(Boolean).join(' '));
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) setPortfolioNote(t.portfolioFailed);
+    } finally { setPortfolioBusy(false); }
+  };
   const copyLink = () => { if (galleryLink) void navigator.clipboard?.writeText(galleryLink).then(() => setNote(t.galleryCopied), () => undefined); };
   const toggles = [['allowComments', t.galleryComments], ['allowFavourites', t.galleryFavourites], ['allowApproval', t.galleryApproval],
     ['allowDownloads', t.galleryDownloads], ['watermark', t.galleryWatermark]] as const;
@@ -138,7 +172,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="v2-share-title" data-testid="share-dialog"
-        className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="v2-share-title" className="text-base font-semibold">{t.heading}</h2>
           <button ref={closeButton} type="button" onClick={onClose} className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">{t.close}</button>
@@ -146,6 +180,29 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
         <p className="mb-3 text-sm text-[var(--text-secondary)]">{t.intro}</p>
         {problem && <p role="alert" className="mb-3 rounded-[var(--radius-sm)] border border-[var(--border-default)] p-2.5 text-sm">{problem}</p>}
         {note && <p role="status" className="mb-3 text-sm text-[var(--text-secondary)]">{note}</p>}
+
+        {renderPreview && (
+          <form className="mb-4 space-y-2 border-b border-[var(--border-default)] pb-3" data-testid="share-portfolio" onSubmit={(event) => { event.preventDefault(); void savePortfolio(); }}>
+            <h3 className="text-xs font-semibold">{t.portfolioHeading}</h3>
+            <p className="text-xs text-[var(--text-secondary)]">{t.portfolioIntro}</p>
+            {selectedPhotoIds.length === 0 && <p className="text-xs">{t.galleryNeedsPhotos}</p>}
+            {selectedPhotoIds.length > MAX_PORTFOLIO_PHOTOS && <p className="text-xs">{t.portfolioTooMany(MAX_PORTFOLIO_PHOTOS)}</p>}
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs">{t.portfolioTitle}
+                <input value={portfolio.title} placeholder={projectName} maxLength={120} onChange={(event) => setPortfolio((p) => ({ ...p, title: event.target.value }))} className={inputClass} />
+              </label>
+              <label className="block text-xs">{t.portfolioByline}
+                <input value={portfolio.byline} maxLength={120} onChange={(event) => setPortfolio((p) => ({ ...p, byline: event.target.value }))} className={inputClass} autoComplete="name" />
+              </label>
+            </div>
+            <label className="flex min-h-8 items-center gap-2 text-xs">
+              <input type="checkbox" checked={portfolio.captions} onChange={(event) => setPortfolio((p) => ({ ...p, captions: event.target.checked }))} />{t.portfolioCaptions}
+            </label>
+            <button type="submit" disabled={portfolioBusy || selectedPhotoIds.length === 0 || selectedPhotoIds.length > MAX_PORTFOLIO_PHOTOS}
+              className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm font-medium disabled:opacity-50">{t.portfolioSave(selectedPhotoIds.length)}</button>
+            {portfolioNote && <p role="status" data-testid="share-portfolio-note" className="text-xs text-[var(--text-secondary)]">{portfolioNote}</p>}
+          </form>
+        )}
 
         {invites.length > 0 && (
           <div className="mb-4">
