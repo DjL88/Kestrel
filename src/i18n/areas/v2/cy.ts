@@ -2121,4 +2121,9 @@ export const cy: AreaTranslation<typeof source> = {
     roomCloseHint: 'Stopio dangos y saethu ar sgriniau eraill.',
     roomKeptYours: (n: number) => `Cadwyd eich un chi (${n}): roeddech wedi newid yr un llun.`,
   },
+  activityBar: {
+    photoLoading: 'Wrthi\'n llwytho\'r llun',
+    minutesLeft: (n: number) => `Tua ${n} munud ar ôl`,
+    teaTime: 'Amser am baned o de',
+  },
 };

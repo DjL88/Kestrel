@@ -2121,4 +2121,9 @@ export const is: AreaTranslation<typeof source> = {
     roomCloseHint: 'Hætta að sýna myndatökuna á öðrum skjáum.',
     roomKeptYours: (n: number) => `Þitt val hélst (${n}): þú hafðir breytt sömu mynd.`,
   },
+  activityBar: {
+    photoLoading: 'Hleð mynd',
+    minutesLeft: (n: number) => `Um ${n} mín. eftir`,
+    teaTime: 'Tími fyrir tebolla',
+  },
 };

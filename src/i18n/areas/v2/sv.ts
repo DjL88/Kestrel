@@ -2121,4 +2121,9 @@ export const sv: AreaTranslation<typeof source> = {
     roomCloseHint: 'Sluta visa fotograferingen på andra skärmar.',
     roomKeptYours: (n: number) => `Ditt val behölls (${n}): du hade ändrat samma foto.`,
   },
+  activityBar: {
+    photoLoading: 'Läser in foto',
+    minutesLeft: (n: number) => `Ungefär ${n} min kvar`,
+    teaTime: 'Dags för en kopp te',
+  },
 };

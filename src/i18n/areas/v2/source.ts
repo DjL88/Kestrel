@@ -2211,4 +2211,9 @@ export const source = {
     roomCloseHint: 'Stop showing the shoot on other screens.',
     roomKeptYours: (n: number) => `Kept your own marks where you had changed the same photo (${n}).`,
   },
+  activityBar: {
+    photoLoading: 'Loading photo',
+    minutesLeft: (n: number) => `About ${n} min left`,
+    teaTime: 'Time for a cup of tea',
+  },
 };

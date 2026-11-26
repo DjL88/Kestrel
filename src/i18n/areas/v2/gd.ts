@@ -2122,4 +2122,9 @@ export const gd: AreaTranslation<typeof source> = {
     roomCloseHint: 'Sguir a shealltainn an tog air sgrìnichean eile.',
     roomKeptYours: (n: number) => `Chaidh na bh' agad-sa a chumail (${n}): dh'atharraich thu an aon dealbh.`,
   },
+  activityBar: {
+    photoLoading: 'A\' luchdadh an deilbh',
+    minutesLeft: (n: number) => `Mu ${n} mion air fhàgail`,
+    teaTime: 'Àm airson cupa tì',
+  },
 };

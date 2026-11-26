@@ -2121,4 +2121,9 @@ export const es: AreaTranslation<typeof source> = {
     roomCloseHint: 'Dejar de mostrar la sesión en otras pantallas.',
     roomKeptYours: (n: number) => `Se mantuvo lo tuyo (${n}): habías cambiado la misma foto.`,
   },
+  activityBar: {
+    photoLoading: 'Cargando foto',
+    minutesLeft: (n: number) => `Quedan unos ${n} min`,
+    teaTime: 'Hora de un té',
+  },
 };

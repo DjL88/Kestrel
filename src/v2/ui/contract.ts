@@ -537,6 +537,8 @@ export interface Project {
 export interface TaskInfo {
   id: string;
   label: string;
+  /** The kind of engine work ('import', 'thumbnail', 'cull', ...), when the scheduler ran it. */
+  kind?: string;
   detail: string;
   progress: number; // 0 to 100
   status: import('../../core/taskStore').TaskState;
@@ -723,6 +725,8 @@ export interface PhotoSurfaceProps {
   style?: CSSProperties;
   /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
   onPictureSize?: (size: { width: number; height: number }) => void;
+  /** True while the picture is still loading or being redrawn (a develop or an edit), false once it is on screen. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';

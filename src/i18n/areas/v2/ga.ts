@@ -2124,4 +2124,9 @@ export const ga: AreaTranslation<typeof source> = {
     roomCloseHint: 'Stop ag taispeáint an tseisiúin ar scáileáin eile.',
     roomKeptYours: (n: number) => `Coinníodh do rogha (${n}): d'athraigh tú an grianghraf céanna.`,
   },
+  activityBar: {
+    photoLoading: 'Grianghraf á lódáil',
+    minutesLeft: (n: number) => `Thart ar ${n} nóim fágtha`,
+    teaTime: 'Am le haghaidh cupán tae',
+  },
 };

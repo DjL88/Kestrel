@@ -2122,4 +2122,9 @@ export const fi: AreaTranslation<typeof source> = {
     roomCloseHint: 'Lopeta kuvauksen näyttäminen muilla näytöillä.',
     roomKeptYours: (n: number) => `Valintasi pidettiin (${n}): olit muuttanut samaa kuvaa.`,
   },
+  activityBar: {
+    photoLoading: 'Ladataan kuvaa',
+    minutesLeft: (n: number) => `Noin ${n} min jäljellä`,
+    teaTime: 'Aika keittää kuppi teetä',
+  },
 };

@@ -2121,4 +2121,9 @@ export const it: AreaTranslation<typeof source> = {
     roomCloseHint: 'Smetti di mostrare il servizio su altri schermi.',
     roomKeptYours: (n: number) => `Mantenute le tue scelte (${n}): avevi modificato la stessa foto.`,
   },
+  activityBar: {
+    photoLoading: 'Caricamento della foto',
+    minutesLeft: (n: number) => `Circa ${n} min rimanenti`,
+    teaTime: 'È il momento di una tazza di tè',
+  },
 };

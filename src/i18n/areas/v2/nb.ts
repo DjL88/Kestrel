@@ -2121,4 +2121,9 @@ export const nb: AreaTranslation<typeof source> = {
     roomCloseHint: 'Slutt å vise fotograferingen på andre skjermer.',
     roomKeptYours: (n: number) => `Ditt valg ble beholdt (${n}): du hadde endret det samme bildet.`,
   },
+  activityBar: {
+    photoLoading: 'Laster inn bilde',
+    minutesLeft: (n: number) => `Omtrent ${n} min igjen`,
+    teaTime: 'Tid for en kopp te',
+  },
 };

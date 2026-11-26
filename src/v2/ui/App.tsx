@@ -39,6 +39,7 @@ import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap,
 import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
+import { filmstripActivity, tasksWheelProgress } from './utils/edgeActivity';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu, useNativeMenuState } from './commands/useNativeMenu';
 import { menuState } from './commands/menuState';
@@ -356,6 +357,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId)
     ?? (stepPreview && Object.keys(stepPreview).length ? { id: 'watch-steps', name: '', category: '', description: '', previewFilter: '', recipeDelta: stepPreview } : null);
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
+  const wheel = tasksWheelProgress(store.tasks);
 
   // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
   // while the pointer or focus is on it. Calm View never hides them (it only quietens the rest of the workspace).
@@ -1008,7 +1010,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               activePanel={store.activePanel}
               panels={store.panels}
               runningTaskCount={runningTaskCount}
-              taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
+              taskProgress={wheel.percent}
+              taskCount={wheel.total !== null ? { done: wheel.done ?? 0, total: wheel.total } : null}
               onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
               quietBadges={store.settings.calmBadges}
               onSelectPanel={actions.setActivePanel}
@@ -1185,6 +1188,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onOpenShootRoom={actions.openShootRoom}
                 onCloseShootRoom={actions.closeShootRoom}
                 liveFolder={store.liveFolder}
+                activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}

@@ -2121,4 +2121,9 @@ export const nl: AreaTranslation<typeof source> = {
     roomCloseHint: 'Stoppen met tonen van de shoot op andere schermen.',
     roomKeptYours: (n: number) => `Jouw keuze behouden (${n}): je had dezelfde foto gewijzigd.`,
   },
+  activityBar: {
+    photoLoading: 'Foto wordt geladen',
+    minutesLeft: (n: number) => `Nog ongeveer ${n} min`,
+    teaTime: 'Tijd voor een kopje thee',
+  },
 };

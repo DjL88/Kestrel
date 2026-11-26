@@ -1,4 +1,5 @@
 import { stepFrom, swipeIntent } from '../utils/swipe';
+import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -525,6 +526,8 @@ export default function Canvas({
   // The shape of the picture on screen, reported by the photo surface (used below by every format view).
   const shownPhotoId = photo?.id;
   const [shownShape, setShownShape] = useState<{ photoId: string; aspect: number } | null>(null);
+  // The photo on screen is still loading or being developed: a thin line along its bottom edge says so.
+  const [pictureBusy, setPictureBusy] = useState(false);
   const reportPictureSize = useCallback((size: { width: number; height: number }) => {
     if (!shownPhotoId || !(size.width > 0 && size.height > 0)) return;
     const aspect = size.width / size.height;
@@ -1261,7 +1264,7 @@ export default function Canvas({
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
-        onPictureSize={reportPictureSize} />
+        onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1645,6 +1648,8 @@ export default function Canvas({
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}
+            <EdgeProgress active={pictureBusy || photo.fullDevelop === 'running' || photo.state === 'importing'} value={null}
+              label={photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.activityBar.photoLoading} edge="bottom" testId="canvas-progress" />
 
             </div>
 
