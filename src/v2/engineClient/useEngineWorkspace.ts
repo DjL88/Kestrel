@@ -1589,7 +1589,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const connection = can('cloudAssist') ? accountConnection() : null;
     void engineScheduler.submit({
       title: engineText.workspace.denoiseTask(frame.filename),
-      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
+      // One photo the person pressed Denoise on and is watching: it starts beside a running background RAW develop
+      // instead of waiting for that develop's current photo to finish (engineScheduler `interactive`).
+      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local', interactive: true,
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
       itemId: item => item.id, itemLabel: item => item.name,
