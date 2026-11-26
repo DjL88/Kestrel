@@ -1573,6 +1573,13 @@ export const fi: AreaTranslation<typeof source> = {
     signInFailed: 'Kirjautuminen ei valmistunut.',
     folderHint: "NAS tai toimiston jaettu kansio toimii myös tässä, kun tämä tietokone on yhdistetty siihen: Macissa Finder, Siirry, Yhdistä palvelimeen (smb://…); Windowsissa liitä se verkkoasemaksi. Valitse sitten se kansio.",
     awayFromHome: "Kodin ulkopuolella: yksinkertaisin turvallinen tapa tavoittaa NAS on Tailscale NAS:ssa ja tässä tietokoneessa, ja sitten NAS:n Tailscale-nimi. Tailscalen kautta myös http:// käy, koska Tailscale salaa yhteyden jo valmiiksi. Muualla internetissä WebDAV vaatii https-yhteyden kunnollisella varmenteella: ota Tailscale HTTPS käyttöön (.ts.net-osoite) tai määritä Synologyssa DDNS ja Let’s Encrypt -varmenne. QuickConnect ei välitä WebDAVia eikä SFTP:tä.",
+    sharepoint: {
+      linkLabel: "Linkki SharePoint-sivustoon tai -kirjastoon",
+      linkHint: "Avaa kirjasto selaimessa ja kopioi osoite osoiteriviltä. InFlight tallentaa tiedostonsa sinne InFlight-kansioon.",
+      adminNote: "InFlight pääsee vain sivustoille, jotka organisaatiosi sallii. Jos kirjautuminen onnistuu mutta sivusto torjutaan, pyydä Microsoft 365 -ylläpitäjää antamaan InFlightille pääsy sivustolle.",
+      badLink: "Tämä ei ole SharePoint-linkki. Kopioi sivuston tai kirjaston osoite, esimerkiksi https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · InFlight-kansio`,
+    },
     sftpDesktopOnly: "Vain InFlightin työpöytäsovelluksessa: selaimet eivät voi käyttää SFTP:tä.",
     sftp: {
       formLabel: "SFTP-palvelimesi",

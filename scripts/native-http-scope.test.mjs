@@ -42,6 +42,7 @@ test('every native HTTP scope compiles as a URL pattern and allows what it is me
   const allowed = (target) => http.allow.some(({ url }) => new URLPattern(url).test(target));
   assert.ok(allowed('https://oauth2.googleapis.com/token'), 'Google sign-in code exchange');
   assert.ok(allowed('https://login.microsoftonline.com/common/oauth2/v2.0/token'), 'Microsoft sign-in code exchange');
+  assert.ok(allowed('https://login.microsoftonline.com/organizations/oauth2/v2.0/token'), 'SharePoint (work account) sign-in code exchange');
   assert.ok(allowed('http://localhost:11434/api/tags'), 'local helper on localhost');
   assert.ok(allowed('http://127.0.0.1:11434/api/tags'), 'local helper on IPv4 loopback');
   assert.ok(allowed('http://[::1]:11434/api/tags'), 'local helper on IPv6 loopback');
