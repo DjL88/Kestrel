@@ -65,6 +65,10 @@ export interface ExifMetadata {
   capturedAtUtcMs?: number;
   /** Exposure time in seconds, for checks such as motion blur. */
   exposureSeconds?: number;
+  /** Exposure compensation the camera recorded, in stops. */
+  exposureBiasEv?: number;
+  /** The camera recorded Exposure mode "Auto bracket": this photo is one frame of an exposure bracket. */
+  autoBracket?: boolean;
   /** The camera's own capture dates, as the file's EXIF records them. Exports copy these unchanged. */
   captureStamp?: CaptureStamp;
   /** Whether the file says it was already edited in another app (src/core/editStatus.ts). Absent for photos read before. */
@@ -222,6 +226,8 @@ export interface ShootDescriptor {
   trashedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
+  /** The Flight mode chosen for this project. Absent on older projects, which follow Settings' default. */
+  assistMode?: 'solo' | 'copilot' | 'autopilot';
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
   collage?: import('./collage').CollageDocument;
 }

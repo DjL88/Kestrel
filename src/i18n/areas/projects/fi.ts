@@ -402,6 +402,7 @@ export const fi: AreaTranslation<typeof source> = {
     none: 'Kirjautumistapaa ei vielä näy. Kirjaudu ulos ja uudelleen sisään.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Sähköposti ja salasana',
     add: (method: string) => `Lisää ${method}`,
     passwordLabel: 'Salasana sähköpostilla kirjautumiseen',

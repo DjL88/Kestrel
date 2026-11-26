@@ -135,12 +135,17 @@ export class GalleryStore {
     await this.db.runTransaction(async (tx) => { tx.delete(this.ref(galleryId)); });
   }
 
-  /** The anonymous view. Expired galleries are removed on first sight. */
-  async open(linkToken: string, password: string | undefined, atMs: number) {
+  /**
+   * The anonymous view. Expired galleries are removed on first sight. `ownerSuspended` tells whether the account that
+   * made the gallery is suspended (for example after a hash match, contentSafety.ts): every gallery of that account
+   * stops serving, not only the one where the match happened. The visitor is not told why.
+   */
+  async open(linkToken: string, password: string | undefined, atMs: number, ownerSuspended: (accountId: string) => Promise<boolean> = async () => false) {
     const galleryId = galleryIdFor(linkToken);
     const g = await this.get(galleryId).catch(() => { throw new GalleryRefusal(404, 'GALLERY_NOT_FOUND', 'This gallery link is not valid.'); });
     if (g.expiresAtMs <= atMs) { await this.revoke(galleryId).catch(() => undefined); throw new GalleryRefusal(410, 'GALLERY_EXPIRED', 'This gallery has expired. Ask the photographer for a new link.'); }
     if (g.safetyHold) throw new GalleryRefusal(451, 'GALLERY_UNDER_REVIEW', 'This gallery is unavailable while a report about it is reviewed.');
+    if (await ownerSuspended(g.createdBy)) throw new GalleryRefusal(451, 'GALLERY_UNAVAILABLE', 'This gallery is not available.');
     if (g.passwordHash && !(password && verifyPassword(password, g.passwordHash))) throw new GalleryRefusal(401, 'GALLERY_PASSWORD', 'Enter the gallery password.');
     const photos = [];
     for (const photoId of g.photoIds) {
@@ -157,8 +162,8 @@ export class GalleryStore {
     };
   }
 
-  async feedback(linkToken: string, password: string | undefined, input: { visitor: string; photoId: string | null; kind: FeedbackKind; text: string | null }, atMs: number) {
-    const { g } = await this.open(linkToken, password, atMs);
+  async feedback(linkToken: string, password: string | undefined, input: { visitor: string; photoId: string | null; kind: FeedbackKind; text: string | null }, atMs: number, ownerSuspended?: (accountId: string) => Promise<boolean>) {
+    const { g } = await this.open(linkToken, password, atMs, ownerSuspended);
     const allowed = input.kind === 'comment' ? g.allowComments : input.kind === 'favourite' || input.kind === 'unfavourite' ? g.allowFavourites : g.allowApproval;
     if (!allowed) throw new GalleryRefusal(403, 'GALLERY_NOT_ALLOWED', 'The photographer has not turned this on for this gallery.');
     if (input.photoId !== null && !g.photoIds.includes(input.photoId)) throw new GalleryRefusal(404, 'NOT_FOUND', 'That photo is not in this gallery.');

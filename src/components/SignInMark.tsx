@@ -1,9 +1,18 @@
 /**
- * The Google and Apple marks for the sign-in buttons. Google's mark keeps its four brand colours (its guidelines
+ * The Google, Apple and Microsoft marks for the sign-in buttons. Google's mark keeps its four brand colours (its guidelines
  * ask for that); Apple's follows the text colour so it stays visible on any theme. Decoration only: the provider's
  * name is always written on the button.
  */
-export function SignInMark({ provider, className = 'h-5 w-5' }: { provider: 'google' | 'apple'; className?: string }) {
+export function SignInMark({ provider, className = 'h-5 w-5' }: { provider: 'google' | 'apple' | 'microsoft'; className?: string }) {
+  if (provider === 'microsoft') return (
+    // Microsoft's four squares, in its brand colours; the name is written on the button too.
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className={className}>
+      <path fill="#F25022" d="M1 1h10.5v10.5H1z" />
+      <path fill="#7FBA00" d="M12.5 1H23v10.5H12.5z" />
+      <path fill="#00A4EF" d="M1 12.5h10.5V23H1z" />
+      <path fill="#FFB900" d="M12.5 12.5H23V23H12.5z" />
+    </svg>
+  );
   return provider === 'google' ? (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className={className}>
       <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />

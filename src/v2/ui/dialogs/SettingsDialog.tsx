@@ -1,5 +1,6 @@
 import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
+import { AiProviderSetup } from './AiProviderSetup';
 import { StorageConnections } from './StorageConnections';
 import BrowserStorageSection from './BrowserStorageSection';
 import DiskPreviewSection from './DiskPreviewSection';
@@ -20,6 +21,8 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
+import { readProfile, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff } from '../../../providers/launchMemory';
+import FlightModePicker from '../panels/FlightModePicker';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
 import { ModelsSection } from '../panels/ModelsSection';
@@ -88,8 +91,6 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
 ];
 
 export default function SettingsDialog({
-  assistMode,
-  onSetAssistMode,
   open,
   activeTab,
   accountPanel,
@@ -113,6 +114,7 @@ export default function SettingsDialog({
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [, refreshWelcomeSwitch] = useState(0);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open, panelRef, onClose);
@@ -465,29 +467,36 @@ export default function SettingsDialog({
               </div>
             )}
 
+            {/* The launch welcome is a guest's choice; someone signed in always sees it (their own "Go to my projects" is on it). */}
+            {activeTab === 'account' && readProfile() === null && (
+              <div className="mt-5">
+                <SettingSwitch
+                  title={STRINGS.welcome.showOnLaunch}
+                  checked={!skipChosen()}
+                  onToggle={() => { setSkipChosen(!skipChosen()); refreshWelcomeSwitch((n) => n + 1); }}
+                />
+              </div>
+            )}
+
+            {/* Welcome back shows a few of their own flagged photos (previews already on this device); anyone can turn it off. */}
+            {activeTab === 'account' && (
+              <div className="mt-5">
+                <SettingSwitch
+                  title={STRINGS.welcome.slideshowSetting}
+                  checked={!slideshowOff()}
+                  onToggle={() => { setSlideshowOff(!slideshowOff()); refreshWelcomeSwitch((n) => n + 1); }}
+                />
+              </div>
+            )}
+
             {/* 3. ASSISTANCE */}
             {activeTab === 'assistance' && (
               <div className="space-y-5">
                 <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                    {STRINGS.settings.assistance.defaultModeLabel}
-                  </h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['solo', 'copilot', 'autopilot'] as AssistMode[]).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => { onSetAssistMode(m); onUpdateSettings({ defaultAssistMode: m }); }}
-                        className={`h-9 rounded-[var(--radius-sm)] border text-xs font-medium ${
-                          assistMode === m
-                            ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-                        }`}
-                      >
-                        {STRINGS.topBar.assistModes[m]}
-                      </button>
-                    ))}
-                  </div>
+                  {/* The default for new projects only; each project keeps its own mode, changed from its Flight panel. */}
+                  <FlightModePicker name="default-flight-mode" label={STRINGS.settings.assistance.defaultModeLabel}
+                    value={settings.defaultAssistMode} onChange={(m) => onUpdateSettings({ defaultAssistMode: m })} />
+                  <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.settings.assistance.defaultModeNote}</p>
                 </section>
 
                 <SettingSwitch
@@ -513,7 +522,8 @@ export default function SettingsDialog({
                 <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   {STRINGS.settings.aiProviders.intro}
                 </p>
-                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settingsMore.aiNotImplemented}</p>}
+                {accountPanel && <AiProviderSetup />}
+                {!accountPanel && (
                 <div className="space-y-2">
                   {settings.aiProviders.map((prov) => {
                     const connection = aiProviderControl(prov, Boolean(accountPanel));
@@ -556,12 +566,11 @@ export default function SettingsDialog({
                     );
                   })}
                 </div>
-                {accountPanel
-                  ? <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
-                  : <div>
-                    <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
-                    <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
-                  </div>}
+                )}
+                <div>
+                  <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
+                  <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
+                </div>
               </div>
             )}
 
@@ -754,7 +763,7 @@ function SettingSwitch({
   onToggle,
 }: {
   title: string;
-  description: string;
+  description?: string;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -762,7 +771,7 @@ function SettingSwitch({
     <div className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
       <div>
         <h4 className="text-xs font-semibold text-[var(--text-primary)]">{title}</h4>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>
+        {description && <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>}
       </div>
       <button
         type="button"

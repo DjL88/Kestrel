@@ -73,6 +73,7 @@ export const fr: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Préparation d’1 vignette' : `Préparation de ${count} vignettes`),
     thumbnailStage: 'Lecture et réduction de cette photo',
     thumbnailFailed: (filename) => `Impossible de créer la vignette de ${filename}. Reconnectez l’original et réessayez.`,
+    rawJpegXl: 'Ce RAW utilise la compression JPEG XL, que InFlight ne sait pas encore lire. L’original n’est pas modifié.',
     notConnected: (names) => `Pas encore relié au moteur InFlight, donc non appliqué : ${names}.`,
     exportRunning: 'Un export est déjà en cours.',
     selectOneRaw: 'Sélectionnez une photo RAW pour exporter son TIFF.',

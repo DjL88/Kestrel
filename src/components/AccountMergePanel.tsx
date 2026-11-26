@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SignInMethod } from '../core/accountLinking';
 import { accountMergeClient, MergeError, type MergePreview, type MergeSummary } from '../providers/accountMergeClient';
-import { firebaseAuth, signInOtherAccount, signInPlatform } from '../providers/firebaseAuth';
+import { firebaseAuth, isMicrosoftSignInEnabled, signInOtherAccount, signInPlatform } from '../providers/firebaseAuth';
 import { projectsText } from '../i18n/areas/projects';
 import { methodName } from './SignInMethodsPanel';
 
@@ -70,7 +70,7 @@ export function AccountMergePanel({ disabled, className, onNote }: { disabled: b
           <p className="text-sm">{t.step1}</p>
           {signInPlatform() === 'web' && (
             <div className="flex flex-wrap gap-2">
-              {(['google', 'apple'] as const).map((m) => (
+              {(isMicrosoftSignInEnabled() ? ['google', 'apple', 'microsoft'] as const : ['google', 'apple'] as const).map((m: SignInMethod) => (
                 <button key={m} type="button" className={className} disabled={disabled || busy} onClick={() => void signInOther(m)}>{t.signInOtherWith(methodName(m))}</button>
               ))}
             </div>

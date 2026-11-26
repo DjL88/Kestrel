@@ -73,6 +73,7 @@ export const is: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Undirbý 1 smámynd' : `Undirbý ${count} smámyndir`),
     thumbnailStage: 'Les og minnka þessa mynd',
     thumbnailFailed: (filename) => `Ekki tókst að búa til smámynd fyrir ${filename}. Tengdu frumritið aftur og reyndu aftur.`,
+    rawJpegXl: 'Þessi RAW-skrá notar JPEG XL-þjöppun sem InFlight getur ekki lesið enn. Frumritið er óbreytt.',
     notConnected: (names) => `Ekki enn tengt við InFlight-vélina, svo ekki notað: ${names}.`,
     exportRunning: 'Útflutningur er þegar í gangi.',
     selectOneRaw: 'Veldu eina RAW-mynd til að flytja út TIFF-skrá hennar.',

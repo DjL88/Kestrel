@@ -18,8 +18,11 @@ address='google_cloud_run_v2_service.control_plane[0]'
 # Reviewed in-place updates that may ride along with a deploy (#1422: the models bucket CORS gains the website origin).
 # Also allowed: creating the three Paddle secret-reader grants when phase5_paddle_enabled is first turned on (#1478).
 # Also allowed: the monthly pricing review job's image, because that job runs the same control-plane image.
+# Also allowed: in-place CORS updates on the cloud-inputs, gallery and safe-copy buckets, whose origins follow
+# config/public-site.json (control_plane_origin_list); the inflight.studio switch (#1667) changes them. Deletes or
+# replacements are still refused below.
 # Likewise the weekly Paddle key renewal job (paddle-key-rotation.tf), once paddle_key_rotation_enabled is on.
-also_allowed='["google_storage_bucket.models","google_cloud_run_v2_job.pricing_review[0]","google_cloud_run_v2_job.paddle_key_rotation[0]"]'
+also_allowed='["google_storage_bucket.models","google_storage_bucket.cloud_inputs[0]","google_storage_bucket.gallery[0]","google_storage_bucket.safe_copy[0]","google_cloud_run_v2_job.pricing_review[0]","google_cloud_run_v2_job.paddle_key_rotation[0]"]'
 for c in git terraform jq tar gcloud curl; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ $sha =~ ^[0-9a-f]{40}$ ]] || fail "SHA must be a full 40-character commit"
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"

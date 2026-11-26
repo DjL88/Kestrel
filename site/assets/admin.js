@@ -10,10 +10,15 @@ import { DIMENSIONS, SAMPLE_DEVICES, previewAudience, messagePreview } from './a
 
 import { readGcpBilling, summariseIncome, accountsSummary, monthName, VAT_HELP } from './admin-accounts.mjs';
 
+import { needsYou, VIEWS, viewForHash } from './admin-needs.mjs';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
 let localTaxes = {};
+/** What the last check read, for the Needs you list. `null` = could not be read. */
+let snapshot = {};
+let autoCheck;
 
 const dateTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 const dateOnly = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' });
@@ -30,7 +35,7 @@ async function api(path, body) {
   if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('The admin service is not reachable from this address.');
   const result = await response.json();
   if (response.status === 401 && token) { signOut('Your session has ended. Sign in again.'); throw new SignedOut(); }
-  if (!response.ok) throw new Error(result.error?.message ?? 'That could not be done.');
+  if (!response.ok) throw Object.assign(new Error(result.error?.message ?? 'That could not be done.'), { status: response.status });
   return result;
 }
 
@@ -68,13 +73,6 @@ function button(text, label, className, onClick) {
   return b;
 }
 
-// The owner session is supplied only to the same-origin editor iframe, kept in memory.
-function sendDemoEditorSession() {
-  const frame = $('demo-editor-frame');
-  if (frame?.contentWindow) frame.contentWindow.postMessage({ type: 'kestrel-demo-auth', token: token || null }, location.origin);
-}
-$('demo-editor-frame')?.addEventListener('load', sendDemoEditorSession);
-
 // ---- Sign-in ---------------------------------------------------------------------------------------------------
 
 async function startConsole(accessToken, who) {
@@ -84,14 +82,19 @@ async function startConsole(accessToken, who) {
   $('sign-out').hidden = false;
   $('who').textContent = who ? 'Signed in as ' + who : 'Signed in';
   say('');
+  showView();
   await refreshAll();
-  sendDemoEditorSession();
   $('main').focus();
+  clearInterval(autoCheck);
+  autoCheck = setInterval(() => { if (token && document.visibilityState === 'visible') void refreshAll(); }, 5 * 60_000);
 }
 
 function signOut(message = '') {
   token = undefined;
-  sendDemoEditorSession();
+  clearInterval(autoCheck);
+  snapshot = {};
+  $('needs-list').replaceChildren();
+  $('refund-list').replaceChildren();
   localTaxes = {};
   clearMonitoringRehearsal();
   resetNotificationRehearsal();
@@ -151,11 +154,78 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
+  if (!token) return;
+  renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
-  if (failed) say(failed.reason.message);
+  // On the home list a failed source is already named under "Could not check"; elsewhere say it in the status line.
+  if (failed && viewForHash(location.hash)) say(failed.reason.message);
 }
-act($('refresh-all'), 'click', async () => { await refreshAll(); say('Up to date.'); });
+act($('refresh-all'), 'click', async () => { await refreshAll(); say(''); });
+
+// ---- Needs you (home) and More ---------------------------------------------------------------------------------
+
+$('more-links').replaceChildren(...Object.entries(VIEWS).filter(([name]) => name !== 'refunds').map(([name, view]) => {
+  const item = el('li'); const link = el('a', view.label); link.href = '#' + name; item.append(link); return item;
+}));
+
+/** Home shows only Needs you and More. A view shows its own sections and a way back. */
+function showView() {
+  const view = viewForHash(location.hash);
+  for (const node of document.querySelectorAll('#console .home')) node.hidden = !!view;
+  $('back').hidden = !view;
+  for (const [name, v] of Object.entries(VIEWS)) for (const id of v.sections) $(id).hidden = name !== view;
+  if (view) $('more').open = false;
+}
+addEventListener('hashchange', () => { showView(); say(''); if (token) $('main').focus(); });
+showView();
+
+const VIEW_WORD = { refunds: 'Open refunds', safety: 'Open Safety', messages: 'Open messages', money: 'Open money', service: 'Open jobs' };
+function renderNeeds() {
+  const { items, unknown } = needsYou(snapshot);
+  $('needs-list').replaceChildren(...items.map(item => {
+    const li = el('li', undefined, item.urgent ? 'urgent' : '');
+    const text = el('div');
+    text.append(el('strong', (item.urgent ? 'Urgent: ' : '') + item.title), el('p', item.detail, 'muted'));
+    const link = el('a', VIEW_WORD[item.view] ?? 'Open', 'button-link'); link.href = '#' + item.view;
+    link.setAttribute('aria-label', (VIEW_WORD[item.view] ?? 'Open') + ': ' + item.title);
+    li.append(text, link);
+    return li;
+  }));
+  $('all-good').hidden = items.length > 0 || unknown.length > 0;
+  $('needs-unknown').hidden = unknown.length === 0;
+  $('needs-unknown').textContent = 'Could not check: ' + unknown.join(', ') + '. This is not the same as all good; check again shortly.';
+  $('needs-checked').textContent = 'Checked at ' + new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' }).format(new Date()) + '.';
+}
+
+async function loadRefunds() {
+  let refunds;
+  try { ({ refunds } = await api('admin/balance-refunds')); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    // 503: account deletion is not set up on this server, so nothing can be owed.
+    snapshot.refunds = error.status === 503 ? undefined : null;
+    $('refunds-empty').hidden = false; $('refunds-empty').textContent = error.status === 503 ? error.message : 'Refunds could not be read: ' + error.message;
+    $('refund-list').replaceChildren();
+    return;
+  }
+  snapshot.refunds = refunds;
+  $('refunds-empty').hidden = refunds.length > 0; $('refunds-empty').textContent = 'Nothing is owed.';
+  $('refund-list').replaceChildren(...refunds.map(r => {
+    const li = el('li');
+    const text = el('div');
+    text.append(el('strong', gbp.format(r.pence / 100) + ' to account '), code(r.accountId), el('p', 'Owed since ' + when(r.owedAtMs) + '.', 'muted'));
+    li.append(text, button('Mark refunded', 'Mark the refund to ' + r.accountId + ' as paid', '', async () => {
+      const reference = prompt('Paddle reference for this refund (from the Paddle dashboard)');
+      if (reference === null) return;
+      if (reference.trim().length < 3) { say('Enter the Paddle reference so the refund can be traced.'); return; }
+      await api('admin/balance-refunds/' + encodeURIComponent(r.accountId) + '/refunded', { paddleReference: reference.trim() });
+      await Promise.all([loadRefunds(), loadAudit()]);
+      renderNeeds();
+      say('Marked refunded.');
+    }));
+    return li;
+  }));
+}
 
 async function loadOverview() {
   const o = await api('admin/overview');
@@ -368,9 +438,11 @@ async function loadPaddleKey() {
   let k;
   try { k = await api('admin/paddle/key'); } catch (error) {
     if (error instanceof SignedOut) throw error;
+    snapshot.paddleKey = undefined;
     $('paddle-key-state').textContent = '';
     return;
   }
+  snapshot.paddleKey = k;
   const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const parts = [];
   if (k.expiresAt) parts.push(`Paddle API key renews itself. Last renewed ${date(k.rotatedAt)}; it expires ${date(k.expiresAt)} unless renewed again.`);
@@ -380,7 +452,6 @@ async function loadPaddleKey() {
 }
 
 async function loadPayments() {
-  void loadPaddleKey();
   const p = await api('admin/payments');
   $('payments-state').textContent = p.connected
     ? 'Paid checkouts recorded after Paddle confirmed them. Amounts are what Paddle pays out; Paddle handles the buyer\'s tax.'
@@ -469,7 +540,9 @@ $('accounts-billing').addEventListener('change', async () => {
 
 const STATUS_WORDS = { new: 'New', read: 'Read', answered: 'Answered' };
 async function loadMessages() {
-  const { messages } = await api('admin/messages');
+  let messages;
+  try { ({ messages } = await api('admin/messages')); } catch (error) { snapshot.messages = null; throw error; }
+  snapshot.messages = messages;
   $('message-list').replaceChildren(...messages.map(m => {
     const item = el('li');
     const meta = el('p', undefined, 'meta');
@@ -535,8 +608,10 @@ async function loadTax() {
     $('tax-body').hidden = true;
     $('tax-unavailable').hidden = false;
     $('tax-unavailable').textContent = error.message;
+    snapshot.tax = undefined;
     return;
   }
+  snapshot.tax = summary;
   $('tax-body').hidden = false;
   $('tax-unavailable').hidden = true;
   const { settings, turnover, thresholdPence, warningPence } = summary;
@@ -596,8 +671,10 @@ async function loadSafety() {
   let s;
   try { s = await api('admin/safety'); } catch (error) {
     if (error instanceof SignedOut) throw error;
+    snapshot.safety = null;
     $('safety-checks').textContent = 'Safety checks are not set up on this server yet.'; return;
   }
+  snapshot.safety = s;
   const c = s.checks;
   $('safety-checks').textContent = !c ? 'Safety is not set up on this server.'
     : 'Hash checks: ' + (c.hashMatchers.length ? c.hashMatchers.join(', ') : 'none') + '. AI check: ' + (c.classifier ?? 'none') + '. CyberTipline connection: ' + (c.reporter ? 'set up' : 'not yet (report by hand)') + '.'
@@ -699,8 +776,10 @@ async function loadMail() {
   let m;
   try { m = await api('admin/mail'); } catch (error) {
     if (error instanceof SignedOut) throw error;
+    snapshot.mail = undefined;
     $('mail-unavailable').hidden = false; $('mail-warning').hidden = true; $('mail-facts').replaceChildren(); return;
   }
+  snapshot.mail = m;
   $('mail-unavailable').hidden = true;
   const facts = [
     ['Switch', m.on ? 'On' : 'Off (see Switches)'],
@@ -719,8 +798,10 @@ async function loadLearning() {
   let s;
   try { s = await api('admin/learning'); } catch (error) {
     if (error instanceof SignedOut) throw error;
+    snapshot.learning = undefined;
     $('learning-unavailable').hidden = false; $('learning-run').disabled = true; $('learning-facts').replaceChildren(); return;
   }
+  snapshot.learning = s;
   $('learning-unavailable').hidden = true;
   const facts = [
     ['Switch', s.on ? 'On' : 'Off (see Switches)'],
