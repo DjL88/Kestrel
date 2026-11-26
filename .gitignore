@@ -7,6 +7,15 @@ coverage/
 
 # Large optional model files, fetched by npm run model:species
 public/models/bioclip-image-int8.onnx
+# The bundled models and species lists, fetched by npm run models:fetch (models/bundled-models.json)
+public/models/clip-vit-b32-vision-uint8.onnx
+public/models/dinov2-small-fp16.onnx
+public/models/species-world.json
+public/models/species-mammals.json
+public/models/species-reptiles.json
+public/models/species-amphibians.json
+public/models/species-odonata.json
+public/models/species-lepidoptera.json
 .env*
 !.env.example
 
