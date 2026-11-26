@@ -1701,6 +1701,8 @@ export const source = {
   },
   // Projects hub: archive, project menu, rename and delete, theme switch
   hubMore: {
+    accountSignIn: 'Sign in',
+    accountSignedIn: (name: string) => `Signed in as ${name}. Open account settings`,
     archived: (count: number) => `Archived (${count})`,
     archivedNote: 'Archived projects are kept. Restore one to use it again.',
     nothingArchived: 'Nothing is archived.',
@@ -2047,6 +2049,10 @@ export const source = {
     newsEmailLabel: 'Email me InFlight news and new features',
     newsEmailHint: 'Off unless you turn it on. News goes to your devices with alerts first; we email only when an alert can’t reach you. Every email has a link to stop them.',
     newsEmailFailed: 'This could not be changed. Nothing else was affected.',
+    communicationHeading: 'Communication preferences',
+    productEmailLabel: "Email me about comments and feedback on my shared projects",
+    productEmailHint: "On unless you turn it off. Sent only when an alert can’t reach you. You still see them in the app.",
+    accountEmailNote: "Account emails, such as your licence key or a password reset, are always sent. Every other email has a link to stop it.",
   },
 
   // Long work finished (G20): on this device, offline, no account

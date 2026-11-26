@@ -1628,6 +1628,8 @@ export const ga: AreaTranslation<typeof source> = {
     export: 'Easpórtáil',
   },
   hubMore: {
+    accountSignIn: "Sínigh isteach",
+    accountSignedIn: (name: string) => `Sínithe isteach mar ${name}. Oscail socruithe an chuntais`,
     archived: (count) => `Cartlannaithe (${count})`,
     archivedNote: 'Coinnítear tionscadail chartlannaithe. Athchóirigh ceann chun é a úsáid arís.',
     nothingArchived: 'Níl aon rud cartlannaithe.',
@@ -1969,6 +1971,10 @@ export const ga: AreaTranslation<typeof source> = {
     newsEmailLabel: "Seol nuacht agus gnéithe nua InFlight chugam trí ríomhphost",
     newsEmailHint: "As mura gcasann tú air é. Téann nuacht chuig do ghléasanna a bhfuil foláirimh orthu ar dtús; ní sheolaimid ríomhphost ach nuair nach féidir le foláireamh teacht ort. Tá nasc i ngach ríomhphost chun iad a stopadh.",
     newsEmailFailed: "Níorbh fhéidir é seo a athrú. Níor athraíodh aon rud eile.",
+    communicationHeading: "Roghanna cumarsáide",
+    productEmailLabel: "Seol ríomhphost chugam faoi thráchtanna agus aiseolas ar mo thionscadail roinnte",
+    productEmailHint: "Ar siúl mura múchann tú é. Ach amháin nuair nach sroicheann foláireamh thú. Feicfidh tú fós iad san aip.",
+    accountEmailNote: "Seoltar ríomhphoist faoi do chuntas i gcónaí, mar d'eochair cheadúnais nó pasfhocal nua. Tá nasc chun stop a chur leo i ngach ríomhphost eile.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Críochnaithe: ${title}.`,

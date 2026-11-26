@@ -1625,6 +1625,8 @@ export const is: AreaTranslation<typeof source> = {
     export: 'Flytja út',
   },
   hubMore: {
+    accountSignIn: "Skrá inn",
+    accountSignedIn: (name: string) => `Innskráð sem ${name}. Opna aðgangsstillingar`,
     archived: (count) => `Í geymslu (${count})`,
     archivedNote: 'Verkefni í geymslu eru varðveitt. Endurheimtu eitt til að nota það aftur.',
     nothingArchived: 'Ekkert er í geymslu.',
@@ -1966,6 +1968,10 @@ export const is: AreaTranslation<typeof source> = {
     newsEmailLabel: "Senda mér fréttir og nýja eiginleika InFlight í tölvupósti",
     newsEmailHint: "Slökkt nema þú kveikir á því. Fréttir fara fyrst í tækin þín með tilkynningum; við sendum aðeins tölvupóst þegar tilkynning nær ekki til þín. Í hverjum pósti er tengill til að stöðva þá.",
     newsEmailFailed: "Ekki tókst að breyta þessu. Ekkert annað breyttist.",
+    communicationHeading: "Samskiptastillingar",
+    productEmailLabel: "Sendu mér tölvupóst um athugasemdir og endurgjöf á sameiginlegum verkefnum mínum",
+    productEmailHint: "Kveikt nema þú slökkvir. Aðeins þegar tilkynning nær ekki til þín. Þú sérð þau áfram í forritinu.",
+    accountEmailNote: "Póstur um aðganginn, til dæmis leyfislykill eða nýtt lykilorð, er alltaf sendur. Allur annar póstur er með tengil til að stöðva hann.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Lokið: ${title}.`,

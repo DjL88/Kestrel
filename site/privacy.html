@@ -13,7 +13,7 @@
 <header><div class="wrap"><a class="brand" href="/" aria-label="InFlight home">InFlight</a></div></header>
 <main><div class="wrap">
   <h1>InFlight privacy</h1>
-  <p class="when">Privacy notice · version 2 · written from what the code does on 25 November 2026.</p>
+  <p class="when">Privacy notice · version 2 · written from what the code does on 26 November 2026.</p>
   <p class="notice"><strong>Pre-release draft, not legal advice.</strong> No lawyer has reviewed this page yet. It describes what InFlight does today and will be checked again before public release. Highlighted parts are still to be filled in. If anything here does not match what you see in the app, please tell us through the <a href="/#contact">contact form</a>.</p>
 
   <h2>The short version</h2>
@@ -48,6 +48,8 @@
       <tr><td>You share a project with other people</td><td>The project name, the members' display names and roles, invitations (stored as a hash of the invited email address), edit recipes and their history, comments and pinned comment positions, and who was editing which photo. No photo, file name or camera metadata is stored for this.</td><td>To run shared projects: who can do what, who is editing, and the history of each edit.</td><td>Contract</td></tr>
       <tr><td>You keep a shared project in the cloud (Pro Cloud)</td><td>A sized preview and a small filmstrip picture of each photo, and the original only if you choose to store originals. Stored in Google Cloud in London. We also count bytes downloaded against the project owner's monthly allowance.</td><td>So the people you share with can open the photos, and so usage stays within your plan.</td><td>Contract</td></tr>
       <tr><td>You publish a client gallery</td><td>Sized previews of the photos you chose, the gallery's settings (a password if you set one), and visitors' favourites, approvals and comments with a random visitor label. Visitors need no account. Only a hash of the link is stored.</td><td>To show your client the photos and pass their feedback back to you.</td><td>Contract (for you); legitimate interests (for your visitors: to let them leave the feedback you asked for)</td></tr>
+      <tr><td>You turn on alerts on a device</td><td>The device's Firebase Cloud Messaging token, its type (web, Android, iOS or desktop), when it was registered and last seen, and which kinds of alert you chose (comments, client feedback, InFlight news). An alert carries only names, counts and random ids: never comment text, file names or photos.</td><td>To tell you about activity on your shared projects, and InFlight news if you keep that kind on.</td><td>Contract (project alerts); consent (news alerts: you turn alerts on per device and can switch news off)</td></tr>
+      <tr><td>We need to email you (only when an alert cannot reach you)</td><td>Your Firebase user id and the same one-way hash of your email, so we can look your verified address up from Firebase Authentication at the moment we send. The address is used for that one email and is not stored or logged by our service. We also keep your app language (for the words in the email), your email choices and the date you agreed to news emails, and a daily count of emails sent.</td><td>Account emails (such as your licence key); emails about comments and client feedback on your shared projects; InFlight news and new features only if you asked for them.</td><td>Contract (account and project emails); consent (news emails, off unless you turn them on)</td></tr>
       <tr><td>You see live cursors in a shared project</td><td>Where each person's pointer is, through Firebase Realtime Database, overwritten as it moves and removed when they leave. Nothing is replayed.</td><td>To show who is looking where.</td><td>Contract</td></tr>
       <tr><td>You ask for a managed second opinion (off by default)</td><td>One downscaled copy of the photo with location and camera metadata removed, passed to Google's Gemini model, plus a count of your requests and their estimated cost. Our service is built not to keep the photo.</td><td>To answer your question about the photo, and to keep use within a limit.</td><td>Consent (you agree each time or set a standing preference, and can withdraw it)</td></tr>
       <tr><td>You opt in to help improve suggestions (off by default)</td><td>How you corrected a suggestion, as numbers and fixed words only, under a pseudonym, dated to the day. No photo, file name or free text.</td><td>To calibrate suggestions, and to train InFlight's own suggestion models in batches in Google Vertex AI in London. Never used to train a model that generates images, and never combined with any photo.</td><td>Consent (withdrawing deletes what was stored, and stops it being used in future training runs)</td></tr>
@@ -87,6 +89,7 @@
       <tr><td>Cloud previews and originals of a shared project</td><td>Until you remove them. If a Pro Cloud plan ends, copies stay read-only and downloadable for 90 days after the paid-through date. Nothing is deleted automatically after that without notice to you first.</td></tr>
       <tr><td>Client gallery previews</td><td>Deleted when the gallery is revoked or expires, and in any case after 90 days. Visitors' feedback stays with the photographer's project.</td></tr>
       <tr><td>Managed second opinion photos</td><td>Not kept after the answer is returned. Request counts are kept for the month's allowance.</td></tr>
+      <tr><td>Alert devices, alert and email choices</td><td>While your account is open. A device is removed when you turn alerts off on it, sign out, or Firebase says the token no longer works. All of it is deleted with your account.</td></tr>
       <tr><td>Contact form messages</td><td>Up to two years after we last replied, then deleted.</td></tr>
       <tr><td>Server logs</td><td>About 30 days.</td></tr>
     </tbody>
@@ -94,16 +97,23 @@
 
   <h2 id="rights">Your rights, and how to use them</h2>
   <p>Under UK and EU data protection law you have the right to access your data, to have it corrected, to have it erased, to restrict or object to how we use it, to get a copy in a portable form, and to withdraw consent at any time. We answer within one month. It is free unless a request is plainly unfounded or excessive.</p>
+  <h3 id="communication">Choose or stop the messages we send</h3>
+  <ul>
+    <li><strong>In the app:</strong> signed in, open Settings, then Account, then <em>Communication preferences</em>. There are separate switches for InFlight news by email (marketing, off unless you turn it on), emails about your shared projects (on unless you turn them off), and alerts: on this device, and which kinds on all your devices.</li>
+    <li><strong>From an email:</strong> every email has a link at the bottom, and a one-click unsubscribe your email app can show. In a news email it stops news; in a shared-project email it stops those. Either can be turned back on in the app. You can also reply with “unsubscribe”.</li>
+    <li><strong>Account emails</strong>, such as your licence key or the email-address check and password reset that Firebase sends, are part of the service and are not optional while you have an account.</li>
+    <li>Whatever you switch off, notifications still appear inside the app, so you miss nothing in your shared projects.</li>
+  </ul>
   <h3 id="export">Get a copy of your data</h3>
   <ul>
     <li><strong>On your device:</strong> in InFlight, use <em>Back up now</em> to save a complete project backup, or save XMP sidecars from the File menu. Exported photos are ordinary files.</li>
     <li><strong>Cloud photos:</strong> download them from the shared project at any time, including during the 90-day read-only period after a plan ends.</li>
-    <li><strong>What we hold about you:</strong> write to <a href="mailto:david@djleitch.co.uk">david@djleitch.co.uk</a> from the email address you signed in with, or use the <a href="/#contact">contact form</a> and say “data copy”. We send your account, device, purchase, shared-project and message records as a machine-readable file.</li>
+    <li><strong>What we hold about you:</strong> write to <a href="mailto:david@djleitch.co.uk">david@djleitch.co.uk</a> from the email address you signed in with, or use the <a href="/#contact">contact form</a> and say “data copy”. We send your account, device, purchase, shared-project, message and communication-preference records as a machine-readable file.</li>
   </ul>
   <h3 id="erase">Erase and forget me</h3>
   <ul>
     <li><strong>On your device:</strong> open Settings, then Privacy, then <em>Erase this device</em>. It removes every project, edit, preview and saved choice InFlight keeps in that browser or app. Your original photo files are never touched. It needs no account or connection.</li>
-    <li><strong>Opt-ins:</strong> switching off “help improve suggestions” deletes what you shared. Switching off the managed second opinion stops it straight away.</li>
+    <li><strong>Opt-ins:</strong> switching off “help improve suggestions” deletes what you shared. Switching off the managed second opinion stops it straight away. Turning off news emails removes the record of your agreement.</li>
     <li><strong>Your account and everything on our servers:</strong> write to us as above and say “delete my account”. We check the request comes from the account's email address, then delete your account, devices, shared projects you own (after warning the people you share with), cloud copies and messages within 30 days. We tell you what was deleted and what the law makes us keep, such as purchase records. Any unused cloud balance is refunded to you through Paddle. There is not yet a one-tap delete button.</li>
   </ul>
   <h3>US state privacy rights</h3>

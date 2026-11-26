@@ -19,7 +19,8 @@ import { backupStatusText } from '../engineClient/backupWords';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
-import { NewsEmailSetting, NoticesButton, useNotices } from './shell/Notices';
+import { CommunicationPreferences, NoticesButton, useNotices } from './shell/Notices';
+import { AccountButton } from './shell/AccountButton';
 import { TaskAlerts } from './shell/TaskAlerts';
 import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
@@ -28,7 +29,7 @@ import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
-import { firebaseAuth } from '../../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { nextToReview } from '../../core/savedViews';
@@ -148,6 +149,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
+  // Top right of the home page and editor: who is signed in. Read again when Settings closes (where sign-in happens).
+  const [accountName, setAccountName] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!accountPanel || !isSignInConfigured() || store.settingsOpen) return;
+    let live = true;
+    void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
+    return () => { live = false; };
+  }, [accountPanel, signedInName, store.settingsOpen]);
+  const accountButton = accountPanel && isSignInConfigured()
+    ? <AccountButton name={accountName} onOpen={() => actions.setSettingsOpen(true, 'account')} />
+    : undefined;
   // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
@@ -877,6 +889,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProjectForever={actions.deleteProjectForever}
           onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
+          account={accountButton}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
           }
@@ -921,6 +934,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
               <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
+              {accountButton}
             </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
@@ -1392,7 +1406,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         templates={store.overlayTemplates}
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
-        accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
+        accountPanel={accountPanel ? <>{accountPanel}<CommunicationPreferences client={sharing} signedIn={signedInName} /></> : undefined}
         keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} padKeysOn={padKeysOn} onPadKeysOnChange={(on: boolean) => actions.updateSettings({ padKeysEnabled: on })} previews={commandPreviews} /></React.Suspense>}
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}

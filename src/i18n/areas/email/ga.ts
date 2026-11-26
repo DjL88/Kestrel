@@ -20,6 +20,12 @@ export const ga: AreaTranslation<typeof source> = {
     done: "Déanta. Ní sheolfaidh InFlight ríomhphost chuig an seoladh seo arís.",
     invalid: "Níl an nasc seo bailí.",
     invalidHint: "Freagair an ríomhphost agus stopfaimid iad.",
+    stopNews: "Stop nuacht InFlight trí ríomhphost",
+    stopNotices: "Stop ríomhphoist faoi do thionscadail roinnte",
+    confirmNews: "Brúigh an cnaipe chun nuacht InFlight trí ríomhphost a stopadh. Tiocfaidh ríomhphoist faoi do chuntas, mar eochair cheadúnais, fós.",
+    confirmNotices: "Brúigh an cnaipe chun ríomhphoist faoi do thionscadail roinnte a stopadh. Feicfidh tú fós iad san aip.",
+    doneNews: "Déanta. Chun nuacht trí ríomhphost a chur ar siúl arís, oscail Socruithe → Cuntas in InFlight.",
+    doneNotices: "Déanta. Chun na ríomhphoist seo a chur ar siúl arís, oscail Socruithe → Cuntas in InFlight.",
   },
   news: {
     why: "Tá sé seo á fháil agat mar gur iarr tú nuacht InFlight trí ríomhphost. Chun é a stopadh, múch é in Socruithe → Cuntas, nó úsáid an nasc thíos.",
