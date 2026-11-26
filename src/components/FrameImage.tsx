@@ -50,6 +50,9 @@ interface FrameImageProps {
   sensor16?: boolean;
   /** The shown picture's pixel size, each time one loads (the interim one included): its shape for format geometry. */
   onPictureSize?: (size: { width: number; height: number }) => void;
+  /** True while the picture is loading or being redrawn (the interim thumbnail counts as still loading), false once the
+   * full picture is shown or it cannot be shown (a low-quality fallback or a placeholder is not "loading"). */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /** A picture that will not load is asked for again this many times, after these waits, before the view settles for less. */
@@ -116,6 +119,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   panOffset = { x: 0, y: 0 },
   sensor16 = false,
   onPictureSize,
+  onBusyChange,
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -428,6 +432,13 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       )}
     </div>
   );
+
+  const unavailableNow = (!src && !loading && preview.identity === identity) || (errored && preview.identity === identity);
+  const busy = !degraded && !unavailableNow && (loading || preview.identity !== identity || Boolean(src && preview.interim));
+  const busyListener = useRef(onBusyChange);
+  busyListener.current = onBusyChange;
+  useEffect(() => { busyListener.current?.(busy); }, [busy]);
+  useEffect(() => () => busyListener.current?.(false), []);
 
   if (!src && !loading && preview.identity === identity) {
     return placeholder(needsAccess ? t.frame.originalUnavailable : isHeifFile(frame.filename) && !frame.isDemo ? t.frame.heifUndecodable : t.frame.previewUnavailable);

@@ -9,9 +9,12 @@
  * - Only a VERIFIED address that still matches the hash the account signed in with is used. Anything else, or a failed
  *   lookup, is "no address": the in-app inbox still has the notice.
  * - The app language (for the unsubscribe words) is the one the app last told us.
- * - Product news by email is off unless the person turned it on (UK PECR: feature announcements are marketing).
+ * - Product news by email (marketing) is off unless the person turned it on (UK PECR: feature announcements are marketing).
+ * - Product emails (team notices about the person's own shared projects, sent only when push cannot reach them) are on
+ *   unless the person turned them off in Settings → Account → Communication preferences, or used the link in one.
+ * - Account and security emails (a bought licence key) are not optional while the account exists.
  *
- * Firestore `notify_contacts/<accountId>`: { firebaseUid, emailHash, language?, productNewsEmail, productNewsAtMs? }.
+ * Firestore `notify_contacts/<accountId>`: { firebaseUid, emailHash, language?, productNewsEmail, productNewsAtMs?, noticeEmail? }.
  */
 import type { FirestoreLike, FsData } from './firestoreStore.ts';
 import { emailHashOf } from './entitlement.ts';
@@ -19,7 +22,7 @@ import { isMailAddress, type NoticeAddressBook } from './mailer.ts';
 
 const C = 'notify_contacts';
 
-export interface ContactDoc { firebaseUid?: string; emailHash?: string; language?: string; productNewsEmail?: boolean; productNewsAtMs?: number }
+export interface ContactDoc { firebaseUid?: string; emailHash?: string; language?: string; productNewsEmail?: boolean; productNewsAtMs?: number; noticeEmail?: boolean }
 
 /** One Firebase Auth user, as Identity Toolkit answers it. Undefined when there is no such user or the lookup failed. */
 export type FirebaseUserLookup = (uid: string) => Promise<{ email?: string; emailVerified?: boolean } | undefined>;
@@ -63,10 +66,19 @@ export class NoticeContacts {
     if ((await this.get(accountId)).language !== language) await this.merge(accountId, { language });
   }
 
-  async preferences(accountId: string): Promise<{ productNews: boolean; language: string | null }> {
+  async preferences(accountId: string): Promise<{ productNews: boolean; productEmail: boolean; language: string | null }> {
     const c = await this.get(accountId);
-    return { productNews: c.productNewsEmail === true, language: c.language ?? null };
+    return { productNews: c.productNewsEmail === true, productEmail: c.noticeEmail !== false, language: c.language ?? null };
   }
+
+  /** Product emails (team notices when push cannot reach the person). On unless switched off. */
+  async setProductEmail(accountId: string, on: boolean): Promise<boolean> {
+    await this.merge(accountId, { noticeEmail: on });
+    return on;
+  }
+
+  /** Whether this account still wants team notices by email (the notice fallback asks before every email). */
+  readonly wantsNoticeEmail = async (accountId: string): Promise<boolean> => (await this.get(accountId)).noticeEmail !== false;
 
   /** Turning product news by email on or off. The time it was turned on is kept as the record of consent. */
   async setProductNews(accountId: string, on: boolean, atMs: number): Promise<boolean> {

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Window access for explicit file operations and HTTPS BYO services; plain HTTP is limited to local loopback, never arbitrary internet or LAN hosts.",
+  "description": "Window access for explicit file operations and HTTPS BYO services; plain HTTP is limited to this computer, the local network (private addresses and .local names) and Tailscale (100.64/10 and .ts.net), never other internet hosts.",
   "windows": [
     "main"
   ],
@@ -40,6 +40,24 @@
         },
         {
           "url": "http://[\\:\\:1]:*"
+        },
+        {
+          "url": "http://(10\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)):*"
+        },
+        {
+          "url": "http://(192\\.168\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)):*"
+        },
+        {
+          "url": "http://(172\\.(?:1[6-9]|2\\d|3[01])\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)):*"
+        },
+        {
+          "url": "http://(100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)):*"
+        },
+        {
+          "url": "http://*.local:*"
+        },
+        {
+          "url": "http://*.ts.net:*"
         }
       ]
     }

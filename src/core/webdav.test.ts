@@ -14,11 +14,16 @@ test('a server answer is read into files and folders, whatever XML prefix it use
   assert.deepEqual(parsePropfind('not xml'), []);
 });
 
-test('NAS settings are checked with plain messages, and plain http is for the home network only', () => {
+test('NAS settings are checked with plain messages, and plain http is for the local network and Tailscale only', () => {
   const good = { url: 'https://nas.example.com/photos', username: 'me', password: 'secret' };
   assert.deepEqual(checkWebDavSettings(good), []);
-  assert.deepEqual(checkWebDavSettings({ ...good, url: 'http://192.168.1.20:5005/photos' }), []);
-  assert.equal(checkWebDavSettings({ ...good, url: 'http://nas.example.com/photos' }).length, 1);
+  for (const local of ['http://192.168.1.20:5005/photos', 'http://10.0.0.5/dav', 'http://172.20.1.1/dav', 'http://nas.local:5005/dav',
+    'http://100.101.102.103:5005/dav', 'http://nas.tail1234.ts.net:5005/dav', 'http://localhost:8080/dav']) {
+    assert.deepEqual(checkWebDavSettings({ ...good, url: local }), [], local);
+  }
+  for (const internet of ['http://nas.example.com/photos', 'http://100.200.1.1/dav', 'http://172.32.0.1/dav', 'http://10.evil.com/dav', 'http://ts.net.evil.com/dav']) {
+    assert.equal(checkWebDavSettings({ ...good, url: internet }).length, 1, internet);
+  }
   assert.equal(checkWebDavSettings({ ...good, url: 'nas' }).length, 1);
   assert.equal(checkWebDavSettings({ ...good, username: ' ' }).length, 1);
   assert.equal(checkWebDavSettings({ ...good, password: '' }).length, 1);
