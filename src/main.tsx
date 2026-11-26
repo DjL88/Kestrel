@@ -15,12 +15,9 @@ import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 import { isDesktopApp } from './providers/desktopShell.ts';
 import { keepsNativeMenu } from './core/appChrome.ts';
 import { manageOfflineWorker } from './providers/offlineWorker.ts';
-import { v2Enabled } from './v2/switch.ts';
 
-// Version 2 workspace, behind ?v2 while it is built. Its code and sample photos load only when the switch is on.
+// The InFlight workspace (V2). The previous Library and Editor were retired on 26 Nov 2026.
 const V2Root = lazy(() => import('./v2/V2Root.tsx'));
-// The previous Library and Editor (?v2=0) loads only when chosen, so V2, the default, does not download it first (G12).
-const App = lazy(() => import('./App.tsx'));
 
 // No browser right-click menu in the app (Open Image in New Window, Download Image, Inspect Element), except in text fields.
 document.addEventListener('contextmenu', (event) => { if (!keepsNativeMenu(event.target as HTMLElement | null)) event.preventDefault(); });
@@ -29,7 +26,7 @@ applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(
-  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><Suspense fallback={null}><App /></Suspense><Splash /></>,
+  <><Suspense fallback={null}><V2Root /></Suspense><Splash /></>,
 );
 
 void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());

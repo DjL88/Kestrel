@@ -13,10 +13,6 @@ export default defineConfig({
     browserName: 'chromium',
     // Tests read British English. A device in another language is offered it at first run (tests/language.spec.ts).
     locale: 'en-GB',
-    // V2 is the default app since #1284; `?v2=0` (remembered as `inflight.v2: off`) opens the previous Library and
-    // Editor. Most specs here were written for that app, so every test starts in it. V2 specs open `?v2`, which turns
-    // V2 back on for that test only.
-    storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:4173', localStorage: [{ name: 'inflight.v2', value: 'off' }] }] },
     launchOptions: process.env.KESTREL_CHROME_PATH ? { executablePath: process.env.KESTREL_CHROME_PATH } : undefined,
   },
   projects: [

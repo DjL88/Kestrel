@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('V2 Add format creates a separate local format and preserves Original on reopen', async ({ page }) => {
+test('V2 Add format creates a separate local format that is still there on reopen', async ({ page }) => {
   await page.goto('/?v2');
   const workspace = page.locator('.inflight-v2');
   await workspace.getByRole('button', { name: 'New project' }).first().click();
@@ -21,22 +21,18 @@ test('V2 Add format creates a separate local format and preserves Original on re
   await (await chooser).setFiles({ name: 'format-source.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
 
   const addFormat = workspace.getByRole('toolbar', { name: 'Selected format actions' }).getByRole('button', { name: 'Add format' });
-  const originalWidth = workspace.getByLabel('Original output width');
-  const originalHeight = workspace.getByLabel('Original output height');
   const customLabel = workspace.getByPlaceholder('Format label (e.g. A3 Print)');
   const customToggle = workspace.getByRole('button', { name: 'Include Portrait print' });
 
   await addFormat.click();
   await expect(customLabel).toBeFocused();
-  await expect(originalWidth).toHaveCount(0);
+  // The Original's own size pane was removed in #1591, so only the added format is checked here.
   await customLabel.fill('Portrait print');
   const form = customLabel.locator('xpath=ancestor::form');
   await form.getByLabel('Width in px', { exact: true }).fill('300');
   await form.getByLabel('Height in px', { exact: true }).fill('400');
   await form.getByRole('button', { name: 'Add format' }).click();
   await expect(customToggle).toBeVisible();
-  await expect(originalWidth).toHaveValue('600');
-  await expect(originalHeight).toHaveValue('450');
 
   await workspace.getByRole('button', { name: 'Back to projects', exact: true }).click();
   const project = workspace.getByRole('button', { name: 'Format persistence', exact: true });
@@ -46,6 +42,4 @@ test('V2 Add format creates a separate local format and preserves Original on re
   await addFormat.click();
   await customLabel.locator('xpath=ancestor::form').getByRole('button', { name: 'Cancel' }).click();
   await expect(customToggle).toBeVisible();
-  await expect(originalWidth).toHaveValue('600');
-  await expect(originalHeight).toHaveValue('450');
 });
