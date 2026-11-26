@@ -58,10 +58,11 @@ test('a planned domain is recorded without changing anything, and becomes live o
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('this checkout plans inflight.studio and still serves the Firebase address', () => {
+test('this checkout serves inflight.studio and keeps the Firebase address on record', () => {
   const config = JSON.parse(readFileSync(fileURLToPath(new URL('../../config/public-site.json', import.meta.url)), 'utf8'));
-  assert.equal(config.plannedOrigin, 'https://inflight.studio');
-  assert.equal(config.origin, 'https://kestrel-hosting-kestrel.web.app', 'not connected until the owner says publishing is close');
+  assert.equal(config.origin, 'https://inflight.studio', 'connected 26 Nov 2026');
+  assert.equal(config.plannedOrigin, undefined);
+  assert.equal(config.firebaseOrigin, 'https://kestrel-hosting-kestrel.web.app');
 });
 
 test('refuses anything but a bare https origin', () => {

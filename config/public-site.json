@@ -1,7 +1,6 @@
 {
-  "origin": "https://kestrel-hosting-kestrel.web.app",
+  "origin": "https://inflight.studio",
   "firebaseOrigin": "https://kestrel-hosting-kestrel.web.app",
-  "plannedOrigin": "https://inflight.studio",
   "files": [
     "site/index.html",
     "site/logos.html",
