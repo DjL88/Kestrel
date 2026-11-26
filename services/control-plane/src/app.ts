@@ -15,6 +15,7 @@ import { learningSubjectFor } from './learningSignal.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
+import { licenceKeyMail, mintLicenceKey, ownsLicence } from './licenceKeys.ts';
 import { licenceIsUsable, newLicence, type AuditRecord, type LicenceRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
@@ -54,6 +55,8 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
+/** A device unused this long is freed automatically when a new one needs its slot (a phone swap). */
+export const SWAP_IDLE_DAYS = 30;
 const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: number | null }, now: number) =>
   Math.min(now + licence.offlineGraceDays * DAY_MS, licence.validUntilMs ?? Infinity);
 
@@ -302,7 +305,7 @@ export const Schemas = {
   MergeUndoRequest: z.object({ mergeId: z.string().regex(/^mrg_[0-9a-f]{24}$/) }).strict(),
   AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
   AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
-  ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
+  ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string(), licenceKey: z.string().optional().describe('Signed in, bought outright: the buyer\'s KESTREL1 key, kept on the device') }),
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
     aiQuota: z.object({ requestsUsed: z.number(), requestsLimit: z.number(), periodEndsMs: z.number() }).nullable(),
@@ -835,12 +838,28 @@ export function createApp(options: AppOptions) {
   }
 
   /**
+   * Activate a device, with grace for a swap (a new phone replacing an old one): when every slot is taken, the device
+   * that has gone longest unseen is freed, but only if it has not been used for SWAP_IDLE_DAYS. Anything else is the
+   * device limit, and the person frees a device in Settings.
+   */
+  async function activateWithSwapGrace(request: Parameters<Store['activateDevice']>[0], accountId: string | null) {
+    const first = await store.activateDevice(request);
+    if (first.ok || first.reason !== 'device_limit') return first;
+    const idle = (await store.listActivationsForLicence(request.licenceId))
+      .filter((d) => d.deviceHash !== request.deviceHash && request.nowMs - d.lastSeenMs >= SWAP_IDLE_DAYS * DAY_MS)
+      .sort((a, b) => a.lastSeenMs - b.lastSeenMs)[0];
+    if (!idle || !(await store.deactivateDevice(idle.activationId))) return first;
+    await audit(accountId, 'device.release.idle', 'allowed', `${idle.activationId} unseen ${Math.floor((request.nowMs - idle.lastSeenMs) / DAY_MS)}d`);
+    return store.activateDevice(request);
+  }
+
+  /**
    * Bought outright (a verified one-off payment that never expires): mark the grant so the app keeps Pro on that
    * device for good, even if this service is down or gone (src/core/entitlementGrant.ts grantIsOwned). Always decided
    * here, never by an admin flag of the same name, so a gift or a flag rule cannot claim it.
    */
   function ownedFlags(licence: LicenceRecord, base: Pick<EntitlementGrant, 'flags'>): Pick<EntitlementGrant, 'flags'> {
-    const owned = licence.paid && licence.plan === 'paid' && licence.validUntilMs === null && licence.status === 'active';
+    const owned = ownsLicence(licence);
     const { [OWNED_GRANT_FLAG]: _ignored, ...rest } = base.flags ?? {};
     if (owned) return { flags: { ...rest, [OWNED_GRANT_FLAG]: { on: true } } };
     return base.flags ? { flags: rest } : {};
@@ -1098,7 +1117,7 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.AttachLicenceRequest, req.rawBody);
-        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const account = await store.getAccount(claims.sub);
         const outcome = await store.attachLicenceToAccount(check.details.id, claims.sub,
@@ -1114,20 +1133,20 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.ActivateRequest, req.rawBody);
-        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const t = now();
-        const outcome = await store.activateDevice({
+        const outcome = await activateWithSwapGrace({
           licenceId: check.details.id, planIfNew: check.details.plan, deviceHash: body.deviceHash, platform: body.platform,
           appVersion: body.appVersion, newActivationId: `act_${randomId(12)}`, nowMs: t,
-        });
+        }, null);
         if (!outcome.ok && outcome.reason === 'not_active') throw new ApiError(403, 'LICENCE_NOT_ACTIVE', 'This licence is no longer active. Your local work is unaffected.');
         if (!outcome.ok) throw new ApiError(409, 'DEVICE_LIMIT', `This licence is already active on ${outcome.maxDevices} devices. Deactivate one first.`);
         const { activationId, licence } = outcome;
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: licence.plan as EntitlementGrant['plan'], managedAi: licence.managedAi,
           deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: offlineDeadline(licence, t),
-          ...(await grantFlagsFor({ plan: licence.plan === 'free' ? 'basic' : 'pro' }, body.deviceHash, body.appVersion, t)),
+          ...ownedFlags(licence, await grantFlagsFor({ plan: licence.plan === 'free' ? 'basic' : 'pro' }, body.deviceHash, body.appVersion, t)),
         };
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId } };
       },
@@ -1142,10 +1161,10 @@ export function createApp(options: AppOptions) {
         const t = now();
         const licence = await effectiveAccountLicence(claims.sub, t);
         if (!licence) throw new ApiError(403, 'NO_LICENCE', 'This account has no Pro licence yet. Your local work is unaffected.');
-        const outcome = await store.activateDevice({
+        const outcome = await activateWithSwapGrace({
           licenceId: licence.licenceId, planIfNew: licence.plan, deviceHash: body.deviceHash, platform: body.platform,
           appVersion: body.appVersion, newActivationId: `act_${randomId(12)}`, nowMs: t,
-        });
+        }, claims.sub);
         if (!outcome.ok && outcome.reason === 'not_active') throw new ApiError(403, 'LICENCE_NOT_ACTIVE', 'This licence is no longer active. Your local work is unaffected.');
         if (!outcome.ok) throw new ApiError(409, 'DEVICE_LIMIT', `This licence is already active on ${outcome.maxDevices} devices. Deactivate one first.`);
         const grant: EntitlementGrant = {
@@ -1154,7 +1173,9 @@ export function createApp(options: AppOptions) {
           ...ownedFlags(outcome.licence, await grantFlagsFor({ plan: outcome.licence.plan === 'free' ? 'basic' : 'pro', user: (await store.getAccount(claims.sub))?.emailHash }, body.deviceHash, body.appVersion, t)),
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
-        return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
+        // Bought outright: hand the device the buyer's key too, so Pro survives signing out or this service going away.
+        const licenceKey = ownsLicence(outcome.licence) && config.licencePrivateKey ? mintLicenceKey(outcome.licence, config.licencePrivateKey, t) : undefined;
+        return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId, ...(licenceKey ? { licenceKey } : {}) } };
       },
     },
     {
@@ -1233,7 +1254,7 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.LicenceStatusRequest, req.rawBody);
-        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const licence = await store.getLicence(check.details.id);
         if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 3, devices: [] } };
@@ -1252,7 +1273,7 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.DeactivateRequest, req.rawBody);
-        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const devices = await store.listActivationsForLicence(check.details.id);
         if (!devices.some((d) => d.activationId === body.activationId) || !(await store.deactivateDevice(body.activationId))) {
@@ -2485,7 +2506,7 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'licence.revoke');
         const body = parseJson(Schemas.AdminRevokeKey, req.rawBody);
         // The signature check keeps typos and made-up keys out of the list. The key itself is never stored or logged.
-        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That is not a genuine InFlight licence key, so there is nothing to revoke. Check it was copied in full.');
         const id = check.details.id;
         const existing = await store.getLicence(id);
@@ -2609,7 +2630,22 @@ export function createApp(options: AppOptions) {
     }
   }
 
-  return { handle, routes, store, createAccount, issueSession, config };
+  /**
+   * Email a new buyer their key, once, right after the payment creates the licence (proSettlement's onNewLicence).
+   * Only to the verified sign-in address (noticeContacts), only with app email switched on, and only where this server
+   * can sign keys. Whatever happens here, the key is still handed to each device at sign-in and shown in Settings.
+   */
+  async function sendLicenceKey(licence: LicenceRecord): Promise<'sent' | 'skipped'> {
+    if (!ownsLicence(licence) || !licence.accountId || !config.licencePrivateKey || !options.mailer || !options.contacts || !(await switchOn('email'))) return 'skipped';
+    const to = await options.contacts.addressBook(licence.accountId);
+    if (!to) return 'skipped';
+    const mail = licenceKeyMail(mintLicenceKey(licence, config.licencePrivateKey, now()), licence.majorVersion);
+    const sent = await options.mailer.sendNotice({ to: to.address, accountId: licence.accountId, ...mail, language: to.language });
+    await audit(licence.accountId, 'licence.key.email', sent.sent ? 'allowed' : 'denied', licence.licenceId);
+    return sent.sent ? 'sent' : 'skipped';
+  }
+
+  return { handle, routes, store, createAccount, issueSession, config, sendLicenceKey };
 }
 
 export type App = ReturnType<typeof createApp>;

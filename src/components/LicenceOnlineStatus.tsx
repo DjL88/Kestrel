@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { LicenceState } from '../providers/licenceStore';
 import { checkLicenceNow, freeLicenceDevice, licenceDevices, licenceOnlineConfigured } from '../providers/licenceStore';
+import { checkInDaysLeft } from '../core/licenceOnline';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { projectsText as t } from '../i18n/areas/projects';
 
 const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-60';
-const day = (ms: number) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(ms));
 const moment = (ms: number) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ms));
 
 const platformName = (platform: string) => ({
@@ -24,11 +24,15 @@ export function LicenceOnlineStatus({ licence }: { licence: Extract<LicenceState
 
   let line: string;
   let alert = false;
+  const daysLeft = checkInDaysLeft(online, licence.firstUseMs, Date.now());
+  const pending = licence.access.basis === 'check_in' ? t.licence.checkInNeeded : daysLeft !== null ? t.licence.pendingDays(daysLeft) : t.licence.pending;
+  if (licence.access.basis === 'check_in') alert = true;
   switch (online.kind) {
     case 'not_set_up': line = t.licence.offlineOnly; break;
-    case 'not_checked': line = t.licence.pending; break;
-    case 'active': line = t.licence.registered(day(online.grant.offlineUntilMs)); break;
-    case 'unreachable': line = online.grant ? t.licence.notReachable(day(online.grant.offlineUntilMs)) : t.licence.pending; break;
+    case 'not_checked': line = pending; break;
+    // A registered key keeps Pro on this device for good; the grant date only bounds the online helper.
+    case 'active': line = licence.access.pro ? t.licence.registeredOwned : t.licence.revoked; break;
+    case 'unreachable': line = online.grant ? t.licence.registeredOwned : pending; break;
     case 'device_limit': line = t.licence.deviceLimit; alert = true; break;
     case 'revoked': line = t.licence.revoked; alert = true; break;
   }

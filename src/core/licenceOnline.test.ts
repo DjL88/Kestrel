@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideAccess, decideAccountAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
+import { checkInDaysLeft, decideAccess, decideAccountAccess, NEW_DEVICE_CHECK_IN_DAYS, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
 import type { EntitlementGrant } from './entitlementGrant';
 
 const DAY = 86_400_000;
@@ -82,4 +82,20 @@ test('an account has nothing to fall back on: Pro only inside the grant\'s offli
   // A grant that was always Free never counts, whatever its window.
   assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW),
     { pro: false, managedAi: false, basis: 'none' });
+});
+
+test('a new device must register its key once within 30 days, so one key cannot spread over unlimited offline devices', () => {
+  const first = NOW;
+  const never = { kind: 'not_checked' } as const;
+  const unreachableNever = { kind: 'unreachable', grant: null, activationId: null } as const;
+  assert.equal(NEW_DEVICE_CHECK_IN_DAYS, 30);
+  assert.deepEqual(decideAccess(true, never, NOW + 30 * DAY, first), { pro: true, managedAi: false, basis: 'key' });
+  assert.equal(checkInDaysLeft(never, first, NOW + 10 * DAY), 20);
+  assert.deepEqual(decideAccess(true, never, NOW + 30 * DAY + 1, first), { pro: false, managedAi: false, basis: 'check_in' });
+  assert.deepEqual(decideAccess(true, unreachableNever, NOW + 31 * DAY, first), { pro: false, managedAi: false, basis: 'check_in' });
+  // Registered once: Pro for good on this device, with no server, years later.
+  assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: grant(), activationId: 'act_1' }, NOW + 3650 * DAY, first), { pro: true, managedAi: false, basis: 'key' });
+  assert.equal(checkInDaysLeft({ kind: 'unreachable', grant: grant(), activationId: 'act_1' }, first, NOW), null);
+  // Builds with no licence service never ask (firstUse is null there).
+  assert.deepEqual(decideAccess(true, { kind: 'not_set_up' }, NOW + 3650 * DAY, null), { pro: true, managedAi: false, basis: 'key' });
 });

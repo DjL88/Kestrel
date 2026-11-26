@@ -38,6 +38,8 @@ const settlePaddle = firestore && commerce && paddle ? paddleProSettlement({
   paddle,
   commerce,
   licences: store,
+  // The buyer's key by email, once per purchase. `app` is created below; this runs only when a payment arrives.
+  onNewLicence: async (licence) => { await app.sendLicenceKey(licence); },
 }) : undefined;
 // A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
 const revokePaddle = firestore && paddle ? paddleRefundRevocation({

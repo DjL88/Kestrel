@@ -38,3 +38,50 @@ test('a one-off purchase gets an owned grant; a gift or a time-limited licence d
     await harness.close();
   }
 });
+
+test('signing in hands a buyer their own key for the version bought; a gift gets none', async () => {
+  const harness = await startHarness(null);
+  try {
+    const { verifyLicence } = await import('../../../src/core/licence.ts');
+    const signIn = async (email: string, extra: Parameters<typeof newLicence>[3]) => {
+      const accountId = await harness.app.createAccount(email, 'test-password-with-length', 'user');
+      const token = (await harness.app.issueSession(accountId, 'user')).accessToken;
+      await harness.app.store.insertLicence(newLicence(`lic_${email.slice(0, 6)}_key`, 'paid', harness.clock.now, { accountId, ...extra }));
+      return (await harness.call('POST', '/v1/me/activate', { token, body: { deviceHash: 'd'.repeat(64), platform: 'windows', appVersion: '1.0.0' } })).body;
+    };
+    const bought = await signIn('keybuy@example.test', { paid: true, source: 'purchase', majorVersion: 1 });
+    const check = await verifyLicence(bought.licenceKey, harness.app.config.licencePublicKey, null);
+    assert.ok(check.ok);
+    if (check.ok) { assert.equal(check.details.id, 'lic_keybuy_key'); assert.equal(check.details.major, 1); }
+    // The key names the same licence: the same device slot, refund and revoke.
+    const viaKey = await harness.call('POST', '/v1/licences/activate', { body: { licenceKey: bought.licenceKey, deviceHash: 'd'.repeat(64), platform: 'windows', appVersion: '1.0.0' } });
+    assert.equal(viaKey.status, 200);
+    assert.equal(viaKey.body.activationId, bought.activationId);
+    assert.deepEqual(viaKey.body.grant.payload.flags?.['licence.owned'], { on: true });
+    assert.equal((await signIn('keygif@example.test', { paid: false, source: 'gift' })).licenceKey, undefined);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a device swap: when every slot is taken, a device unused for 30 days is freed; a recently used one is not', async () => {
+  const harness = await startHarness(null);
+  try {
+    const accountId = await harness.app.createAccount('swapper@example.test', 'test-password-with-length', 'user');
+    await harness.app.store.insertLicence(newLicence('lic_swap_test', 'paid', harness.clock.now, { accountId, paid: true, source: 'purchase', maxDevices: 2 }));
+    const activate = async (hash: string) => harness.call('POST', '/v1/me/activate', { token: (await harness.app.issueSession(accountId, 'user')).accessToken, body: { deviceHash: hash.repeat(64), platform: 'ios', appVersion: '1.0.0' } });
+    assert.equal((await activate('1')).status, 200);
+    harness.clock.now += 20 * 86_400_000;
+    assert.equal((await activate('2')).status, 200);
+    harness.clock.now += 5 * 86_400_000;
+    // Device 1 was last used 25 days ago: still counts.
+    assert.equal((await activate('3')).status, 409);
+    harness.clock.now += 6 * 86_400_000;
+    // Now 31 days: the old phone is freed and the new one takes its slot.
+    assert.equal((await activate('3')).status, 200);
+    const devices = await harness.app.store.listActivationsForLicence('lic_swap_test');
+    assert.deepEqual(devices.map((d) => d.deviceHash[0]).sort(), ['2', '3']);
+  } finally {
+    await harness.close();
+  }
+});
