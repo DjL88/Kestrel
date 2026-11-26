@@ -57,10 +57,11 @@ export function backupFolder(projectId: string): string {
 /** Separate files even when two saves start in the same millisecond or on different devices. */
 export function backupName(projectId: string, now: Date): string {
   const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `${backupFolder(projectId)}/${stamp(now)}_${nonce}.kestrel.json`;
+  return `${backupFolder(projectId)}/${stamp(now)}_${nonce}.inflight.json`;
 }
 
-const BACKUP_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
+// New backups end .inflight.json; older ones from before the rename end .kestrel.json and are still recognised.
+const BACKUP_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.(?:inflight|kestrel)\.json$/;
 
 /** Which old backups to delete so only the newest few are kept. Only files that look like InFlight backups are ever named. */
 export function backupsToDelete(names: readonly string[], projectId: string, keep = KEEP_BACKUPS): string[] {

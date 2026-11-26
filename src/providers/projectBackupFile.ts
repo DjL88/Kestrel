@@ -8,7 +8,7 @@ interface BackupFileHandle {
 }
 
 export async function saveProjectBackupFile(state: CullingState): Promise<'saved' | 'downloaded' | 'cancelled'> {
-  const filename = (state.shoot.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 100) || 'InFlight') + '.kestrel.json';
+  const filename = (state.shoot.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 100) || 'InFlight') + '.inflight.json';
   const data = new Blob([encodeProjectBackup(state)], { type: 'application/json' });
   // A desktop backup is complete only when the chosen file has been written.
   // Cancellation and write errors must reach the caller, especially before deleting a project.

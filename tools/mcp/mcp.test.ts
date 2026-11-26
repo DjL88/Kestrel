@@ -32,7 +32,7 @@ async function folderWithProject() {
   // An older backup that a newer one replaces, and a damaged newest-but-one is skipped.
   const older = { ...state, frames: state.frames.map((frame) => ({ ...frame, rating: 0 })) };
   await writeFile(join(BACKUPS(folder), `2026-11-15T09-00-00-000Z_${'1'.repeat(32)}.kestrel.json`), encodeProjectBackup(older));
-  await writeFile(join(BACKUPS(folder), `2026-11-16T09-00-00-000Z_${'2'.repeat(32)}.kestrel.json`), encodeProjectBackup(state));
+  await writeFile(join(BACKUPS(folder), `2026-11-16T09-00-00-000Z_${'2'.repeat(32)}.inflight.json`), encodeProjectBackup(state));
   // A folder that is not a project, and a file outside InFlight's folder: both must be ignored.
   await mkdir(join(folder, 'kestrel', 'v1', 'project-backups', 'Not A Project'), { recursive: true });
   await writeFile(join(folder, 'secret.txt'), 'nothing to see');

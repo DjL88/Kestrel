@@ -22,7 +22,7 @@ interface ProjectsHubProps {
   /** First run: pick photos and get an Auto-edited photo ready to export. */
   onQuickStart?: () => void;
   onRenameProject: (projectId: string, name: string) => void;
-  /** A .kestrel.json backup becomes a new project. */
+  /** An .inflight.json (or older .kestrel.json) backup becomes a new project. */
   onRestoreBackup?: (file: File) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted (kept 30 days). */

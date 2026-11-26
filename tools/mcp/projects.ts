@@ -6,13 +6,13 @@ import { proposalFileName, proposalItemProblem, MAX_PROPOSAL_ITEMS, type Proposa
 
 /**
  * What an assistant may see of an InFlight project, read from the folder a person chose to share. It reads only the
- * project backups InFlight itself writes there (`kestrel/v1/project-backups/<project>/…kestrel.json`: decisions,
+ * project backups InFlight itself writes there (`kestrel/v1/project-backups/<project>/…inflight.json`, or `….kestrel.json` from before the rename: decisions,
  * ratings, tags, edit settings): never photographs, never the rest of the disk. Anything it wants changed becomes a
  * proposal file beside them (`kestrel/v1/proposals/<project>/`), which InFlight shows in Co-pilot for the person to
  * apply or dismiss; nothing is applied for them.
  */
 const IDENTITY = /^[a-f0-9]{64}$/;
-const BACKUP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
+const BACKUP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.(?:inflight|kestrel)\.json$/;
 const root = (folder: string) => join(folder, 'kestrel', 'v1');
 
 export class McpInputError extends Error {}

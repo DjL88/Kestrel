@@ -36,7 +36,7 @@ test('a place that keeps failing is tried less and less often, even when leaving
 test('backups are named so the oldest sorts first, one folder per project', () => {
   const a = backupName('kite-day', new Date('2026-11-16T09:00:00Z'));
   const b = backupName('kite-day', new Date('2026-11-16T10:30:00Z'));
-  assert.match(a, /^kestrel\/v1\/project-backups\/[a-f0-9]{64}\/2026-11-16T09-00-00-000Z_[a-f0-9]{32}\.kestrel\.json$/);
+  assert.match(a, /^kestrel\/v1\/project-backups\/[a-f0-9]{64}\/2026-11-16T09-00-00-000Z_[a-f0-9]{32}\.inflight\.json$/);
   assert.ok(a < b);
 });
 
@@ -95,4 +95,11 @@ test('failed writes never acknowledge a snapshot and retain changes made during 
   assert.equal(failed.backedUpChangeAt, 1000);
   assert.equal(failed.lastChangeAt, 2000);
   assert.equal(dueForBackup(failed, 3000 + min, true), 'now');
+});
+
+test('backups saved before the InFlight rename (.kestrel.json) are still recognised and pruned oldest first', () => {
+  const prefix = backupFolder('kite-day');
+  const old = Array.from({ length: 6 }, (_, i) => `${prefix}/2026-10-0${i + 1}T09-00-00-000Z_${'a'.repeat(32)}.kestrel.json`);
+  const fresh = Array.from({ length: 6 }, (_, i) => backupName('kite-day', new Date(2026, 10, 1 + i)));
+  assert.deepEqual(backupsToDelete([...fresh, ...old], 'kite-day'), old.slice(0, 2));
 });

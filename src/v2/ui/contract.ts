@@ -908,9 +908,9 @@ export interface WorkspaceActions {
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;
-  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .kestrel.json file. */
+  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .inflight.json file. */
   saveProjectBackupFile: () => void;
-  /** Make a new project from a .kestrel.json backup file and open it. The backed-up project is never overwritten. */
+  /** Make a new project from an .inflight.json (or older .kestrel.json) backup file and open it. The backed-up project is never overwritten. */
   restoreProjectBackup: (file: File) => void;
   /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
   saveXmpSidecars: (photoIds: string[]) => void;
