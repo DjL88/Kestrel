@@ -24,6 +24,11 @@ function fakeStore(fail = new Set<string>()) {
         return { key: request.key, status: 'built', madeFrom: 'raw', codec: 'nikon-he' };
       });
     },
+    async store(key, picture) {
+      calls.push([{ key, path: '(handed over)', sha256: '' }]);
+      stored.set(key, { thumb: picture, review: picture, smart: new Blob([`smart handed ${await picture.text()}`], { type: 'image/jpeg' }) });
+      return { key, status: 'built', madeFrom: 'picture' };
+    },
     async read(key, level) { return stored.get(key)?.[level] ?? null; },
     async rotate() {},
     async usage() { return { bytes: 0, entries: stored.size }; },
@@ -92,4 +97,44 @@ test('a photo that could not be developed says so and stores nothing', async () 
   await assert.rejects(provider.buildDiskPreviews(frame('bad')), /could not be read/);
   assert.equal(await provider.developedReview(frame('bad')), null);
   provider.clear();
+});
+
+test('a JPEG gets disk previews from its path, and its smart preview stands in while the drive is unplugged', async () => {
+  const { store, calls } = fakeStore();
+  const provider = new BrowserPreviewProvider(noIndexedDb, store);
+  const key = 'pic::10::1';
+  let plugged = true;
+  provider.registerLinked(key, {
+    size: 10, lastModified: 1, path: '/photos/pic.jpg', sha256: 'cd'.repeat(32),
+    read: async () => { if (!plugged) throw new Error('drive unplugged'); return new Blob(['ORIGINAL'], { type: 'image/jpeg' }); },
+  });
+  // The page-side preview needs a decoder this test runner does not have; drive the disk queue directly.
+  (provider as unknown as { queueDiskPicture: (k: string, f: string, c: string, b: unknown) => void })
+    .queueDiskPicture(key, 'pic.jpg', 'cache-key', {});
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].map((request) => [request.key, request.path, request.sha256]), [['picture-v1:cache-key', '/photos/pic.jpg', 'cd'.repeat(32)]]);
+  // Reads use the photo's own offline cache key; point a stored entry at it to check the fallback order.
+  const own = (provider as unknown as { diskPictureKey: (frame: PhotoFrame) => string }).diskPictureKey(frame(key, 'pic.jpg'));
+  await store.build([{ key: own, path: '/photos/pic.jpg', sha256: 'cd'.repeat(32) }]);
+  plugged = false;
+  const full = await provider.getFullPreviewUrl(frame(key, 'pic.jpg'));
+  assert.equal(await (await fetch(full)).text(), 'smart /photos/pic.jpg');
+  assert.equal(provider.isOfflineFallback(key), true, 'export still needs the original');
+  provider.clear();
+});
+
+test('a photo without a hash, or in a browser, is never given disk previews', async () => {
+  const { store, calls } = fakeStore();
+  const provider = new BrowserPreviewProvider(noIndexedDb, store);
+  provider.registerLinked('nohash', { size: 1, lastModified: 1, path: '/photos/x.jpg', read: async () => new Blob(['x']) });
+  const queue = (provider as unknown as { queueDiskPicture: (k: string, f: string, c: string, b: unknown) => void }).queueDiskPicture.bind(provider);
+  queue('nohash', 'x.jpg', 'k', {});
+  const web = new BrowserPreviewProvider(noIndexedDb, null);
+  link(web, 'w');
+  (web as unknown as { queueDiskPicture: (k: string, f: string, c: string, b: unknown) => void }).queueDiskPicture('w', 'w.jpg', 'k', {});
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(calls.length, 0);
+  provider.clear();
+  web.clear();
 });

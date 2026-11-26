@@ -22,7 +22,7 @@ import type { PhotoFrame } from '../core/types';
 import type { PictureSource } from '../core/pictureSource';
 import { EXIF_HEAD_BYTES, headBlob, materialize, type RangeBlob } from './rangeBlob';
 import type { LinkedRange } from './linkedOriginals';
-import { diskPreviewStore, type DiskBuildResult, type DiskPreviewStore } from './diskPreviewCache';
+import { diskPreviewStore, type DiskBuildRequest, type DiskBuildResult, type DiskPreviewLevel, type DiskPreviewStore } from './diskPreviewCache';
 import type { RawCodec } from '../core/pictureSource';
 import type { AsShotWhite } from '../core/asShotWhite';
 
@@ -47,6 +47,12 @@ const MAX_OFFLINE_PREVIEW_MEMORY = 24;
 const THUMB_MAX_WIDTH = 400;
 const REVIEW_MAX_WIDTH = 2200;
 const MAX_CACHED_PREVIEW_BYTES = 1024 * 1024;
+/** Disk previews of non-RAW photos (desktop app). Raise the number when they must be made again. */
+const DISK_PICTURE_PREFIX = 'picture-v1:';
+const SMART_MAX_EDGE = 2560;
+const MAX_HANDED_PICTURE_BYTES = 16 * 1024 * 1024;
+/** How long imported photos gather before one call reads them all from their paths. */
+const DISK_PICTURE_BATCH_MS = 150;
 
 export type { OfflinePreviewPair } from './offlinePreviewCache';
 
@@ -260,12 +266,70 @@ export class BrowserPreviewProvider implements PreviewProvider {
         fileSize: info?.size ?? original.size,
         lastModified: info?.lastModified ?? (typeof File !== 'undefined' && original instanceof File ? original.lastModified : undefined),
       });
+      if (!isRawPreviewFile(filename)) this.queueDiskPicture(stableKey, filename, cacheKey, bitmap);
       const saved = await this.offlinePreviewCache.savePreviewPair(cacheKey, previews);
       if (!saved) this.rememberOfflinePreview(cacheKey, previews);
       return saved;
     } finally {
       bitmap.close();
     }
+  }
+
+  /** The disk previews of a JPEG, PNG, TIFF or HEIF photo (desktop app): a separate key from a RAW's develop. */
+  private diskPictureKey(frame: PhotoFrame): string {
+    return `${DISK_PICTURE_PREFIX}${this.offlineCacheKey(frame)}`;
+  }
+
+  /** The desktop app can keep disk previews of this non-RAW photo: a linked file whose bytes are known by hash. */
+  private canStoreDiskPicture(stableKey: string, filename: string): boolean {
+    const linked = this.linked.get(stableKey);
+    return Boolean(this.diskPreviews && !isRawPreviewFile(filename) && linked?.path && linked.sha256);
+  }
+
+  /** Photos waiting to be read from their paths in one call, so the app makes several at once. */
+  private diskPictureBatch: { request: DiskBuildRequest; stableKey: string }[] = [];
+  private diskPictureTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Make a non-RAW photo's disk previews, in the background and best-effort (the IndexedDB copy is already there).
+   * A JPEG, PNG or TIFF is read by the app from its path, a few photos per call. A HEIF only the system viewer can open,
+   * so the page hands over the picture it already decoded, at the smart preview's 2,560 px, never the original.
+   */
+  private queueDiskPicture(stableKey: string, filename: string, cacheKey: string, bitmap: ImageBitmap): void {
+    const store = this.diskPreviews;
+    if (!store || !this.canStoreDiskPicture(stableKey, filename)) return;
+    const key = `${DISK_PICTURE_PREFIX}${cacheKey}`;
+    const linked = this.linked.get(stableKey)!;
+    if (isHeifFile(filename)) {
+      // encodePreview draws the bitmap before its first wait, so the caller may close it straight after this call.
+      void encodePreview(bitmap, SMART_MAX_EDGE, MAX_HANDED_PICTURE_BYTES)
+        .then((picture) => this.linked.get(stableKey) === linked ? store.store(key, picture) : undefined)
+        .then((result) => { if (result?.status === 'built') this.announceDiskPicture(stableKey); })
+        .catch(() => undefined);
+      return;
+    }
+    this.diskPictureBatch.push({ stableKey, request: { key, path: linked.path!, size: linked.size > 0 ? linked.size : undefined, sha256: linked.sha256! } });
+    if (this.diskPictureTimer) return;
+    this.diskPictureTimer = setTimeout(() => {
+      this.diskPictureTimer = null;
+      const batch = this.diskPictureBatch.splice(0);
+      void store.build(batch.map((item) => item.request)).then((results) => {
+        for (const item of batch) {
+          if (results.find((result) => result.key === item.request.key)?.status === 'built') this.announceDiskPicture(item.stableKey);
+        }
+      }).catch(() => undefined);
+    }, DISK_PICTURE_BATCH_MS);
+  }
+
+  /** Forget remembered offline fallbacks for this photo, so a view without the original asks for the smart preview. */
+  private announceDiskPicture(stableKey: string): void {
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
+  }
+
+  /** A non-RAW photo's stored disk preview (desktop app), or null. */
+  private async diskPicture(frame: PhotoFrame, level: DiskPreviewLevel): Promise<Blob | null> {
+    if (!this.diskPreviews || isRawPreviewFile(frame.filename)) return null;
+    return this.diskPreviews.read(this.diskPictureKey(frame), level).catch(() => null);
   }
 
   /** Decoded HEIF pictures, tied to the original they came from, so each original is decoded once while it is held. */
@@ -707,7 +771,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const raw = isRawPreviewFile(frame.filename);
       const fullDevelop = this.developed.get(key);
       const savedDevelop = !fullDevelop && !cachedPreviews?.review && raw ? (await this.developedReview(frame))?.review : undefined;
-      const offline = fullDevelop ?? cachedPreviews?.review ?? savedDevelop ?? await loadOfflinePreview(cacheKey);
+      // A JPEG or HEIF on the desktop: the 2,560 px smart preview from the disk cache, so it stays editable unplugged.
+      const smartPicture = raw ? null : await this.diskPicture(frame, 'smart');
+      const offline = fullDevelop ?? smartPicture ?? cachedPreviews?.review ?? savedDevelop ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
       const offlineSource: PictureSource = !raw ? 'original' : fullDevelop ? 'raw-full' : savedDevelop ? 'raw-review' : 'camera-preview';
       if (epoch !== this.cacheEpoch) return '';
@@ -782,6 +848,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   clear(): void {
     this.cacheEpoch += 1;
+    this.diskPictureBatch = [];
+    if (this.diskPictureTimer) clearTimeout(this.diskPictureTimer);
+    this.diskPictureTimer = null;
     this.offlinePreviewEpoch += 1;
     this.pendingFull.clear();
     for (const url of this.thumbUrlCache.values()) {
@@ -833,7 +902,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     const cacheKey = this.offlineCacheKey(frame);
     const shownAs: PictureSource = isRawPreviewFile(frame.filename) ? 'camera-preview' : 'original';
-    const offline = await loadOfflinePreview(cacheKey);
+    const offline = await this.diskPicture(frame, 'thumb') ?? await loadOfflinePreview(cacheKey);
     if (offline) {
       const url = this.tagUrl(URL.createObjectURL(offline), shownAs);
       return this.rememberThumbnailUrl(frame, url, revision, epoch);

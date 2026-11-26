@@ -191,6 +191,20 @@ async fn preview_cache_build(app: tauri::AppHandle, requests: Vec<preview_cache:
     }).await.map_err(|_| "The previews could not be made.".to_string())
 }
 
+/// Store previews from a picture the page decoded itself (a HEIF photo): the body is a JPEG or PNG at most 2,560 px
+/// across, never the original; header `x-preview-key` is the cache key, percent-encoded.
+#[cfg(desktop)]
+#[tauri::command]
+async fn preview_cache_store(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<preview_cache::BuildResult, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No picture was sent.".into()) };
+    let key = request.headers().get("x-preview-key").and_then(|value| value.to_str().ok()).and_then(preview_cache::percent_decode)
+        .ok_or_else(|| "No cache key was given.".to_string())?;
+    let bytes = bytes.to_vec();
+    let root = preview_root(&app)?;
+    tauri::async_runtime::spawn_blocking(move || preview_cache::store_picture(&root, &key, &bytes))
+        .await.map_err(|_| "The previews could not be made.".to_string())
+}
+
 /// One stored preview as JPEG bytes, or an error when there is none.
 #[cfg(desktop)]
 #[tauri::command]
@@ -350,7 +364,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
