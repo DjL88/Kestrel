@@ -54,11 +54,16 @@ jobs:
       - if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Playwright builds and serves the production app before running the tests. Desktop and phone projects.
-      # Every spec runs and any failure fails the job; the step never runs past 25 minutes (everything before it takes
+      # Every spec runs and any failure fails the job; the step never runs past 35 minutes (everything before it takes
       # about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
       - name: Browser tests
-        timeout-minutes: 25
-        run: npx playwright test --workers=2
+        timeout-minutes: 35
+        # The culling speed check runs on its own afterwards: on a 2-core runner, a second browser beside it
+        # multiplies the timings it measures.
+        run: npx playwright test --workers=2 --grep-invert v2-cull-speed
+      - name: Browser test (culling speed, alone)
+        timeout-minutes: 10
+        run: npx playwright test tests/v2-cull-speed.spec.ts --workers=1
       # Board job p5-export: full-size exports are pixel-exact to the intended render and originals are never changed,
       # proved through the real app on synthetic files and two CC0 camera RAWs from raw.pixls.us (about 50 MB, cached,
       # pinned by SHA-256 in tests/exportExactness.ts, never committed).
