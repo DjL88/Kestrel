@@ -250,16 +250,33 @@ test('available providers: Microsoft only where Settings offers it, and the devi
   assert.deepEqual(on('windows', microsoft(false), 'desktop'), ['email']);
 });
 
-test('the welcome offers the ways in in the same order as Settings: its suggestion first, then the rest', () => {
-  for (const family of ['windows', 'apple', 'android', 'other'] as const) {
-    for (const microsoft of [false, true]) {
-      const options = signInOptions('web', true, false, false, microsoft);
-      const { suggested, other } = suggestedSignIn(options, family);
-      const settings = [suggested, ...other].filter((o) => o?.available).map((o) => o!.provider);
-      const welcome = availableProviders(fakes({ auth: { signInOptions: () => options, deviceFamily: () => family } }).deps);
-      assert.deepEqual(welcome, [...settings, 'email'], `${family}, Microsoft ${microsoft ? 'on' : 'off'}`);
+test('the welcome offers the ways in in the same order as Settings, on the web and the desktop app: its suggestion first, then the rest', () => {
+  // Web, and the desktop app with each of its own switches (Google, Apple, and since #1737 Microsoft through the browser).
+  const builds = [
+    { platform: 'web', google: false, apple: false, desktopMicrosoft: false },
+    { platform: 'desktop', google: false, apple: false, desktopMicrosoft: false },
+    { platform: 'desktop', google: true, apple: true, desktopMicrosoft: false },
+    { platform: 'desktop', google: true, apple: false, desktopMicrosoft: true },
+    { platform: 'desktop', google: false, apple: false, desktopMicrosoft: true },
+    { platform: 'desktop', google: true, apple: true, desktopMicrosoft: true },
+  ] as const;
+  for (const build of builds) {
+    for (const family of ['windows', 'apple', 'android', 'other'] as const) {
+      for (const microsoft of [false, true]) {
+        const options = signInOptions(build.platform, true, build.google, build.apple, microsoft, build.desktopMicrosoft);
+        const { suggested, other } = suggestedSignIn(options, family);
+        const settings = [suggested, ...other].filter((o) => o?.available).map((o) => o!.provider);
+        const welcome = availableProviders(fakes({ auth: {
+          signInPlatform: () => build.platform, isDesktopGoogleConfigured: () => build.google, isDesktopAppleConfigured: () => build.apple,
+          signInOptions: () => options, deviceFamily: () => family,
+        } }).deps);
+        assert.deepEqual(welcome, [...settings, 'email'], `${JSON.stringify(build)}, ${family}, Microsoft ${microsoft ? 'on' : 'off'}`);
+      }
     }
   }
+  // The desktop app on Windows with only Microsoft switched on: Microsoft alone, then email.
+  const desktopOnly = signInOptions('desktop', true, false, false, true, true);
+  assert.deepEqual(availableProviders(fakes({ auth: { signInPlatform: () => 'desktop', signInOptions: () => desktopOnly, deviceFamily: () => 'windows' } }).deps), ['microsoft', 'email']);
 });
 
 test('emailFailureOf reads the Firebase code, directly or on cause', () => {

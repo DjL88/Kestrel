@@ -210,7 +210,8 @@ export async function signOutEverywhere(deps: Partial<SignInDeps> = {}): Promise
  * Ways to sign in this build offers here, the device's suggested one first (owner, 26 Nov 2026: Windows Microsoft,
  * Android Google, Mac, iPhone and iPad Apple; when that one cannot be used here, the first that can), then email, always
  * last. Apple and Google on the web, or a desktop app set up for them. Microsoft exactly where Settings offers it
- * (`currentSignInOptions`: a build that switches it on, set up for sign-in, on the web for now).
+ * (`currentSignInOptions`: a build that switches it on and is set up for sign-in, on the web, or in the desktop app
+ * with its own VITE_MICROSOFT_DESKTOP_SIGNIN switch).
  */
 export function availableProviders(deps: Partial<SignInDeps> = {}): (SocialProvider | 'email')[] {
   const { auth } = using(deps);
