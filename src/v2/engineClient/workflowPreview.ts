@@ -7,6 +7,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   nextToReview: 'kestrel.preview.next-to-review.v1',
   /** Culling from stored observations and the Culling Assistant's rule sliders (x-std-rescore, x-std-cull-rules). */
   cullRules: 'kestrel.preview.cull-rules.v1',
+  /** Auto leans towards the edits this person keeps, undoes or corrects, learnt on this device (x-spec-personal-style). */
+  editStyle: 'kestrel.preview.edit-style.v1',
 } as const;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;

@@ -391,6 +391,8 @@ export interface AssistSuggestion {
   colourMatch?: ColourSenseNote;
   /** The vision guardian doubted this suggestion looks natural, in words. Advice only: Apply still applies it. */
   secondOpinion?: ColourSenseNote;
+  /** Personal style (a preview, off by default): how this suggestion was leaned towards the person's own edits, in words. */
+  styleNote?: string;
 }
 
 export interface PhotoExif {
@@ -882,6 +884,8 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** Personal style (a preview, off by default; present only while it is on): forget everything learnt on this device. */
+  resetEditStyle?: () => void;
   /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */
   prepareCloudRecipe?: (photoId: string) => Promise<CloudRecipeOfferView>;
   /** Sends the option the person pressed and applies the settings that come back as one undoable step. Returns what happened, in words. */
