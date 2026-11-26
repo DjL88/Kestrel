@@ -33,7 +33,8 @@ export interface PhotoHistogram {
   /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
   precision?: 'rgb16';
 }
-export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
+/** 'unsupported': the original is there, but its compression can't be read yet (a JPEG XL DNG); not 'unavailable'. */
+export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable' | 'unsupported';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
 export type ThemeMode = 'dark' | 'light' | 'auto';
 export type PanelId =
@@ -568,6 +569,29 @@ export interface WatermarkPreset {
   forLightUrl?: string;
 }
 
+/** The person's own AI (key or a model on this computer), as the Assist panel shows it. */
+export interface AiSecondOpinionView {
+  /** none: nothing set up in Settings; consent: set up but not agreed for this destination; ready: may be asked. */
+  setup: 'none' | 'consent' | 'ready';
+  destination?: string;
+  onThisComputer?: boolean;
+  consentText?: string;
+  photoId?: string;
+  phase?: 'asking' | 'ready' | 'failed' | 'applied';
+  message?: string;
+  summary?: string;
+  points?: { label: string; detail: string }[];
+  /** Plain lines such as "Warmth: +0.2", exactly the values Apply would set. */
+  changes?: string[];
+}
+
+export interface AssistantSuggestionsView {
+  name: string;
+  intro: string;
+  lines: { photo: string; change: string; reason: string }[];
+  more?: string;
+}
+
 export interface AiProviderConfig {
   id: 'gemini' | 'claude' | 'chatgpt' | 'local';
   name: string;
@@ -742,6 +766,10 @@ export interface WorkspaceStore {
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
+  /** Bring your own AI, in the real workspace only: set-up state and the answer for the photo on screen. */
+  aiSecondOpinion?: AiSecondOpinionView;
+  /** The oldest set of suggestions an AI assistant left for this project, in words; absent when there are none. */
+  assistantSuggestions?: AssistantSuggestionsView;
   settings: WorkspaceSettings;
 
   // Shell UI layout state
@@ -888,6 +916,17 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** Bring your own AI (present only in the real workspace): agree, by host name, to send a small preview there. */
+  agreeAiSecondOpinion?: () => void;
+  /** Ask the person's own AI about this photo's colour and light. Advisory only: nothing changes until Apply. */
+  askAiSecondOpinion?: (photoId: string) => void;
+  cancelAiSecondOpinion?: () => void;
+  /** Apply the checked, one-small-step suggestion as one undoable edit; refused if the photo changed since. */
+  applyAiSecondOpinion?: (photoId: string) => void;
+  dismissAiSecondOpinion?: () => void;
+  /** Suggestions an AI assistant left through the MCP tool: apply them all (decisions undoable), or dismiss. */
+  applyAssistantSuggestions?: (name: string) => void;
+  dismissAssistantSuggestions?: (name: string) => void;
   /** Personal style (a preview, off by default; present only while it is on): forget everything learnt on this device. */
   resetEditStyle?: () => void;
   /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */

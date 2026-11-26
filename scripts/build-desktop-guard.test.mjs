@@ -36,3 +36,9 @@ test('release builds get the models bucket and pinned manifest key unless set al
   const docker = readFileSync(new URL('../services/v2proto/Dockerfile', import.meta.url), 'utf8');
   for (const [name, value] of Object.entries(RELEASE_MODEL_SOURCE)) assert.ok(docker.includes(`ARG ${name}=${value}`), name);
 });
+
+test('missing cloud drive ids are listed as a note, never a refusal', async () => {
+  const { missingDriveSettings } = await import('./build-desktop-guard.mjs');
+  assert.deepEqual(missingDriveSettings({ VITE_DROPBOX_APP_KEY: 'abc', VITE_ONEDRIVE_CLIENT_ID: ' ' }),
+    ['VITE_GOOGLE_DRIVE_CLIENT_ID', 'VITE_GOOGLE_DRIVE_CLIENT_SECRET', 'VITE_ONEDRIVE_CLIENT_ID']);
+});

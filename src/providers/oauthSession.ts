@@ -6,18 +6,22 @@ import { isDesktopApp, isMobileShell } from './desktopShell';
  * one-time code that InFlight swaps for a token itself. The password never passes through InFlight. Tokens stay on this device.
  */
 const TOKENS = 'kestrel.cloud-tokens.v1.';
-const REDIRECT = () => `${location.origin}/oauth-callback.html`;
+// The page sits under the build's base path (the V2 preview is served from /V2Proto/), so the redirect must too.
+const REDIRECT = () => `${location.origin}${(import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/')}oauth-callback.html`;
 const env = import.meta.env as Record<string, string | undefined>;
 
 export const clientIdFor = (kind: CloudDriveKind) => env[CLOUD_DRIVES[kind].clientIdEnv];
 const secretFor = (kind: CloudDriveKind) => { const name = CLOUD_DRIVES[kind].clientSecretEnv; return name ? env[name] : undefined; };
 
 /** Offered only when this build has been registered with the provider and can open a sign-in window. */
-export const cloudDriveAvailable = (kind: CloudDriveKind) => isConfigured(clientIdFor(kind)) && !isMobileShell();
+export const cloudDriveAvailable = (kind: CloudDriveKind) => cloudDriveUnavailableReason(kind) === null;
 
 export function cloudDriveUnavailableReason(kind: CloudDriveKind): string | null {
   if (!isConfigured(clientIdFor(kind))) return `This copy of InFlight is not yet registered with ${CLOUD_DRIVES[kind].name}. Use the ${CLOUD_DRIVES[kind].name} folder on your computer for now.`;
   if (isMobileShell()) return `Signing in to ${CLOUD_DRIVES[kind].name} from the phone app is coming. Use its folder on your device, or sign in from the web version.`;
+  // InFlight's Google client is a "Desktop app" client: Google refuses its sign-in from a web page (no https redirect can
+  // be registered for it, and a web client would need a secret a browser cannot keep). Say so rather than fail in a pop-up.
+  if (kind === 'googledrive' && !isDesktopApp()) return 'Sign in to Google Drive from the InFlight desktop app for now, or use the Google Drive folder on your computer.';
   return null;
 }
 

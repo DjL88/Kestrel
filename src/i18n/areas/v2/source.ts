@@ -338,6 +338,7 @@ export const source = {
       analysing: 'Analysing',
       ready: 'Ready to edit',
       unavailable: 'Original unavailable',
+      unsupported: 'Can’t read yet',
     },
     nothingMatches: 'No photos match your current filter.',
   },
