@@ -1321,6 +1321,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
+        brandKits={store.brandKits}
+        onSaveBrandKit={actions.saveBrandKit}
+        onEditBrandKit={actions.editBrandKit}
+        onDeleteBrandKit={actions.deleteBrandKit}
       /></React.Suspense>
 
       <TaskAlerts />

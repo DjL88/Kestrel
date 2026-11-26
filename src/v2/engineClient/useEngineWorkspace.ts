@@ -128,6 +128,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
+import { BRAND_KITS_KEY, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, readBrandKits, type BrandKit, type KitProblem } from './brandKits';
 import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
@@ -402,6 +403,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [userLooks, setUserLooks] = useState<UserLook[]>(() => { try { return parseUserLooks(localStorage.getItem(USER_LOOKS_KEY)); } catch { return []; } });
   const updateUserLooks = useCallback((next: UserLook[]) => { setUserLooks(next); try { localStorage.setItem(USER_LOOKS_KEY, JSON.stringify(next)); } catch { setNotice(looksText.notSaved); } }, []);
   const looks = useMemo<LookPreset[]>(() => [...stub.store.looks, ...userLooks.map(userLookPreset)], [stub.store.looks, userLooks]);
+  // Brand kits (K080): kept on this device only, beside the overlay templates.
+  const [brandKits, setBrandKits] = useState<BrandKit[]>(() => { try { return readBrandKits(localStorage.getItem(BRAND_KITS_KEY)); } catch { return []; } });
+  const updateBrandKits = useCallback((next: BrandKit[] | KitProblem, saved: string): boolean => {
+    if (typeof next === 'string') {
+      setNotice(next === 'empty' ? 'Give the brand kit a name first.' : next === 'full' ? 'You have saved the most brand kits you can. Delete one first.' : 'That brand kit could not be found.');
+      return false;
+    }
+    try { localStorage.setItem(BRAND_KITS_KEY, JSON.stringify(next)); } catch { setNotice('The brand kit could not be saved on this device. Your photos are unchanged.'); return false; }
+    setBrandKits(next);
+    setNotice(saved);
+    return true;
+  }, []);
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice(engineText.workspace.templateNotSaved); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   /** Originals (stable keys) whose full-size develop is being made, so the canvas can say so. */
@@ -1586,6 +1599,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // its stored observations on each movement of a slider, with no new scan. The judgement is worked out once per
   // catalogue change; the rules themselves are cheap. Applying only ever keeps, as one step that Undo takes back.
   const cullRulesOn = can('cullRules') || workflowPreviewOn('cullRules');
+  const brandKitsOn = can('brandKits') || workflowPreviewOn('brandKits');
   const judgedCache = useRef<{ frames: PhotoFrame[]; originals: PhotoFrame[]; results: CullSuggestion[]; notScanned: number } | null>(null);
   const judgedNow = useCallback(() => {
     const current = stateRef.current;
@@ -3020,7 +3034,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
     setMaskParts: (photoId, maskId, parts) => editMasks(photoId, masks => setMaskParts(masks, maskId, parts)),
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
-    runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
+    runExport: (request) => {
+      stub.actions.setExportOpen(false);
+      // One step: the kit goes on each photo (its own Undo step) and the export reads the photos with it on.
+      const kit = brandKitsOn && request.brandKitId ? brandKits.find((entry) => entry.id === request.brandKitId) : undefined;
+      if (kit && stateRef.current && !request.rawMaster) {
+        const at = Date.now();
+        const result = applyBrandKitToProject(stateRef.current, kit, request.photoIds, at);
+        if (result.changed) {
+          stateRef.current = result.state;
+          mutate((current) => applyBrandKitToProject(current, kit, request.photoIds, at).state);
+        }
+      }
+      void runExportAction(request);
+    },
     applyAssistSuggestion: applyAuto,
     ...(editStyleOn ? { resetEditStyle: forgetEditStyle } : {}),
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
@@ -3161,6 +3188,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => applyOverlayTemplateToProject(current, template, photoIds, at).state);
       setNotice(`Applied "${template.name}" to ${preview.changed} photograph${preview.changed === 1 ? '' : 's'}. Each has an Undo checkpoint in its own History.`);
     },
+    ...(brandKitsOn ? {
+      saveBrandKit: (photoId: string, name: string) => {
+        const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+        if (!frame) return false;
+        const next = addBrandKit(brandKits, name, readOverlay(frame.overlay), `kit-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
+        return updateBrandKits(next, typeof next === 'string' ? '' : `Saved the brand kit "${next[next.length - 1].name}" on this device.`);
+      },
+      editBrandKit: (kitId: string, change: { name?: string; fromPhotoId?: string }) => {
+        const frame = change.fromPhotoId ? stateRef.current?.frames.find((candidate) => candidate.id === change.fromPhotoId) : undefined;
+        if (change.fromPhotoId && !frame) return false;
+        const next = editBrandKit(brandKits, kitId, { name: change.name, overlay: frame ? readOverlay(frame.overlay) : undefined }, Date.now());
+        return updateBrandKits(next, frame ? 'The brand kit now has this photo\'s logo, colours and text style.' : 'Renamed the brand kit.');
+      },
+      deleteBrandKit: (kitId: string) => { updateBrandKits(deleteBrandKit(brandKits, kitId), 'Deleted the brand kit. Photos it was put on keep their look.'); },
+    } : {}),
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
     toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId, createDefaultSizes().find((size) => size.id === sizeId)?.enabled ?? true)),
@@ -3499,7 +3541,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3538,6 +3580,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
+    ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => ({ id, name, logoLabel: watermarkLibrary.find((preset) => preset.id === watermarkPresetId)?.label ?? 'Logo not on this device' })) } : {}),
     features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,
@@ -3573,7 +3616,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
 
   return { store, actions };
 }

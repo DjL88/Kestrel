@@ -649,6 +649,8 @@ export interface ExportRequest {
    * the exact original file. */
   maxLongestEdgePx?: number;
   photoIds: string[];
+  /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
+  brandKitId?: string;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -735,6 +737,8 @@ export interface WorkspaceStore {
   watermarkPresets: WatermarkPreset[];
   /** Saved overlay templates on this device (name only; the layout stays inside the store). */
   overlayTemplates: Array<{ id: string; name: string }>;
+  /** Saved brand kits on this device (K080): name and the logo they use. Absent while the brand-kits preview is off. */
+  brandKits?: Array<{ id: string; name: string; logoLabel: string }>;
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
@@ -959,6 +963,11 @@ export interface WorkspaceActions {
   applyOverlayTemplate: (templateId: string, photoIds: string[]) => void;
   renameOverlayTemplate: (templateId: string, name: string) => void;
   deleteOverlayTemplate: (templateId: string) => void;
+  /** Brand kits (K080), present only while the preview is on. Save this photo's logo, colours and text style as a kit. */
+  saveBrandKit?: (photoId: string, name: string) => boolean;
+  /** Rename a kit, and with fromPhotoId take that photo's logo, colours and text style in place of the kit's own. */
+  editBrandKit?: (kitId: string, change: { name?: string; fromPhotoId?: string }) => boolean;
+  deleteBrandKit?: (kitId: string) => void;
   /** Changes only the Original output canvas; never rewrites imported pixels. */
   setOriginalOutputSize: (photoId: string, width: number, height: number) => void;
   resetOriginalOutputSize: (photoId: string) => void;
