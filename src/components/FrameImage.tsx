@@ -216,6 +216,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
 
   const hasImage = useRef(false);
+  // While an edit is redrawn, the new picture is drawn straight onto this canvas over the shown one, so a slider step
+  // appears as soon as it is rendered instead of after a PNG encode and decode (about 150 ms at 2,200 px). The PNG
+  // still follows and replaces it, so everything that reads the picture's address works as before.
+  const liveCanvas = useRef<HTMLCanvasElement>(null);
+  const [liveFor, setLiveFor] = useState<string | null>(null);
   const previewIsInterim = useRef(false);
   previewIsInterim.current = Boolean(src && preview.interim);
   // An interim thumbnail does not count: an edit redraw must still be able to replace it with a full render.
@@ -260,6 +265,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
         { cache: liveStageCache(), sourceKey });
       await applyFrameLayers(canvas, frame.overlay, false, frame.edit?.masks);
       if (cancelled) return;
+      showLive(canvas);
       // A full-size edited view must not suffer a second lossy JPEG pass.
       // Thumbnails stay compact JPEGs; full previews use lossless PNG.
       const { mime, quality } = framePreviewEncoding(variant);
@@ -273,6 +279,18 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       // Then, when this photo's 16-bit copy is ready, the same picture drawn from it (in a worker, so sliders stay free)
       // replaces it: only if the edit can be carried at 16 bits and the result is at least as detailed.
       await drawSensor16(Math.max(size.width, size.height) * scale).catch(() => undefined);
+    };
+
+    // Only a redraw over a picture already shown: the first picture of a photo still arrives through the image.
+    const showLive = (canvas: HTMLCanvasElement) => {
+      const live = liveCanvas.current;
+      if (variant !== 'full' || !hasImage.current || !live) return;
+      const context = live.getContext('2d');
+      if (!context) return;
+      if (live.width !== canvas.width || live.height !== canvas.height) { live.width = canvas.width; live.height = canvas.height; }
+      context.globalCompositeOperation = 'copy';
+      context.drawImage(canvas, 0, 0);
+      setLiveFor(identity);
     };
 
     const drawSensor16 = async (eightBitLongEdge: number) => {
@@ -452,6 +470,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             if (width > 0 && height > 0) onPictureSize?.({ width, height });
             // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
             if (preview.interim) return;
+            setLiveFor(null);
             retries.current = 0;
             // The outline must follow the picture exactly, including a border frame that switches it to object-contain.
             const fit = getComputedStyle(event.currentTarget).objectFit === 'contain' ? 'contain' : 'cover';
@@ -485,6 +504,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             loading && !src ? 'opacity-0' : 'opacity-100'
           } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
+      )}
+      {variant === 'full' && (
+        <canvas ref={liveCanvas} data-testid="live-picture" aria-hidden="true" 
+          style={{ ...demoStyle, display: src && liveFor === identity ? undefined : 'none' }} className={`pointer-events-none absolute inset-0 w-full h-full select-none ${imgClassName}`} />
       )}
       {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
         <MaskCoverageImage key={`${src}:${maskGuideId}:${maskGuideStyle}`} masks={frame.edit.masks} maskId={maskGuideId} guideStyle={maskGuideStyle}
