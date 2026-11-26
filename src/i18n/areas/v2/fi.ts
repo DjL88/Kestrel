@@ -322,6 +322,7 @@ export const fi: AreaTranslation<typeof source> = {
       analysing: 'Analysoidaan',
       ready: 'Valmis muokattavaksi',
       unavailable: 'Alkuperäinen ei saatavilla',
+      unsupported: 'Ei vielä luettavissa',
     },
     nothingMatches: 'Mikään kuva ei vastaa nykyistä suodatinta.',
   },

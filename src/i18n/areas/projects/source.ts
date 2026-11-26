@@ -404,6 +404,7 @@ export const source = {
     none: 'No way of signing in is shown yet. Sign out and in again.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Email and password',
     add: (method: string) => `Add ${method}`,
     passwordLabel: 'Password for signing in with your email',

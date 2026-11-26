@@ -73,6 +73,7 @@ export const ga: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? '1 mhionsamhail á hullmhú' : `${count} mionsamhail á n-ullmhú`),
     thumbnailStage: 'An grianghraf seo á léamh agus á laghdú',
     thumbnailFailed: (filename) => `Níorbh fhéidir an mhionsamhail do ${filename} a dhéanamh. Athnasc an bunchomhad agus bain triail eile as.`,
+    rawJpegXl: 'Úsáideann an RAW seo comhbhrú JPEG XL, nach féidir le InFlight a léamh fós. Níl an bunchomhad athraithe.',
     notConnected: (names) => `Níl sé nasctha le hinneall InFlight fós, mar sin níor cuireadh i bhfeidhm é: ${names}.`,
     exportRunning: 'Tá easpórtáil ar siúl cheana.',
     selectOneRaw: 'Roghnaigh grianghraf RAW amháin chun a TIFF a easpórtáil.',

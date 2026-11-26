@@ -402,6 +402,7 @@ export const nl: AreaTranslation<typeof source> = {
     none: 'Er wordt nog geen manier om in te loggen getoond. Log uit en weer in.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-mail en wachtwoord',
     add: (method: string) => `${method} toevoegen`,
     passwordLabel: 'Wachtwoord om met uw e-mail in te loggen',

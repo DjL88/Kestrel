@@ -43,7 +43,9 @@ async function rig(granted = true) {
   if (granted) await grant();
   const paddle = fakePaddle(accountId);
   const claimed = new Set<string>();
+  const sale = { status: 'paid' as string, marks: [] as string[] };
   const revoke = paddleRefundRevocation({
+    commerce: { markRefunded: async (ref, status) => { assert.equal(ref, order.reference); sale.marks.push(status); if (sale.status !== 'refunded') sale.status = status; return true; } },
     findOrder: async (id) => (id === TXN ? order : null),
     paddle: paddleApi({ apiKey: 'test-only-key', environment: 'production' }, paddle.request),
     licences: h.app.store,
@@ -52,7 +54,7 @@ async function rig(granted = true) {
   });
   const licence = async () => (await h.app.store.getLicence(paddleProLicenceId(order)))!.status;
   const audit = async () => (await h.app.store.listAudit(50)).filter((e) => e.actor === 'paddle');
-  return { h, paddle, revoke, licence, audit, grant };
+  return { h, paddle, revoke, licence, audit, grant, sale };
 }
 
 test('what each Paddle adjustment means for Pro', () => {
@@ -66,12 +68,13 @@ test('what each Paddle adjustment means for Pro', () => {
 });
 
 test('a full refund removes Pro after re-fetching from Paddle; a partial one keeps it; each with a reason admins can read', async () => {
-  const { h, paddle, revoke, licence, audit } = await rig();
+  const { h, paddle, revoke, licence, audit, sale } = await rig();
   try {
     assert.equal(await licence(), 'active');
     paddle.adjust('adj_01partial00000001', { action: 'refund', type: 'partial', totals: { total: '1000', currency_code: 'GBP' } });
     assert.equal(await revoke('evt_1', 'adj_01partial00000001'), 'kept');
     assert.equal(await licence(), 'active', 'a partial refund keeps Pro');
+    assert.equal(sale.status, 'partially-refunded', 'the sale says so for the Accounts page');
     paddle.adjust('adj_01pendingfull0001', { action: 'refund', type: 'full', status: 'pending_approval' });
     assert.equal(await revoke('evt_2', 'adj_01pendingfull0001'), 'pending');
     assert.equal(await licence(), 'active', 'not before Paddle approves it');
@@ -79,6 +82,7 @@ test('a full refund removes Pro after re-fetching from Paddle; a partial one kee
     paddle.adjust('adj_01pendingfull0001', { action: 'refund', type: 'full', status: 'approved' });
     assert.equal(await revoke('evt_3', 'adj_01pendingfull0001'), 'revoked');
     assert.equal(await licence(), 'revoked');
+    assert.equal(sale.status, 'refunded', 'refunded money stops counting as income');
     assert.ok(paddle.calls.includes('/adjustments?id=adj_01pendingfull0001') && paddle.calls.some((c) => c.startsWith('/transactions/' + TXN)), 'both fetched back from Paddle');
     assert.equal(await revoke('evt_3', 'adj_01pendingfull0001'), 'duplicate', 'each event is acted on once');
 

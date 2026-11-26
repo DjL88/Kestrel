@@ -42,7 +42,7 @@ It does **not** yet include the user's email address, IP address or the hash-mat
 ## After registration
 
 1. NCMEC issues test credentials first. Put the password in Secret Manager (for example `ncmec-password`); the owner adds the value.
-2. Set `KCP_NCMEC_USERNAME`, `KCP_NCMEC_PASSWORD_SECRET`, `KCP_NCMEC_REPORTER_EMAIL`, `KCP_NCMEC_COMPANY` (code: `services/control-plane/src/wiring.ts` `buildSafety()`). It talks to `exttest.cybertip.org` until `KCP_NCMEC_ENVIRONMENT=production`. **Needs a Terraform variable first** (see `safesearch-switch-on.md`).
+2. Set `KCP_NCMEC_USERNAME`, `KCP_NCMEC_PASSWORD_SECRET`, `KCP_NCMEC_REPORTER_EMAIL`, `KCP_NCMEC_COMPANY` (code: `services/control-plane/src/wiring.ts` `buildSafety()`). It talks to `exttest.cybertip.org` until `KCP_NCMEC_ENVIRONMENT=production`. Set them with `switch-features.sh` and the `ncmec_*` variables in `infra/gcp/safety.tf` (JSON in `safesearch-switch-on.md`), not by hand.
 3. A Claude worker runs one test report against NCMEC's test service and records the result. Only then switch to production.
 4. Add NCMEC to `site/privacy.html` where it mentions reporting.
 

@@ -2,6 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
+import { engineText } from '../../../i18n/areas/engine';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LiveFtpInbox, LookPreset, Photo, PhotoSort } from '../contract';
@@ -638,8 +639,9 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
+                          title={photo.state === 'unsupported' ? engineText.workspace.rawJpegXl : undefined}
                           className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
-                            photo.state === 'unavailable'
+                            photo.state === 'unavailable' || photo.state === 'unsupported'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
                               ? 'bg-[var(--semantic-info)] text-[#09121a]'
@@ -647,6 +649,7 @@ export default function Filmstrip({
                           }`}
                         >
                           {stateLabel}
+                          {photo.state === 'unsupported' && <span className="sr-only">. {engineText.workspace.rawJpegXl}</span>}
                         </span>
                       )}
                     </button>
@@ -730,7 +733,7 @@ export default function Filmstrip({
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
-          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={hdrText.menuHint} data-testid="v2-hdr-merge-menu"
+          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}

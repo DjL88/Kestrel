@@ -576,6 +576,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
             onResetStyle={actions.resetEditStyle}
+            aiOpinion={store.aiSecondOpinion}
+            assistantSuggestions={store.assistantSuggestions}
+            onApplyAssistantSuggestions={actions.applyAssistantSuggestions}
+            onDismissAssistantSuggestions={actions.dismissAssistantSuggestions}
+            aiOpinionActions={{
+              onAgree: actions.agreeAiSecondOpinion, onAsk: actions.askAiSecondOpinion, onCancel: actions.cancelAiSecondOpinion,
+              onApply: actions.applyAiSecondOpinion, onDismiss: actions.dismissAiSecondOpinion,
+              onOpenSettings: () => actions.setSettingsOpen(true, 'aiProviders'),
+            }}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
               ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
               : undefined}
@@ -749,6 +758,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onSaveDngCopy={actions.saveDngCopy}
+            onHdrMerge={store.features.hdrMerge && !store.collage ? actions.hdrMergePhotos : undefined}
             externalEditor={store.externalEditor}
             onEditInOtherApp={actions.editInOtherApp}
             onStopExternalEdit={actions.stopExternalEdit}
