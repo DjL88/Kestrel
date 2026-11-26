@@ -73,6 +73,7 @@ const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
 const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
+const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
 const ShortcutGuide = lazyPart(() => import('./dialogs/ShortcutGuide'));
@@ -235,6 +236,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
   const [collageSourceOpen, setCollageSourceOpen] = useState(false);
+  const [cullAssistantOpen, setCullAssistantOpen] = useState(false);
+  const closeCullAssistant = React.useCallback(() => setCullAssistantOpen(false), []);
   const sheetDragY = useRef<number | null>(null);
   // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
   // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
@@ -1128,6 +1131,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
+                onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 onStitchPanorama={store.features.panorama && !store.collage ? actions.stitchPanorama : undefined}
                 onFocusStack={store.features.focusStack && !store.collage ? actions.focusStackPhotos : undefined}
@@ -1362,6 +1366,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onChooseFolder={() => actions.chooseLightroomFolder?.()}
         onClose={dismissLightroomOffer}
       /></React.Suspense>
+
+      {actions.rankCulling && actions.applyCullRules && cullAssistantOpen && <React.Suspense fallback={null}><CullAssistantDialog
+        open={cullAssistantOpen}
+        rank={actions.rankCulling}
+        onApply={actions.applyCullRules}
+        onClose={closeCullAssistant}
+      /></React.Suspense>}
 
       <React.Suspense fallback={null}><RemovedPhotosDialog
         open={store.removedOpen}
