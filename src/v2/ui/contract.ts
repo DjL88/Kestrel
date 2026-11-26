@@ -772,7 +772,7 @@ export interface WorkspaceStore {
   /** Saved overlay templates on this device (name only; the layout stays inside the store). */
   overlayTemplates: Array<{ id: string; name: string }>;
   /** Saved brand kits on this device (K080): name and the logo they use. Absent while the brand-kits preview is off. */
-  brandKits?: Array<{ id: string; name: string; logoLabel: string }>;
+  brandKits?: Array<{ id: string; name: string; logoLabel: string; /** True when no watermark on this device can be drawn, so Export puts no logo. */ logoMissing?: boolean }>;
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
