@@ -1977,4 +1977,16 @@ export const sv: AreaTranslation<typeof source> = {
     allowSystem: 'Säg till i bakgrunden också',
     dismiss: 'Stäng',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Fotografera live',
+    watchHint: 'Bevaka en mapp som din tether-app eller kamera skriver till, och lägg till varje nytt foto så fort det landar. Inget i mappen flyttas eller ändras.',
+    watching: (name: string, added: number) => `Bevakar ${name} · tillagda: ${added}`,
+    arriving: (n: number) => `på väg: ${n}`,
+    problem: (name: string) => `${name}: kan inte läsas just nu. Bevakar fortfarande: foton kommer in när den är tillbaka.`,
+    stop: 'Stoppa',
+    stopHint: 'Sluta bevaka mappen. Foton som redan lagts till stannar.',
+    notHere: 'Att bevaka en mapp kräver InFlights skrivbordsapp, eller Chrome eller Edge.',
+  },
 };

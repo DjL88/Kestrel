@@ -1977,4 +1977,16 @@ export const es: AreaTranslation<typeof source> = {
     allowSystem: 'Avisarme también en segundo plano',
     dismiss: 'Cerrar',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Disparo en directo',
+    watchHint: 'Vigilar una carpeta en la que escribe tu app de disparo conectado o tu cámara, y añadir cada foto nueva en cuanto llega. No se mueve ni cambia nada de la carpeta.',
+    watching: (name: string, added: number) => `Vigilando ${name} · añadidas: ${added}`,
+    arriving: (n: number) => `llegando: ${n}`,
+    problem: (name: string) => `${name}: no se puede leer ahora. Se sigue vigilando: las fotos llegarán cuando vuelva.`,
+    stop: 'Detener',
+    stopHint: 'Dejar de vigilar la carpeta. Las fotos ya añadidas se quedan.',
+    notHere: 'Para vigilar una carpeta hace falta la app de escritorio de InFlight, o Chrome o Edge.',
+  },
 };

@@ -1978,4 +1978,16 @@ export const gd: AreaTranslation<typeof source> = {
     allowSystem: 'Innis dhomh sa chùlaibh cuideachd',
     dismiss: 'Dùin',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Tog beò',
+    watchHint: 'Cùm sùil air pasgan far an sgrìobh an aplacaid teadhar no an camara agad, agus cuir ris gach dealbh ùr nuair a ruigeas e. Cha tèid càil sa phasgan a ghluasad no atharrachadh.',
+    watching: (name: string, added: number) => `A' cumail sùil air ${name} · air an cur ris: ${added}`,
+    arriving: (n: number) => `a' ruighinn: ${n}`,
+    problem: (name: string) => `${name}: cha ghabh a leughadh an-dràsta. A' cumail sùil fhathast: thig dealbhan a-steach nuair a thilleas e.`,
+    stop: 'Sguir',
+    stopHint: 'Sguir a chumail sùil air a\' phasgan. Fuirichidh na dealbhan a chaidh a chur ris.',
+    notHere: 'Feumaidh tu aplacaid deasg InFlight, no Chrome no Edge, airson sùil a chumail air pasgan.',
+  },
 };
