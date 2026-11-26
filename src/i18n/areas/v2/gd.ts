@@ -574,6 +574,9 @@ export const gd: AreaTranslation<typeof source> = {
     gridViewToggle: 'Griod de na dealbhan uile',
     fullScreenEnter: 'Làn-sgrìn',
     fullScreenExit: 'Fàg an làn-sgrìn',
+    canvasOnlyEnter: 'An canabhas a-mhàin: falaich na bàraichean is na panalan (L)',
+    canvasOnlyExit: 'Seall na bàraichean is na panalan a-rithist (L)',
+    canvasOnlyBack: 'Seall panalan',
     zoomFit: 'Co-fhreagair',
   },
   autoCheck: {
@@ -1692,6 +1695,8 @@ export const gd: AreaTranslation<typeof source> = {
     export: 'Às-phortaich',
   },
   hubMore: {
+    accountSignIn: "Clàraich a-steach",
+    accountSignedIn: (name: string) => `Air clàradh a-steach mar ${name}. Fosgail roghainnean a' chunntais`,
     archived: (count) => `San tasglann (${count})`,
     archivedNote: 'Thèid pròiseactan san tasglann a chumail. Aisig fear gus a chleachdadh a-rithist.',
     nothingArchived: 'Chan eil dad san tasglann.',
@@ -2033,6 +2038,10 @@ export const gd: AreaTranslation<typeof source> = {
     newsEmailLabel: "Cuir naidheachdan is gleusan ùra InFlight thugam air post-d",
     newsEmailHint: "Dheth mura cuir thu air e. Thèid naidheachdan dha na h-uidheaman agad le caismeachdan an toiseach; cha chuir sinn post-d ach mur ruig caismeachd thu. Tha ceangal anns gach post-d airson stad a chur orra.",
     newsEmailFailed: "Cha b’ urrainn dhuinn seo atharrachadh. Cha do dh’atharraich càil eile.",
+    communicationHeading: "Roghainnean conaltraidh",
+    productEmailLabel: "Cuir post-d thugam mu bheachdan is fios air ais air na pròiseactan co-roinnte agam",
+    productEmailHint: "Air mura cuir thu dheth e. A-mhàin nuair nach ruig brath thu. Chì thu fhathast iad san aplacaid.",
+    accountEmailNote: "Thèid post-d mun chunntas agad, mar an iuchair cead no facal-faire ùr, a chur an-còmhnaidh. Tha ceangal gus stad a chur orra anns gach post-d eile.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Deiseil: ${title}.`,
@@ -2124,5 +2133,10 @@ export const gd: AreaTranslation<typeof source> = {
     roomClose: 'Dùin',
     roomCloseHint: 'Sguir a shealltainn an tog air sgrìnichean eile.',
     roomKeptYours: (n: number) => `Chaidh na bh' agad-sa a chumail (${n}): dh'atharraich thu an aon dealbh.`,
+  },
+  activityBar: {
+    photoLoading: 'A\' luchdadh an deilbh',
+    minutesLeft: (n: number) => `Mu ${n} mion air fhàgail`,
+    teaTime: 'Àm airson cupa tì',
   },
 };

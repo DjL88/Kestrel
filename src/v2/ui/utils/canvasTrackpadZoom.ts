@@ -45,3 +45,22 @@ export function keyboardZoomTarget(action: CanvasZoomAction, current: number, fi
   const actual = 1 / fitScale;
   return Math.abs(zoom * fitScale - 1) <= 0.01 ? 1 : actual;
 }
+
+/**
+ * Whether a wheel event is a mouse wheel's notch rather than a trackpad's smooth scroll. A notch comes in lines
+ * (Firefox) or with the legacy wheel delta in whole steps of 120 and nothing sideways (Chromium, WebKit). A trackpad
+ * scroll is pixels in small uneven steps, so it keeps scrolling the zoomed picture.
+ */
+export function isMouseWheelNotch(event: { deltaX: number; deltaY: number; deltaMode: number; wheelDeltaY?: number }): boolean {
+  if (!Number.isFinite(event.deltaY) || event.deltaY === 0 || event.deltaX !== 0) return false;
+  if (event.deltaMode === 1 || event.deltaMode === 2) return true;
+  const legacy = event.wheelDeltaY;
+  return typeof legacy === 'number' && legacy !== 0 && Number.isInteger(legacy) && legacy % 120 === 0;
+}
+
+/** One mouse-wheel notch: the zoom bar's own 1.25 step, in or out, within the pinch's 0.25 to 8. */
+export function mouseWheelZoom(current: number, deltaY: number): number {
+  const zoom = Number.isFinite(current) && current > 0 ? current : 1;
+  if (!Number.isFinite(deltaY) || deltaY === 0) return zoom;
+  return Math.max(0.25, Math.min(8, deltaY < 0 ? zoom * 1.25 : zoom / 1.25));
+}

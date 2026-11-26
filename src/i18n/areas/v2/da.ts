@@ -573,6 +573,9 @@ export const da: AreaTranslation<typeof source> = {
     gridViewToggle: 'Gitter med alle fotos',
     fullScreenEnter: 'Fuld skærm',
     fullScreenExit: 'Afslut fuld skærm',
+    canvasOnlyEnter: 'Kun lærred: skjul bjælker og paneler (L)',
+    canvasOnlyExit: 'Vis bjælker og paneler igen (L)',
+    canvasOnlyBack: 'Vis paneler',
     zoomFit: 'Tilpas',
   },
   autoCheck: {
@@ -1691,6 +1694,8 @@ export const da: AreaTranslation<typeof source> = {
     export: 'Eksporter',
   },
   hubMore: {
+    accountSignIn: "Log ind",
+    accountSignedIn: (name: string) => `Logget ind som ${name}. Åbn kontoindstillinger`,
     archived: (count) => `Arkiveret (${count})`,
     archivedNote: 'Arkiverede projekter gemmes. Gendan et for at bruge det igen.',
     nothingArchived: 'Intet er arkiveret.',
@@ -2032,6 +2037,10 @@ export const da: AreaTranslation<typeof source> = {
     newsEmailLabel: "Send mig nyheder og nye funktioner i InFlight på e-mail",
     newsEmailHint: "Slået fra, medmindre du slår det til. Nyheder sendes først til dine enheder med beskeder; vi sender kun en e-mail, når en besked ikke kan nå dig. Hver e-mail har et link til at stoppe dem.",
     newsEmailFailed: "Det kunne ikke ændres. Intet andet blev ændret.",
+    communicationHeading: "Kommunikationsvalg",
+    productEmailLabel: "Send mig mails om kommentarer og feedback på mine delte projekter",
+    productEmailHint: "Til, indtil du slår det fra. Kun når en besked ikke når dig. Du ser dem stadig i appen.",
+    accountEmailNote: "Mails om din konto, fx din licensnøgle eller en ny adgangskode, sendes altid. Alle andre mails har et link til at stoppe dem.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Færdig: ${title}.`,
@@ -2123,5 +2132,10 @@ export const da: AreaTranslation<typeof source> = {
     roomClose: 'Luk',
     roomCloseHint: 'Stop med at vise fotograferingen på andre skærme.',
     roomKeptYours: (n: number) => `Dine valg beholdt (${n}): du havde ændret det samme foto.`,
+  },
+  activityBar: {
+    photoLoading: 'Indlæser foto',
+    minutesLeft: (n: number) => `Cirka ${n} min tilbage`,
+    teaTime: 'Tid til en kop te',
   },
 };

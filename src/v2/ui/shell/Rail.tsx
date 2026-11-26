@@ -10,6 +10,8 @@ interface RailProps {
   runningTaskCount: number;
   /** Average progress of running tasks, 0 to 100. */
   taskProgress: number;
+  /** Photos (or steps) done of all the running work, when it is counted; shown under the wheel as "34 / 120". */
+  taskCount?: { done: number; total: number } | null;
   onOpenTasks: () => void;
   quietBadges: boolean;
   onSelectPanel: (panelId: PanelId) => void;
@@ -36,6 +38,7 @@ export default function Rail({
   panels,
   runningTaskCount,
   taskProgress,
+  taskCount = null,
   onOpenTasks,
   quietBadges,
   onSelectPanel,
@@ -151,7 +154,7 @@ export default function Rail({
               <span className="v2-rail-label">{STRINGS.shellLabels.allPhotos}</span>
             </button>
           )}
-          <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />
+          <TasksWheel running={runningTaskCount} percent={taskProgress} count={taskCount} active={activePanel === 'tasks'} onClick={onOpenTasks} />
         </div>
       </aside>
 
@@ -217,7 +220,7 @@ export default function Rail({
 }
 
 /** Tasks, as a count inside a progress ring. The ring is a second cue: the number and the words say the same thing. */
-function TasksWheel({ running, percent, active, onClick }: { running: number; percent: number; active: boolean; onClick: () => void }) {
+function TasksWheel({ running, percent, count, active, onClick }: { running: number; percent: number; count: { done: number; total: number } | null; active: boolean; onClick: () => void }) {
   const radius = 11, circumference = 2 * Math.PI * radius;
   const shown = Math.max(0, Math.min(100, Math.round(percent)));
   return (
@@ -240,9 +243,15 @@ function TasksWheel({ running, percent, active, onClick }: { running: number; pe
               strokeDasharray={circumference} strokeDashoffset={circumference * (1 - shown / 100)} />
           )}
         </svg>
-        <span className="relative text-[0.6875rem] font-bold tabular-nums text-[var(--text-primary)]">{running}</span>
+        {/* While work runs, a short arc circles the wheel so it reads as busy at a glance; it stands still with less movement. */}
+        {running > 0 && (
+          <svg viewBox="0 0 28 28" className="v2-tasks-wheel-sweep absolute -inset-1 h-9 w-9" aria-hidden="true">
+            <circle cx="14" cy="14" r="13" fill="none" stroke="var(--brand-accent)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="12 70" opacity="0.7" />
+          </svg>
+        )}
+        <span className={`relative font-bold tabular-nums text-[var(--text-primary)] ${running > 0 ? 'text-[0.5625rem]' : 'text-[0.6875rem]'}`}>{running > 0 ? `${shown}%` : 0}</span>
       </span>
-      <span className="v2-rail-label">{STRINGS.rail.tasks}</span>
+      <span className="v2-rail-label tabular-nums">{running > 0 && count ? `${count.done} / ${count.total}` : STRINGS.rail.tasks}</span>
     </button>
   );
 }

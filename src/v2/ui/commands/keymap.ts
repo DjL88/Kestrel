@@ -35,6 +35,8 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'view.filmstrip': 'F6',
       'view.compare': 'Backslash',
       'view.maskOverlay': 'KeyO',
+      // Canvas only, like Lightroom's Lights out (L). Tab and Shift+Tab stay for moving between controls.
+      'view.canvasOnly': 'KeyL',
       'view.fullscreen': 'Mod+Shift+KeyF',
       'edit.undo': 'Mod+KeyZ',
       'edit.redo': 'Mod+Shift+KeyZ',
@@ -58,6 +60,8 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'view.filmstrip': 'F6',
       'view.compare': 'Backslash',
       'view.maskOverlay': 'KeyO',
+      // Canvas only, like Lightroom's Lights out (L). Tab and Shift+Tab stay for moving between controls.
+      'view.canvasOnly': 'KeyL',
       'view.fullscreen': 'KeyF',
       'edit.undo': 'Mod+KeyZ',
       'edit.redo': 'Mod+Shift+KeyZ',

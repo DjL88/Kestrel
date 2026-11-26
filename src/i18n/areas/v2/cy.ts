@@ -573,6 +573,9 @@ export const cy: AreaTranslation<typeof source> = {
     gridViewToggle: 'Grid o’r holl luniau',
     fullScreenEnter: 'Sgrin lawn',
     fullScreenExit: 'Gadael sgrin lawn',
+    canvasOnlyEnter: 'Cynfas yn unig: cuddio\'r bariau a\'r paneli (L)',
+    canvasOnlyExit: 'Dangos y bariau a\'r paneli eto (L)',
+    canvasOnlyBack: 'Dangos paneli',
     zoomFit: 'Ffitio',
   },
   autoCheck: {
@@ -1691,6 +1694,8 @@ export const cy: AreaTranslation<typeof source> = {
     export: 'Allforio',
   },
   hubMore: {
+    accountSignIn: "Mewngofnodi",
+    accountSignedIn: (name: string) => `Wedi mewngofnodi fel ${name}. Agor gosodiadau'r cyfrif`,
     archived: (count) => `Wedi’u harchifo (${count})`,
     archivedNote: 'Caiff prosiectau wedi’u harchifo eu cadw. Adferwch un i’w ddefnyddio eto.',
     nothingArchived: 'Does dim wedi’i archifo.',
@@ -2032,6 +2037,10 @@ export const cy: AreaTranslation<typeof source> = {
     newsEmailLabel: "Anfon newyddion a nodweddion newydd InFlight ataf drwy e-bost",
     newsEmailHint: "I ffwrdd oni bai eich bod yn ei droi ymlaen. Mae newyddion yn mynd i’ch dyfeisiau sydd â rhybuddion yn gyntaf; dim ond pan na all rhybudd eich cyrraedd y byddwn yn anfon e-bost. Mae dolen i’w stopio ym mhob e-bost.",
     newsEmailFailed: "Doedd dim modd newid hyn. Ni newidiodd dim byd arall.",
+    communicationHeading: "Dewisiadau cyfathrebu",
+    productEmailLabel: "Anfon e-bost ataf am sylwadau ac adborth ar fy mhrosiectau a rennir",
+    productEmailHint: "Ymlaen oni bai eich bod yn ei ddiffodd. Dim ond pan na all hysbysiad eich cyrraedd. Byddwch yn dal i'w gweld yn yr ap.",
+    accountEmailNote: "Mae e-byst am eich cyfrif, fel eich allwedd drwydded neu ailosod cyfrinair, bob amser yn cael eu hanfon. Mae dolen i'w stopio ym mhob e-bost arall.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Wedi gorffen: ${title}.`,
@@ -2123,5 +2132,10 @@ export const cy: AreaTranslation<typeof source> = {
     roomClose: 'Cau',
     roomCloseHint: 'Stopio dangos y saethu ar sgriniau eraill.',
     roomKeptYours: (n: number) => `Cadwyd eich un chi (${n}): roeddech wedi newid yr un llun.`,
+  },
+  activityBar: {
+    photoLoading: 'Wrthi\'n llwytho\'r llun',
+    minutesLeft: (n: number) => `Tua ${n} munud ar ôl`,
+    teaTime: 'Amser am baned o de',
   },
 };

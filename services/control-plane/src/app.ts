@@ -39,6 +39,7 @@ import type { NewsBroadcaster } from './news.ts';
 import { PUSH_PLATFORMS, isPushToken } from '../../../src/core/pushNotices.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, galleryIdFor, previewKey, type GalleryStore } from './gallery.ts';
+import { ComplianceRefusal, COMPLIANCE_MAX_BYTES, COMPLIANCE_TYPES, type ComplianceDocuments } from './complianceDocs.ts';
 import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, NOTICE_CATEGORIES, caseSummary, caseForUploader, type CheckInput, type SafetyService } from './contentSafety.ts';
 import { cloudKey } from './cloudPhotos.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
@@ -137,6 +138,8 @@ export interface AppOptions {
   spend?: SpendOptions;
   /** Acceptable-use checks on shared and cloud photos, and the report-a-gallery queue (contentSafety.ts). */
   safety?: { service: SafetyService; countryOf?: (req: Request) => string | null };
+  /** Signed compliance documents (risk assessments) in their own private bucket. Absent: the /admin routes answer 503. */
+  compliance?: ComplianceDocuments;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
   requireAdminSwitch?: boolean;
 }
@@ -272,6 +275,11 @@ export const Schemas = {
   }).strict(),
   GalleryReportStatus: z.object({ noticeId: z.string().regex(/^ntc_[A-Za-z0-9_-]{6,40}$/), receipt: z.string().min(16).max(64) }).strict(),
   SafetyDecide: z.object({ outcome: z.enum(['released', 'upheld']), reason: z.string().trim().min(3).max(1000) }).strict(),
+  ComplianceUpload: z.object({
+    title: z.string().trim().min(1).max(120), fileName: z.string().trim().min(1).max(120),
+    contentType: z.enum(Object.keys(COMPLIANCE_TYPES) as [keyof typeof COMPLIANCE_TYPES, ...(keyof typeof COMPLIANCE_TYPES)[]]),
+    base64: z.string().min(4).max(Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  }).strict(),
   SafetyManualReport: z.object({ ncmecReportId: z.string().trim().min(1).max(40).optional(), ncaDone: z.boolean().optional() }).strict(),
   SafetyNoticeDecide: z.object({ outcome: z.enum(['no-action', 'photo-removed', 'gallery-revoked']), reason: z.string().trim().min(3).max(1000) }).strict(),
   SafetyAppeal: z.object({ text: z.string().trim().min(3).max(2000) }).strict(),
@@ -280,7 +288,7 @@ export const Schemas = {
   PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),
   PushDeviceRemove: z.object({ token: z.string().refine(isPushToken, 'not a push token') }).strict(),
   PushPreferences: z.object({ comments: z.boolean(), clientFeedback: z.boolean(), news: z.boolean() }).partial().strict(),
-  EmailPreferences: z.object({ productNews: z.boolean(), language: z.enum(MAIL_LANGUAGES) }).partial().strict(),
+  EmailPreferences: z.object({ productNews: z.boolean(), productEmail: z.boolean(), language: z.enum(MAIL_LANGUAGES) }).partial().strict(),
   NewsSend: z.object({
     broadcastId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
     title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(500), dryRun: z.boolean(),
@@ -782,6 +790,17 @@ export function createApp(options: AppOptions) {
   /** A suspended account's galleries stop serving. Merged accounts keep theirs: only 'suspended' counts. */
   const ownerSuspended = async (accountId: string) => (await store.getAccount(accountId))?.status === 'suspended';
 
+  function complianceCfg(): ComplianceDocuments {
+    if (!options.compliance) throw new ApiError(503, 'COMPLIANCE_NOT_CONFIGURED', 'The compliance document store is not set up on this server yet.');
+    return options.compliance;
+  }
+  async function compliance<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof ComplianceRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
+  }
+
   function safetyCfg(): SafetyService {
     if (!options.safety) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Reporting is not set up on this server yet. Email the address on the acceptable use page.');
     return options.safety.service;
@@ -949,25 +968,41 @@ export function createApp(options: AppOptions) {
     // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
     // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
     {
-      method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping invitation emails (a link only shows a button, so mail scanners cannot unsubscribe anyone)', auth: 'none',
+      method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping emails: all of them for an address (invitations), or one kind for an account (news or product emails). A link only shows a button, so mail scanners cannot unsubscribe anyone', auth: 'none',
       handler: (req) => {
-        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const s = req.query.get('s') ?? ''; const a = req.query.get('a') ?? ''; const r = req.query.get('r') ?? '';
         const w = mailWords(l).unsubscribe;
-        const ok = !!options.mailer && options.mailer.checkUnsubscribe(r, t);
         const safe = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '');
-        return { status: ok ? 200 : 400, body: mailPage(l, ok ? w.title : w.invalid, ok
-          ? `<p>${esc(w.confirm)}</p><form method="post" action="/v1/mail/unsubscribe?r=${safe(r)}&amp;t=${safe(t)}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(w.button)}</button></form>`
+        const scoped = !!options.mailer && options.mailer.checkStreamUnsubscribe(s, a, t) ? s as 'news' | 'notice' : null;
+        const ok = scoped !== null || (!s && !!options.mailer && options.mailer.checkUnsubscribe(r, t));
+        const action = scoped ? `s=${scoped}&amp;a=${safe(a)}&amp;t=${safe(t)}` : `r=${safe(r)}&amp;t=${safe(t)}`;
+        const title = scoped === 'news' ? w.stopNews : scoped === 'notice' ? w.stopNotices : w.title;
+        const confirm = scoped === 'news' ? w.confirmNews : scoped === 'notice' ? w.confirmNotices : w.confirm;
+        const button = scoped === 'news' ? w.stopNews : scoped === 'notice' ? w.stopNotices : w.button;
+        return { status: ok ? 200 : 400, body: mailPage(l, ok ? title : w.invalid, ok
+          ? `<p>${esc(confirm)}</p><form method="post" action="/v1/mail/unsubscribe?${action}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(button)}</button></form>`
           : `<p>${esc(w.invalidHint)}</p>`), headers: MAIL_PAGE_HEADERS };
       },
     },
     {
-      method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058) from invitation emails', auth: 'none',
+      method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058): every email to an address, or one kind (news, product emails) for an account', auth: 'none',
       handler: async (req) => {
-        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const s = req.query.get('s') ?? ''; const a = req.query.get('a') ?? ''; const r = req.query.get('r') ?? '';
+        const w = mailWords(l).unsubscribe;
+        if (s) {
+          if (!options.mailer || !options.mailer.checkStreamUnsubscribe(s, a, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
+          // The preference lives with the account, so the app's switch shows it and can turn it back on.
+          if (!options.contacts) throw new ApiError(503, 'EMAIL_PREFS_NOT_CONFIGURED', 'Email preferences are not available on this server right now. Reply to the email and we will stop them.', true);
+          if (s === 'news') await options.contacts.setProductNews(a, false, now());
+          else await options.contacts.setProductEmail(a, false);
+          await audit(a, s === 'news' ? 'notify.news-email' : 'notify.product-email', 'allowed', 'off (email link)');
+          return { status: 200, body: mailPage(l, s === 'news' ? w.stopNews : w.stopNotices, `<p>${esc(s === 'news' ? w.doneNews : w.doneNotices)}</p>`), headers: MAIL_PAGE_HEADERS };
+        }
         if (!options.mailer || !options.mailer.checkUnsubscribe(r, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
         await options.mailer.unsubscribe(r);
         await audit('anonymous', 'mail.unsubscribe', 'allowed', '');
-        const w = mailWords(l).unsubscribe;
         return { status: 200, body: mailPage(l, w.title, `<p>${esc(w.done)}</p>`), headers: MAIL_PAGE_HEADERS };
       },
     },
@@ -1802,11 +1837,11 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         const prefs = await contactsCfg().preferences(claims.sub);
         const available = !!options.mailer && (await switchOn('email')) && (await switchOn('product-news'));
-        return { status: 200, body: { available, productNews: prefs.productNews } };
+        return { status: 200, body: { available, productNews: prefs.productNews, productEmail: prefs.productEmail, productEmailAvailable: !!options.mailer && (await switchOn('email')) } };
       },
     },
     {
-      method: 'POST', path: '/v1/notify/email', summary: 'Turn product news by email on or off, and tell the server which language the app is in', auth: 'user', body: Schemas.EmailPreferences,
+      method: 'POST', path: '/v1/notify/email', summary: 'Turn product news (marketing) or product emails (shared-project notices) on or off, and tell the server which language the app is in', auth: 'user', body: Schemas.EmailPreferences,
       handler: async (req) => {
         const claims = await bearer(req);
         const body = parseJson(Schemas.EmailPreferences, req.rawBody);
@@ -1816,7 +1851,12 @@ export function createApp(options: AppOptions) {
           await contacts.setProductNews(claims.sub, body.productNews, now());
           await audit(claims.sub, 'notify.news-email', 'allowed', body.productNews ? 'on' : 'off');
         }
-        return { status: 200, body: { productNews: (await contacts.preferences(claims.sub)).productNews } };
+        if (body.productEmail !== undefined) {
+          await contacts.setProductEmail(claims.sub, body.productEmail);
+          await audit(claims.sub, 'notify.product-email', 'allowed', body.productEmail ? 'on' : 'off');
+        }
+        const prefs = await contacts.preferences(claims.sub);
+        return { status: 200, body: { productNews: prefs.productNews, productEmail: prefs.productEmail } };
       },
     },
     {
@@ -2098,6 +2138,32 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.SafetyManualReport, req.rawBody);
         const c = await safety(() => safetyCfg().recordManualReport(params.id, claims.sub, body));
         return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
+      },
+    },
+    // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.
+    {
+      method: 'GET', path: '/v1/admin/compliance/documents', summary: 'Signed compliance documents (risk assessments), newest first', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'compliance.list');
+        const docs = await compliance(() => complianceCfg().list());
+        return adminDone(claims, 'compliance.list', String(docs.length), { documents: docs.map(({ sha256: _s, ...d }) => d), maxBytes: COMPLIANCE_MAX_BYTES });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/compliance/documents', summary: 'Upload a signed copy (PDF or Markdown). Never replaces an earlier one', auth: 'admin', body: Schemas.ComplianceUpload,
+      handler: async (req) => {
+        const claims = await admin(req, 'compliance.upload');
+        const body = parseJson(Schemas.ComplianceUpload, req.rawBody);
+        const doc = await compliance(() => complianceCfg().upload({ title: body.title, fileName: body.fileName, contentType: body.contentType, body: Buffer.from(body.base64, 'base64'), by: claims.sub, atMs: now() }));
+        return adminDone(claims, 'compliance.upload', `${doc.id} sha256=${doc.sha256}`, { document: { ...doc, sha256: undefined } });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/compliance/documents/:id/download', summary: 'A 10-minute download link for one compliance document', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'compliance.download');
+        const link = await compliance(() => complianceCfg().download(params.id));
+        return adminDone(claims, 'compliance.download', params.id, link);
       },
     },
     {
@@ -2672,7 +2738,7 @@ export function createApp(options: AppOptions) {
     },
   ];
 
-  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
+  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path === '/v1/admin/compliance/documents' ? Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4 + 4096 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');
@@ -2715,7 +2781,7 @@ export function createApp(options: AppOptions) {
     const to = await options.contacts.addressBook(licence.accountId);
     if (!to) return 'skipped';
     const mail = licenceKeyMail(mintLicenceKey(licence, config.licencePrivateKey, now()), licence.majorVersion);
-    const sent = await options.mailer.sendNotice({ to: to.address, accountId: licence.accountId, ...mail, language: to.language });
+    const sent = await options.mailer.sendNotice({ to: to.address, accountId: licence.accountId, ...mail, language: to.language, stream: 'account' });
     await audit(licence.accountId, 'licence.key.email', sent.sent ? 'allowed' : 'denied', licence.licenceId);
     return sent.sent ? 'sent' : 'skipped';
   }

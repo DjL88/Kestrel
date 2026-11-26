@@ -5,7 +5,8 @@
  * these variables. Pence figures are estimates (spendGuard.ts), not Google's prices.
  */
 import type { AppOptions } from './app.ts';
-import { GcsCloudRunner, GcsSafeCopyStorage, CloudRunJobTrigger, metadataAccessToken, openGcsBucket, type GcsBucketLike } from './gcsAdapters.ts';
+import { GcsCloudRunner, GcsComplianceStorage, GcsSafeCopyStorage, CloudRunJobTrigger, metadataAccessToken, openGcsBucket, type GcsBucketLike, type GcsListingBucketLike } from './gcsAdapters.ts';
+import { ComplianceDocuments } from './complianceDocs.ts';
 import { FirestoreCloudLedger } from './cloudLedgerFirestore.ts';
 import { FirestoreLearningSink } from './learningSignalFirestore.ts';
 import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
@@ -43,7 +44,7 @@ export interface WiringDeps {
   /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
   firebaseUsers?: FirebaseUserLookup;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -126,6 +127,11 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     };
     out.enabled.push('cloud-processing');
   }
+  // Signed compliance documents (risk assessments): their own private, versioned UK bucket (infra/gcp/compliance.tf).
+  if (env.KCP_COMPLIANCE_BUCKET) {
+    out.compliance = new ComplianceDocuments(new GcsComplianceStorage(await open(env.KCP_COMPLIANCE_BUCKET) as GcsListingBucketLike));
+    out.enabled.push('compliance-documents');
+  }
   if (env.KCP_SAFE_COPY_BUCKET) {
     out.safeCopy = {
       storage: new GcsSafeCopyStorage(await open(env.KCP_SAFE_COPY_BUCKET)), catalog: new FirestoreSafeCopyCatalog(db),
@@ -148,7 +154,7 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     const firebaseProject = env.KCP_FIREBASE_PROJECT_ID;
     const lookup = deps.firebaseUsers ?? (out.mailer && firebaseProject ? identityToolkitLookup(firebaseProject, deps.token ?? (() => metadataAccessToken()), fetch, (m) => console.warn(m)) : undefined);
     out.contacts = new NoticeContacts(db, lookup, (message) => console.warn(message));
-    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer, out.contacts.addressBook).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
+    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer, out.contacts.addressBook, out.contacts.wantsNoticeEmail).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
     if (out.push) {
       out.news = new NewsBroadcaster(db, { push: out.push, mailer: out.mailer, contacts: out.contacts, addressBook: out.contacts.addressBook, log: (m) => console.warn(m) });
       out.enabled.push('product-news');

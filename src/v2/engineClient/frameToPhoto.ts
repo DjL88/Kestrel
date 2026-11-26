@@ -407,6 +407,7 @@ export function taskToInfo(task: Task): TaskInfo {
   return {
     id: String(task.id),
     label: task.title,
+    ...(task.kind ? { kind: task.kind } : {}),
     detail: task.detail ?? (task.total ? `${task.done} of ${task.total}` : ''),
     progress,
     status: task.state,

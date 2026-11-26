@@ -33,6 +33,8 @@ interface ProjectsHubProps {
   /** Makes a separate copy of the project, shown as a task in Tasks. */
   onDuplicateProject?: (projectId: string) => void;
   onOpenSettings: () => void;
+  /** Top right: who is signed in (or a Sign in button), opening Settings → Account. Left out when sign-in is not built. */
+  account?: React.ReactNode;
   onToggleTheme: () => void;
   onSetHubState: (state: HubViewState) => void;
 }
@@ -54,6 +56,7 @@ export default function ProjectsHub({
   onDeleteProjectForever,
   onDuplicateProject,
   onOpenSettings,
+  account,
   onToggleTheme,
   onSetHubState,
 }: ProjectsHubProps) {
@@ -123,6 +126,7 @@ export default function ProjectsHub({
             className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
             <BrandIcon name="settings" size={17} /><span className="hidden sm:inline">{STRINGS.settings.heading}</span>
           </button>
+          {account}
         </nav>
       </header>
 
