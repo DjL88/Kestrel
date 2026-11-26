@@ -36,21 +36,22 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   // Make a real project through the app, so the remembered id is one the catalogue really holds.
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: 'New project' }).first().click();
+  // The header and the empty hub each offer the same button; the first is the header's.
+  await root.getByRole('button', { name: 'New project', exact: true }).first().click();
   await page.getByLabel('Project name', { exact: true }).fill('Dawn at the marsh');
   await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'DSC_0007.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
-  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 30_000 });
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 20_000 });
   // Opening a project from the hub remembers it for the welcome (a freshly created one is not opened that way).
   await page.reload();
   const options = root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
-  const card = root.getByText('Dawn at the marsh', { exact: true }).first();
-  await expect(card).toBeVisible({ timeout: 30_000 });
+  const card = root.getByText('Dawn at the marsh', { exact: true });
+  await expect(card).toBeVisible({ timeout: 15_000 });
   await card.click();
-  await expect(options).toHaveCount(1, { timeout: 30_000 });
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')), { timeout: 15_000 }).not.toBeNull();
+  await expect(options).toHaveCount(1, { timeout: 20_000 });
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')), { timeout: 10_000 }).not.toBeNull();
   const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')))!);
   await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
 
@@ -61,7 +62,7 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   await splash.getByTestId('welcome-last-project').click();
   await expect(splash).toHaveCount(0, { timeout: 10_000 });
   // The editor is showing, not the hub.
-  await expect(root.getByRole('listbox', { name: 'Project photographs' })).toBeVisible({ timeout: 30_000 });
+  await expect(root.getByRole('listbox', { name: 'Project photographs' })).toBeVisible({ timeout: 20_000 });
 });
 
 test('a remembered project that no longer exists leads to the hub and says so', async ({ page }) => {
@@ -121,7 +122,7 @@ test('someone upgrading, whose only earlier key is their display settings, is we
 
 test('if the welcome cannot load, the splash fades out as it always did and the workspace appears', async ({ page }) => {
   // The built app serves /assets/LaunchWelcome-<hash>.js; the Vite dev server serves /src/v2/ui/screens/LaunchWelcome.tsx. Both name the module.
-  await page.route((url) => /\/LaunchWelcome[-.][^/]*\.(js|tsx)$/.test(url.pathname), (route) => route.abort());
+  await page.route((url) => /\/LaunchWelcome(-[^/]*)?\.(js|tsx)$/.test(url.pathname), (route) => route.abort());
   await page.goto('/?v2&stub=1&splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
