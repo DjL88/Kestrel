@@ -148,8 +148,6 @@ export const nb: AreaTranslation<typeof source> = {
     nothing: 'Ingenting er koblet til ennå. Prosjektene ligger bare på denne enheten.',
     listLabel: 'Tilkoblinger',
     check: 'Sjekk',
-    serviceUnreachable: "InFlights nettjenester kan ikke nås akkurat nå. Arbeidet ditt på denne enheten fortsetter; deling og pålogging venter til de er tilbake.",
-    tryAgain: "Prøv igjen",
     reconnect: 'Koble til igjen',
     remove: (name) => `Fjern ${name}`,
     kind: 'Type tilkobling',

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { openFirestore } from '../openStore.ts';
 
-const ECB = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
+export const ECB = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
 const ONS = 'https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt/mm23/data';
 const date = /^\d{4}-\d{2}-\d{2}$/;
 const settingsSchema = z.object({
@@ -31,6 +31,17 @@ export function readEcbRates(xml: string) {
   }
   if (!rateDate || !rates.has('GBP')) throw new Error('ECB response did not contain a GBP reference rate.');
   return { rateDate, rates };
+}
+
+/** Today's ECB reference rates as units of each currency per £1 (for the pricing matrix in Admin → Prices). */
+export async function fetchEcbRatesPerGbp(request: typeof fetch = fetch) {
+  const response = await request(ECB, { signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new Error('The ECB reference rates could not be loaded.');
+  const { rateDate, rates } = readEcbRates(await response.text());
+  const gbp = rates.get('GBP')!;
+  const perGbp: Record<string, number> = {};
+  for (const [currency, rate] of rates) if (currency !== 'GBP') perGbp[currency] = Math.round(rate / gbp * 1e6) / 1e6;
+  return { date: rateDate, perGbp };
 }
 
 const utcMonth = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'short', timeZone: 'UTC' });

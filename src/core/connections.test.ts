@@ -34,7 +34,7 @@ test('a project describes where it lives, and says when a place needs attention'
 
 test('folders, a NAS over WebDAV and S3 storage are ready; Dropbox, Google Drive and OneDrive are listed as coming', () => {
   assert.deepEqual(PROVIDERS.filter((p) => p.available).map((p) => p.kind), ['folder', 'webdav', 'sftp', 's3']);
-  assert.deepEqual(PROVIDERS.filter((p) => !p.available).map((p) => p.kind), ['dropbox', 'googledrive', 'onedrive']);
+  assert.deepEqual(PROVIDERS.filter((p) => !p.available).map((p) => p.kind), ['dropbox', 'googledrive', 'onedrive', 'sharepoint']);
   assert.ok(PROVIDERS.filter((p) => !p.available).every((p) => p.note));
 });
 

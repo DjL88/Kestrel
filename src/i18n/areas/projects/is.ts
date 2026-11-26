@@ -148,8 +148,6 @@ export const is: AreaTranslation<typeof source> = {
     nothing: 'Ekkert tengt enn. Verkefnin eru aðeins í þessu tæki.',
     listLabel: 'Tengingar',
     check: 'Athuga',
-    serviceUnreachable: "Ekki næst í netþjónustu InFlight í augnablikinu. Vinnan þín á þessu tæki heldur áfram; deiling og innskráning bíða þar til þjónustan kemur aftur.",
-    tryAgain: "Reyna aftur",
     reconnect: 'Tengja aftur',
     remove: (name) => `Fjarlægja ${name}`,
     kind: 'Tegund tengingar',

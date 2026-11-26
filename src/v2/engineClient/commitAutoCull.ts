@@ -56,15 +56,21 @@ export function rawsJudgedFromCameraPreview(frames: readonly Pick<PhotoFrame, 'i
     && sources.get(frame.id) !== 'raw-full' && sources.get(frame.id) !== 'raw-review').length;
 }
 
+/** Auto pick & Analyse is offered for an import, or a project, of more than this many photos. */
+export const AUTO_PICK_MIN_IMPORT = 20;
+
 export type AfterImportCull = 'run' | 'offer' | 'switched-off' | 'none';
 /**
  * What happens to Auto-cull once photos have been added. Auto-pilot starts it on this device; Co-pilot offers it in
  * plain words; Solo stays quiet. When a flag has switched culling off, Auto-pilot and Co-pilot say so rather than
  * silently doing nothing. A stopped or empty import starts nothing; a partly failed one still sorts what arrived.
+ * Only an import of more than AUTO_PICK_MIN_IMPORT photos is offered or sorted: a handful is quicker to pick by eye
+ * (owner, 26 Nov 2026). A live shoot still sorts each frame as it lands, because there every import is one frame.
  * Auto-cull itself never rejects: it flags confident keepers and leaves the rest for review.
  */
-export function cullAfterImport(mode: 'solo' | 'copilot' | 'autopilot', canCull: boolean, added: number, outcome: string): AfterImportCull {
+export function cullAfterImport(mode: 'solo' | 'copilot' | 'autopilot', canCull: boolean, added: number, outcome: string, live = false): AfterImportCull {
   if (mode === 'solo' || added <= 0 || outcome === 'cancelled') return 'none';
+  if (!live && added <= AUTO_PICK_MIN_IMPORT) return 'none';
   if (!canCull) return 'switched-off';
   return mode === 'autopilot' ? 'run' : 'offer';
 }

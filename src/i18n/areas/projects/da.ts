@@ -148,8 +148,6 @@ export const da: AreaTranslation<typeof source> = {
     nothing: 'Intet forbundet endnu. Projekter ligger kun på denne enhed.',
     listLabel: 'Forbindelser',
     check: 'Tjek',
-    serviceUnreachable: "InFlights onlinetjenester kan ikke nås lige nu. Dit arbejde på denne enhed fortsætter; deling og login venter, til de er tilbage.",
-    tryAgain: "Prøv igen",
     reconnect: 'Forbind igen',
     remove: (name) => `Fjern ${name}`,
     kind: 'Type forbindelse',

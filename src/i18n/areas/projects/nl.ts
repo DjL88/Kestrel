@@ -148,8 +148,6 @@ export const nl: AreaTranslation<typeof source> = {
     nothing: 'Nog niets gekoppeld. Projecten staan alleen op dit apparaat.',
     listLabel: 'Verbindingen',
     check: 'Controleren',
-    serviceUnreachable: "De onlinediensten van InFlight zijn nu niet bereikbaar. Je werk op dit apparaat gaat door; delen en inloggen wachten tot ze terug zijn.",
-    tryAgain: "Opnieuw proberen",
     reconnect: 'Opnieuw verbinden',
     remove: (name) => `${name} verwijderen`,
     kind: 'Soort verbinding',

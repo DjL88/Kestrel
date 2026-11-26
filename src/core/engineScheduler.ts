@@ -56,6 +56,12 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
   location?: TaskLocation;
   /** Only offer pause when a photo or stage boundary genuinely exists. */
   pauseable?: boolean;
+  /**
+   * One photo the person just asked for and is waiting on (Select subject, a deep look). Without measured capacity it
+   * may start beside one running background job on another resource, never beside another interactive job, so a
+   * shoot-wide Auto pick that cannot pause no longer holds a one-photo mask until every photo is analysed.
+   */
+  interactive?: boolean;
   recovery?: {
     key: string;
     journal: JobJournal;
@@ -88,6 +94,7 @@ interface WorkBatch {
   priority: number;
   resource: EngineResource;
   reservation: Reservation;
+  interactive: boolean;
   pauseable: boolean;
   paused: boolean;
   pauseRequested: boolean;
@@ -157,8 +164,9 @@ export function createEngineScheduler(options: {
     // Browser and mobile builds often cannot measure *available* RAM/VRAM.
     // Do not invent capacity. Run just one heavy engine at a time while
     // measurements are unknown; interactive editing still gets first priority.
-    const heavyActive = occupied.some(other => other.resource !== 'io');
-    const safe = job.resource === 'io' ? used.io < 1 : !heavyActive;
+    const heavy = occupied.filter(other => other.resource !== 'io');
+    const safe = job.resource === 'io' ? used.io < 1
+      : !heavy.length || (job.interactive && heavy.length === 1 && !heavy[0].interactive && heavy[0].resource !== job.resource);
     if (!safe) blockedReason = 'unknown capacity';
     return safe;
   };
@@ -377,6 +385,7 @@ export function createEngineScheduler(options: {
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
+      interactive: definition.interactive === true && items.length === 1,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
       handle, items: items as WorkItem<unknown>[], manualProgress: false,

@@ -148,8 +148,6 @@ export const gd: AreaTranslation<typeof source> = {
     nothing: 'Chan eil càil ceangailte fhathast. Chan eil na pròiseactan ach air an uidheam seo.',
     listLabel: 'Ceanglaichean',
     check: 'Sgrùd',
-    serviceUnreachable: "Cha ghabh seirbheisean air loidhne InFlight a ruigsinn an-dràsta. Leanaidh an obair agad air an uidheam seo; fuirichidh co-roinneadh is clàradh a-steach gus an till iad.",
-    tryAgain: "Feuch ris a-rithist",
     reconnect: 'Ceangail a-rithist',
     remove: (name) => `Thoir air falbh ${name}`,
     kind: 'Seòrsa a’ cheangail',

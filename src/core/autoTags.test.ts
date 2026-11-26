@@ -152,3 +152,14 @@ test('no name is written when the gate and the species model disagree on the gro
   assert.equal(gateAgreesWithSpecies(['insect'], label('insect')), true);
   assert.equal(gateAgreesWithSpecies(null, label('bird')), true, 'gate not sure: as before');
 });
+
+test('a photo tagged only "Bird" (a quick-add word or a Lightroom keyword) still gets its species looked up', async () => {
+  const { scanCandidates, scanPatch, speciesShown } = await import('./autoTags');
+  const frames = [{ id: 'bird-only', subjectKind: 'wildlife', tags: ['Bird', 'in flight'] }, { id: 'named', subjectKind: 'wildlife', tags: ['Bird', 'Gannet'] }];
+  assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['bird-only']);
+  const patch = scanPatch({ ...frames[0], subjectKind: 'wildlife' }, { name: 'Atlantic Puffin', probability: 0.97, kind: 'wildlife' });
+  assert.deepEqual(patch.autoTags, ['Atlantic Puffin']);
+  assert.deepEqual(speciesShown({ subjectKind: 'wildlife', ...patch }), { name: 'Atlantic Puffin', auto: true });
+  // The person's own name wins over the quick-add word on the card.
+  assert.deepEqual(speciesShown({ subjectKind: 'wildlife', tags: ['Bird', 'Gannet'] }), { name: 'Gannet', auto: false });
+});

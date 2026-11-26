@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { STRINGS } from '../strings';
 import { PROVIDERS, type Health, type ProviderKind } from '../../../core/connections';
-import { CLOUD_DRIVES, isCloudDrive } from '../../../core/cloudDrive';
+import { CLOUD_DRIVES, isCloudDrive, parseSharePointLink, type CloudDriveKind } from '../../../core/cloudDrive';
+import { resolveSharePointLibrary } from '../../../providers/cloudDriveConnectors';
 import type { S3Settings } from '../../../core/storageConnectors';
 import type { BrandIconId } from '../../../core/brandIcons';
 import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, setSftpLogin, sftpPlaceFor, useConnections } from '../../../providers/connectionStore';
@@ -54,7 +55,25 @@ export function StorageConnections() {
     } catch { setNote(STRINGS.storagePlaces.folderFailed); }
   }
 
-  async function signIn(kind: 'dropbox' | 'googledrive' | 'onedrive', reconnectId?: string) {
+  const [sharePointLink, setSharePointLink] = useState('');
+
+  /** SharePoint: check the pasted link, sign in with Microsoft, then find that library before saving the place. */
+  async function addSharePoint() {
+    setNote(null);
+    const link = parseSharePointLink(sharePointLink);
+    if (!link) { setNote(STRINGS.storagePlaces.sharepoint.badLink); return; }
+    setBusy('sharepoint');
+    try {
+      const tokens = await signInToCloudDrive('sharepoint');
+      const library = await resolveSharePointLibrary(link, { getToken: async () => tokens.accessToken });
+      const created = addConnection('sharepoint', label || library.siteName, STRINGS.storagePlaces.sharepoint.detail(library.siteName, library.libraryName), { tokens, sharepoint: library });
+      done(); setSharePointLink('');
+      await checkConnection(created.id);
+    } catch (error) { setNote(error instanceof Error ? error.message : STRINGS.storagePlaces.signInFailed); }
+    setBusy(null);
+  }
+
+  async function signIn(kind: CloudDriveKind, reconnectId?: string) {
     setNote(null); setBusy(reconnectId ?? kind);
     try {
       const tokens = await signInToCloudDrive(kind);
@@ -97,7 +116,7 @@ export function StorageConnections() {
                 <span role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{HEALTH_WORD[health]}{reports[connection.id]?.message && health !== 'ok' ? `: ${reports[connection.id]!.message}` : ''}</span>
                 <button type="button" className={button} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>{STRINGS.storagePlaces.check}</button>
                 {health === 'needs-signin' && connection.kind === 'sftp' && sftpPlaceFor(connection.id) && <button type="button" className={button} onClick={() => { setSftpAgain(connection.id); setAdding(null); }}>{STRINGS.storagePlaces.signInAgain}</button>}
-                {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as 'dropbox', connection.id)}>{STRINGS.storagePlaces.signInAgain}</button>}
+                {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as CloudDriveKind, connection.id)}>{STRINGS.storagePlaces.signInAgain}</button>}
                 <button type="button" className={button} onClick={() => removeConnection(connection.id)} aria-label={STRINGS.storagePlaces.removeLabel(connection.label)}>{STRINGS.storagePlaces.remove}</button>
               </div>
             </li>
@@ -157,10 +176,20 @@ export function StorageConnections() {
               done(); void checkConnection(created.id);
             }} />
           )}
-          {isCloudDrive(adding) && (
+          {adding === 'sharepoint' && (
+            <div className="space-y-2" data-testid="v2-sharepoint">
+              <label className="block text-[var(--text-primary)]">{STRINGS.storagePlaces.sharepoint.linkLabel}
+                <input className="mt-1 block h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-xs" value={sharePointLink} onChange={(event) => setSharePointLink(event.target.value)} placeholder="https://contoso.sharepoint.com/sites/Photos/Shared Documents" inputMode="url" autoComplete="off" spellCheck={false} />
+              </label>
+              <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.sharepoint.linkHint}</p>
+              <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.sharepoint.adminNote}</p>
+              <button type="button" className={button} disabled={busy === 'sharepoint' || !sharePointLink.trim()} onClick={() => void addSharePoint()}>{STRINGS.storagePlaces.signInWith('Microsoft')}</button>
+            </div>
+          )}
+          {isCloudDrive(adding) && adding !== 'sharepoint' && (
             <div className="space-y-2">
               <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.cloudNote(CLOUD_DRIVES[adding].name)}</p>
-              <button type="button" className={`${button} inline-flex items-center gap-2`} disabled={busy === adding} onClick={() => void signIn(adding as 'dropbox')}>
+              <button type="button" className={`${button} inline-flex items-center gap-2`} disabled={busy === adding} onClick={() => void signIn(adding)}>
                 {(adding === 'dropbox' || adding === 'googledrive') && <BrandIcon id={adding} className="h-4 w-4" />}
                 {STRINGS.storagePlaces.signInWith(CLOUD_DRIVES[adding].name)}
               </button>

@@ -34,22 +34,36 @@ test('?v2 History lists real edit steps; choosing Original goes back and the lat
   await expect(steps).toHaveCount(2);
   await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step');
 
+  // Choosing an earlier step goes back to it, like Undo; the later step stays and can be chosen again. No version is made.
   await steps.nth(0).click();
   await expect(steps.nth(0)).toHaveAttribute('aria-current', 'step');
+  await expect(root.getByRole('combobox', { name: 'Choose an editing version' })).toHaveCount(0);
   await root.getByRole('button', { name: 'Adjust' }).first().click();
   await root.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(exposure).toHaveValue('0');
 
-  // Since #1113 choosing an earlier step forks a new editing version; the later step stays in Version 1.
   await root.getByRole('button', { name: 'History' }).first().click();
-  const versions = root.getByRole('combobox', { name: 'Choose an editing version' });
-  await expect(versions.getByRole('option')).toHaveCount(2);
-  await versions.selectOption({ label: 'Version 1' });
-  await expect(steps).toHaveCount(2);
+  await steps.nth(1).click();
   await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step');
   await root.getByRole('button', { name: 'Adjust' }).first().click();
   await root.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(exposure).toHaveValue('1');
+
+  // A version is only named, and only exists, when the person forks one.
+  await root.getByRole('button', { name: 'History' }).first().click();
+  await steps.nth(0).click();
+  const fork = root.getByTestId('history-fork');
+  await fork.getByRole('button', { name: 'Fork from here' }).click();
+  await fork.getByLabel('Version name').fill('Natural');
+  await fork.getByLabel('Version name').press('Enter');
+  const versions = root.getByRole('combobox', { name: 'Choose an editing version' });
+  await expect(versions.getByRole('option')).toHaveCount(2);
+  await expect(versions.locator('option:checked')).toHaveText(/^Natural/);
+  await versions.selectOption({ label: 'Version 1' });
+  await expect(steps).toHaveCount(2);
+  await root.getByRole('button', { name: 'Adjust' }).first().click();
+  await root.getByRole('tab', { name: 'Advanced Edits' }).click();
+  await expect(exposure).toHaveValue('0');
 });
 
 test('?v2 a named checkpoint opens as a new version with its own recipe; the working version keeps its later edit', async ({ page }) => {
@@ -81,6 +95,8 @@ test('?v2 a named checkpoint opens as a new version with its own recipe; the wor
 
   // Save a checkpoint by name (Enter in the field saves it).
   await root.getByRole('button', { name: 'History' }).first().click();
+  // Checkpoints fold away until one is saved.
+  await root.getByRole('button', { name: 'Checkpoints', exact: true }).click();
   const checkpoints = root.getByTestId('history-checkpoints');
   await expect(checkpoints.getByText('No checkpoints saved yet.')).toBeVisible();
   await checkpoints.getByLabel('Checkpoint name').fill('Brighter sky');
@@ -99,12 +115,9 @@ test('?v2 a named checkpoint opens as a new version with its own recipe; the wor
   await openAdjust();
   await expect(exposure).toHaveValue('1');
 
-  // The version it came from still has the later edit; rename it.
+  // The version it came from still has the later edit.
   await root.getByRole('button', { name: 'History' }).first().click();
   await versions.selectOption({ index: 0 });
-  await root.getByLabel('Version name').fill('Working edit');
-  await root.getByRole('button', { name: 'Rename', exact: true }).click();
-  await expect(versions.locator('option:checked')).toHaveText(/^Working edit/);
   await openAdjust();
   await expect(exposure).toHaveValue('2');
 

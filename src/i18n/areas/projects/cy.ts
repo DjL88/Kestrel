@@ -148,8 +148,6 @@ export const cy: AreaTranslation<typeof source> = {
     nothing: 'Dim byd wedi’i gysylltu eto. Ar y ddyfais hon yn unig mae’r prosiectau.',
     listLabel: 'Cysylltiadau',
     check: 'Gwirio',
-    serviceUnreachable: "Nid oes modd cyrraedd gwasanaethau ar-lein InFlight ar hyn o bryd. Mae eich gwaith ar y ddyfais hon yn parhau; mae rhannu a mewngofnodi yn aros nes eu bod yn ôl.",
-    tryAgain: "Rhoi cynnig arall",
     reconnect: 'Ailgysylltu',
     remove: (name) => `Tynnu ${name}`,
     kind: 'Math o gysylltiad',

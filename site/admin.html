@@ -318,6 +318,31 @@
     <p id="messages-empty" class="muted" hidden>No messages.</p>
   </section>
 
+  <section id="pricing" class="panel" aria-labelledby="pricing-title">
+    <h2 id="pricing-title">Prices</h2>
+    <p class="muted">The one price list. The website and the app show these prices within a few minutes of saving. Paddle charges them only after you choose Set Paddle prices; subscriptions already sold keep their price. Basic is always free.</p>
+    <p id="pricing-status" role="status"></p>
+    <form id="pricing-form">
+      <h3>UK prices (GBP)</h3>
+      <label>Pro, monthly (£) <input name="base-pro.monthly" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+      <label>Pro, yearly (£) <input name="base-pro.annual" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+      <h3>Other currencies</h3>
+      <p id="pricing-rates" class="muted"></p>
+      <p><button type="button" id="pricing-fetch-rates" class="small">Fetch today's ECB rates</button></p>
+      <p class="muted">Each currency is converted from the UK price and rounded. Charm rounding gives prices like 3.99, 35 and 299. Type an override to set a price by hand; an override always wins. Leave it empty to convert.</p>
+      <div class="scroll"><table>
+        <caption class="sr-only">Prices by currency</caption>
+        <thead><tr><th scope="col">Currency</th><th scope="col">Per £1</th><th scope="col">Rounding</th><th scope="col">Monthly override</th><th scope="col">Yearly override</th><th scope="col">Monthly price</th><th scope="col">Yearly price</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody id="pricing-rows"></tbody>
+      </table></div>
+      <p><label>Add a currency <select id="pricing-add"></select></label> <button type="button" id="pricing-add-button" class="small">Add</button></p>
+      <p><button type="button" id="pricing-preview" class="small">Preview prices</button> <button>Save prices</button></p>
+    </form>
+    <h3>Paddle</h3>
+    <p id="pricing-paddle" role="status"></p>
+    <ul id="pricing-paddle-list"></ul>
+    <p><button type="button" id="pricing-push">Set Paddle prices to match</button></p>
+  </section>
   <section id="price-review" class="panel" aria-labelledby="price-review-title">
     <h2 id="price-review-title">Price review</h2>
     <p id="price-review-status" class="muted"></p>

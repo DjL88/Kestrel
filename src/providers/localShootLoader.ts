@@ -391,6 +391,31 @@ const keyParts = (key: string) => key.split('::');
 const sizeOf = (key: string) => Number(keyParts(key).at(-2)) || 0;
 const lastModifiedOf = (key: string) => Number(keyParts(key).at(-1)) || 0;
 
+/**
+ * Which linked photos can be given a reader when a project opens: a saved fingerprint, and a file at the saved path with
+ * the size it had when added. Metadata only, a few at a time, never the photo's bytes (each reader checks those on use).
+ */
+export async function linkablePaths(
+  frames: readonly PhotoFrame[],
+  stat: (path: string) => Promise<{ size: number }>,
+  concurrency = 8,
+): Promise<Set<string>> {
+  const pending = frames.filter((frame) => frame.sourcePath && typeof frame.originalSha256 === 'string');
+  const ok = new Set<string>();
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, async () => {
+    while (cursor < pending.length) {
+      const frame = pending[cursor++];
+      try {
+        const { size } = await stat(frame.sourcePath!);
+        const expected = sizeOf(frame.stableKey);
+        if (size > 0 && (!expected || size === expected)) ok.add(frame.stableKey);
+      } catch { /* Missing drive or denied access: edits are kept, the original shows as offline. */ }
+    }
+  }));
+  return ok;
+}
+
 export async function rehydrateLocalFramesFromStore(
   frames: PhotoFrame[],
   previewProvider: BrowserPreviewProvider,
@@ -398,46 +423,26 @@ export async function rehydrateLocalFramesFromStore(
   /** checkPaths false: skip the on-disk check here so the project can open at once; run linkedOriginalsAvailable after. */
   options: { checkPaths?: boolean } = {},
 ): Promise<boolean> {
-  // A saved path is only a location hint. Never expose a linked reader until its
-  // bytes match the saved SHA-256, even if filename, size and mtime are identical.
-  // Legacy projects without a fingerprint remain visible but require a safe reselect.
+  // A saved path is only a location hint. Every linked reader checks the bytes it reads against the saved SHA-256 each
+  // time (linkedReader, linkedRangeOpener.verify), so opening a project only checks the file is still there with the
+  // same size. Hashing every original here read the whole of a 1,200-photo shoot (tens of GB) before the project could
+  // open, which left large projects on "Loading" for many minutes. Legacy projects without a fingerprint stay visible
+  // but still need a safe reselect.
   let allFound = true;
-  for (const frame of frames) {
-    if (!frame.sourcePath || previewProvider.hasBlob(frame.stableKey)) continue;
-    let verified = false;
-    if (isDesktopApp() && typeof frame.originalSha256 === 'string') {
-      try {
-        const { stat } = await import('@tauri-apps/plugin-fs');
-        const before = await stat(frame.sourcePath);
-        const expectedSize = sizeOf(frame.stableKey);
-        if (before.size > 0 && (!expectedSize || before.size === expectedSize)) {
-          const range = await openLinkedRange(frame.sourcePath, before.size);
-          try {
-            const digest = await hashOriginalBytes(range.blob);
-            const after = await stat(frame.sourcePath);
-            verified = isSameOriginalBytes(frame.originalSha256, digest) &&
-              after.size === before.size &&
-              !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
-          } finally {
-            await range.close();
-          }
-        }
-      } catch {
-        verified = false;
-        // Missing NAS, denied access, short read or changed file: retain edits,
-        // but never silently relink to unverified bytes.
-      }
+  const candidates = frames.filter((frame) => frame.sourcePath && !previewProvider.hasBlob(frame.stableKey));
+  if (candidates.length) {
+    const verified = isDesktopApp()
+      ? await linkablePaths(candidates, async (path) => (await import('@tauri-apps/plugin-fs')).stat(path))
+      : new Set<string>();
+    for (const frame of candidates) {
+      if (!verified.has(frame.stableKey)) { allFound = false; continue; }
+      previewProvider.registerLinked(frame.stableKey, {
+        read: linkedReader(frame.sourcePath!, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
+        openRange: linkedRangeOpener(frame.sourcePath!, sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
+        size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
+        path: frame.sourcePath, sha256: frame.originalSha256,
+      });
     }
-    if (!verified) {
-      allFound = false;
-      continue;
-    }
-    previewProvider.registerLinked(frame.stableKey, {
-      read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
-      openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
-      size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
-      path: frame.sourcePath, sha256: frame.originalSha256,
-    });
   }
   const linkedKeys = new Set(frames.filter((frame) => frame.sourcePath).map((frame) => frame.stableKey));
   const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]

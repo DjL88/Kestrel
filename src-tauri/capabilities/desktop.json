@@ -18,6 +18,7 @@
       { "url": "https://www.dropbox.com/oauth2/authorize*" },
       { "url": "https://accounts.google.com/o/oauth2/v2/auth*" },
       { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" },
+      { "url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize*" },
       { "url": "https://inflight.studio/pro-checkout?_ptxn=*" },
       { "url": "https://inflight.studio/pro-checkout?_ptxn=*" },
       { "url": "https://inflight.studio/apple-signin?*" },
