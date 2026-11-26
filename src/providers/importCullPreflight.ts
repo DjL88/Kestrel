@@ -5,7 +5,7 @@ import { bundledModelUrl } from './bundledModelAssets';
 import { observeCullImage } from './cullPreviewObservation';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { sharedCullObservationPool } from './cullObservationPool';
-import { cullPoolSize, looksLikePhone } from '../core/cullPoolSize';
+import { deviceMemoryBudget } from './deviceBudget';
 
 /** Photos waiting per lane: enough to keep every worker busy, never a 500-photo resource backlog. */
 const QUEUED_PER_LANE = 8;
@@ -37,8 +37,7 @@ export function createImportCullPreflight(
   let laneLimit = 1;
   const lanes = new Set<Promise<void>>();
   let sized: Promise<void> | null = null;
-  const nav = typeof navigator === 'undefined' ? undefined : navigator;
-  const maxQueued = QUEUED_PER_LANE * cullPoolSize(nav?.hardwareConcurrency, looksLikePhone(nav?.userAgent));
+  const maxQueued = QUEUED_PER_LANE * deviceMemoryBudget().cullWorkers;
 
   function abort() {
     closed = true;

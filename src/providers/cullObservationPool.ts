@@ -1,12 +1,12 @@
 import type { ComputedObservation } from './cullObservationCompute';
-import { cullPoolSize, looksLikePhone } from '../core/cullPoolSize';
+import { deviceMemoryBudget } from './deviceBudget';
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 
 /**
- * A pool of culling workers (src/providers/cullObservationWorker.ts): every core but one, at most 4 on phones
- * (src/core/cullPoolSize.ts). Each job goes to the first free worker; the rest wait in order. A worker that fails
+ * A pool of culling workers (src/providers/cullObservationWorker.ts): every core but one, at most 4 on phones, held
+ * to the device's memory budget (src/core/memoryBudget.ts). Each job goes to the first free worker; the rest wait in order. A worker that fails
  * to start means no pool at all, and the callers keep today's main-thread path. The pool closes itself after a
- * quiet minute so its detector copies do not hold memory between scans.
+ * quiet spell (the budget's idle time) so its detector copies do not hold memory between scans.
  */
 export interface CullWorkerLike {
   onmessage: ((event: { data: unknown }) => void) | null;
@@ -124,9 +124,10 @@ export function sharedCullObservationPool(): Promise<CullObservationPool | null>
     try {
       const { verifiedDetectorModel } = await import('./objectDetector');
       const { bytes } = await verifiedDetectorModel();
-      const nav = typeof navigator === 'undefined' ? undefined : navigator;
+      const budget = deviceMemoryBudget(); // workers and idle unloading both come from the device's memory budget
       return await createCullObservationPool({
-        size: cullPoolSize(nav?.hardwareConcurrency, looksLikePhone(nav?.userAgent)),
+        size: budget.cullWorkers,
+        idleMs: budget.modelIdleUnloadMs,
         model: bytes,
         createWorker: () => new Worker(new URL('./cullObservationWorker.ts', import.meta.url), { type: 'module' }) as unknown as CullWorkerLike,
         onClosed: () => { shared = null; },
