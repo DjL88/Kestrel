@@ -20,7 +20,9 @@ export type LicenceLink = { outcome: LicenceOutcome; linked: SignInMethod | null
 /** Google or Apple. Failures other than account linking (cancelled, blocked pop-up) still throw their plain message. */
 export type ProviderResult =
   | { kind: 'signed-in'; session: Session; licence: LicenceLink }
-  | { kind: 'linking'; problem: LinkingProblem };
+  | { kind: 'linking'; problem: LinkingProblem }
+  /** Signed in, but this browser could not keep it to this session only, so it was signed out again. */
+  | { kind: 'error'; message: string };
 
 /** `message` is the plain English the sign-in service's error was worded as, for screens that show it as it is. */
 export type EmailResult =
@@ -38,6 +40,7 @@ export type SignInDeps = {
     createAccount(email: string, password: string): Promise<Session>;
     signOut(): Promise<void>;
     idToken(forceRefresh?: boolean): Promise<string | null>;
+    /** After a successful sign-in; rejects when keep = false cannot be honoured. A no-op for keep = true. */
     setKeepSignedIn(keep: boolean): Promise<void>;
     consumeLinkedMethod(): SignInMethod | null;
     signInPlatform(): SignInPlatform;
@@ -95,6 +98,21 @@ function remember(session: Session, keep: boolean, deps: SignInDeps) {
   deps.memory.writeProfile(profileFromSession({ email: session.email, displayName: session.displayName }), keep);
 }
 
+export const KEEP_SESSION_FAILED = "Couldn't keep this sign-in to this browser session. Please try again.";
+
+/**
+ * keep = false: after signing in (so a pop-up stays inside the click), limit the sign-in to this browser session. If
+ * that fails, never silently remember the person: sign out on this device (no network needed) and say so.
+ * True when the sign-in may stand.
+ */
+async function keepOnlyIfAsked(keep: boolean, d: SignInDeps): Promise<boolean> {
+  if (keep) return true;
+  try { await d.auth.setKeepSignedIn(false); return true; } catch {
+    await d.auth.signOut().catch(() => undefined);
+    return false;
+  }
+}
+
 /**
  * Google or Apple. `onSignedIn` hears of the session as soon as sign-in succeeds, before the licence is checked, so a
  * screen can show "signed in" while it waits.
@@ -103,21 +121,21 @@ export async function signInWithProvider(provider: 'apple' | 'google', keep: boo
   const d = using(deps);
   let session: Session;
   try {
-    await d.auth.setKeepSignedIn(keep);
     session = await d.auth.signIn(provider);
   } catch (error) {
     if (error instanceof LinkingError) return { kind: 'linking', problem: error.problem };
     throw error;
   }
+  if (!(await keepOnlyIfAsked(keep, d))) return { kind: 'error', message: KEEP_SESSION_FAILED };
   remember(session, keep, d);
   onSignedIn?.(session);
   return { kind: 'signed-in', session, licence: await linkLicenceOutcome(d) };
 }
 
 async function emailStep(stage: 'signIn' | 'create', run: () => Promise<Session>, keep: boolean, d: SignInDeps): Promise<Session | EmailResult> {
+  let session: Session;
   try {
-    await d.auth.setKeepSignedIn(keep);
-    return await run();
+    session = await run();
   } catch (error) {
     if (error instanceof LinkingError) return { kind: 'linking', problem: error.problem };
     const failure = emailFailureOf(error);
@@ -127,6 +145,7 @@ async function emailStep(stage: 'signIn' | 'create', run: () => Promise<Session>
       : next === 'say-wrong-password' ? { kind: 'wrong-password', message }
       : { kind: 'error', failure, message };
   }
+  return (await keepOnlyIfAsked(keep, d)) ? session : { kind: 'error', failure: 'other', message: KEEP_SESSION_FAILED };
 }
 const isResult = (value: Session | EmailResult): value is EmailResult => 'kind' in value;
 
@@ -150,17 +169,17 @@ export async function createWithEmail(email: string, password: string, keep: boo
 }
 
 /**
- * Sign out of the account, then remove its Pro and the launch profile from this device. The local part always runs,
- * even when Firebase fails; a network failure is ignored (nothing online is needed to sign out here), anything else is
- * reported after this device is cleared.
+ * Sign out of the account, then remove its Pro and the launch profile from this device. A network failure is ignored
+ * (nothing online is needed to sign out here). Any other failure is reported before anything local changes, so the
+ * screen never shows signed in with the account's Pro already gone.
  */
 export async function signOutEverywhere(deps: Partial<SignInDeps> = {}): Promise<void> {
   const d = using(deps);
-  let failure: unknown = null;
-  try { await d.auth.signOut(); } catch (error) { failure = error; }
+  try { await d.auth.signOut(); } catch (error) {
+    if (emailFailureOf(error) !== 'offline') throw error;
+  }
   d.licence.leaveAccount();
   d.memory.clearProfile();
-  if (failure !== null && emailFailureOf(failure) !== 'offline') throw failure;
 }
 
 /** Ways to sign in this build offers here: email always; Apple and Google on the web, or a desktop app set up for them. */

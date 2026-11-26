@@ -130,17 +130,16 @@ export function emailFailureOf(error: unknown): EmailFailure {
 }
 
 /**
- * Web only: whether the next sign-in survives closing the browser ("Keep me signed in"). Set on the existing instance
- * just before signing in. The installed apps always remember the sign-in, so this does nothing there. If the browser
- * cannot keep the chosen kind of storage, the next one in the list is tried; if none can, sign-in still goes ahead.
+ * Web only: whether this sign-in survives closing the browser ("Keep me signed in"). Called straight AFTER a successful
+ * sign-in, so the Google or Apple pop-up still opens inside the person's click (Safari blocks it otherwise); Firebase
+ * moves the signed-in user to the new storage. keep = true needs nothing: the web default already remembers
+ * (indexedDB, then local storage). The installed apps always remember, so this does nothing there. Rejects when the
+ * browser cannot keep the sign-in to this session only; the caller then signs out rather than silently remembering.
  */
 async function setKeepSignedIn(keep: boolean): Promise<void> {
-  if (!isSignInConfigured() || signInPlatform() !== 'web') return;
+  if (keep || !isSignInConfigured() || signInPlatform() !== 'web') return;
   const { auth, instance } = await firebase();
-  const choices = keep ? [auth.indexedDBLocalPersistence, auth.browserLocalPersistence] : [auth.browserSessionPersistence, auth.inMemoryPersistence];
-  for (const persistence of choices) {
-    try { await auth.setPersistence(instance, persistence); return; } catch { /* try the next one */ }
-  }
+  await auth.setPersistence(instance, auth.browserSessionPersistence);
 }
 
 // ---- One account, several ways in (account linking) -------------------------------------------------------------

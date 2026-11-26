@@ -4,7 +4,7 @@ import type { Session } from '../core/cloudInterfaces';
 import type { LaunchProfile } from '../core/launchWelcome';
 import { LinkingError } from '../core/accountLinking';
 import {
-  availableProviders, continueWithEmail, createWithEmail, linkLicenceOutcome, signInWithProvider, signOutEverywhere,
+  KEEP_SESSION_FAILED, availableProviders, continueWithEmail, createWithEmail, linkLicenceOutcome, signInWithProvider, signOutEverywhere,
   type SignInDeps,
 } from './accountSignIn';
 import { emailFailureOf } from './firebaseAuth';
@@ -75,8 +75,8 @@ test('a successful email sign-in links the licence and writes the profile for th
   assert.deepEqual(result.licence, { outcome: 'pro', linked: null, attached: 'none' });
   assert.equal(result.session.email, 'sam@example.com');
   assert.deepEqual(f.profiles, [{ profile: { signedIn: true, displayName: 'sam', initial: 'S' }, keep: false }]);
-  // Persistence is chosen before signing in, and the profile is written before the licence is checked.
-  assert.deepEqual(f.calls, ['keep:false', 'signInWithEmail', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
+  // Sign in first, then limit it to this session, then the profile, then the licence.
+  assert.deepEqual(f.calls, ['signInWithEmail', 'keep:false', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
 });
 
 test('the session is handed over as soon as sign-in succeeds, before the licence check', async () => {
@@ -91,7 +91,7 @@ test('creating an account writes the profile and does not check the licence yet'
   const f = fakes();
   const result = await createWithEmail('Sam.Lee@example.com', 'secret1', true, f.deps);
   assert.equal(result.kind, 'created');
-  assert.deepEqual(f.calls, ['keep:true', 'createAccount', 'writeProfile']);
+  assert.deepEqual(f.calls, ['createAccount', 'writeProfile']); // keep = true needs no persistence call
   assert.deepEqual(f.profiles.map((p) => p.keep), [true]);
 });
 
@@ -112,13 +112,36 @@ test('linkLicenceOutcome without a token says so and does nothing else', async (
   assert.deepEqual(await linkLicenceOutcome(g.deps), { outcome: 'no_token', linked: null, attached: null });
 });
 
-test('signing in with a provider sets persistence first, writes the profile with keep and links the licence', async () => {
+test('signing in with a provider and keep = true writes the profile and links the licence, with no persistence call', async () => {
   const f = fakes({ auth: { signIn: async (provider) => { f.calls.push(`signIn:${provider}`); return session({ provider, displayName: 'Ana', email: 'x@example.com' }); } } });
   const result = await signInWithProvider('google', true, f.deps);
   assert.ok(result.kind === 'signed-in');
   assert.deepEqual(result.licence, { outcome: 'pro', linked: null, attached: 'none' });
   assert.deepEqual(f.profiles, [{ profile: { signedIn: true, displayName: 'Ana', initial: 'A' }, keep: true }]);
-  assert.deepEqual(f.calls.slice(0, 3), ['keep:true', 'signIn:google', 'writeProfile']);
+  // keep = true: nothing is awaited before the pop-up, and the web default already remembers.
+  assert.deepEqual(f.calls, ['signIn:google', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
+});
+
+test('keep = false with a provider: the pop-up comes first, then session-only persistence, profile, licence', async () => {
+  const f = fakes();
+  const result = await signInWithProvider('apple', false, f.deps);
+  assert.equal(result.kind, 'signed-in');
+  assert.deepEqual(f.calls, ['signIn:apple', 'keep:false', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
+  assert.deepEqual(f.profiles.map((p) => p.keep), [false]);
+});
+
+test('if the sign-in cannot be kept to this session, it is signed out on this device and nothing is remembered', async () => {
+  const failing = { setKeepSignedIn: async (keep: boolean) => { f.calls.push(`keep:${keep}`); throw new Error('no session storage'); } };
+  const f = fakes({ auth: failing });
+  assert.deepEqual(await signInWithProvider('google', false, f.deps), { kind: 'error', message: KEEP_SESSION_FAILED });
+  assert.deepEqual(f.calls, ['signIn:google', 'keep:false', 'signOut']);
+  f.calls.length = 0;
+  assert.deepEqual(await continueWithEmail('sam@example.com', 'secret1', false, f.deps), { kind: 'error', failure: 'other', message: KEEP_SESSION_FAILED });
+  assert.deepEqual(f.calls, ['signInWithEmail', 'keep:false', 'signOut']);
+  f.calls.length = 0;
+  assert.deepEqual(await createWithEmail('sam@example.com', 'secret1', false, f.deps), { kind: 'error', failure: 'other', message: KEEP_SESSION_FAILED });
+  assert.deepEqual(f.calls, ['createAccount', 'keep:false', 'signOut']);
+  assert.equal(f.profiles.length, 0);
 });
 
 test('an account-linking refusal is returned, not thrown, and writes no profile', async () => {
@@ -140,11 +163,17 @@ test('signing out clears this device even when Firebase cannot be reached', asyn
   assert.deepEqual(f.calls, ['signOut', 'leaveAccount', 'clearProfile']);
 });
 
-test('signing out clears this device, then reports any other failure', async () => {
+test('any other sign-out failure is reported before this device changes', async () => {
   const f = fakes({ auth: { signOut: async () => { f.calls.push('signOut'); throw new Error('boom'); } } });
   await assert.rejects(signOutEverywhere(f.deps), /boom/);
+  assert.deepEqual(f.calls, ['signOut']); // Pro and the profile are untouched, so Settings still truly shows signed in
+  assert.equal(f.cleared(), 0);
+});
+
+test('a normal sign-out clears Pro, then the profile', async () => {
+  const f = fakes();
+  await signOutEverywhere(f.deps);
   assert.deepEqual(f.calls, ['signOut', 'leaveAccount', 'clearProfile']);
-  assert.equal(f.cleared(), 1);
 });
 
 test('available providers: email everywhere, Apple and Google on the web or a configured desktop', () => {
