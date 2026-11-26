@@ -47,6 +47,8 @@ jobs:
             public/models/species-odonata.json
             public/models/species-lepidoptera.json
           key: bundled-models-${{ hashFiles('models/bundled-models.json') }}
+      # The species unit tests read these lists, so fetch before npm test (a no-op when the cache hit).
+      - run: npm run models:fetch
       - run: node --test scripts/check-release-version.test.mjs
       - run: node scripts/check-release-version.mjs
       - run: npm run lint
