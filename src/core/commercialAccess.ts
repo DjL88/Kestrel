@@ -7,7 +7,7 @@ import { CLOUD_READ_ONLY_DAYS_V2 } from './subscriptionLifecyclePolicy';
 
 export type LicenceState = 'active' | 'trial' | 'unverified' | 'unlicensed';
 export type CloudState = 'active' | 'past_due' | 'cancelled' | 'none';
-/** User-visible product tiers: Basic and lifetime Pro only. */
+/** User-visible product tiers: Basic (free) and Pro (a subscription; older one-off licences are still honoured). */
 export type ProductPlan = 'free' | 'paid';
 /** Historical subscriber records remain readable for migration/recovery; never issue new subscriber licences. */
 export type Plan = ProductPlan | 'subscriber';

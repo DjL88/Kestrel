@@ -5,6 +5,7 @@ import { version as appVersion } from '../../package.json';
 import { isDesktopApp } from './desktopShell';
 import { firebaseAuth } from './firebaseAuth';
 import { LicenceSync, type LicenceStatus } from './licenceSync';
+import type { ProPlan } from '../core/proCheckout';
 import { setSignedInHint } from './featureFlagsStore';
 
 export type LicenceState =
@@ -260,7 +261,7 @@ export const freeAccountLicenceDevice = (idToken: string, activationId: string) 
 export const deviceReleaseRefusal = (): string | null => sync.releaseRefusal;
 
 /** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */
-export const startProCheckout = (idToken: string) => sync.startProCheckout(idToken);
+export const startProCheckout = (idToken: string, plan?: ProPlan) => sync.startProCheckout(idToken, plan);
 export const proCheckoutStatus = (idToken: string, checkoutId: string) => sync.proCheckoutStatus(idToken, checkoutId);
 export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */

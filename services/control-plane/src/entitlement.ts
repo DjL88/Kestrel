@@ -21,6 +21,8 @@ export type PurchaseGrant = ({ email: string } | { emailHash: string }) & {
   majorVersion: number;
   managedAi?: boolean;
   accountId?: string | null;
+  /** A subscription's paid-through date plus grace. Absent (null) for the retired one-off licence, which never ends. */
+  validUntilMs?: number | null;
 };
 export interface GiftGrant {
   email: string;
@@ -42,7 +44,7 @@ export function purchaseEntitlement(grant: PurchaseGrant, nowMs: number): Licenc
   if (!/^[a-f0-9]{64}$/.test(emailHash)) throw new Error('Invalid account email hash.');
   return newLicence(`lic_p_${grant.checkoutReference}`, 'paid', nowMs, {
     accountId: grant.accountId ?? null, emailHash, majorVersion: grant.majorVersion,
-    paid: true, source: 'purchase', managedAi: grant.managedAi ?? false,
+    paid: true, source: 'purchase', managedAi: grant.managedAi ?? false, validUntilMs: grant.validUntilMs ?? null,
   });
 }
 

@@ -5,6 +5,18 @@
  * the payment is verified, then activates the device as for any other Pro account. Pure: no network.
  */
 
+/**
+ * Pro is sold only as a subscription (owner decision, 26 Nov 2026): monthly or annual. Basic stays free. When a
+ * subscription ends the account is Basic again; projects, edits and exports are never locked.
+ */
+export type ProPlan = 'monthly' | 'annual';
+export const PRO_PLAN_CHOICES: readonly { plan: ProPlan; label: string; price: string }[] = [
+  { plan: 'monthly', label: 'Monthly', price: '£2.99 a month' },
+  { plan: 'annual', label: 'Yearly', price: '£29.99 a year' },
+];
+/** How long Pro keeps working after a renewal date while a device cannot check (the control plane's grace). */
+export const SUBSCRIPTION_GRACE_DAYS = 14;
+
 /** The server allows ten checkout calls a minute per account (start and checks together), so check every 10 seconds. */
 export const CHECKOUT_POLL_MS = 10_000;
 /** Stop checking by itself after 20 minutes. The person can check again; a paid order still settles on the server. */
@@ -19,13 +31,13 @@ export type CheckoutPoll = 'paid' | 'pending' | 'retry' | 'gone';
 /** Calm, plain words for every answer the checkout can give. Nothing here ever touches photos or edits. */
 export function checkoutErrorText(code: string | undefined): string {
   switch (code) {
-    case 'CHECKOUT_DISABLED': return 'Buying Pro is not open yet. Everything else in InFlight keeps working.';
+    case 'CHECKOUT_DISABLED': return 'Pro subscriptions are not open yet. Everything else in InFlight keeps working.';
     case 'ALREADY_PRO': return 'This account already has Pro. Choose Check Pro online to use it on this device.';
-    case 'ACCOUNT_UNVERIFIED': return 'Sign in again before buying Pro. If you signed up with email, verify the address first.';
+    case 'ACCOUNT_UNVERIFIED': return 'Sign in again before subscribing to Pro. If you signed up with email, verify the address first.';
     case 'RATE_LIMITED': return 'That was a lot of attempts in a short time. Wait a minute and try again.';
     case 'CHECKOUT_UNAVAILABLE': return 'The payment page could not be opened. Nothing was charged; try again shortly.';
-    case 'NOT_SIGNED_IN': return 'Sign in to buy Pro.';
-    case 'NOT_SET_UP': return 'This version of InFlight cannot buy Pro online. Everything else keeps working.';
+    case 'NOT_SIGNED_IN': return 'Sign in to subscribe to Pro.';
+    case 'NOT_SET_UP': return 'This version of InFlight cannot subscribe to Pro online. Everything else keeps working.';
     default: return 'The payment page could not be opened right now. Nothing was charged; try again shortly.';
   }
 }

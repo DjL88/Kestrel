@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor, photosThatFit,
-  estimateCloudTask, formatBytes, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, rentToOwn, usageSummary,
+  estimateCloudTask, formatBytes, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, SOFTWARE_PRICES, usageSummary,
 } from './cloudPlan.ts';
 
 const NOW = Date.UTC(2026, 10, 25, 12, 0);
@@ -34,11 +34,8 @@ test('the allowance month resets on the 1st, UTC, including across a year end', 
   assert.equal(nextResetMs(Date.UTC(2026, 11, 31, 23, 59)), Date.UTC(2027, 0, 1));
 });
 
-test('rent to own: owned after 12 successful payments, never from bad input', () => {
-  assert.deepEqual(rentToOwn(8), { owned: false, paymentsMade: 8, paymentsLeft: 4 });
-  assert.deepEqual(rentToOwn(12), { owned: true, paymentsMade: 12, paymentsLeft: 0 });
-  assert.equal(rentToOwn(Number.NaN).owned, false);
-  assert.equal(rentToOwn(-3).paymentsLeft, 12);
+test('Pro is a subscription only: £2.99 a month or £29.99 a year, with no one-off and no rent to own', () => {
+  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999 });
 });
 
 test('within the free amounts nothing is charged', () => {

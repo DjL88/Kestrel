@@ -13,11 +13,11 @@
  *
  * One-off sandbox set-up (free, no real money, nothing goes live). Never paste a key into chat or commit it.
  *   1. Sign up at https://sandbox-login.paddle.com/signup (a separate login from any live Paddle account).
- *   2. Catalog → Products → New product "InFlight Pro" (tax category Standard digital goods); add a one-time price
- *      of 29.00 GBP. Copy the price ID (pri_...) into PADDLE_SANDBOX_PRO_PRICE_ID.
+ *   2. Catalog → Products → New product "InFlight Pro" (tax category Standard digital goods); add a recurring monthly
+ *      price of 2.99 GBP (Pro is sold only as a subscription). Copy the price ID (pri_...) into PADDLE_SANDBOX_PRO_PRICE_ID.
  *   3. Checkout → Checkout settings → Default payment link: https://inflight.studio/pro-checkout (or any HTTPS page you
  *      own that loads Paddle.js). Without it Paddle refuses to create a checkout.
- *   4. Developer tools → Authentication → New API key, with write access to Transactions and Adjustments. Copy it
+ *   4. Developer tools → Authentication → New API key, with write access to Transactions and Adjustments and read access to Subscriptions. Copy it
  *      (it starts pdl_sdbx_) into PADDLE_SANDBOX_API_KEY in your own terminal only.
  *   5. Run the command above and follow its prompt: it prints a checkout link to pay with the test card, waits, refunds
  *      the payment through the API, and prints PASS or FAIL for each step. Delete the key afterwards if you like.
@@ -27,7 +27,7 @@ import { emailHashOf } from '../src/entitlement.ts';
 import { paddleApi, paddleApiBase, type PaddleAdjustment } from '../src/commerce/paddle.ts';
 import { paddleProCheckout, type StoredProOrder } from '../src/commerce/proCheckout.ts';
 import { paddleProLicenceId, paddleRefundRevocation } from '../src/commerce/paddleRefunds.ts';
-import { paddleProSettlement } from '../src/commerce/proSettlement.ts';
+import { paddleProSettlement, type ProSubscriptionRecord } from '../src/commerce/proSettlement.ts';
 import type { TransactionRecord } from '../src/commerce/records.ts';
 import { SqliteStore } from '../src/sqliteStore.ts';
 import { licenceIsUsable } from '../src/store.ts';
@@ -74,8 +74,10 @@ const store = new SqliteStore(':memory:');
 const orders = new Map<string, StoredProOrder>();
 const ledger = new Map<string, TransactionRecord>();
 const findOrder = async (id: string) => orders.get(id) ?? null;
+const subscriptions = new Map<string, ProSubscriptionRecord>();
 const settle = paddleProSettlement({
   findOrder, paddle, licences: store,
+  subscriptions: { save: async (s) => { subscriptions.set(s.subscriptionId, s); }, get: async (id) => subscriptions.get(id) ?? null },
   commerce: { recordPaid: async (r) => { if (!ledger.has(r.checkoutReference)) ledger.set(r.checkoutReference, r); return ledger.get(r.checkoutReference)!; } },
 });
 const claimed = new Set<string>();
@@ -85,7 +87,7 @@ const revoke = paddleRefundRevocation({
 });
 // In production each webhook carries its own event id; here each adjustment stands for one notification.
 const refund = (adjustmentId: string, eventId = 'evt_uat_' + adjustmentId) => revoke(eventId, adjustmentId);
-const checkout = paddleProCheckout({ paddle, orders: { save: async (o) => { orders.set(o.transactionId, o); }, get: findOrder }, priceId, checkoutUrl, settle });
+const checkout = paddleProCheckout({ paddle, orders: { save: async (o) => { orders.set(o.transactionId, o); }, get: findOrder }, priceIds: { monthly: priceId }, checkoutUrl, settle });
 
 async function createAdjustment(transactionId: string, type: 'full' | 'partial'): Promise<string> {
   // Partial refunds name a line item and an amount; full refunds do not.
@@ -116,7 +118,7 @@ await store.createAccount({ accountId, emailHash: emailHashOf(email), passwordHa
 const proUnlocked = async () => (await store.listLicencesForAccount(accountId)).some((l) => l.paid && licenceIsUsable(l, Date.now()));
 
 // 1. Buy
-const started = await checkout.start({ accountId, emailHash: emailHashOf(email) }).catch((error: unknown) => {
+const started = await checkout.start({ accountId, emailHash: emailHashOf(email), plan: 'monthly' }).catch((error: unknown) => {
   record('server-bound sandbox transaction created', false, `${(error as Error).message} ${String((error as { cause?: unknown }).cause ?? '')} (check the key, the price ID, the default payment link, and that sandbox-api.paddle.com is reachable)`);
   throw error;
 });

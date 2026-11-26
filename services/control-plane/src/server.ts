@@ -3,7 +3,7 @@ import { createApp, openApi } from './app.ts';
 import { CloudDemoStudio } from './demoStudio.ts';
 import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
-import { paddleProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
+import { paddleProBilling, type ProPurchaseOrder, type ProSubscriptionRecord } from './commerce/proSettlement.ts';
 import { paddleRefundRevocation } from './commerce/paddleRefunds.ts';
 import { accountMerges } from './accountMerge.ts';
 import { buildAccountErasure } from './accountErasureWiring.ts';
@@ -21,7 +21,10 @@ const commerce = firestore ? new CommerceLedger(firestore) : undefined;
 // Paddle Billing (merchant of record). Secrets come from Secret Manager through Cloud Run; see infra/gcp/phase5-paddle.tf.
 const paddleKey = process.env.KCP_PADDLE_API_KEY?.trim();
 const paddleEnvironment = process.env.KCP_PADDLE_ENVIRONMENT?.trim() === 'production' ? 'production' : 'sandbox';
-const paddlePriceId = process.env.KCP_PADDLE_PRO_PRICE_ID?.trim();
+// Pro is sold only as a subscription (26 Nov 2026). The one-off price (KCP_PADDLE_PRO_PRICE_ID) is no longer offered;
+// its orders are stored with their own price, so licences already sold still settle and stay honoured.
+const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); return v && /^pri_[a-z0-9]{10,60}$/.test(v) ? v : undefined; };
+const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID') };
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
 // Optional offer (for example Black Friday): a Paddle discount ID. It applies only while the admin flag proPromo is on.
@@ -35,14 +38,21 @@ const paddleApiKey = paddleKey && paddleKeyProject
   : paddleKey;
 const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: paddleEnvironment }) : undefined;
 const paddleOrders = 'paddle_pro_orders';
-const settlePaddle = firestore && commerce && paddle ? paddleProSettlement({
+const paddleSubscriptions = 'paddle_pro_subscriptions';
+const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
   paddle,
   commerce,
   licences: store,
+  subscriptions: {
+    save: async (record) => { await firestore.collection(paddleSubscriptions).doc(record.subscriptionId).set(record); },
+    get: async (id) => (await firestore.collection(paddleSubscriptions).doc(id).get()).data() as ProSubscriptionRecord | undefined ?? null,
+  },
   // The buyer's key by email, once per purchase. `app` is created below; this runs only when a payment arrives.
   onNewLicence: async (licence) => { await app.sendLicenceKey(licence); },
 }) : undefined;
+const settlePaddle = paddleBilling?.settle;
+const syncPaddleSubscription = paddleBilling?.syncSubscription;
 // A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
 const revokePaddle = firestore && paddle ? paddleRefundRevocation({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
@@ -56,14 +66,14 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
 }) : undefined;
 // The checkout page is on the published website (the first HTTPS app origin, i.e. the Hosting site Terraform adds).
 const siteUrl = process.env.KCP_PUBLIC_SITE_URL?.trim() || config.allowedOrigins.find((o) => o.startsWith('https://') && o !== 'https://tauri.localhost');
-const proCheckout = firestore && paddle && settlePaddle && paddlePriceId && siteUrl ? paddleProCheckout({
+const proCheckout = firestore && paddle && settlePaddle && (paddlePriceIds.monthly || paddlePriceIds.annual) && siteUrl ? paddleProCheckout({
   paddle,
   orders: {
     // create() refuses to overwrite: a transaction ID is bound to one account for good.
     save: async (order) => { await firestore.collection(paddleOrders).doc(order.transactionId).create(order); },
     get: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as StoredProOrder | undefined ?? null,
   },
-  priceId: paddlePriceId,
+  priceIds: paddlePriceIds,
   checkoutUrl: new URL('/pro-checkout', siteUrl).toString(),
   settle: settlePaddle,
   promoDiscountId: paddlePromoDiscountId,
@@ -76,7 +86,7 @@ const optional = await buildOptionalServices({ firestore: firestore as unknown a
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
 // Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
 const erasure = firestore ? await buildAccountErasure(firestore as unknown as FirestoreLike, store as FirestoreStore) : undefined;
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
+const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, syncPaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };

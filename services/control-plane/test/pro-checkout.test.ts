@@ -3,20 +3,33 @@ import crypto from 'node:crypto';
 import test from 'node:test';
 import { paddleApi, verifyPaddleSignature } from '../src/commerce/paddle.ts';
 import { paddleProCheckout, type StoredProOrder } from '../src/commerce/proCheckout.ts';
-import { paddleProSettlement } from '../src/commerce/proSettlement.ts';
+import { paddleProBilling, SUBSCRIPTION_GRACE_DAYS, type ProSubscriptionRecord } from '../src/commerce/proSettlement.ts';
 import type { TransactionRecord } from '../src/commerce/records.ts';
 import { startHarness, type Harness } from './helpers.ts';
 
-const PRICE = 'pri_01testlifetimepro';
+const PRICE = 'pri_01testmonthlypro';
+const ANNUAL = 'pri_01testannualpro';
+/** The retired one-off price: no longer sold, but orders already paid are honoured. */
+const LIFETIME = 'pri_01testlifetimepro';
+const DAY = 86_400_000;
 const SECRET = 'pdl_ntfset_test_only_secret';
 
-/** A fake Paddle sandbox: records created transactions; tests decide when one is completed. */
+/**
+ * A fake Paddle sandbox: records created transactions; tests decide when one is completed. A completed transaction for
+ * a recurring price gets a subscription, as Paddle does, with the transaction's custom_data copied onto it.
+ */
 function fakePaddle() {
-  const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string; discount_id?: string }>();
+  const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string | null; discount_id?: string }>();
+  const subs = new Map<string, { status: string; custom_data: Record<string, string>; ends_at: string | null }>();
   const state = { creates: 0, gets: 0, failGets: false };
   const view = (id: string) => {
     const t = txns.get(id)!;
     const done = t.status === 'completed';
+    if (done && t.subscription_id === undefined && (t.price === PRICE || t.price === ANNUAL)) {
+      t.subscription_id = 'sub_01test' + String(subs.size).padStart(6, '0');
+      const months = t.price === ANNUAL ? 12 : 1;
+      subs.set(t.subscription_id, { status: 'active', custom_data: t.custom_data, ends_at: new Date(Date.UTC(2026, 10 + months, 18, 12)).toISOString() });
+    }
     return {
       id, status: t.status, currency_code: 'EUR', custom_data: t.custom_data, subscription_id: t.subscription_id ?? null,
       billed_at: done ? '2026-11-18T12:00:00Z' : null, updated_at: '2026-11-18T12:00:00Z',
@@ -43,11 +56,17 @@ function fakePaddle() {
     }
     state.gets++;
     if (state.failGets) return new Response(null, { status: 500 });
+    if (u.pathname.startsWith('/subscriptions/')) {
+      const sid = decodeURIComponent(u.pathname.split('/').pop()!);
+      const s = subs.get(sid);
+      if (!s) return new Response(null, { status: 404 });
+      return Response.json({ data: { id: sid, status: s.status, custom_data: s.custom_data, current_billing_period: s.ends_at ? { starts_at: '2026-11-18T12:00:00Z', ends_at: s.ends_at } : null } });
+    }
     assert.equal(u.searchParams.get('include'), 'address');
     const id = decodeURIComponent(u.pathname.split('/').pop()!);
     return txns.has(id) ? Response.json({ data: view(id) }) : new Response(null, { status: 404 });
   }) as typeof fetch;
-  return { request, state, txns };
+  return { request, state, txns, subs };
 }
 
 function signed(body: unknown, nowMs: number, secret = SECRET) {
@@ -60,10 +79,11 @@ function signed(body: unknown, nowMs: number, secret = SECRET) {
 async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
   const paddle = fakePaddle();
   let bound: ReturnType<typeof paddleProCheckout> | undefined;
-  let settle: ReturnType<typeof paddleProSettlement> | undefined;
+  let billing: ReturnType<typeof paddleProBilling> | undefined;
   const harness = await startHarness(null, undefined, {
     requireAdminSwitch,
-    settlePaddle: (id) => settle!(id),
+    settlePaddle: (id, hint) => billing!.settle(id, hint),
+    syncPaddleSubscription: (id) => billing!.syncSubscription(id),
     paddleWebhookSecret: SECRET,
     paddleClient: { environment: 'sandbox', clientToken: 'test_clienttoken' },
     proCheckout: { start: (input) => bound!.start(input), status: (input) => bound!.status(input) },
@@ -71,16 +91,20 @@ async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
   const orders = new Map<string, StoredProOrder>();
   const ledger = new Map<string, TransactionRecord>();
   const api = paddleApi({ apiKey: 'test-only-key', environment: 'sandbox' }, paddle.request);
-  settle = paddleProSettlement({
+  const subscriptions = new Map<string, ProSubscriptionRecord>();
+  billing = paddleProBilling({
     findOrder: async (id) => orders.get(id) ?? null,
     paddle: api,
     commerce: { recordPaid: async (r) => { if (!ledger.has(r.checkoutReference)) ledger.set(r.checkoutReference, r); return ledger.get(r.checkoutReference)!; } },
     licences: harness.app.store,
+    subscriptions: { save: async (s) => { subscriptions.set(s.subscriptionId, s); }, get: async (id) => subscriptions.get(id) ?? null },
+    now: () => harness.clock.now,
   });
+  const settle = billing.settle;
   bound = paddleProCheckout({
     paddle: api,
     orders: { save: async (o) => { assert.ok(!orders.has(o.transactionId)); orders.set(o.transactionId, o); }, get: async (id) => orders.get(id) ?? null },
-    priceId: PRICE,
+    priceIds: { monthly: PRICE, annual: ANNUAL },
     checkoutUrl: 'https://site.example.test/pro-checkout',
     settle,
     promoDiscountId,
@@ -90,7 +114,7 @@ async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
     const s = signed(body, harness.clock.now, secret);
     return harness.call('POST', '/v1/billing/paddle', { raw: s.raw, headers: s.headers });
   };
-  return { harness, paddle, orders, ledger, webhook };
+  return { harness, paddle, orders, ledger, webhook, subscriptions, api };
 }
 
 async function buyer(h: Harness, email: string) {
@@ -114,7 +138,8 @@ test('buyer anywhere: server-bound Paddle transaction, signed webhook, one paid 
     assert.equal(order.accountId, me.accountId);
     assert.equal(order.priceId, PRICE);
     assert.match(order.reference, /^paddle_[a-f0-9]{24}$/);
-    assert.deepEqual(paddle.txns.get(id)!.custom_data, { reference: order.reference, accountId: me.accountId, product: 'pro', majorVersion: '1' });
+    assert.equal(order.plan, 'monthly', 'no plan named: monthly, the smallest commitment');
+    assert.deepEqual(paddle.txns.get(id)!.custom_data, { reference: order.reference, accountId: me.accountId, product: 'pro', plan: 'monthly', majorVersion: '1' });
 
     const status = () => h.call('GET', '/v1/me/checkout/pro/' + id, { token: me.token });
     const activate = () => h.call('POST', '/v1/me/activate', { token: me.token, body: { deviceHash: 'b'.repeat(64), platform: 'web', appVersion: '1.0.0' } });
@@ -141,7 +166,10 @@ test('buyer anywhere: server-bound Paddle transaction, signed webhook, one paid 
     const licences = await h.app.store.listLicencesForAccount(me.accountId);
     assert.equal(licences.length, 1);
     assert.equal(licences[0]!.licenceId, 'lic_p_' + order.reference);
-    assert.equal((await activate()).status, 200);
+    assert.equal(licences[0]!.validUntilMs, Date.UTC(2026, 11, 18, 12) + SUBSCRIPTION_GRACE_DAYS * DAY, 'Pro until the paid-through date plus grace');
+    const activated = await activate();
+    assert.equal(activated.status, 200);
+    assert.equal(activated.body.licenceKey, undefined, 'a subscription is not an owned licence: no permanent key');
 
     const again = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
     assert.equal(again.status, 409);
@@ -179,7 +207,7 @@ test('another account cannot see someone else\'s checkout; odd IDs are not found
   } finally { await h.close(); }
 });
 
-test('a transaction that does not match the order (price, account, subscription) never grants Pro', async () => {
+test('a transaction that does not match the order (price, account, no subscription) never grants Pro', async () => {
   const { harness: h, paddle, webhook } = await setup();
   try {
     const me = await buyer(h, 'mismatch@example.test');
@@ -189,12 +217,16 @@ test('a transaction that does not match the order (price, account, subscription)
     t.price = 'pri_01somethingcheaper';
     assert.equal((await webhook(completed(id))).status, 503);
     t.price = PRICE;
+    t.subscription_id = null;
+    assert.equal((await webhook(completed(id))).status, 503, 'a subscription order paid without a subscription');
+    t.subscription_id = undefined;
     t.custom_data = { ...t.custom_data, accountId: 'someone-else' };
     assert.equal((await webhook(completed(id))).status, 503);
     assert.equal((await h.app.store.listLicencesForAccount(me.accountId)).length, 0);
-    // Unknown transactions and subscription events are acknowledged, so Paddle does not retry them for ever.
+    // Unknown transactions and subscriptions are acknowledged, so Paddle does not retry them for ever.
     assert.equal((await webhook(completed('txn_01unknown000000'))).status, 200);
-    assert.equal((await webhook({ event_id: 'evt_s', event_type: 'subscription.created', occurred_at: '2026-11-18T12:00:00Z', data: { id: 'sub_01x' } })).status, 200);
+    assert.equal((await webhook({ event_id: 'evt_s', event_type: 'subscription.created', occurred_at: '2026-11-18T12:00:00Z', data: { id: 'sub_01unknown000000' } })).status, 200);
+    assert.equal((await webhook({ ...completed('txn_01unknown000001'), data: { id: 'txn_01unknown000001', subscription_id: 'sub_01unknown000000' } })).status, 200);
   } finally { await h.close(); }
 });
 
@@ -258,5 +290,110 @@ test('offer discount (Black Friday): only a checkout started while proPromo is o
     h.clock.now = endsAtMs;
     const after = await startFor('late@example.test');
     assert.equal(paddle.txns.get(after)!.discount_id, undefined);
+  } finally { await h.close(); }
+});
+
+const subscriptionEvent = (type: string, id: string, n = 0) => ({ event_id: 'evt_' + type + '_' + id + '_' + n, event_type: type, occurred_at: '2026-11-18T12:00:00Z', data: { id } });
+const device = async (accountId: string, h: Harness, hash = 'e') => h.call('POST', '/v1/me/activate', { token: (await h.app.issueSession(accountId, 'user')).accessToken, body: { deviceHash: hash.repeat(64), platform: 'web', appVersion: '1.0.0' } });
+
+test('a subscription renews, falls behind, then ends: Pro follows Paddle and the account drops to Basic', async () => {
+  const { harness: h, paddle, ledger, webhook, subscriptions } = await setup();
+  try {
+    const me = await buyer(h, 'renews@example.test');
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { plan: 'monthly' } })).body.checkoutId;
+    paddle.txns.get(id)!.status = 'completed';
+    assert.equal((await webhook(completed(id))).status, 200);
+    const [sub] = [...subscriptions.values()];
+    assert.ok(sub);
+    assert.equal(sub.accountId, me.accountId);
+    const licence = async () => (await h.app.store.listLicencesForAccount(me.accountId))[0]!;
+    const firstEnd = Date.UTC(2026, 11, 18, 12);
+    const secondEnd = Date.UTC(2027, 0, 18, 12);
+    assert.equal((await licence()).validUntilMs, firstEnd + SUBSCRIPTION_GRACE_DAYS * DAY);
+
+    // Renewal: Paddle bills a new transaction on the subscription and moves the period on.
+    paddle.subs.get(sub.subscriptionId)!.ends_at = new Date(secondEnd).toISOString();
+    const renewal = 'txn_01renewal000001';
+    paddle.txns.set(renewal, { custom_data: paddle.txns.get(id)!.custom_data, price: PRICE, status: 'completed', subscription_id: sub.subscriptionId });
+    h.clock.now = firstEnd;
+    const r = await webhook({ ...completed(renewal), data: { id: renewal, subscription_id: sub.subscriptionId } });
+    assert.equal(r.status, 200);
+    assert.equal(ledger.size, 2, 'each renewal is its own sale');
+    assert.ok(ledger.has('paddle_' + renewal));
+    assert.equal((await licence()).validUntilMs, secondEnd + SUBSCRIPTION_GRACE_DAYS * DAY);
+    assert.equal((await device(me.accountId, h)).status, 200);
+
+    // Past due: Paddle is retrying the card. Pro carries on through the grace, then stops if nothing is paid.
+    paddle.subs.get(sub.subscriptionId)!.status = 'past_due';
+    assert.deepEqual((await webhook(subscriptionEvent('subscription.past_due', sub.subscriptionId))).body, { received: true, outcome: 'synced' });
+    assert.equal((await licence()).validUntilMs, secondEnd + SUBSCRIPTION_GRACE_DAYS * DAY);
+
+    // Cancelled: Pro lasts to the end of what was paid for, with no extra grace, then the account is Basic.
+    paddle.subs.get(sub.subscriptionId)!.status = 'canceled';
+    paddle.subs.get(sub.subscriptionId)!.ends_at = null;
+    assert.equal((await webhook(subscriptionEvent('subscription.canceled', sub.subscriptionId))).status, 200);
+    assert.equal((await licence()).validUntilMs, secondEnd);
+    assert.equal((await licence()).status, 'active', 'never revoked: it simply ends');
+    h.clock.now = secondEnd + 60_000;
+    const after = await device(me.accountId, h);
+    assert.equal(after.status, 403);
+    assert.equal(after.body.error.code, 'NO_LICENCE');
+    assert.match(after.body.error.message, /local work is unaffected/);
+
+    // Basic again, so they can subscribe again.
+    const again = await h.call('POST', '/v1/me/checkout/pro', { token: (await h.app.issueSession(me.accountId, 'user')).accessToken, body: { plan: 'annual' } });
+    assert.equal(again.status, 201, JSON.stringify(again.body));
+  } finally { await h.close(); }
+});
+
+test('annual plan: the annual price, a year of Pro; an unknown plan is refused', async () => {
+  const { harness: h, paddle, orders, webhook } = await setup();
+  try {
+    const me = await buyer(h, 'annual@example.test');
+    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { plan: 'lifetime' } })).status, 400);
+    const start = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { plan: 'annual' } });
+    assert.equal(start.status, 201);
+    assert.equal(start.body.plan, 'annual');
+    const id = start.body.checkoutId;
+    assert.equal(paddle.txns.get(id)!.price, ANNUAL);
+    assert.equal(orders.get(id)!.plan, 'annual');
+    paddle.txns.get(id)!.status = 'completed';
+    assert.equal((await webhook(completed(id))).status, 200);
+    const [licence] = await h.app.store.listLicencesForAccount(me.accountId);
+    assert.equal(licence!.validUntilMs, Date.UTC(2027, 10, 18, 12) + SUBSCRIPTION_GRACE_DAYS * DAY);
+  } finally { await h.close(); }
+});
+
+test('a one-off licence sold before 26 Nov 2026 still settles and never ends', async () => {
+  const { harness: h, paddle, orders, webhook } = await setup();
+  try {
+    const me = await buyer(h, 'lifetime@example.test');
+    const account = await h.app.store.getAccount(me.accountId);
+    const id = 'txn_01oldoneoff00001';
+    const reference = 'paddle_' + 'a'.repeat(24);
+    orders.set(id, { transactionId: id, createdAt: '2026-11-20T10:00:00Z', reference, accountId: me.accountId, emailHash: account!.emailHash!, majorVersion: 1, invoiceNumber: 'INF-20261120-AAAAAAAAAA', priceId: LIFETIME });
+    paddle.txns.set(id, { custom_data: { reference, accountId: me.accountId, product: 'pro', majorVersion: '1' }, price: LIFETIME, status: 'completed', subscription_id: null });
+    assert.equal((await webhook(completed(id))).status, 200);
+    const [licence] = await h.app.store.listLicencesForAccount(me.accountId);
+    assert.equal(licence!.validUntilMs, null);
+    const activated = await device(me.accountId, h, 'f');
+    assert.equal(activated.status, 200);
+    assert.deepEqual(activated.body.grant.payload.flags?.['licence.owned'], { on: true });
+  } finally { await h.close(); }
+});
+
+test('a revoked subscription licence (full refund) is not switched back on by a later subscription update', async () => {
+  const { harness: h, paddle, webhook, subscriptions } = await setup();
+  try {
+    const me = await buyer(h, 'refunded-sub@example.test');
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} })).body.checkoutId;
+    paddle.txns.get(id)!.status = 'completed';
+    await webhook(completed(id));
+    const [licence] = await h.app.store.listLicencesForAccount(me.accountId);
+    await h.app.store.setLicenceStatus(licence!.licenceId, 'revoked', h.clock.now);
+    const [sub] = [...subscriptions.values()];
+    paddle.subs.get(sub!.subscriptionId)!.ends_at = new Date(Date.UTC(2027, 0, 18, 12)).toISOString();
+    assert.equal((await webhook(subscriptionEvent('subscription.updated', sub!.subscriptionId))).status, 200);
+    assert.equal((await h.app.store.getLicence(licence!.licenceId))!.status, 'revoked');
   } finally { await h.close(); }
 });

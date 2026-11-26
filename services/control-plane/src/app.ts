@@ -21,7 +21,8 @@ import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import type { paddleProCheckout } from './commerce/proCheckout.ts';
-import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment, PADDLE_ADJUSTMENT_ID } from './commerce/paddle.ts';
+import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment, PADDLE_ADJUSTMENT_ID, PADDLE_SUBSCRIPTION_ID } from './commerce/paddle.ts';
+import { PRO_PLANS } from './commerce/proCheckout.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -77,7 +78,9 @@ export interface AppOptions {
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]>; listTransactionsForMonth?(month: string): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
-  settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  settlePaddle?: (transactionId: string, hint?: { subscriptionId?: string }) => Promise<'paid' | 'pending' | 'unknown'>;
+  /** Re-fetches a Pro subscription from Paddle and moves its licence's end date to match (commerce/proSettlement.ts). */
+  syncPaddleSubscription?: (subscriptionId: string) => Promise<'synced' | 'unknown'>;
   /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
   revokePaddle?: (eventId: string, adjustmentId: string) => Promise<import('./commerce/paddleRefunds.ts').RefundOutcome>;
   /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
@@ -87,7 +90,7 @@ export interface AppOptions {
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: ReturnType<typeof paddleProCheckout>;
+  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -217,7 +220,7 @@ const SWITCHES = [
   { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can subscribe to Pro (monthly or annual) through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
   { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
   { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
   { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
@@ -231,8 +234,9 @@ const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'pla
 
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
+  // Pro is a subscription, monthly or annual; older apps send no plan and get monthly, the smallest commitment.
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
-  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
+  ProCheckoutRequest: z.object({ plan: z.enum(PRO_PLANS).default('monthly'), country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
@@ -1223,18 +1227,18 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await bearer(req);
         const checkout = options.proCheckout;
-        if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
+        if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
-        parseJson(Schemas.ProCheckoutRequest, req.rawBody);
+        const { plan } = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
         const t = now();
         const current = await effectiveAccountLicence(claims.sub, t);
         if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
         const account = await store.getAccount(claims.sub);
-        if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
+        if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to subscribe to Pro.');
         try {
           // The offer (admin flag proPromo, with its dates) counts only for someone signed in and buying while it is on.
           const promo = evaluateFlag('proPromo', await loadFlags(), {}, { audience: { plan: 'basic', user: account.emailHash }, nowMs: t }).on;
-          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo });
+          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo, plan });
           await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
           return { status: 201, body: started };
         } catch {
@@ -2177,7 +2181,7 @@ export function createApp(options: AppOptions) {
     {
       method: 'GET', path: '/v1/billing/paddle/config', summary: 'Paddle.js settings for the checkout page: environment and client-side token (public by design)', auth: 'none',
       handler: async () => {
-        if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet.');
+        if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet.');
         return { status: 200, headers: { 'cache-control': 'no-store' }, body: options.paddleClient };
       },
     },
@@ -2190,12 +2194,22 @@ export function createApp(options: AppOptions) {
           throw new ApiError(401, 'WEBHOOK_SIGNATURE_INVALID', 'Paddle signature missing, wrong or outside the replay window.');
         }
         const event = parseJson(PaddleEvent, req.rawBody);
-        // One-off Pro is fulfilled from transactions. Subscriptions (Cloud, Teams) will get their own handler on
-        // subscription.* events; until then they are acknowledged and ignored, so Paddle does not retry them.
+        // Payments (a first subscription payment, a renewal, or an older one-off order) are fulfilled from transactions.
+        // The body's subscription_id is only a pointer: settlement fetches the transaction and subscription from Paddle.
         if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
           if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
-          try { await options.settlePaddle(event.data.id!); }
+          const subscriptionId = typeof event.data.subscription_id === 'string' && PADDLE_SUBSCRIPTION_ID.test(event.data.subscription_id) ? event.data.subscription_id : undefined;
+          try { await options.settlePaddle(event.data.id!, subscriptionId ? { subscriptionId } : undefined); }
           catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        }
+        // A subscription renewed, fell behind, was paused, resumed or cancelled: Pro's end date follows Paddle. When it
+        // ends the account is Basic; nothing on anyone's devices is touched. Unknown subscriptions are acknowledged.
+        if (event.event_type.startsWith('subscription.') && options.syncPaddleSubscription && PADDLE_SUBSCRIPTION_ID.test(event.data.id ?? '')) {
+          if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+          let outcome: string;
+          try { outcome = await options.syncPaddleSubscription(event.data.id!); }
+          catch { throw new ApiError(503, 'SUBSCRIPTION_VERIFICATION_PENDING', 'The subscription will be checked again when Paddle retries.', true); }
+          return { status: 200, body: { received: true, outcome } };
         }
         // Refunds and chargebacks: a full one removes Pro, a partial one keeps it. Each event is acted on once.
         if ((event.event_type === 'adjustment.created' || event.event_type === 'adjustment.updated') && options.revokePaddle && PADDLE_ADJUSTMENT_ID.test(event.data.id ?? '')) {

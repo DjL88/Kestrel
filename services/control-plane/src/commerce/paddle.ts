@@ -51,6 +51,20 @@ const adjustment = z.object({
 }).passthrough();
 export type PaddleAdjustment = z.infer<typeof adjustment>;
 
+/** Paddle subscription IDs look like sub_01h04vsc0qhwtsbsxh3422wjs4. */
+export const PADDLE_SUBSCRIPTION_ID = /^sub_[a-z0-9]{10,60}$/;
+/**
+ * A Pro subscription as Paddle has it. `current_billing_period` is the period paid for; Paddle leaves it empty once the
+ * subscription is cancelled or paused. Paddle copies the first transaction's custom_data onto the subscription.
+ */
+const subscription = z.object({
+  id: z.string().regex(PADDLE_SUBSCRIPTION_ID),
+  status: z.enum(['active', 'trialing', 'past_due', 'paused', 'canceled']),
+  custom_data: z.record(z.string(), z.unknown()).nullable().optional(),
+  current_billing_period: z.object({ starts_at: z.string(), ends_at: z.string() }).nullable().optional(),
+}).passthrough();
+export type PaddleSubscription = z.infer<typeof subscription>;
+
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
   apiKey: string | (() => Promise<string>);
@@ -97,6 +111,11 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
       if (!PADDLE_TRANSACTION_ID.test(id)) throw new Error('Invalid Paddle transaction ID.');
       return call('/transactions/' + encodeURIComponent(id) + '?include=address');
     },
+    /** The subscription as Paddle has it now. Never trust a webhook body on its own. */
+    async getSubscription(id: string): Promise<PaddleSubscription> {
+      if (!PADDLE_SUBSCRIPTION_ID.test(id)) throw new Error('Invalid Paddle subscription ID.');
+      return subscription.parse(await raw('/subscriptions/' + encodeURIComponent(id)));
+    },
     /** The adjustment as Paddle has it now (refund, credit, chargeback), or null when Paddle has no such adjustment. */
     async getAdjustment(id: string): Promise<PaddleAdjustment | null> {
       if (!PADDLE_ADJUSTMENT_ID.test(id)) throw new Error('Invalid Paddle adjustment ID.');
@@ -130,7 +149,7 @@ export const PaddleEvent = z.object({
   event_id: z.string().min(1).max(128),
   event_type: z.string().min(1).max(64),
   occurred_at: z.string().max(64),
-  data: z.object({ id: z.string().max(128).optional() }).passthrough(),
+  data: z.object({ id: z.string().max(128).optional(), subscription_id: z.string().max(128).nullable().optional() }).passthrough(),
 });
 
 /** Paid in full: Paddle has captured the money. 'completed' follows once Paddle has finished processing. */
