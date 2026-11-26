@@ -74,6 +74,7 @@ export const VIEWS = {
   news: { label: 'Send news', sections: ['notifications'] },
   service: { label: 'Switches, flags and jobs', sections: ['switches', 'flags', 'mail', 'learning', 'monitoring'] },
   records: { label: 'Counts and audit log', sections: ['overview', 'audit'] },
+  technical: { label: 'Technical overview and answer bank', sections: ['technical-overview'] },
 };
 
 /** The view a location hash opens: a view name, or any section inside one. Anything else is the home list. */

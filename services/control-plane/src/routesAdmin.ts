@@ -14,6 +14,10 @@ import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth } from './vertex
 import { ApiError, parseJson, send } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
+import { readFile } from 'node:fs/promises';
+
+/** The technical overview and answer bank (docs/TECHNICAL-OVERVIEW.md), copied into the image beside src/core. */
+export const TECHNICAL_OVERVIEW_PATH = new URL('../../../docs/TECHNICAL-OVERVIEW.md', import.meta.url);
 
 export function adminRoutes(ctx: AppContext): Route[] {
   const { options, config, commerce, store, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
@@ -81,6 +85,18 @@ export function adminRoutes(ctx: AppContext): Route[] {
     },
   },
   // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.
+  {
+    method: 'GET', path: '/v1/admin/technical-overview', summary: 'The technical overview and answer bank, as Markdown, for viewing or saving as a PDF', auth: 'admin',
+    handler: async (req) => {
+      const claims = await admin(req, 'overview.read');
+      let markdown: string;
+      try { markdown = await readFile(options.technicalOverviewPath ?? TECHNICAL_OVERVIEW_PATH, 'utf8'); } catch {
+        throw new ApiError(503, 'OVERVIEW_MISSING', 'The technical overview is not included in this server build.');
+      }
+      const sha256 = crypto.createHash('sha256').update(markdown).digest('hex');
+      return adminDone(claims, 'overview.read', sha256.slice(0, 12), { markdown, sha256 });
+    },
+  },
   {
     method: 'GET', path: '/v1/admin/compliance/documents', summary: 'Signed compliance documents (risk assessments), newest first', auth: 'admin',
     handler: async (req) => {

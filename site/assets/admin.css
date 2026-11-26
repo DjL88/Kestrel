@@ -85,3 +85,20 @@ fieldset{border:1px solid var(--line);border-radius:8px;margin:12px 0;padding:8p
 .more-links{list-style:none;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px}
 .more-links a{display:block;padding:8px 0;color:#d3d9e5}
 #back{margin:0 0 16px}
+/* Technical overview (docs/TECHNICAL-OVERVIEW.md): readable on screen, and printed alone as a light PDF. */
+.doc{max-width:900px;line-height:1.6}
+.doc h1{font-size:1.5rem;margin:8px 0 12px}.doc h2{margin:28px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.doc table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:.92rem}
+.doc th,.doc td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.doc code{overflow-wrap:anywhere}
+.doc hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media print{
+  :root{background:#fff;color:#111;font-size:11pt;color-scheme:light}
+  .top,.skip,#status,#back,.no-print,#needs,#more{display:none!important}
+  main,.panel{padding:0!important;margin:0!important;border:0!important;background:none!important}
+  .doc{max-width:none;color:#111}
+  .doc a{color:#111}
+  .doc th,.doc td{border-color:#999;color:#111}.doc th{background:#eee}
+  .doc h2,.doc h3{break-after:avoid}.doc tr{break-inside:avoid}
+  .doc code{background:#f1f1f1;color:#111}
+}
