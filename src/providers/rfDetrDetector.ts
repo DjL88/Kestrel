@@ -6,6 +6,7 @@ import { RFDETR_INPUT, decodeRfDetr, rfDetrInput, tandemDetections, type TandemD
 import { mergeDetections, tilePlan, type Box, type Detection } from '../core/objectDetection';
 import { friendlyToolError } from '../core/toolErrors';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
+import { loadOrt, ortOptions, ortPlanForWorkers } from './ortRuntime';
 
 /**
  * RF-DETR Nano on this device, as an optional download that runs in tandem with YOLOX-tiny. With the pack missing,
@@ -26,10 +27,8 @@ export async function removeRfDetr(): Promise<void> { loading = null; stopWorker
 function load(): Promise<Loaded> {
   loading ??= (async () => {
     const bytes = await readOptionalModelFile(RFDETR_NANO, 'model');
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, RFDETR_NANO.id, bytes, { executionProviders: ['wasm'] });
+    const ort = await loadOrt();
+    const session = await createTimedSession(ort, RFDETR_NANO.id, bytes, ortOptions());
     return { ort, session };
   })().catch((error) => {
     loading = null;
@@ -79,7 +78,7 @@ function startWorker(): Promise<WorkerSlot | null> {
           } catch (error) { job.reject(error as Error); }
         };
         const copy = bytes.slice().buffer;
-        worker.postMessage({ type: 'init', model: copy }, [copy]);
+        worker.postMessage({ type: 'init', model: copy, ort: ortPlanForWorkers(1) }, [copy]);
       });
       worker.onerror = () => {
         for (const job of slot.pending.values()) job.reject(new Error('The second subject finder stopped.'));

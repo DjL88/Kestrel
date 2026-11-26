@@ -1,6 +1,7 @@
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { createTimedSession } from './modelTiming';
 import { readModelReady, readModelResult, type ModelInput, type ModelTensor } from '../core/modelSessionProtocol';
+import { loadOrt, ortOptions, ortPlanForWorkers } from './ortRuntime';
 
 /**
  * One model session in a worker (src/providers/modelSessionWorker.ts), so inference never holds up the interface: a
@@ -95,7 +96,8 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker
   });
   // A copy goes to the worker, so the caller's bytes stay usable.
   const copy = bytes.slice();
-  worker.postMessage({ type: 'init', model: copy.buffer }, [copy.buffer]);
+  // Two of these workers can run at once (subject outline and photo similarity), so each gets half the spare cores.
+  worker.postMessage({ type: 'init', model: copy.buffer, ort: ortPlanForWorkers(2) }, [copy.buffer]);
   let names: { inputNames: string[]; outputNames: string[] };
   try {
     names = await ready;
@@ -125,10 +127,8 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker
 }
 
 async function onThisThread(id: string, bytes: Uint8Array): Promise<OffThreadSession> {
-  const ort = await import('onnxruntime-web/wasm');
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
-  const session = await createTimedSession(ort, id, bytes, { executionProviders: ['wasm'] });
+  const ort = await loadOrt();
+  const session = await createTimedSession(ort, id, bytes, ortOptions());
   return {
     inputNames: session.inputNames,
     outputNames: session.outputNames,

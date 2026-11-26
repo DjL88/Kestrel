@@ -2,6 +2,7 @@ import { installedModel } from './modelUpdater';
 import { TRUEDETAIL_TILE, type TileInference } from '../core/trueDetailTiles';
 import { sha256Hex } from '../core/sha256';
 import { prepareDenoiseInput, type DenoiseInputContract } from '../core/trueDetailNoiseInput';
+import { createOrtSession, loadOrt } from './ortRuntime';
 
 /** Review must cover the weight file's licence, exact tensor contract and
  * photographic quality. A signed download alone does not prove any of these.
@@ -20,10 +21,8 @@ export async function openTrueDetailModel(sigma?: number): Promise<TrueDetailSes
   if (!approval) return null;
   const model = await installedModel('truedetail-rgb16-v1');
   if (!model || model.sha256 !== approval.sha256 || await sha256Hex(model.bytes) !== approval.sha256) return null;
-  const ort = await import('onnxruntime-web/wasm');
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
-  const session = await ort.InferenceSession.create(new Uint8Array(model.bytes), {executionProviders:['wasm']});
+  const ort = await loadOrt();
+  const session = await createOrtSession(ort, new Uint8Array(model.bytes));
   if (session.inputNames.length !== 1 || session.outputNames.length !== 1) {
     await session.release();
     throw new Error('Unsupported TrueDetail model interface');

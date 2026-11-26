@@ -13,6 +13,7 @@ import type { SubjectGrid } from '../core/maskTypes';
 import { detectSubject } from './subjectDetector';
 import { downloadGateModel, gateAvailable, removeGateModel } from './categoryGate';
 import { GATE_MODEL } from '../core/categoryGate';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /** What the opt-in download fetches: the subject checker (category gate) and the species model. */
 export const SPECIES_DOWNLOAD_BYTES = SPECIES_MODEL.bytes + GATE_MODEL.bytes;
@@ -112,13 +113,8 @@ function loadSession(): Promise<Loaded> {
     } else {
       throw new Error('The species model has not been downloaded.');
     }
-    const ort = await import('onnxruntime-web/wasm').catch(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      return import('onnxruntime-web/wasm');
-    });
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, 'bioclip-image-int8', bytes, { executionProviders: ['wasm'] });
+    const ort = await loadOrt(undefined, true);
+    const session = await createTimedSession(ort, 'bioclip-image-int8', bytes, ortOptions());
     return { ort, session };
   })().catch((error) => {
     loading = null;

@@ -8,7 +8,10 @@
         "backgroundColor": "#1c2027",
         "dragDropEnabled": false
       }
-    ]
+    ],
+    "security": {
+      "headers": null
+    }
   },
   "bundle": {
     "iOS": {

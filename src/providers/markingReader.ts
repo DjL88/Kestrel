@@ -3,6 +3,7 @@ import { Sha256Stream } from '../core/sha256';
 import { OCR_RECOGNISE, decodeText, detectorSize, recogniserWidth, textBoxes, type TextBox } from '../core/textOcr';
 import { friendlyToolError } from '../core/toolErrors';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * Reads painted text (registrations, military serials) on an aircraft, on this device, with PP-OCRv5 mobile from
@@ -91,10 +92,8 @@ function load(): Promise<Loaded> {
       if (data.byteLength !== file.bytes || hash.digest() !== file.sha256) throw new Error('The markings reader failed its integrity check, so it was not used.');
       bytes[key] = data;
     }
-    const [ort, dictionary] = await Promise.all([import('onnxruntime-web/wasm'), import('../assets/registers/ocr-characters.json')]);
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const options = { executionProviders: ['wasm'] };
+    const [ort, dictionary] = await Promise.all([loadOrt(), import('../assets/registers/ocr-characters.json')]);
+    const options = ortOptions();
     const detect = await createTimedSession(ort, 'markings-reader.detect', bytes.detect!, options);
     const recognise = await createTimedSession(ort, 'markings-reader.recognise', bytes.recognise!, options);
     return { ort, detect, recognise, characters: dictionary.default.characters };

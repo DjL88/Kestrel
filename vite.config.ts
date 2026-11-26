@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => {
     define: buildInfoDefines(provenance),
     // Build the on-device runtime up front. Found only when first used, a dev server can re-bundle it mid-session and the
     // page then fails with "Failed to fetch dynamically imported module".
-    optimizeDeps: { include: ['onnxruntime-web/wasm'] },
+    optimizeDeps: { include: ['onnxruntime-web/wasm', 'onnxruntime-web/webgpu'] },
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

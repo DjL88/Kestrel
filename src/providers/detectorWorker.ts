@@ -1,10 +1,12 @@
 /**
  * Runs the subject-detection model off the interface thread, so the app stays usable while photos are scanned.
  * One model session per worker; several workers can run at once. Messages:
- *   in  { type: 'init', model }  (model: the checked file's bytes) out { type: 'ready', loadMs } or { type: 'error', message }
+ *   in  { type: 'init', model, ort? }  (model: the checked file's bytes) out { type: 'ready', loadMs } or { type: 'error', message }
  *   in  { type: 'run', id, input, size }                out { type: 'result', id, data, runMs } or { type: 'error', id, message }
  * The times go back to the interface thread for Settings → Models (src/core/modelStats.ts).
  */
+import { createOrtSession, loadOrt, ortOptions, readOrtPlan } from './ortRuntime';
+
 type Ort = typeof import('onnxruntime-web/wasm');
 type Session = import('onnxruntime-web/wasm').InferenceSession;
 
@@ -20,11 +22,11 @@ scope.onmessage = async (event: MessageEvent) => {
   const message = event.data;
   try {
     if (message.type === 'init') {
-      ort = await import('onnxruntime-web/wasm');
-      ort.env.wasm.numThreads = 1; // One thread per worker: several workers share the cores without needing cross-origin isolation.
-      ort.env.wasm.proxy = false;
+      // The page sends the plan (src/core/ortThreads.ts): one thread on the web and phones, a share of the cores on the isolated desktop app.
+      const plan = readOrtPlan(message.ort);
+      ort = await loadOrt(plan);
       const started = performance.now();
-      session = await ort.InferenceSession.create(new Uint8Array(message.model as ArrayBuffer), { executionProviders: ['wasm'] });
+      session = await createOrtSession(ort, new Uint8Array(message.model as ArrayBuffer), ortOptions(plan));
       scope.postMessage({ type: 'ready', loadMs: performance.now() - started });
     } else if (message.type === 'run') {
       if (!ort || !session) throw new Error('The subject detector is not ready.');

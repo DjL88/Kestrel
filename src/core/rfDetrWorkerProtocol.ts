@@ -1,6 +1,6 @@
 /**
  * Messages between the interface thread and the RF-DETR worker (src/providers/rfDetrWorker.ts):
- *   in  { type: 'init', model }        out { type: 'ready', loadMs } or { type: 'error', message }
+ *   in  { type: 'init', model, ort? } out { type: 'ready', loadMs } or { type: 'error', message }
  *   in  { type: 'run', id, input }     out { type: 'result', id, logits, boxes, runMs } or { type: 'error', id, message }
  * A reply that does not have exactly the expected shape is refused, so a broken worker can never pass off a wrong
  * or partial answer as subjects.
