@@ -1354,6 +1354,7 @@ export const is: AreaTranslation<typeof source> = {
     more: 'Meira',
     moreTools: 'Fleiri verkfæri',
     closeDrawer: 'Loka farsímaskúffu',
+    navigation: "Til baka, afturkalla og allur skjárinn",
     photoPosition: (n, total) => `${n} af ${total}`,
   },
   autoCullSummary: {

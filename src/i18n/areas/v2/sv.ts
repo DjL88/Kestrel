@@ -1354,6 +1354,7 @@ export const sv: AreaTranslation<typeof source> = {
     more: 'Mer',
     moreTools: 'Fler verktyg',
     closeDrawer: 'Stäng mobillådan',
+    navigation: "Tillbaka, ångra och helskärm",
     photoPosition: (n, total) => `${n} av ${total}`,
   },
   autoCullSummary: {

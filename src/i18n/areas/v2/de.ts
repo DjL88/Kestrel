@@ -1354,6 +1354,7 @@ export const de: AreaTranslation<typeof source> = {
     more: 'Mehr',
     moreTools: 'Weitere Werkzeuge',
     closeDrawer: 'Mobile Leiste schließen',
+    navigation: "Zurück, Rückgängig und Vollbild",
     photoPosition: (n, total) => `${n} von ${total}`,
   },
   autoCullSummary: {

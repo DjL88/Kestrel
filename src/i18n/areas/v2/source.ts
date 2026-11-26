@@ -1401,6 +1401,7 @@ export const source = {
     more: 'More',
     moreTools: 'More tools',
     closeDrawer: 'Close mobile drawer',
+    navigation: "Back, undo and full screen",
     photoPosition: (n: number, total: number) => `${n} of ${total}`,
   },
 

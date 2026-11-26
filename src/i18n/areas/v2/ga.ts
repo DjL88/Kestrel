@@ -1357,6 +1357,7 @@ export const ga: AreaTranslation<typeof source> = {
     more: 'Tuilleadh',
     moreTools: 'Tuilleadh uirlisí',
     closeDrawer: 'Dún an tarraiceán soghluaiste',
+    navigation: "Siar, cealaigh agus lánscáileán",
     photoPosition: (n, total) => `${n} as ${total}`,
   },
   autoCullSummary: {

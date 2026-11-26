@@ -1354,6 +1354,7 @@ export const nl: AreaTranslation<typeof source> = {
     more: 'Meer',
     moreTools: 'Meer gereedschap',
     closeDrawer: 'Mobiele lade sluiten',
+    navigation: "Terug, ongedaan maken en volledig scherm",
     photoPosition: (n, total) => `${n} van ${total}`,
   },
   autoCullSummary: {

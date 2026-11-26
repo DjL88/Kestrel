@@ -1354,6 +1354,7 @@ export const nb: AreaTranslation<typeof source> = {
     more: 'Mer',
     moreTools: 'Flere verktøy',
     closeDrawer: 'Lukk mobilskuffen',
+    navigation: "Tilbake, angre og fullskjerm",
     photoPosition: (n, total) => `${n} av ${total}`,
   },
   autoCullSummary: {

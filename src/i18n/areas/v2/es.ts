@@ -1354,6 +1354,7 @@ export const es: AreaTranslation<typeof source> = {
     more: 'Más',
     moreTools: 'Más herramientas',
     closeDrawer: 'Cerrar el panel móvil',
+    navigation: "Atrás, deshacer y pantalla completa",
     photoPosition: (n, total) => `${n} de ${total}`,
   },
   autoCullSummary: {

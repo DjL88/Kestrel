@@ -55,7 +55,7 @@
 
 /* Mobile layer: short landscape phones (and a split-screen strip). Scoped by media query so desktop and tablet are unchanged.
    The photo must stay visible; the filmstrip becomes a slim strip the person can still scroll. */
-@media (orientation: landscape) and (max-height: 520px) and (max-width: 899px) {
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023px) {
   .inflight-v2 .v2-filmstrip { max-height: 5.5rem; overflow-y: auto; overscroll-behavior: contain; }
   .inflight-v2 .v2-filmstrip-body { height: 6.5rem !important; }
   .inflight-v2 .v2-filmstrip [role="separator"] { display: none; }
@@ -71,7 +71,7 @@
 }
 
 /* Short landscape phone: drop the size caption above the photo (the Formats tool still shows it) so the photo gets the height. */
-@media (orientation: landscape) and (max-height: 520px) and (max-width: 899px) {
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023px) {
   .inflight-v2 .v2-canvas-meta { display: none; }
 }
 
@@ -165,6 +165,15 @@
   .inflight-v2 [data-testid="canvas-viewport-controls"] button { min-height: 40px; min-width: 40px; }
   .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
 }
+
+/* Phone held sideways (V2-WORKSPACE 26.4): navigation on the left, tools on the right, both fixed and notch-aware, so
+   the studio's content sits between them; the photo keeps the full height. A tool opens as a side panel, and the
+   filmstrip steps aside while it is open, as it does upright. */
+.inflight-v2[data-v2-layout="phone-landscape"] {
+  padding-left: calc(3.25rem + env(safe-area-inset-left));
+  padding-right: calc(4.5rem + env(safe-area-inset-right));
+}
+.inflight-v2[data-v2-layout="phone-landscape"] .v2-sheet-open .v2-filmstrip { display: none; }
 
 /* Nothing shown by colour alone (owner checklist, WCAG 1.4.1): what is current or selected also carries a shape, a short
    solid bar at its edge. It is drawn from the element's own state (aria-pressed, or data-selected where the element is
