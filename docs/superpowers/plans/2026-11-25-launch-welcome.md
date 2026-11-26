@@ -278,3 +278,24 @@ Specs (desktop and phone; all use `?v2&splash`, seeding `localStorage` / `sessio
   - Record anything off, and fix it before the PR.
 - [ ] **Step 6: Run the full checks and open the PR.** `npm run lint` and `npm test`, then push and open a draft PR. Its description gives PASS, FAIL or NOT RUN for each check. Apple and Google sign-in against real accounts are NOT RUN in CI: they need manual sign-in.
 - [ ] **Step 7: Commit.** `git commit -m "Launch welcome: browser specs and the Settings switch"`
+
+---
+
+## Amendments after the sign-up design (26 Nov 2026)
+Approved design: `docs/superpowers/specs/2026-11-26-sign-up-and-plans-design.md`.
+
+- **Task 6, sign-in panel layout.** Apple and Google sit side by side in one row, each with its mark. Apple is black and Google white, following each company's button guidelines. The accessible names are `STRINGS.welcome.withApple` and `withGoogle`. "Continue with email" goes below an "or" divider. When only one provider is available, it fills the row.
+- **Task 6, results from Task 3.** Handle every result kind from `src/providers/accountSignIn.ts`:
+  - `'signed-in'`: show the outcome line.
+  - `'linking'`: show `linkingProblemText(problem)` from `src/components/SignInMethodsPanel.tsx`.
+  - `'error'`: show `message`.
+  - `'offer-create'`: show the create confirmation.
+  - `'created'`: show `STRINGS.welcome.created`.
+  - `'wrong-password'`: show `STRINGS.welcome.wrongPassword`.
+- **Task 6, plan step.** New accounts land on the signed-in state, as now. The plan chooser, cloud credit and checkout are a later sub-project and are not built here.
+- **New Task 9: Welcome back slideshow** (after Task 8).
+  - On the signed-in and guest states, a slow crossfade (about 6 s per photo, 1 s fade) through up to 8 flagged photos from the last project.
+  - It uses previews already stored on the device and downloads nothing.
+  - It is still with reduced motion, has a Settings switch to turn it off, and is hidden when there are no flagged previews.
+  - Text over it stays readable (scrim, AA contrast). There's a small caption naming the project.
+  - Pure selection logic goes in `src/core/` with unit tests. The spec checks the switch and reduced motion.
