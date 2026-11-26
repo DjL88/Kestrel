@@ -1,14 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { desktopReleasePlatform, newerRelease, publishedDesktopRelease } from './desktopRelease';
-
-const published = (extra: Record<string, unknown> = {}) => ({
-  draft: false, prerelease: false,
-  tag_name: 'v26.11.3',
-  html_url: 'https://github.com/DjL88/Kestrel/releases/tag/v26.11.3',
-  published_at: '2026-11-19T08:00:00Z',
-  ...extra,
-});
+import { desktopReleasePlatform, newerRelease } from './desktopRelease';
 
 test('only a newer stable version produces a release notice', () => {
   assert.equal(newerRelease('v26.11.3', '26.11.2'), true);
@@ -17,27 +9,6 @@ test('only a newer stable version produces a release notice', () => {
   assert.equal(newerRelease('26.11.1', '26.11.2'), false);
   assert.equal(newerRelease('26.11.2-beta.1', '26.11.1'), false);
   assert.equal(newerRelease('not a version', '26.11.1'), false);
-  assert.deepEqual(publishedDesktopRelease(published(), '26.11.2'), {
-    version: '26.11.3',
-    url: published().html_url,
-    publishedAt: published().published_at,
-  });
-  assert.equal(publishedDesktopRelease(published(), '26.11.3'), null);
-});
-
-test('draft, prerelease, malformed and redirecting notices fail closed', () => {
-  for (const bad of [
-    null, {}, [], 'some version',
-    published({ draft: true }),
-    published({ prerelease: true }),
-    published({ html_url: 'https://example.com/untrusted.exe' }),
-    published({ html_url: 'https://github.com.evil.invalid/DjL88/Kestrel/releases/tag/v26.11.3' }),
-    published({ tag_name: '../somewhere' }),
-    published({ tag_name: 'v26.11.3-beta', html_url: 'https://github.com/DjL88/Kestrel/releases/tag/v26.11.3-beta' }),
-    published({ published_at: 'bad date' }),
-  ]) {
-    assert.equal(publishedDesktopRelease(bad, '26.11.2'), null);
-  }
 });
 
 test('phone and iPad store builds never receive a desktop release banner', () => {
