@@ -61,6 +61,7 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
   paddle,
   licences: store,
+  commerce,
   events: {
     claim: async (eventId, atMs) => { try { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).create({ atMs }); return true; } catch { return false; } },
     release: async (eventId) => { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).delete(); },

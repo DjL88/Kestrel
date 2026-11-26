@@ -11,20 +11,21 @@ export interface SignInOption { provider: SignInProvider; label: string; availab
  * (`desktopGoogle`), Apple when it has the website address that hosts the Apple sign-in page (`desktopApple`). The phone
  * apps' native flows are not built yet. Email/password is a separate route.
  */
-export function signInOptions(platform: SignInPlatform, configured: boolean, desktopGoogle = false, desktopApple = false, microsoft = false): SignInOption[] {
+export function signInOptions(platform: SignInPlatform, configured: boolean, desktopGoogle = false, desktopApple = false, microsoft = false, desktopMicrosoft = false): SignInOption[] {
   const options = googleAndApple(platform, configured, desktopGoogle, desktopApple);
-  return microsoft ? [...options, microsoftOption(platform, configured)] : options;
+  return microsoft ? [...options, microsoftOption(platform, configured, desktopMicrosoft)] : options;
 }
 
 /**
  * Sign in with Microsoft (personal accounts and work or school Microsoft 365 accounts), only in builds that switch it on
  * (VITE_MICROSOFT_SIGN_IN), because Firebase refuses it until the Microsoft provider is enabled in its console. It opens
- * Firebase's pop-up, so it works on the web version only for now.
+ * Firebase's pop-up on the web. The desktop app opens Microsoft's page in the person's browser only when its own flag is on
+ * (`desktopMicrosoft`, see microsoftSignIn.ts), because a real installed build has not yet proved Firebase accepts it.
  */
-function microsoftOption(platform: SignInPlatform, configured: boolean): SignInOption {
+function microsoftOption(platform: SignInPlatform, configured: boolean, desktopMicrosoft: boolean): SignInOption {
   const label = 'Continue with Microsoft';
   if (!configured) return { provider: 'microsoft', label, available: false, reason: 'Sign-in is not set up in this build.' };
-  if (platform === 'web') return { provider: 'microsoft', label, available: true };
+  if (platform === 'web' || (platform === 'desktop' && desktopMicrosoft)) return { provider: 'microsoft', label, available: true };
   return { provider: 'microsoft', label, available: false, reason: 'Microsoft sign-in works on the web version for now. Use another way here, or sign in on the web.' };
 }
 

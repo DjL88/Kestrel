@@ -319,6 +319,11 @@ pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
     let (raw, _decoder) = kestrel_raw::nikon_he::decode_sensor(bytes)?;
     // The same develop the editor's picture uses, so the 16-bit master starts from the pixels the person saw.
     let intermediate = match kestrel_raw::scene_develop::develop_display(&raw)? {
+        Some(image::DynamicImage::ImageRgb16(mut display)) => {
+            // Starting from the camera's own look, exactly as the editor's picture does (`kestrel_raw::camera_look`).
+            kestrel_raw::camera_look::match_camera(bytes, &mut display);
+            image::DynamicImage::ImageRgb16(display)
+        }
         Some(display) => display,
         None => RawDevelop::default().develop_intermediate(&raw)
             .map_err(|error| format!("RAW development failed: {error}"))?

@@ -55,7 +55,7 @@ impl Default for Look {
 }
 
 /// Bump when the look changes, so cached developments can be told apart from new ones.
-pub const LOOK_VERSION: u32 = 1;
+pub const LOOK_VERSION: u32 = 2; // 2: the As shot look (camera_look) on top
 
 /// A missing as-shot white balance may be rendered neutral, but malformed supplied
 /// coefficients must not silently corrupt the image or produce NaN/Inf pixels.

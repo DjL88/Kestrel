@@ -785,6 +785,9 @@ export function createApp(options: AppOptions) {
     return { claims, g, member };
   }
 
+  /** A suspended account's galleries stop serving. Merged accounts keep theirs: only 'suspended' counts. */
+  const ownerSuspended = async (accountId: string) => (await store.getAccount(accountId))?.status === 'suspended';
+
   function safetyCfg(): SafetyService {
     if (!options.safety) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Reporting is not set up on this server yet. Email the address on the acceptable use page.');
     return options.safety.service;
@@ -1961,7 +1964,7 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.GalleryOpen, req.rawBody);
-        const { view } = await gallery(() => galleryCfg().open(body.token, body.password, now()));
+        const { view } = await gallery(() => galleryCfg().open(body.token, body.password, now(), ownerSuspended));
         return { status: 200, body: view };
       },
     },
@@ -1970,7 +1973,7 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.GalleryFeedback, req.rawBody);
-        const g = await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        const g = await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now(), ownerSuspended));
         // The people who manage this project's galleries hear about it, once per gallery while unread. Never the client.
         if (options.collab && body.kind !== 'unfavourite') await notify(async () => {
           const audience = await options.collab!.audience(g.projectId, 'export');
