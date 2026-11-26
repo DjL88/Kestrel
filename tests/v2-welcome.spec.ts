@@ -44,14 +44,18 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'DSC_0007.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 20_000 });
-  // Opening a project from the hub remembers it for the welcome (a freshly created one is not opened that way).
-  await page.reload();
-  const options = root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
-  const card = root.getByText('Dawn at the marsh', { exact: true });
-  await expect(card).toBeVisible({ timeout: 15_000 });
-  await card.click();
-  await expect(options).toHaveCount(1, { timeout: 20_000 });
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')), { timeout: 10_000 }).not.toBeNull();
+  // Entering a project (a new one included) remembers it for the welcome. Wait until the import is stored (closing no
+  // longer asks first, as in v2-autosave-retry) and the welcome has remembered this project, so the next launch is real.
+  const closeIsBlocked = () => page.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  await expect.poll(closeIsBlocked, { timeout: 20_000 }).toBe(false);
+  const rememberedName = () => page.evaluate(() => {
+    try { return (JSON.parse(localStorage.getItem('inflight.launch.lastProject') ?? 'null') as { name?: string } | null)?.name ?? null; } catch { return null; }
+  });
+  await expect.poll(rememberedName, { timeout: 10_000 }).toBe('Dawn at the marsh');
   const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')))!);
   await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
 
