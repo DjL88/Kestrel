@@ -9,6 +9,7 @@ import { newLicence } from './store.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { verifyGoogleIdToken } from './googleIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
+import { COMPLIANCE_MAX_BYTES } from './complianceDocs.ts';
 import { caseSummary } from './contentSafety.ts';
 import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth } from './vertexLearning.ts';
 import { ApiError, parseJson, send } from './http.ts';
@@ -16,7 +17,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './
 import type { AppContext } from './appContext.ts';
 
 export function adminRoutes(ctx: AppContext): Route[] {
-  const { options, config, commerce, store, demoStudio, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  const { options, config, commerce, store, demoStudio, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
   return [
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
@@ -135,6 +136,32 @@ export function adminRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.SafetyManualReport, req.rawBody);
       const c = await safety(() => safetyCfg().recordManualReport(params.id, claims.sub, body));
       return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
+    },
+  },
+  // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.
+  {
+    method: 'GET', path: '/v1/admin/compliance/documents', summary: 'Signed compliance documents (risk assessments), newest first', auth: 'admin',
+    handler: async (req) => {
+      const claims = await admin(req, 'compliance.list');
+      const docs = await compliance(() => complianceCfg().list());
+      return adminDone(claims, 'compliance.list', String(docs.length), { documents: docs.map(({ sha256: _s, ...d }) => d), maxBytes: COMPLIANCE_MAX_BYTES });
+    },
+  },
+  {
+    method: 'POST', path: '/v1/admin/compliance/documents', summary: 'Upload a signed copy (PDF or Markdown). Never replaces an earlier one', auth: 'admin', body: Schemas.ComplianceUpload,
+    handler: async (req) => {
+      const claims = await admin(req, 'compliance.upload');
+      const body = parseJson(Schemas.ComplianceUpload, req.rawBody);
+      const doc = await compliance(() => complianceCfg().upload({ title: body.title, fileName: body.fileName, contentType: body.contentType, body: Buffer.from(body.base64, 'base64'), by: claims.sub, atMs: now() }));
+      return adminDone(claims, 'compliance.upload', `${doc.id} sha256=${doc.sha256}`, { document: { ...doc, sha256: undefined } });
+    },
+  },
+  {
+    method: 'GET', path: '/v1/admin/compliance/documents/:id/download', summary: 'A 10-minute download link for one compliance document', auth: 'admin',
+    handler: async (req, params) => {
+      const claims = await admin(req, 'compliance.download');
+      const link = await compliance(() => complianceCfg().download(params.id));
+      return adminDone(claims, 'compliance.download', params.id, link);
     },
   },
   {

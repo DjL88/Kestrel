@@ -1,5 +1,4 @@
 /** Everything the control-plane routes share: the store, limiters, sign-in, quotas and service gates. Built once per app. */
-import type { AppOptions } from './appShared.ts';
 import { freeStorageFor, settleStorageDay } from './cloudStorageBilling.ts';
 import { OWNED_GRANT_FLAG, type EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
 import { parseFlagSet, resolveFlagsForGrant, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
@@ -22,6 +21,7 @@ import type { PushService } from './push.ts';
 import type { NoticeContacts } from './noticeContacts.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, type GalleryStore } from './gallery.ts';
+import { ComplianceRefusal, type ComplianceDocuments } from './complianceDocs.ts';
 import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, type CheckInput, type SafetyService } from './contentSafety.ts';
 import { SAFE_COPY_LEVELS } from './safeCopy.ts';
 import { ApiError, parseJson, type Reply, type Request, type Route } from './http.ts';
@@ -37,6 +37,10 @@ export function createContext(options: AppOptions) {
     ? options.provider
     : config.geminiApiKey ? geminiProvider(config.geminiApiKey, config.geminiModel) : null;
   const authLimiter = new RateLimiter(10, 60_000);
+  // The app's Firebase token exchange: each call carries an ID token Google signed for our project, so a high limit gives
+  // nothing to guess at. The app's panels each exchange the token when Settings opens, and a sign-in right after two
+  // visits must still reach Pro (26 Nov beta); password and provider sign-ins keep the strict limit above.
+  const firebaseExchangeLimiter = new RateLimiter(60, 60_000);
   const contactLimiter = new RateLimiter(5, 10 * 60_000);
   const contactGlobalLimiter = new RateLimiter(60, 60 * 60_000);
   const googleKeys = options.googleKeys ?? googleKeysFromNetwork();
@@ -93,7 +97,7 @@ export function createContext(options: AppOptions) {
     return {
       method: 'POST', path: `/v1/auth/${provider}`, summary: `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app (Firebase)' : 'Google'}: exchange the provider's ID token for a session`, auth: 'none', body: Schemas.ProviderSignIn,
       handler: async (req) => {
-        if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        if (!(provider === 'firebase' ? firebaseExchangeLimiter : authLimiter).take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.ProviderSignIn, req.rawBody);
         const audiences = provider === 'apple' ? config.appleClientIds : provider === 'firebase' ? (config.firebaseProjectId ? [config.firebaseProjectId] : []) : config.userGoogleClientIds;
         if (audiences.length === 0) throw new ApiError(503, 'SIGNIN_UNAVAILABLE', `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app' : 'Google'} is not set up on this server.`);
@@ -385,6 +389,20 @@ export function createContext(options: AppOptions) {
     return { claims, g, member };
   }
 
+  /** A suspended account's galleries stop serving. Merged accounts keep theirs: only 'suspended' counts. */
+  const ownerSuspended = async (accountId: string) => (await store.getAccount(accountId))?.status === 'suspended';
+
+  function complianceCfg(): ComplianceDocuments {
+    if (!options.compliance) throw new ApiError(503, 'COMPLIANCE_NOT_CONFIGURED', 'The compliance document store is not set up on this server yet.');
+    return options.compliance;
+  }
+  async function compliance<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof ComplianceRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
+  }
+
   function safetyCfg(): SafetyService {
     if (!options.safety) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Reporting is not set up on this server yet. Email the address on the acceptable use page.');
     return options.safety.service;
@@ -548,7 +566,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, demoStudio, now, provider, authLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, safetyCfg, safety, safetyCheck, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, demoStudio, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safetyCheck, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;
