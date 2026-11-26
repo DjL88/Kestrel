@@ -36,6 +36,8 @@ interface TopBarProps {
   onExport: () => void;
   /** File > Export again with last settings (G09). Absent: not offered (no photo, or a collage). */
   onQuickExport?: () => void;
+  /** Print and soft proof the shown photo. */
+  onPrint?: () => void;
   /** Opens Share (shared projects, #1387). Absent: no Share button. */
   onShare?: () => void;
   /** Who else is in this shared project (PresenceAvatars). */
@@ -92,6 +94,7 @@ export default function TopBar({
   onSetAssistMode,
   onExport,
   onQuickExport,
+  onPrint,
   onShare,
   presence,
   onOpenRemoved,
@@ -245,6 +248,7 @@ export default function TopBar({
                 {onQuickExport && (
                   <MenuItem icon="export" label={STRINGS.exportDialog.quickExport} onClick={() => runAndClose(onQuickExport)} />
                 )}
+                {onPrint && <MenuItem icon="export" label={STRINGS.print.menu} onClick={() => runAndClose(onPrint)} />}
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="restore"
