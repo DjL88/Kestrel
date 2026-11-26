@@ -10,7 +10,7 @@ import { AccountDataPanel } from './AccountDataPanel';
 import { accountDataClient } from '../providers/accountDataClient';
 import { downloadExport } from '../providers/browserExport';
 import { useAccess } from '../providers/useAccess';
-import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, deviceLicenceKey, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, deviceLicenceKey, deviceReleaseRefusal, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
@@ -228,7 +228,7 @@ export function AccountAndLicenceSettings() {
     return runAccountAction(async () => {
       const token = await firebaseAuth.idToken(true);
       if (!token || !(await freeAccountLicenceDevice(token, activationId))) {
-        setAccountNote('Could not confirm that the device slot was freed. Check the list again.');
+        setAccountNote(deviceReleaseRefusal() ?? 'Could not confirm that the device slot was freed. Check the list again.');
         return;
       }
       setAccountDevices(await accountLicenceDevices(token));

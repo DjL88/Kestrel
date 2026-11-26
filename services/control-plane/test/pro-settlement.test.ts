@@ -85,3 +85,33 @@ test('a device swap: when every slot is taken, a device unused for 30 days is fr
     await harness.close();
   }
 });
+
+test('freeing devices by hand: 3 a year, kind words after that, and support can reset it', async () => {
+  const harness = await startHarness(null);
+  try {
+    const accountId = await harness.app.createAccount('mover@example.test', 'test-password-with-length', 'user');
+    await harness.app.store.insertLicence(newLicence('lic_move_test', 'paid', harness.clock.now, { accountId, paid: true, source: 'purchase', maxDevices: 5 }));
+    const call = async (path: string, hash: string, extra: object = {}) => harness.call('POST', path, {
+      token: (await harness.app.issueSession(accountId, 'user')).accessToken, body: { deviceHash: hash.repeat(64), ...extra },
+    });
+    const add = (hash: string) => call('/v1/me/activate', hash, { platform: 'macos', appVersion: '1.0.0' });
+    assert.equal((await add('a')).status, 200);
+    const free = async () => {
+      const other = await add('b');
+      return call('/v1/me/devices/deactivate', 'a', { activationId: other.body.activationId });
+    };
+    for (let i = 0; i < 3; i += 1) assert.equal((await free()).status, 200);
+    const refused = await free();
+    assert.equal(refused.status, 429);
+    assert.equal(refused.body.error.code, 'RELEASE_LIMIT');
+    assert.match(refused.body.error.message, /contact support/);
+    const reset = await harness.call('POST', '/v1/admin/licences/lic_move_test/releases/reset', { token: harness.adminToken });
+    assert.equal(reset.status, 200);
+    assert.equal((await free()).status, 200);
+    // A year on, the allowance is back by itself.
+    harness.clock.now += 366 * 86_400_000;
+    for (let i = 0; i < 3; i += 1) assert.equal((await free()).status, 200);
+  } finally {
+    await harness.close();
+  }
+});

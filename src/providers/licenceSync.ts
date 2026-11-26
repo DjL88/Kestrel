@@ -40,6 +40,12 @@ interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash:
 
 export class LicenceSync {
   private accountCheck = 0;
+  /** The server's own words when the last device free was refused because the yearly allowance is used up. */
+  releaseRefusal: string | null = null;
+  private noteRefusal(reply: { status: number; json: Record<string, any> | null }) {
+    this.releaseRefusal = reply.status === 429 && reply.json?.error?.code === 'RELEASE_LIMIT' && typeof reply.json.error.message === 'string'
+      ? reply.json.error.message.slice(0, 600) : null;
+  }
   /** The control-plane session from the last sign-in. Kept in memory only (never stored), so it ends with the app or sign-out. */
   private session: string | null = null;
   constructor(private readonly o: LicenceSyncOptions) {}
@@ -211,6 +217,7 @@ export class LicenceSync {
       const deviceHash = await this.deviceHash();
       if (checkId !== this.accountCheck) return null;
       const reply = await this.post(path, { deviceHash, ...(activationId === undefined ? {} : { activationId }) }, session.json.accessToken);
+      if (activationId !== undefined) this.noteRefusal(reply);
       return checkId === this.accountCheck && reply.status === 200 ? reply.json : null;
     } catch { return null; }
   }
@@ -329,6 +336,7 @@ export class LicenceSync {
     if (!this.configured) return false;
     try {
       const reply = await this.post('/v1/licences/deactivate', { licenceKey: key.trim(), activationId });
+      this.noteRefusal(reply);
       if (reply.status !== 200) return false;
       const stored = await this.storedGrant(await this.keyHash(key));
       if (stored?.activationId === activationId) this.write(GRANT, null);
