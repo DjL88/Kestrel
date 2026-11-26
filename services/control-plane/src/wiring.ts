@@ -121,6 +121,8 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       basicJobsPerPeriod: whole(env, 'KCP_CLOUD_BASIC_JOBS_PER_PERIOD', 500, 100_000),
       balance, extraPhotoMillicredits: 300,
       maxInputBytes: whole(env, 'KCP_CLOUD_MAX_INPUT_BYTES', 120_000_000, 2_000_000_000),
+      // Cloud edit settings (x-std-cloud-recipe): off unless the owner switches them on.
+      recipe: { enabled: env.KCP_CLOUD_RECIPE_ENABLED === '1', maxPreviewBytes: whole(env, 'KCP_CLOUD_RECIPE_MAX_PREVIEW_BYTES', 10_000_000, 50_000_000) },
     };
     out.enabled.push('cloud-processing');
   }

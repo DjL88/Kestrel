@@ -12,7 +12,7 @@ async function main() {
     read: async (name) => (await bucket.file(name).download())[0],
     write: async (name, bytes) => { await bucket.file(name).save(bytes); },
   };
-  const ok = await runJob(store, jobId, kind);
+  const ok = await runJob(store, jobId, kind, undefined, process.env.KCR_INPUT_KIND);
   console.log(ok ? 'job finished' : 'job failed'); // never the id, kind, sizes or error text
   process.exit(ok ? 0 : 1);
 }

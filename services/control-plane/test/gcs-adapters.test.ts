@@ -58,3 +58,12 @@ test('Cloud Run Job trigger: authorised POST to the :run endpoint with only the 
   await assert.rejects(() => bad.trigger('j', 'denoise'), /403/);
   assert.throws(() => new CloudRunJobTrigger('not-a-job-name', async () => 't'), /job name/);
 });
+
+test('a recipe job tells the runner which picture it carries', async () => {
+  const bodies: { overrides: { containerOverrides: { env: { name: string; value: string }[] }[] } }[] = [];
+  const t = new CloudRunJobTrigger('projects/kestrel-test/locations/europe-west2/jobs/runner', async () => 'token',
+    (async (_url: string | URL, init?: RequestInit) => { bodies.push(JSON.parse(String(init?.body))); return new Response('{}'); }) as typeof fetch);
+  await t.trigger('job-2', 'recipe', 'smart-preview');
+  assert.deepEqual(bodies[0].overrides.containerOverrides[0].env, [
+    { name: 'KCR_JOB_ID', value: 'job-2' }, { name: 'KCR_KIND', value: 'recipe' }, { name: 'KCR_INPUT_KIND', value: 'smart-preview' }]);
+});

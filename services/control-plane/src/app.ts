@@ -26,7 +26,7 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
-import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
+import { CLOUD_KINDS, RECIPE_INPUT_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
 import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
@@ -318,7 +318,7 @@ export const Schemas = {
     aiConsent: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
-  CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean() }).strict(),
+  CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean(), inputKind: z.enum(RECIPE_INPUT_KINDS).optional() }).strict(),
   LearningSignal: z.object({
     source: z.enum(LEARNING_SOURCES), capability: z.enum(LEARNING_CAPABILITIES), action: z.enum(LEARNING_ACTIONS),
     candidateRank: z.number().int().min(1).max(3).optional(),
@@ -587,6 +587,17 @@ export function createApp(options: AppOptions) {
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
     const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
+    // Recipe jobs (x-std-cloud-recipe): their own switch, off by default, and they must say which picture they carry.
+    if (body.kind === 'recipe') {
+      if (!cloud.recipe?.enabled) {
+        await audit(claims.sub, 'cloud.job.create', 'denied', 'recipe off');
+        throw new ApiError(503, 'CLOUD_RECIPE_DISABLED', 'Cloud edit settings are switched off for now. Nothing was uploaded.');
+      }
+      if (!body.inputKind) throw new ApiError(400, 'CLOUD_RECIPE_INPUT_KIND', 'Say whether this is the smart preview or the original.');
+      if (body.inputKind === 'smart-preview' && body.inputBytes > cloud.recipe.maxPreviewBytes) {
+        throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This is larger than a smart preview can be.');
+      }
+    } else if (body.inputKind) throw new ApiError(400, 'CLOUD_RECIPE_INPUT_KIND', 'Only cloud edit-settings jobs carry an input kind.');
     const reservedAtMs = now();
     const spendPence = options.spend?.cloudJobPence ?? 0;
     const refundSpend = await reserveSpend(spendPence, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
@@ -611,6 +622,7 @@ export function createApp(options: AppOptions) {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
       await cloud.ledger.put({
         jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes,
+        ...(body.kind === 'recipe' && body.inputKind ? { inputKind: body.inputKind } : {}),
         status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs,
         ...(options.spend ? { spendPence } : {}),
         ...(paidMillicredits ? { paidMillicredits } : {}),
@@ -1388,7 +1400,7 @@ export function createApp(options: AppOptions) {
         }
         // Cloud Run can accept a dispatch even if its response is lost. Keep the claim so a retry cannot send it again.
         try {
-          await cloud.runner.start(record.jobId, record.kind);
+          await cloud.runner.start(record.jobId, record.kind, record.inputKind);
         } catch {
           throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not be confirmed.', true);
         }

@@ -5,6 +5,23 @@ import { DEFAULT_EDIT } from '../../../src/core/photoEdits.ts';
 import { splitDenoiseBySubject } from '../../../src/engine/denoiseAction.ts';
 import { resampleLanczos3 } from '../../../src/core/upscaleResample.ts';
 import type { Pixels } from '../../../src/core/colourCheck.ts';
+import { computeCloudRecipe } from '../../../src/core/cloudRecipeCompute.ts';
+import { CLOUD_RECIPE_PREVIEW_EDGE, type CloudRecipeInputKind } from '../../../src/core/cloudRecipe.ts';
+import jpeg from 'jpeg-js';
+
+/**
+ * A recipe job (x-std-cloud-recipe): the upload is a JPEG (the 2,560 px smart preview, or with the person's separate
+ * opt-in a JPEG original), the result a few KB of edit settings as JSON. A smart preview larger than 2,560 px, or an
+ * original that is not a JPEG (a RAW, for example), is refused rather than guessed at: the runner has no RAW decoder.
+ */
+export function processRecipeJob(input: Uint8Array, jobId: string, inputKind: CloudRecipeInputKind): Uint8Array {
+  if (input.byteLength < 4 || input[0] !== 0xff || input[1] !== 0xd8) throw new Error('Recipe input is not a JPEG.');
+  const decoded = jpeg.decode(input, { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 120, maxMemoryUsageInMB: 1024 });
+  if (inputKind === 'smart-preview' && Math.max(decoded.width, decoded.height) > CLOUD_RECIPE_PREVIEW_EDGE) {
+    throw new Error('A smart preview must be at most 2,560 px on its long edge.');
+  }
+  return computeCloudRecipe({ jobId, inputKind, pixels: new Uint8ClampedArray(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength), width: decoded.width, height: decoded.height });
+}
 
 /**
  * Turns one job's uploaded bytes into its result bytes using the same CPU pixel code the app runs on the device

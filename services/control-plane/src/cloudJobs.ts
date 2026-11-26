@@ -4,11 +4,16 @@
  * Nothing here stores or logs photo bytes, file names or EXIF: only ids, the job kind and a byte count.
  */
 /** The names are the engine's own capability names (src/engine/types.ts `EngineCapability`), so a cloud runner is a drop-in. */
-export const CLOUD_KINDS = ['denoise', 'upscale', 'mask'] as const;
+export const CLOUD_KINDS = ['denoise', 'upscale', 'mask', 'recipe'] as const;
+/** `recipe` jobs (x-std-cloud-recipe) say which picture they carry; the runner repeats it in its answer. */
+export const RECIPE_INPUT_KINDS = ['smart-preview', 'original'] as const;
+export type RecipeInputKind = typeof RECIPE_INPUT_KINDS[number];
 export type CloudKind = typeof CLOUD_KINDS[number];
 export type CloudStatus = 'awaiting-upload' | 'running' | 'ready' | 'failed' | 'finished';
 
 export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number;
+  /** Recipe jobs only: the 2,560 px smart preview, or (with the person's separate opt-in) the original. */
+  inputKind?: RecipeInputKind;
   /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
   consentAtMs: number;
   /** Estimated spend reserved for this job. Older job records did not store it. */
@@ -22,7 +27,7 @@ export interface CloudRunner {
   /** Whether the person's upload has arrived. */
   inputPresent(jobId: string): Promise<boolean>;
   /** Begin processing. Called once the input is present. */
-  start(jobId: string, kind: CloudKind): Promise<void>;
+  start(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind): Promise<void>;
   /** Progress. A failure carries no text: runner messages can contain file names, so only a code reaches the client. */
   poll(jobId: string): Promise<{ state: 'running' } | { state: 'ready'; resultUrl: string } | { state: 'failed' }>;
   /** Idempotent. Must delete the input object; the bucket's lifecycle rule is only the backstop. */
@@ -62,6 +67,11 @@ export interface CloudOptions {
   maxInputBytes: number;
   /** A shared store can commit the failed status and both refunds in one transaction. */
   settleFailed?: (jobId: string, legacySpendPence: number) => Promise<boolean>;
+  /**
+   * Recipe jobs (x-std-cloud-recipe): off unless the owner switches them on (KCP_CLOUD_RECIPE_ENABLED=1, Terraform
+   * `cloud_recipe_enabled`). `maxPreviewBytes` caps a smart-preview upload, which is about 1-3 MB.
+   */
+  recipe?: { enabled: boolean; maxPreviewBytes: number };
   /** A job still running this long after it was created is treated as failed (a crashed runner writes no marker). Default 30 minutes. */
   maxJobMs?: number;
 }
@@ -130,8 +140,8 @@ export class MemoryCloudLedger implements CloudLedger {
     if (c && reservedAtMs >= c.start && c.used > 0) c.used--;
   }
   async put(r: CloudJobRecord) {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = r;
-    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }), ...(paidMillicredits === undefined ? {} : { paidMillicredits }) });
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits, inputKind } = r;
+    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }), ...(paidMillicredits === undefined ? {} : { paidMillicredits }), ...(inputKind === undefined ? {} : { inputKind }) });
   }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
   async transition(jobId: string, from: CloudStatus, to: CloudStatus) {

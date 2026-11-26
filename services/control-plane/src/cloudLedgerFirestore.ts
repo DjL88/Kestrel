@@ -53,11 +53,12 @@ export class FirestoreCloudLedger implements CloudLedger {
   }
 
   async put(record: CloudJobRecord): Promise<void> {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = record;
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits, inputKind } = record;
     await this.db.collection(JOBS).doc(jobId).set({
       jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs,
       ...(spendPence === undefined ? {} : { spendPence }),
       ...(paidMillicredits === undefined ? {} : { paidMillicredits }),
+      ...(inputKind === undefined ? {} : { inputKind }),
     });
   }
 
@@ -71,6 +72,7 @@ export class FirestoreCloudLedger implements CloudLedger {
       createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs),
       ...(typeof d.spendPence === 'number' ? { spendPence: d.spendPence } : {}),
       ...(typeof d.paidMillicredits === 'number' ? { paidMillicredits: d.paidMillicredits } : {}),
+      ...(d.inputKind === 'smart-preview' || d.inputKind === 'original' ? { inputKind: d.inputKind as CloudJobRecord['inputKind'] } : {}),
     };
   }
 
