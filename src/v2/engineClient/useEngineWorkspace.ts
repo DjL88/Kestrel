@@ -71,6 +71,8 @@ import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { workflowPreviewOn } from './workflowPreview';
 import { recordCullObservations, rescoreFromObservations, type ScanEvidence } from '../../core/cullObservationStore';
+import { applyCullRules, proposedKeepers, rankWithRules, type CullRules } from '../../core/cullRules';
+import { isCullOriginal, type CullSuggestion } from '../../core/autoCull';
 import { DETECTOR_MODEL } from '../../core/objectDetection';
 import { bundledModelUrl } from '../../providers/bundledModelAssets';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
@@ -1578,6 +1580,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // its size and sends nothing; the person's press of Send is the consent for that one upload. The settings that come
   // back are applied as one undoable step, and only if the photo's edit has not changed since the offer was made.
   const cloudRecipeOn = can('cloudRecipe') || cloudRecipePreviewOn();
+  // Culling Assistant rules (x-std-cull-rules, a preview that is off by default): every judged photo ranked again from
+  // its stored observations on each movement of a slider, with no new scan. The judgement is worked out once per
+  // catalogue change; the rules themselves are cheap. Applying only ever keeps, as one step that Undo takes back.
+  const cullRulesOn = can('cullRules') || workflowPreviewOn('cullRules');
+  const judgedCache = useRef<{ frames: PhotoFrame[]; originals: PhotoFrame[]; results: CullSuggestion[]; notScanned: number } | null>(null);
+  const judgedNow = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) return null;
+    if (judgedCache.current?.frames !== current.frames) {
+      const originals = current.frames.filter(isCullOriginal);
+      const { results, missing } = rescoreFromObservations(originals, DETECTOR_MODEL.sha256, Boolean(bundledModelUrl(DETECTOR_MODEL.file)));
+      judgedCache.current = { frames: current.frames, originals, results, notScanned: missing.length };
+    }
+    return judgedCache.current;
+  }, []);
+  const rankCulling = useCallback((rules: CullRules) => {
+    const judged = judgedNow();
+    if (!judged) return { rows: [], notScanned: 0, newKeepers: 0 };
+    const ranked = rankWithRules(judged.originals, judged.results, rules);
+    const names = new Map(judged.originals.map((frame) => [frame.id, frame.filename]));
+    return {
+      rows: ranked.map((row) => ({ photoId: row.frameId, filename: names.get(row.frameId) ?? '', score: Math.round(row.score), outcome: row.outcome, why: row.why, burst: row.burstId })),
+      notScanned: judged.notScanned, newKeepers: proposedKeepers(ranked).length,
+    };
+  }, [judgedNow]);
+  const applyCullRulesFor = useCallback((rules: CullRules) => {
+    const judged = judgedNow();
+    if (!judged) return 0;
+    const ranked = rankWithRules(judged.originals, judged.results, rules);
+    const count = proposedKeepers(ranked).length;
+    if (count) mutate((current) => applyCullRules(current, ranked));
+    return count;
+  }, [judgedNow, mutate]);
   const cloudRecipeOffers = useRef(new Map<string, { prepared: Awaited<ReturnType<typeof prepareCloudRecipe>>; edit: PhotoEdit; framing: string }>());
   const prepareCloudRecipeFor = useCallback(async (photoId: string) => {
     const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId && candidate.removedAt == null);
@@ -2954,6 +2989,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
+    ...(cullRulesOn ? { rankCulling, applyCullRules: applyCullRulesFor } : {}),
     ...(cloudRecipeOn ? {
       prepareCloudRecipe: prepareCloudRecipeFor,
       sendCloudRecipe: sendCloudRecipeFor,

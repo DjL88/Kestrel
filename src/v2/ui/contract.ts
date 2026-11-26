@@ -7,6 +7,12 @@ import type { LensProfile } from '../../core/lensCorrection';
 // All components import their types ONLY from this file.
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
+/** Culling Assistant rules: minimum quality (0 to 100), keep at least and at most N per burst. */
+export interface CullRulesView { minQuality: number; keepAtLeast: number; keepAtMost: number }
+export type CullRuleWhy = 'meetsQuality' | 'burstMinimum' | 'belowQuality' | 'burstFull' | 'uncertain' | 'copy' | 'yourKeep' | 'yourChoice';
+export interface CullRankingRow { photoId: string; filename: string; score: number; outcome: 'keep' | 'review' | 'copy'; why: CullRuleWhy; burst: string | null }
+export interface CullRankingView { rows: CullRankingRow[]; notScanned: number; newKeepers: number }
+
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
 /** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
 export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
@@ -855,6 +861,11 @@ export interface WorkspaceActions {
   startQuickStart?: () => void;
   dismissQuickStart?: () => void;
   runAutoCull: () => void;
+  /** Culling Assistant (x-std-cull-rules, a preview off by default; present only while it is on): rank every judged
+   * photo under the rules from stored observations, with no new scan. Cheap enough to call on every slider movement. */
+  rankCulling?: (rules: CullRulesView) => CullRankingView;
+  /** Keep the photos the rules propose, as one step that Undo takes back. Never rejects. Returns how many were kept. */
+  applyCullRules?: (rules: CullRulesView) => number;
   reconnectOriginal: (photoId: string) => void;
   /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
   saveDngCopy: (photoId: string) => void;
