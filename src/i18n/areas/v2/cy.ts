@@ -321,6 +321,7 @@ export const cy: AreaTranslation<typeof source> = {
       analysing: 'Yn dadansoddi',
       ready: 'Yn barod i’w olygu',
       unavailable: 'Y gwreiddiol ddim ar gael',
+      unsupported: 'Methu darllen eto',
     },
     nothingMatches: 'Does dim lluniau’n cyfateb i’r hidl presennol.',
   },

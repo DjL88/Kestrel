@@ -5,10 +5,14 @@
  */
 
 /** Which identity provider the person chose. Sign-in is optional and only ever switches on cloud features. */
-export type SignInProvider = 'google' | 'apple' | 'password';
+export type SignInProvider = 'google' | 'apple' | 'microsoft' | 'password';
 
 /** Email is whatever the provider shares (Apple may relay it); it is never the authorisation boundary, `accountId` is. */
-export interface Session { accountId: string; provider: SignInProvider; email?: string; displayName?: string; expiresAtMs: number }
+export interface Session {
+  accountId: string; provider: SignInProvider; email?: string; displayName?: string; expiresAtMs: number;
+  /** False when the provider did not vouch for the email (Firebase does not for Microsoft), so it must be verified by link first. */
+  emailVerified?: boolean;
+}
 
 export interface AuthProvider {
   /** Opens the provider's own sign-in. Rejects with a plain-language message if cancelled or unavailable. */

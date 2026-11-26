@@ -324,6 +324,7 @@ export const ga: AreaTranslation<typeof source> = {
       analysing: 'Ag déanamh anailíse',
       ready: 'Réidh le cur in eagar',
       unavailable: 'Níl an bunghrianghraf ar fáil',
+      unsupported: 'Ní féidir a léamh fós',
     },
     nothingMatches: 'Níl aon ghrianghraf ag meaitseáil leis an scagaire reatha.',
   },

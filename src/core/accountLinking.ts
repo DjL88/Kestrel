@@ -1,17 +1,17 @@
 /**
- * One InFlight account, however the person signs in (owner, 25 Nov 2026). Google, Apple and email-and-password are ways
+ * One InFlight account, however the person signs in (owner, 25 Nov 2026). Google, Apple, Microsoft and email-and-password are ways
  * into the same Firebase user, linked on purpose ("account linking"), never a silent second account.
  *
  * Pure: turns Firebase's provider ids and error codes into plain outcomes the Settings screen words in every language.
  */
-export type SignInMethod = 'google' | 'apple' | 'password';
+export type SignInMethod = 'google' | 'apple' | 'microsoft' | 'password';
 
-const BY_PROVIDER: Record<string, SignInMethod> = { 'google.com': 'google', 'apple.com': 'apple', password: 'password' };
+const BY_PROVIDER: Record<string, SignInMethod> = { 'google.com': 'google', 'apple.com': 'apple', 'microsoft.com': 'microsoft', password: 'password' };
 
 /** The ways this account can sign in, in a stable order. Unknown providers are left out. */
 export function methodsFromProviderIds(providerIds: readonly string[]): SignInMethod[] {
   const found = new Set(providerIds.map((id) => BY_PROVIDER[id]).filter((m): m is SignInMethod => m !== undefined));
-  return (['google', 'apple', 'password'] as const).filter((m) => found.has(m));
+  return (['google', 'apple', 'microsoft', 'password'] as const).filter((m) => found.has(m));
 }
 
 /** The ways that could still be added here (Apple and Google only where the build can open them). */

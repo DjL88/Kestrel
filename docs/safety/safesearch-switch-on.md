@@ -1,118 +1,71 @@
-# Switching on SafeSearch (and the same gap for PhotoDNA and NCMEC)
+# Switching on SafeSearch (and PhotoDNA and NCMEC)
 
-> Written 26 November 2026 from `main` (`aadaa2d3`). The owner approved SafeSearch on 26 Nov 2026 (about $1.50 per 1,000 images after the first 1,000 a month). **Nothing here has been run.** This session did not enable any API or change any setting.
+> Updated 26 November 2026 for #1734, which added the Terraform switches. The owner approved SafeSearch on 26 Nov 2026 (about $1.50 per 1,000 images after the first 1,000 a month). **Nothing here has been run against the live project.** No Claude session has enabled an API or changed a live setting.
 
-## How the code switches it on
+## How it is switched on
 
-`services/control-plane/src/wiring.ts`, `buildSafety()`:
+`services/control-plane/src/wiring.ts`, `buildSafety()`, turns SafeSearch on when the control plane has `KCP_SAFESEARCH_ENABLED=1`:
 
 ```ts
 const classifier = env.KCP_SAFESEARCH_ENABLED === '1' ? new CloudVisionSafeSearch(token) : null;
 ```
 
-So SafeSearch needs exactly two things:
+Terraform now sets that, and the PhotoDNA and NCMEC values, from owner switches in `infra/gcp/safety.tf`. Everything there is **off by default**:
 
-1. the **Cloud Vision API** (`vision.googleapis.com`) enabled in project `kestrel-hosting`;
-2. the environment variable **`KCP_SAFESEARCH_ENABLED=1`** on the Cloud Run service `kestrel-control-plane`.
+| Variable | Default | What it does |
+|---|---|---|
+| `safesearch_enabled` | `false` | Enables `vision.googleapis.com` (only when true) and sets `KCP_SAFESEARCH_ENABLED=1` |
+| `photodna_key_secret_id` | `""` | Names the Secret Manager secret with the PhotoDNA key; sets `KCP_PHOTODNA_KEY_SECRET` and lets the control plane read that secret |
+| `ncmec_username`, `ncmec_password_secret_id`, `ncmec_reporter_email`, `ncmec_company` | `""` | Set `KCP_NCMEC_*`; the plan stops if `ncmec_username` is set without the other three |
+| `ncmec_environment` | `"test"` | `"test"` or `"production"`; production only after one test report has passed |
 
-It calls `https://vision.googleapis.com/v1/images:annotate` with the control plane's own service-account token (`contentSafety.ts` `CloudVisionSafeSearch`). No API key. **UNVERIFIED** whether the service account needs an extra IAM role; for a service account calling Vision in its own project, normally none is needed. If the first check returns 403, that is the place to look.
+- The values reach the control plane only when `gallery_enabled` is true, because the checks run only where client galleries are set up (`KCP_GALLERY_BUCKET`, `wiring.ts`). They're set through `local.safety_env` in `infra/gcp/control-plane.tf`.
+- Secret **values** are created by hand by the owner. Terraform names them and grants the control plane's account `secretAccessor` on them. It never reads them.
+- All seven variables are on the `allowed` list in `infra/gcp/switch-features.sh`.
+- `scripts/infra-paid-services.test.mjs` fails if Cloud Vision is enabled anywhere other than `safety.tf`, or if `safesearch_enabled` stops defaulting to off.
+- SafeSearch calls Vision with the control plane's own service-account token (`contentSafety.ts` `CloudVisionSafeSearch`), so no API key is needed. **UNVERIFIED:** whether the service account needs an extra IAM role. Normally none is needed for an account calling Vision in its own project. If the first check returns 403, look there.
 
-SafeSearch only runs where `buildSafety()` runs, which is when galleries are configured (`KCP_GALLERY_BUCKET` set: `wiring.ts`). It also runs only **after** the hash checks, and only on pictures a person has not already released.
+## The order
 
-## The catch: there is no Terraform switch for it
+`switch-features.sh` builds its plan from the `infra/gcp` of **the commit that built the live control-plane image**. So:
 
-- `infra/gcp/control-plane.tf` sets the control plane's environment entirely from Terraform. It has **no** entry for `KCP_SAFESEARCH_ENABLED` (nor for `KCP_PHOTODNA_KEY_SECRET`, `KCP_SAFETY_HASH_LIST_FILE`, or any `KCP_NCMEC_*`).
-- `vision.googleapis.com` is in neither `local.control_plane_services` (`control-plane.tf`) nor the services list in `infra/gcp/main.tf`.
-- `infra/gcp/switch-features.sh` only lets the variables in its `allowed` list change, and none of these is there. So **there is no switch JSON for SafeSearch today.**
-- Setting the variable by hand with `gcloud run services update --update-env-vars` would work until the next `terraform apply` (any deploy or switch change), which would **silently remove it**. SafeSearch would then stop without any error. Hash checks are safer (sharing fails closed without them), but they would also vanish from the environment.
+1. **Deploy the control plane from a `main` commit that includes #1734**, with `infra/gcp/deploy-control-plane.sh` (plan, then apply, then verify). With the new variables left at their defaults, the deploy changes only the image, and the script refuses any plan that changes more.
+2. **Switch SafeSearch on** in Cloud Shell, with the usual live config folder:
 
-So the right way is a small Terraform change first, then the switch.
+   ```bash
+   bash switch-features.sh plan  REPO LIVE_CONFIG_DIR TF_DATA_DIR '{"safesearch_enabled":true}'
+   # the plan should only create google_project_service.vision[0] and update the Cloud Run service
+   bash switch-features.sh apply REPO LIVE_CONFIG_DIR TF_DATA_DIR
+   # type APPLY
+   ```
 
-## Step 1 (backend lane): the Terraform change
+3. Later, after Microsoft approves PhotoDNA and the key is in Secret Manager as `photodna-key`:
 
-Proposed, not applied, not validated (`terraform` is not installed on this laptop). In `infra/gcp/variables.tf`:
+   ```bash
+   bash switch-features.sh plan REPO LIVE_CONFIG_DIR TF_DATA_DIR '{"photodna_key_secret_id":"photodna-key"}'
+   ```
 
-```hcl
-variable "safesearch_enabled" {
-  description = "Hold explicit adult or graphically violent gallery and cloud pictures for review with Google Cloud Vision SafeSearch (paid per image after the free tier). Needs gallery_enabled."
-  type        = bool
-  default     = false
-}
-```
+4. After NCMEC registration, with the password in Secret Manager as `ncmec-password` (stays on NCMEC's test service):
 
-In `infra/gcp/control-plane.tf`, enable the API only when the switch is on:
+   ```bash
+   bash switch-features.sh plan REPO LIVE_CONFIG_DIR TF_DATA_DIR '{"ncmec_username":"<from NCMEC>","ncmec_password_secret_id":"ncmec-password","ncmec_reporter_email":"<safety address>","ncmec_company":"InFlight"}'
+   ```
 
-```hcl
-resource "google_project_service" "vision" {
-  count              = var.safesearch_enabled ? 1 : 0
-  service            = "vision.googleapis.com"
-  disable_on_destroy = false
-}
-```
+   Then `'{"ncmec_environment":"production"}'` only after a Claude worker has run one report against NCMEC's test service.
 
-and inside the Cloud Run container, next to the other `dynamic "env"` blocks:
+Don't set these with `gcloud run services update --update-env-vars`. The next Terraform apply would remove them without any warning.
 
-```hcl
-      dynamic "env" {
-        for_each = var.gallery_enabled && var.safesearch_enabled ? { KCP_SAFESEARCH_ENABLED = "1" } : {}
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-```
+**`terraform validate` was not run on #1734** (Terraform isn't installed on the Windows laptop, and CI doesn't run it). Both owner scripts run `terraform validate` on the candidate configuration before planning, and stop with "Candidate validation failed" if it's bad. They also stop before applying anything that would delete or replace a resource. So a mistake in `safety.tf` stops safely at the plan step and changes nothing live.
 
-Add `google_project_service.vision` to the service's `depends_on`, and add `"safesearch_enabled"` to the `allowed` list in `infra/gcp/switch-features.sh`.
+## Check it works
 
-`switch-features.sh` builds its plan from the `infra/gcp` of **the commit that built the live image**, so after this merges the control plane must be deployed from that `main` commit before the switch can be used.
-
-## Step 2 (owner): switch it on
-
-In Cloud Shell, with the usual live config folder (same as the other switches):
-
-```bash
-bash switch-features.sh plan  REPO LIVE_CONFIG_DIR TF_DATA_DIR '{"safesearch_enabled":true}'
-# read the plan: it should only create google_project_service.vision[0] and update the Cloud Run service
-bash switch-features.sh apply REPO LIVE_CONFIG_DIR TF_DATA_DIR
-# type APPLY
-```
-
-If the owner wants it on before the Terraform change lands (not recommended, see "The catch"), the hand steps are below. Run them from **PowerShell** (Git Bash breaks `gcloud.cmd` on the space in its path):
-
-```powershell
-gcloud services enable vision.googleapis.com --project=kestrel-hosting
-```
-
-```powershell
-gcloud run services update kestrel-control-plane --region=europe-west2 --project=kestrel-hosting --update-env-vars=KCP_SAFESEARCH_ENABLED=1
-```
-
-The next Terraform apply removes the second one.
-
-## Step 3: check it works
-
-1. `GET /v1/admin/safety` (the /admin → Safety page) reports which checks are configured (`checks` in the response, `app.ts`). The classifier should show as `cloud-vision-safesearch`.
+1. /admin → Safety (`GET /v1/admin/safety`, `app.ts`) lists the configured checks. `classifier` should read `cloud-vision-safesearch`.
 2. Publish an ordinary landscape photo to a test gallery: it appears.
-3. Publish a clearly violent but lawful synthetic test image (not a real photo of a person): it is held with `CONTENT_HELD`, a review case appears, and the uploader sees the reason. Release it from /admin → Safety and publish again.
-4. Note: SafeSearch only runs after a hash check has passed. In production nothing can be published until PhotoDNA or a hash list is configured, so these checks need PhotoDNA live too.
+3. Publish a clearly violent but lawful synthetic test image (not a real photo of a person). It should be held with `CONTENT_HELD`, a review case should appear, and the uploader should see the reason. Release it from /admin → Safety and publish again.
+4. SafeSearch runs only after a hash check has passed. In production nothing can be published until PhotoDNA or a hash list is configured, so these checks need PhotoDNA live too.
 
 ## Cost
 
-- Each shared photo is checked at least twice: the preview and the filmstrip picture (gallery and cloud commit routes in `app.ts` each call `safetyCheck()` per variant). So 1,000 photos shared is about 2,000 SafeSearch calls. Pictures a person has released are not re-classified (`contentSafety.ts` `check()`).
-- **UNVERIFIED**: SafeSearch calls are not counted by `services/control-plane/src/spendGuard.ts` (no mention of Vision there). Only the Google budget alert would catch a spike.
-- Add Google Cloud Vision to `site/subprocessors.html` and `site/privacy.html` (images sent for classification, not kept by Google per its terms — **LAW: CHECK** Google's Vision data terms) before switching on.
-
-## The same gap for PhotoDNA and NCMEC
-
-The same Terraform work is needed for the hash checker and the reporter, otherwise they too disappear on the next apply. Suggested variables (secrets stay in Secret Manager; Terraform holds only the secret **names**):
-
-| Variable | Sets | Notes |
-|---|---|---|
-| `photodna_key_secret_id` (string, default `""`) | `KCP_PHOTODNA_KEY_SECRET = "projects/${var.project_id}/secrets/${var.photodna_key_secret_id}/versions/latest"` | Plus a `secretAccessor` binding for the control plane on that secret. |
-| `ncmec_username` (string) | `KCP_NCMEC_USERNAME` | |
-| `ncmec_password_secret_id` (string) | `KCP_NCMEC_PASSWORD_SECRET` | Secret accessor binding as above. |
-| `ncmec_reporter_email` (string) | `KCP_NCMEC_REPORTER_EMAIL` | Dedicated safety address. |
-| `ncmec_company` (string) | `KCP_NCMEC_COMPANY` | |
-| `ncmec_environment` (`"test"` or `"production"`, default `"test"`) | `KCP_NCMEC_ENVIRONMENT` | Production only after one test report has passed. |
-
-Add each to `switch-features.sh`'s `allowed` list. An exact-hash list (`KCP_SAFETY_HASH_LIST_FILE`) also needs a secret mounted as a file; leave that until IWF membership.
+- Each shared photo is checked at least twice: once for the preview and once for the filmstrip picture. The gallery and cloud commit routes in `app.ts` each call `safetyCheck()` per variant. So sharing 1,000 photos makes about 2,000 SafeSearch calls. A picture a person has released is not classified again (`contentSafety.ts` `check()`).
+- **UNVERIFIED:** `services/control-plane/src/spendGuard.ts` does not seem to count SafeSearch calls (it never mentions Vision). Only the Google budget alert would catch a spike.
+- Google Cloud Vision and Microsoft PhotoDNA are named on `site/subprocessors.html` and `site/privacy.html` (#1734). **LAW: CHECK** Google's Vision data terms on whether images are kept.

@@ -321,6 +321,7 @@ export const da: AreaTranslation<typeof source> = {
       analysing: 'Analyserer',
       ready: 'Klar til redigering',
       unavailable: 'Original utilgængelig',
+      unsupported: 'Kan ikke læses endnu',
     },
     nothingMatches: 'Ingen fotos passer til det aktuelle filter.',
   },

@@ -29,4 +29,9 @@ export const de: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Aus ${n} Foto erstellt:`, other: `Aus ${n} Fotos erstellt:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} Blenden`,
   infoHow: "Jeder Bereich stammt aus den Fotos, die dort gut belichtet waren, ausgerichtet und nach Belichtung gewichtet, dann mit Lichtern und Schatten des Editors abgestimmt. Es wurden keine Pixel erzeugt.",
+  whatIs: "HDR heißt hoher Dynamikumfang, nicht hohe Auflösung. Es verbindet mehrere Belichtungen derselben Szene, damit helle Himmel und dunkle Schatten ihre Details behalten.",
+  bracketTitle: "Belichtungsreihe",
+  bracketFound: (n: number, stops: string) => `${n} Fotos, kurz nacheinander mit unterschiedlicher Belichtung aufgenommen (${stops} Blenden).`,
+  bracketFromCamera: "Ihre Kamera hat diese Fotos als Belichtungsreihe markiert.",
+  bracketFromExposures: "Erkannt an Verschlusszeit, Blende und ISO.",
 };

@@ -3,6 +3,13 @@ import { proveTiff16 } from '../core/tiff16Proof';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
 import { hasNativeRaw } from './desktopShell';
 import { developRawInBrowser, inspectSensorModeInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
+import { unsupportedRawCompression } from '../core/rawCompression';
+import { engineText } from '../i18n/areas/engine';
+
+/** Refuse, in plain words, a RAW whose compression the decoder can't read yet (a JPEG XL DNG), before reading it all. */
+async function assertReadableCompression(file: Blob): Promise<void> {
+  if (await unsupportedRawCompression(file)) throw new Error(engineText.workspace.rawJpegXl);
+}
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
 export function validateRawExtension(extension: string): string {
@@ -33,6 +40,7 @@ export async function developRaw(file: Blob, extension = 'nef', options?: { size
   // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
+  if (normalizedExtension === 'dng') await assertReadableCompression(file);
   if (!hasNativeRaw()) return developRawInBrowser(file);
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -59,6 +67,7 @@ export async function developRaw(file: Blob, extension = 'nef', options?: { size
  */
 export async function developRawRgb16(file: Blob): Promise<ArrayBuffer> {
   const { parseRgb16 } = await import('../core/master16');
+  await assertReadableCompression(file);
   let picture: ArrayBuffer;
   if (!hasNativeRaw()) {
     const { developRaw16InBrowser } = await import('./rawWasm');
