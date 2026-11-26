@@ -1277,6 +1277,8 @@ export const is: AreaTranslation<typeof source> = {
     evidenceRaw: "RAW-skrá án nokkurrar breytingar skráðrar í henni.",
     evidenceMakerNotes: "Framleiðendagögn myndavélarinnar eru óbreytt og ekkert myndvinnsluforrit er nefnt.",
     evidenceUnrecognised: (app: string) => `Vista\u00f0 me\u00f0 ${app}, sem InFlight \u00feekkir ekki.`,
+    evidenceSidecar: "XMP-hliðarskrá við hliðina geymir breytingastillingar.",
+    evidenceSidecarApp: (app: string) => `XMP-hliðarskrá frá ${app} við hliðina geymir breytingastillingar.`,
     evidenceNone: "Skráin segir það ekki.",
     rawColourSource: "Eigið litafylki myndavélarinnar úr RAW-skránni, staðalútlit InFlight (ekki myndstíll framleiðandans)",
     heading: 'Myndaupplýsingar',

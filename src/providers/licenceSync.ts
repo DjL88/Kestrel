@@ -32,6 +32,8 @@ const GRANT = 'kestrel.licence.grant.v1';
 const REVOKED = 'kestrel.licence.revoked.v1';
 const DENIED = 'kestrel.licence.denied.v1';
 const ACCOUNT_GRANT = 'kestrel.licence.account-grant.v1';
+/** When each key was first used on this device (by key hash), for the one-time check-in (NEW_DEVICE_CHECK_IN_DAYS). */
+const FIRST_USE = 'kestrel.licence.first-use.v1';
 const TIMEOUT_MS = 12_000;
 
 interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash: string }
@@ -193,7 +195,8 @@ export class LicenceSync {
       const check = await verifyEntitlementGrant(reply.json.grant, this.o.grantKeys, await this.deviceHash());
       if (checkId !== this.accountCheck || !check.ok || typeof reply.json.activationId !== 'string') return null;
       this.write(ACCOUNT_GRANT, JSON.stringify({ envelope: reply.json.grant, activationId: reply.json.activationId }));
-      return { kind: 'active', grant: check.grant, activationId: reply.json.activationId };
+      const licenceKey = typeof reply.json.licenceKey === 'string' && reply.json.licenceKey.startsWith('KESTREL1.') ? reply.json.licenceKey : undefined;
+      return { kind: 'active', grant: check.grant, activationId: reply.json.activationId, ...(licenceKey ? { licenceKey } : {}) };
     } catch { return null; }
   }
 
@@ -337,4 +340,20 @@ export class LicenceSync {
 
   /** Forget everything about the key on this device (the device id stays, so a re-entered key reuses its slot). */
   forget(): void { this.write(GRANT, null); this.write(REVOKED, null); this.write(DENIED, null); }
+
+  /**
+   * When this key was first used on this device, recorded now if it never was. Null for builds with no licence service,
+   * which never ask a device to register. Removing the key keeps the record, so pasting it again does not restart it.
+   */
+  async firstUse(key: string, nowMs: number): Promise<number | null> {
+    if (!this.configured) return null;
+    const hash = await this.keyHash(key);
+    let seen: Record<string, number> = {};
+    try { seen = JSON.parse(this.read(FIRST_USE) ?? '{}') as Record<string, number>; } catch { /* damaged: start again */ }
+    const at = seen[hash];
+    if (Number.isSafeInteger(at) && at <= nowMs) return at;
+    seen = { ...Object.fromEntries(Object.entries(seen).slice(-9)), [hash]: nowMs };
+    this.write(FIRST_USE, JSON.stringify(seen));
+    return nowMs;
+  }
 }

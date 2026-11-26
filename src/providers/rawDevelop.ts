@@ -232,6 +232,30 @@ export async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
 }
 
 /**
+ * How far (clockwise) a developed picture must turn to match the camera's own preview, without making the turned copy:
+ * the desktop preview cache turns its stored files itself (preview_cache_rotate). 0 when they match, there is no
+ * preview, or either picture cannot be opened.
+ */
+export async function previewTurn(developed: Blob, preview: Blob | null): Promise<0 | 90 | 180 | 270> {
+  if (!preview) return 0;
+  let picture: ImageBitmap | undefined;
+  let guide: ImageBitmap | undefined;
+  try {
+    picture = await createImageBitmap(developed);
+    guide = await createImageBitmap(preview);
+    return bestTurn(
+      { thumb: await thumbOf(guide), portrait: guide.height > guide.width },
+      { thumb: await thumbOf(picture), portrait: picture.height > picture.width },
+    );
+  } catch {
+    return 0;
+  } finally {
+    picture?.close();
+    guide?.close();
+  }
+}
+
+/**
  * Turn a developed picture to match the camera's own preview. The sensor data is stored sideways-on and some cameras'
  * rotation flags say "normal" for an upright-portrait photo, so the preview, which the camera rotated, is the guide.
  * Returns the picture untouched when it already matches or there is no preview to compare with.

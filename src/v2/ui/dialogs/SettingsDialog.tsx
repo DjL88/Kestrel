@@ -2,6 +2,7 @@ import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/loca
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import BrowserStorageSection from './BrowserStorageSection';
+import DiskPreviewSection from './DiskPreviewSection';
 import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
 import CloudUsagePanel from '../panels/CloudUsagePanel';
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
@@ -595,6 +596,7 @@ export default function SettingsDialog({
                 </section>
 
                 <BrowserStorageSection />
+                <DiskPreviewSection />
                 <StorageConnections />
                 <div>
                     <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>

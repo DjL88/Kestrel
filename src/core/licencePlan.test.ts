@@ -6,7 +6,13 @@ import { licencePlan } from './licencePlan';
 // read from the licence store's state, so it is right before any check is made.
 test('Pro through an account, with its offline date', () => {
   const plan = licencePlan({ status: 'account', access: { pro: true }, standing: { kind: 'active', grant: { offlineUntilMs: 1_800_000_000_000 } } });
-  assert.deepEqual(plan, { kind: 'pro-account', offlineUntilMs: 1_800_000_000_000 });
+  assert.deepEqual(plan, { kind: 'pro-account', offlineUntilMs: 1_800_000_000_000, owned: false });
+});
+
+test('Pro bought outright through an account has no offline date to show', () => {
+  const grant = { plan: 'paid' as const, offlineUntilMs: 1_800_000_000_000, flags: { 'licence.owned': { on: true } } };
+  assert.deepEqual(licencePlan({ status: 'account', access: { pro: true }, standing: { kind: 'active', grant } }),
+    { kind: 'pro-account', offlineUntilMs: null, owned: true });
 });
 
 test('Pro through a licence key', () => {

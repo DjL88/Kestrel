@@ -28,4 +28,16 @@ export const cy: AreaTranslation<typeof source> = {
     forget: "Mae eich prosiectau, penderfyniadau, golygiadau a rhagolygon yn cael eu cadw yn y porwr hwn. Gall clirio data pori, defnyddio ffenestr breifat neu ddadosod y porwr eu dileu. Nid yw eich lluniau gwreiddiol byth yn cael eu storio na'u newid yma, felly maen nhw'n ddiogel.",
     backupHint: "I fod yn ddiogel, gwnewch gopi wrth gefn o'r prosiect o'i opsiynau a'i gadw, gyda'ch rhai gwreiddiol, yn rhywle y tu allan i'r porwr hwn.",
   },
+  diskPreviews: {
+    title: "Rhagolygon ar y cyfrifiadur hwn",
+    intro: "Mae InFlight yn cadw tri llun bach o bob llun RAW yn ei ffolder ei hun: llun bach, copi i’w adolygu a rhagolwg clyfar 2,560 px. Gallwch chi barhau i olygu llun pan nad yw ei yriant wedi’i gysylltu. Mae allforio yn dal i fod angen y gwreiddiol. Nid yw eich lluniau gwreiddiol byth yn cael eu newid.",
+    using: "Yn defnyddio {used} ar gyfer {count} llun.",
+    checking: "Yn gwirio’r ffolder rhagolygon…",
+    limitLabel: "Terfyn maint",
+    limitDefault: "{size} (awgrymir ar gyfer y cyfrifiadur hwn)",
+    limitHint: "Mae lle i tua {count} llun. Pan fydd y ffolder yn llawn, caiff y rhagolygon nad ydych wedi edrych arnyn nhw ers hiraf eu tynnu. Cânt eu gwneud eto pan fyddwch chi’n agor y lluniau hynny gyda’u gyriant wedi’i gysylltu.",
+    clear: "Tynnu pob rhagolwg",
+    cleared: "Rhagolygon wedi’u tynnu. Cânt eu gwneud eto wrth i chi edrych ar luniau.",
+    failed: "Nid oedd modd darllen y ffolder rhagolygon.",
+  },
 };

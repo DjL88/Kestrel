@@ -7,7 +7,7 @@
  *
  * Nothing here ever locks, hides or deletes local work: Free editing, projects, backup and export never depend on it.
  */
-import type { EntitlementGrant } from './entitlementGrant';
+import { grantIsOwned, type EntitlementGrant } from './entitlementGrant';
 import type { PinnedKeys } from './signedEnvelope';
 
 const DAY_MS = 86_400_000;
@@ -21,7 +21,7 @@ export type KestrelPlatform = 'windows' | 'macos' | 'web' | 'ios' | 'android';
 /** What the control plane last said about this key on this device. */
 export type OnlineStanding =
   | { kind: 'not_set_up' }                 // this build has no control plane address or pinned grant key
-  | { kind: 'not_checked' }                // set up, but not reached yet
+  | { kind: 'not_checked' }                // set up, but not registered yet
   | { kind: 'active'; grant: EntitlementGrant; activationId: string }
   | { kind: 'device_limit'; message: string }
   | { kind: 'revoked'; message: string }   // revoked or expired on the server
@@ -68,8 +68,8 @@ export interface AccessDecision {
   pro: boolean;
   /** The online helper may be offered (the server still checks every request). */
   managedAi: boolean;
-  /** Why, in one word, for the Licence screen. */
-  basis: 'grant' | 'key' | 'revoked' | 'none';
+  /** Why, in one word, for the Licence screen. 'check_in': a new device that has gone too long without registering once. */
+  basis: 'grant' | 'key' | 'revoked' | 'none' | 'check_in';
 }
 
 /**
@@ -82,7 +82,22 @@ export interface AccessDecision {
  *   Once expired or unavailable, local Pro stays unlocked by the signed key, but managed AI is off.
  * - A known device limit, revoke or expiry takes precedence over the key; Free stays usable.
  */
-export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs: number): AccessDecision {
+/**
+ * A device that has never registered its key keeps Pro this long from the first time the key is used on it, then needs
+ * one successful registration. That one check-in is what counts the device against the key's limit, so a key cannot be
+ * spread across any number of devices that never go online. Once registered, the device keeps Pro offline for good.
+ * Builds with no licence service (not_set_up) never ask.
+ */
+export const NEW_DEVICE_CHECK_IN_DAYS = 30;
+
+/** Days left for a never-registered device to check in, or null when it does not need to. */
+export function checkInDaysLeft(standing: OnlineStanding, firstUseMs: number | null, nowMs: number): number | null {
+  const unregistered = standing.kind === 'not_checked' || (standing.kind === 'unreachable' && !standing.grant);
+  if (!unregistered || firstUseMs === null) return null;
+  return Math.max(0, Math.ceil((firstUseMs + NEW_DEVICE_CHECK_IN_DAYS * DAY_MS - nowMs) / DAY_MS));
+}
+
+export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs: number, firstUseMs: number | null = null): AccessDecision {
   if (!keyValid) return { pro: false, managedAi: false, basis: 'none' };
   if (standing.kind === 'revoked') return { pro: false, managedAi: false, basis: 'revoked' };
   // A known server denial is authoritative. Never promote a new device that could not activate.
@@ -94,6 +109,8 @@ export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs:
   if (grant && grant.plan === 'free') return { pro: false, managedAi: false, basis: 'none' };
   if (grant && nowMs <= grant.offlineUntilMs)
     return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
+  if (firstUseMs !== null && checkInDaysLeft(standing, firstUseMs, nowMs) === 0 && nowMs > firstUseMs + NEW_DEVICE_CHECK_IN_DAYS * DAY_MS)
+    return { pro: false, managedAi: false, basis: 'check_in' };
   // Last signed key status is Pro even on the first launch; managed AI always
   // requires a verified device grant with a live offline window.
   return { pro: true, managedAi: false, basis: 'key' };
@@ -102,17 +119,22 @@ export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs:
 /** What the control plane last said about this device for the signed-in account (there is no key to fall back on). */
 export type AccountStanding =
   | { kind: 'no_licence' }                 // signed in, nothing bought or granted: Free, and that is fine
-  | { kind: 'active'; grant: EntitlementGrant; activationId: string }
+  | { kind: 'active'; grant: EntitlementGrant; activationId: string; /** Bought outright: the buyer's own key, to keep on the device. */ licenceKey?: string }
   | { kind: 'device_limit'; message: string }
   | { kind: 'revoked'; message: string };
 
 /**
- * Pro from an account. Unlike a key, an account has nothing to fall back on: only a verified paid grant inside its
- * offline window counts, so signing in alone never unlocks anything. Free work is never touched either way.
+ * Pro from an account. Signing in alone never unlocks anything: only a verified paid grant counts. A grant for a
+ * licence bought outright (`grantIsOwned`) keeps Pro on this device past its offline window; any other grant (a gift,
+ * a time-limited licence) counts only inside its window. Free work is never touched either way.
  */
 export function decideAccountAccess(standing: AccountStanding, nowMs: number): AccessDecision {
   if (standing.kind !== 'active') return { pro: false, managedAi: false, basis: standing.kind === 'revoked' ? 'revoked' : 'none' };
   const { grant } = standing;
-  if (grant.plan === 'free' || nowMs > grant.offlineUntilMs) return { pro: false, managedAi: false, basis: 'none' };
+  if (grant.plan === 'free') return { pro: false, managedAi: false, basis: 'none' };
+  const withinWindow = nowMs <= grant.offlineUntilMs;
+  // Bought outright: Pro stays on this device for good, online or not. Managed AI still needs a live window.
+  if (grantIsOwned(grant)) return { pro: true, managedAi: withinWindow && grant.managedAi, basis: 'grant' };
+  if (!withinWindow) return { pro: false, managedAi: false, basis: 'none' };
   return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
 }

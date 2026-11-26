@@ -37,6 +37,7 @@ import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { projectPreviewBlobs } from './projectCover';
+import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
@@ -80,6 +81,8 @@ import { measuringCopy, raw16Possible, raw16WorkingFor } from '../../providers/r
 import { renderRaw16Working } from '../../providers/rawMaster16';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
+import { parseImageExif } from '../../core/exifParser';
+import { editStatusWithSidecar } from '../../providers/editStatusSidecar';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { dropSourcePreview, dropSourceUrls } from './previewInvalidation';
 import { applyCanvasExportEdit, applyCanvasPhotoEdit } from '../../core/canvasEdit';
@@ -713,7 +716,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const frames = stateRef.current?.frames ?? [];
     if (!source || !activeId || !urls[activeId]?.preview || (!can('cullWarmup') && !cullWarmupPreviewOn())) return;
     let live = true;
-    const neighbours = warmupNeighbours(frames, activeId);
+    // How far ahead, and how many decoded pictures are held, comes from the device's memory budget.
+    const budget = deviceMemoryBudget();
+    const neighbours = warmupNeighbours(frames, activeId, budget.readAheadReach);
     void (async () => {
       for (const frame of neighbours) {
         if (!live) return;
@@ -726,7 +731,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         await image.decode().catch(() => undefined);
         warmed.current.delete(frame.id);
         warmed.current.set(frame.id, image);
-        while (warmed.current.size > 4) warmed.current.delete(warmed.current.keys().next().value!);
+        while (warmed.current.size > budget.readAheadHeld) warmed.current.delete(warmed.current.keys().next().value!);
       }
     })();
     return () => { live = false; };
@@ -830,6 +835,48 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     })();
     return () => { live = false; };
   }, [rawSizeWaiting, mutate]);
+
+  // Photos imported before the edit-status check (src/core/editStatus.ts) have none: read it in the background, once per
+  // photo per session, from the first megabyte of the original (and its XMP sidecar on the desktop). Only the status is
+  // recorded; nothing else in the photo's metadata changes, and an original that cannot be reached now is tried next time.
+  const editStatusTried = useRef(new Set<string>());
+  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && !frame.exif.editStatus && !editStatusTried.current.has(frame.id);
+  // Only whether any photo is waiting: the fill's own writes must not restart it.
+  const editStatusWaiting = (state?.frames ?? []).some(needsEditStatus);
+  const editStatusProject = state?.shoot.id;
+  useEffect(() => {
+    if (!editStatusWaiting || !provider.current) return;
+    let live = true;
+    const timer = window.setTimeout(() => void (async () => {
+      const found = new Map<string, NonNullable<PhotoFrame['exif']['editStatus']>>();
+      const flush = () => {
+        if (!found.size || !live) return;
+        const batch = new Map(found);
+        found.clear();
+        mutate((current) => ({ ...current, frames: current.frames.map((item) => {
+          const status = batch.get(item.id);
+          return status && !item.exif.editStatus ? { ...item, exif: { ...item.exif, editStatus: status } } : item;
+        }) }));
+      };
+      for (const id of (stateRef.current?.frames ?? []).filter(needsEditStatus).map((frame) => frame.id)) {
+        if (!live) return;
+        editStatusTried.current.add(id);
+        const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
+        if (!frame || frame.exif.editStatus) continue;
+        const head = await provider.current?.readOriginalHead(frame.stableKey).catch(() => undefined);
+        if (!head || !live) continue;
+        const exif = await parseImageExif(head, frame.filename).catch(() => null);
+        const status = await editStatusWithSidecar(exif?.editStatus, frame.filename, frame.sourcePath).catch(() => exif?.editStatus);
+        if (status) found.set(id, status);
+        if (found.size >= 25) flush();
+        // Leave the main thread to the person between photos.
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      }
+      flush();
+    })(), 4000);
+    return () => { live = false; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editStatusWaiting, editStatusProject, mutate]);
 
   const removePhotos = useCallback((given: string[]) => {
     const ids = withPartners(given, pairsRef.current);
@@ -1927,7 +1974,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             provider.current!.registerLinked(key, {
               read: linkedReader(path, frame.filename, lastModified, size || undefined, frame.originalSha256!),
               openRange: linkedRangeOpener(path, size || undefined, frame.originalSha256!),
-              size, lastModified,
+              size, lastModified, path, sha256: frame.originalSha256,
             });
             provider.current!.retryLinkedOriginal(key);
           }

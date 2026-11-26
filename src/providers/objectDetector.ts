@@ -268,3 +268,6 @@ export async function findSubjects(source: Source, signal?: AbortSignal): Promis
       ...(agreement ? { agreement, review } : {}),
     }));
 }
+
+/** The checked detector bytes (a signed same-contract update first), for the culling workers (cullObservationPool.ts). */
+export const verifiedDetectorModel = verifiedModel;

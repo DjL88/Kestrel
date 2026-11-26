@@ -28,6 +28,7 @@ async function rig(opts: { safeCopyBytes?: number } = {}) {
   const delegate = {
     status: (a: string) => service.status(a), preview: (a: string) => service.preview(a), schedule: (a: string, c: string) => service.schedule(a, c),
     cancel: (a: string) => service.cancel(a), exportData: (a: string) => service.exportData(a), erase: (a: string) => service.erase(a), runDue: () => service.runDue(),
+    owedRefunds: () => service.owedRefunds(), markRefunded: (a: string, r: string) => service.markRefunded(a, r),
   };
   const h = await startHarness(null, undefined, { collab, accountErasure: delegate });
   service = accountErasure({
@@ -74,8 +75,10 @@ async function rig(opts: { safeCopyBytes?: number } = {}) {
     schedule: async (token: Promise<string>, confirm: string) => h.call('POST', '/v1/me/deletion', { token: await token, body: { confirm } }),
     cancel: async (token: Promise<string>) => h.call('POST', '/v1/me/deletion/cancel', { token: await token }),
     run: async () => h.call('POST', '/v1/admin/account-deletions/run', { token: await session(adminId, 'admin') }),
+    refunds: async (token?: string) => h.call('GET', '/v1/admin/balance-refunds', { token: token ?? await session(adminId, 'admin') }),
+    refunded: async (accountId: string, paddleReference: string) => h.call('POST', `/v1/admin/balance-refunds/${accountId}/refunded`, { token: await session(adminId, 'admin'), body: { paddleReference } }),
   };
-  return { h, db, storage, collab, push, contacts, learned, ann, bob, kites, raptors, annsComment, call };
+  return { h, db, balance, storage, collab, push, contacts, learned, ann, bob, kites, raptors, annsComment, call };
 }
 
 test('Download my data: the account, licences, devices, projects, cloud photo list, comments and purchases, as JSON', async () => {
@@ -168,6 +171,32 @@ test('after 30 days the control plane deletes for real; Paddle orders stay and o
 
     assert.deepEqual((await call.run()).body, { deleted: 0, failed: 0 }, 'running again changes nothing');
     assert.equal((await call.exportData(bob.token)).status, 200, 'Bob is untouched');
+  } finally { await h.close(); }
+});
+
+test('an unused cloud balance is owed back, not lost: listed for a Paddle refund, rounded up to the penny', async () => {
+  const { h, balance, ann, call } = await rig();
+  try {
+    await balance.debit(ann.id, 400, 'job:1'); // £2.49 and 0.6p left
+    await call.schedule(ann.token, 'DELETE');
+    h.clock.now += DELETION_GRACE_MS;
+    const annToken = await ann.token;
+    assert.deepEqual((await call.run()).body, { deleted: 1, failed: 0 });
+    assert.equal(await balance.millicredits(ann.id), 0, 'the balance is emptied');
+    const owed = await call.refunds();
+    assert.equal(owed.status, 200);
+    assert.deepEqual(owed.body.refunds.map((r: any) => [r.accountId, r.millicredits, r.pence, r.status]), [[ann.id, 249_600, 250, 'owed']]);
+    const audit = await h.app.store.listAudit(50);
+    assert.ok(audit.some((e) => e.action === 'balance.refund_owed' && e.detail.startsWith('250p')));
+    assert.match(audit.find((e) => e.action === 'account.deletion.done')!.detail, /refundPence=250/);
+
+    assert.equal((await call.refunds(annToken)).status, 401, 'not for the person, and her session is gone anyway');
+    const paid = await call.refunded(ann.id, 'adj_01');
+    assert.equal(paid.status, 200);
+    assert.deepEqual([paid.body.refund.status, paid.body.refund.paddleReference], ['refunded', 'adj_01']);
+    assert.deepEqual((await call.refunds()).body.refunds, [], 'nothing left owed');
+    assert.equal((await call.refunded(ann.id, 'adj_02')).body.refund.paddleReference, 'adj_01', 'marking twice keeps the first');
+    assert.equal((await call.refunded('acc_nobody', 'adj_03')).status, 404);
   } finally { await h.close(); }
 });
 

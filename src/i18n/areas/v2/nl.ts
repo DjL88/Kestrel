@@ -1277,6 +1277,8 @@ export const nl: AreaTranslation<typeof source> = {
     evidenceRaw: "Een RAW-bestand zonder vastgelegde bewerking.",
     evidenceMakerNotes: "De fabrikantgegevens van de camera zijn intact en er wordt geen bewerkingsprogramma genoemd.",
     evidenceUnrecognised: (app: string) => `Opgeslagen door ${app}, dat InFlight niet herkent.`,
+    evidenceSidecar: "Een XMP-bijbestand ernaast bevat bewerkingsinstellingen.",
+    evidenceSidecarApp: (app: string) => `Een XMP-bijbestand van ${app} ernaast bevat bewerkingsinstellingen.`,
     evidenceNone: "Het bestand zegt het niet.",
     rawColourSource: "De eigen kleurmatrix van de camera uit het RAW-bestand, standaardweergave van InFlight (niet de beeldstijl van de fabrikant)",
     heading: 'Foto-info',

@@ -1277,6 +1277,8 @@ export const de: AreaTranslation<typeof source> = {
     evidenceRaw: "Eine RAW-Datei ohne darin gespeicherte Bearbeitung.",
     evidenceMakerNotes: "Die Herstellerdaten der Kamera sind vollständig und kein Bearbeitungsprogramm wird genannt.",
     evidenceUnrecognised: (app: string) => `Gespeichert von ${app}, das InFlight nicht kennt.`,
+    evidenceSidecar: "Eine XMP-Begleitdatei daneben enthält Einstellungen zur Bearbeitung.",
+    evidenceSidecarApp: (app: string) => `Eine XMP-Begleitdatei von ${app} daneben enthält Einstellungen zur Bearbeitung.`,
     evidenceNone: "Die Datei sagt es nicht.",
     rawColourSource: "Die Farbmatrix der Kamera aus der RAW-Datei, InFlight-Standardlook (nicht der Bildstil des Herstellers)",
     heading: 'Fotoinfo',

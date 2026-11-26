@@ -28,4 +28,16 @@ export const source = {
     forget: "Your projects, decisions, edits and previews are kept in this browser. Clearing browsing data, using a private window or uninstalling the browser can remove them. Your original photos are never stored or changed by this, so they are safe.",
     backupHint: "To be safe, make a project backup from the project’s options and keep it, with your originals, somewhere outside this browser.",
   },
+  diskPreviews: {
+    title: "Previews on this computer",
+    intro: "InFlight keeps three small pictures of each RAW photo in its own folder: a thumbnail, a review copy and a 2,560 px smart preview. You can keep editing a photo with its drive unplugged; exporting still needs the original. Your originals are never changed.",
+    using: "Using {used} for {count} photos.",
+    checking: "Checking the preview folder…",
+    limitLabel: "Size limit",
+    limitDefault: "{size} (suggested for this computer)",
+    limitHint: "About {count} photos fit. When the folder is full, the previews you have not looked at for longest go first. They are made again when you open those photos with their drive connected.",
+    clear: "Remove all previews",
+    cleared: "Previews removed. They are made again as you look at photos.",
+    failed: "The preview folder could not be read.",
+  },
 };

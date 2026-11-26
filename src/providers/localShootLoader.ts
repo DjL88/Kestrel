@@ -12,6 +12,7 @@ import { isDesktopApp } from './desktopShell';
 import { appCopiesAvailable, copyIntoAppStorage } from './appStorageCopies';
 import { headBlob, materialize, openLinkedRange, type RangeBlob } from './rangeBlob';
 import { hashOriginalBytes, isSameOriginalBytes } from '../core/originalFileIdentity';
+import { editStatusWithSidecar, sidecarIndex } from './editStatusSidecar';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -110,7 +111,7 @@ async function importLinkedWithoutFullRead(
     } catch {
       return null;
     }
-    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
+    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified, path: file.path, sha256: originalSha256 });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
     } catch {
@@ -133,6 +134,8 @@ export async function loadLocalFileListShoot(
    */
   options: { allowPartial?: boolean; signal?: AbortSignal; onFrameReady?: (frame: PhotoFrame) => void } = {},
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[]; failedNames: string[]; stopped: boolean }> {
+  // A folder pick brings the .xmp sidecars along: they say whether a photo was edited in another app.
+  const sidecars = sidecarIndex(files);
   const sortedFiles = files
     .map((f) => (f instanceof File ? pickedFromFile(f) : f))
     .filter((f) => isSupportedPhotoFilename(f.name))
@@ -169,7 +172,9 @@ export async function loadLocalFileListShoot(
           // Only the embedded preview and the EXIF are read here, not the whole RAW (about 3 MB of a 29 MB NEF).
           const imported = await importLinkedWithoutFullRead(file as PickedPhoto & { path: string }, stableKey, previewProvider, uncachedPreviewKeys);
           if (imported === null) return null;
-          return { ...frameFor(file, stableKey, idx, imported.exif), originalSha256: imported.originalSha256 };
+          const editStatus = await editStatusWithSidecar(imported.exif.editStatus, file.name, file.path, sidecars);
+          const exif = editStatus ? { ...imported.exif, editStatus } : imported.exif;
+          return { ...frameFor(file, stableKey, idx, exif), originalSha256: imported.originalSha256 };
         }
         let opened: File;
         let originalSha256: string | undefined;
@@ -188,7 +193,7 @@ export async function loadLocalFileListShoot(
         }
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
-          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
+          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified, path: file.path, sha256: originalSha256 });
           try {
             if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
           } catch {
@@ -221,6 +226,8 @@ export async function loadLocalFileListShoot(
         }
 
         const exif = await parseImageExif(opened, file.name);
+        const editStatus = await editStatusWithSidecar(exif.editStatus, file.name, file.path, sidecars);
+        if (editStatus) exif.editStatus = editStatus;
         const copiedTo = copiedPaths.get(stableKey);
         const frame = frameFor(copiedTo ? { ...file, path: copiedTo } : file, stableKey, idx, exif);
         return originalSha256 ? { ...frame, originalSha256 } : frame;
@@ -269,8 +276,9 @@ export async function loadLocalFileListShoot(
 
 export async function readFilesFromDirectoryHandle(
   dirHandle: FileSystemDirectoryHandle
-): Promise<{ name: string; file: File; relativePath: string }[]> {
-  const entries: { name: string; file: File; relativePath: string }[] = [];
+): Promise<{ name: string; file: File; relativePath: string; sidecars?: ReturnType<typeof sidecarIndex> }[]> {
+  const entries: { name: string; file: File; relativePath: string; sidecars?: ReturnType<typeof sidecarIndex> }[] = [];
+  const xmp: File[] = [];
 
   // Single-level folder scan (safe and predictable for a shoot folder)
   for await (const [, handle] of (
@@ -286,11 +294,15 @@ export async function readFilesFromDirectoryHandle(
         file,
         relativePath: `${dirHandle.name}/${file.name}`,
       });
+    } else if (handle.kind === 'file' && handle.name.toLowerCase().endsWith('.xmp')) {
+      // Read only for whether a photo was edited in another app (src/core/editStatus.ts).
+      xmp.push(await (handle as FileSystemFileHandle).getFile());
     }
   }
 
+  const sidecars = xmp.length ? sidecarIndex(xmp) : undefined;
   entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  return entries;
+  return sidecars ? entries.map((entry) => ({ ...entry, sidecars })) : entries;
 }
 
 export async function loadDirectoryHandleShoot(
@@ -324,6 +336,8 @@ export async function loadDirectoryHandleShoot(
         previewProvider.registerBlob(stableKey, entry.file);
 
         const exif = await parseImageExif(entry.file, entry.name);
+        const editStatus = await editStatusWithSidecar(exif.editStatus, entry.name, undefined, entry.sidecars);
+        if (editStatus) exif.editStatus = editStatus;
         if (!exif.capturedAtMs && entry.file.lastModified) {
           exif.capturedAtMs = entry.file.lastModified;
         }
@@ -422,6 +436,7 @@ export async function rehydrateLocalFramesFromStore(
       read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
       openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
       size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
+      path: frame.sourcePath, sha256: frame.originalSha256,
     });
   }
   const linkedKeys = new Set(frames.filter((frame) => frame.sourcePath).map((frame) => frame.stableKey));

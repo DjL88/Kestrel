@@ -62,6 +62,24 @@ export function parseEntitlementGrant(input: unknown): EntitlementGrant | null {
   return parsed;
 }
 
+/**
+ * The grant flag that says "this device's Pro was bought outright". It rides in `flags` (not a new field) because
+ * older apps reject a grant with unknown fields but accept unknown flags, so they keep working unchanged.
+ * The control plane sets it only for a paid, one-off, non-expiring licence, and always overrides any admin flag of the
+ * same name, so a gift or a feature-flag rule can never claim it.
+ */
+export const OWNED_GRANT_FLAG = 'licence.owned';
+
+/**
+ * Bought outright: Pro on this device does not lapse when the offline window ends, so a server outage, a bad server
+ * release or InFlight going away cannot lock a buyer out. Only a refund or revoke heard online removes it.
+ * The window still bounds managed AI, which runs on our servers anyway.
+ */
+export function grantIsOwned(grant: Partial<Pick<EntitlementGrant, 'plan' | 'flags'>>): boolean {
+  const flag = grant.flags?.[OWNED_GRANT_FLAG];
+  return grant.plan === 'paid' && flag?.on === true && flag.trial !== true && flag.endsAtMs === undefined;
+}
+
 export type GrantCheck =
   | { ok: true; grant: EntitlementGrant }
   | { ok: false; reason: 'malformed' | 'unknown_key' | 'bad_signature' | 'other_device' };

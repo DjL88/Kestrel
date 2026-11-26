@@ -28,4 +28,16 @@ export const ga: AreaTranslation<typeof source> = {
     forget: "Coinnítear do thionscadail, do chinntí, d'eagarthóireacht agus do réamhamhairc sa bhrabhsálaí seo. Is féidir iad a bhaint trí shonraí brabhsála a ghlanadh, fuinneog phríobháideach a úsáid nó an brabhsálaí a dhíshuiteáil. Ní stóráiltear ná ní athraítear do bhunghrianghraif anseo riamh, mar sin tá siad slán.",
     backupHint: "Le bheith slán, déan cúltaca ó roghanna an tionscadail agus coinnigh é, in éineacht le do bhunghrianghraif, áit éigin lasmuigh den bhrabhsálaí seo.",
   },
+  diskPreviews: {
+    title: "Réamhamhairc ar an ríomhaire seo",
+    intro: "Coinníonn InFlight trí phictiúr bheaga de gach grianghraf RAW ina fhillteán féin: mionsamhail, cóip athbhreithnithe agus réamhamharc cliste 2,560 px. Is féidir leat leanúint ar aghaidh ag cur grianghraf in eagar nuair nach bhfuil a thiomántán ceangailte. Tá an bunleagan fós ag teastáil le heaspórtáil. Ní athraítear do bhunleaganacha riamh.",
+    using: "{used} in úsáid do {count} grianghraf.",
+    checking: "Ag seiceáil fhillteán na réamhamharc…",
+    limitLabel: "Teorainn mhéide",
+    limitDefault: "{size} (molta don ríomhaire seo)",
+    limitHint: "Tá spás do thart ar {count} grianghraf. Nuair a bhíonn an fillteán lán, baintear na réamhamhairc nár fhéach tú orthu le fada. Déantar arís iad nuair a osclaíonn tú na grianghraif sin agus a dtiomántán ceangailte.",
+    clear: "Bain gach réamhamharc",
+    cleared: "Baineadh na réamhamhairc. Déantar arís iad agus tú ag féachaint ar ghrianghraif.",
+    failed: "Níorbh fhéidir fillteán na réamhamharc a léamh.",
+  },
 };
