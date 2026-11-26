@@ -20,6 +20,12 @@ export const fi: AreaTranslation<typeof source> = {
     done: "Valmis. InFlight ei lähetä enää sähköpostia tähän osoitteeseen.",
     invalid: "Linkki ei ole kelvollinen.",
     invalidHint: "Vastaa viestiin, niin lopetamme.",
+    stopNews: "Lopeta InFlight-uutiset sähköpostissa",
+    stopNotices: "Lopeta sähköpostit jaetuista projekteistasi",
+    confirmNews: "Paina painiketta, niin InFlight-uutisia ei enää lähetetä sähköpostiin. Tiliä koskevat viestit, kuten lisenssiavain, tulevat yhä.",
+    confirmNotices: "Paina painiketta, niin jaetuista projekteistasi ei enää lähetetä sähköpostia. Näet ne yhä sovelluksessa.",
+    doneNews: "Valmis. Voit ottaa uutiset sähköpostiin taas käyttöön InFlightissa kohdassa Asetukset → Tili.",
+    doneNotices: "Valmis. Voit ottaa nämä viestit taas käyttöön InFlightissa kohdassa Asetukset → Tili.",
   },
   news: {
     why: "Saat tämän, koska pyysit InFlightin uutisia sähköpostilla. Voit lopettaa ne kohdassa Asetukset → Tili tai alla olevalla linkillä.",

@@ -154,7 +154,7 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     const firebaseProject = env.KCP_FIREBASE_PROJECT_ID;
     const lookup = deps.firebaseUsers ?? (out.mailer && firebaseProject ? identityToolkitLookup(firebaseProject, deps.token ?? (() => metadataAccessToken()), fetch, (m) => console.warn(m)) : undefined);
     out.contacts = new NoticeContacts(db, lookup, (message) => console.warn(message));
-    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer, out.contacts.addressBook).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
+    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer, out.contacts.addressBook, out.contacts.wantsNoticeEmail).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
     if (out.push) {
       out.news = new NewsBroadcaster(db, { push: out.push, mailer: out.mailer, contacts: out.contacts, addressBook: out.contacts.addressBook, log: (m) => console.warn(m) });
       out.enabled.push('product-news');

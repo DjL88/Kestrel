@@ -570,6 +570,9 @@ export const fr: AreaTranslation<typeof source> = {
     gridViewToggle: 'Grille de toutes les photos',
     fullScreenEnter: 'Plein écran',
     fullScreenExit: 'Quitter le plein écran',
+    canvasOnlyEnter: 'Toile seule : masquer les barres et les panneaux (L)',
+    canvasOnlyExit: 'Afficher à nouveau les barres et les panneaux (L)',
+    canvasOnlyBack: 'Afficher les panneaux',
     zoomFit: 'Ajuster',
   },
   autoCheck: {
@@ -1688,6 +1691,8 @@ export const fr: AreaTranslation<typeof source> = {
     export: 'Exporter',
   },
   hubMore: {
+    accountSignIn: "Se connecter",
+    accountSignedIn: (name: string) => `Connecté en tant que ${name}. Ouvrir les réglages du compte`,
     archived: (count) => `Archivés (${count})`,
     archivedNote: 'Les projets archivés sont conservés. Restaurez-en un pour le réutiliser.',
     nothingArchived: 'Rien n’est archivé.',
@@ -2029,6 +2034,10 @@ export const fr: AreaTranslation<typeof source> = {
     newsEmailLabel: "M’envoyer par e-mail les nouveautés et nouvelles fonctions d’InFlight",
     newsEmailHint: "Désactivé tant que vous ne l’activez pas. Les nouveautés arrivent d’abord sur vos appareils où les alertes sont activées ; nous n’envoyons un e-mail que si une alerte ne peut pas vous joindre. Chaque e-mail contient un lien pour les arrêter.",
     newsEmailFailed: "Impossible de modifier ce réglage. Rien d’autre n’a changé.",
+    communicationHeading: "Préférences de communication",
+    productEmailLabel: "M’écrire au sujet des commentaires et retours sur mes projets partagés",
+    productEmailHint: "Activé sauf si vous le désactivez. Seulement si une alerte ne vous joint pas. Vous les voyez toujours dans l’application.",
+    accountEmailNote: "Les e-mails liés à votre compte, comme votre clé de licence ou un nouveau mot de passe, sont toujours envoyés. Tous les autres ont un lien pour les arrêter.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Terminé : ${title}.`,
@@ -2120,5 +2129,10 @@ export const fr: AreaTranslation<typeof source> = {
     roomClose: 'Fermer',
     roomCloseHint: 'Arrêter d\'afficher la séance sur d\'autres écrans.',
     roomKeptYours: (n: number) => `Vos choix conservés (${n}) : vous aviez modifié la même photo.`,
+  },
+  activityBar: {
+    photoLoading: 'Chargement de la photo',
+    minutesLeft: (n: number) => `Environ ${n} min restantes`,
+    teaTime: 'Le temps d’une tasse de thé',
   },
 };

@@ -20,6 +20,12 @@ export const pt: AreaTranslation<typeof source> = {
     done: "Feito. O InFlight não enviará mais emails para este endereço.",
     invalid: "Esta ligação não é válida.",
     invalidHint: "Responda ao email e deixaremos de os enviar.",
+    stopNews: "Deixar de receber novidades do InFlight por email",
+    stopNotices: "Deixar de receber emails sobre os seus projetos partilhados",
+    confirmNews: "Prima o botão para deixar de receber novidades do InFlight por email. Os emails da sua conta, como uma chave de licença, continuam a chegar.",
+    confirmNotices: "Prima o botão para deixar de receber emails sobre os seus projetos partilhados. Continua a vê-los na aplicação.",
+    doneNews: "Feito. Para voltar a receber novidades por email, abra Definições → Conta no InFlight.",
+    doneNotices: "Feito. Para voltar a receber estes emails, abra Definições → Conta no InFlight.",
   },
   news: {
     why: "Recebe isto porque pediu as novidades do InFlight por e-mail. Para parar, desative em Definições → Conta, ou use a ligação abaixo.",

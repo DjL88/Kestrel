@@ -20,6 +20,12 @@ export const nb: AreaTranslation<typeof source> = {
     done: "Ferdig. InFlight sender ikke flere e-poster til denne adressen.",
     invalid: "Lenken er ikke gyldig.",
     invalidHint: "Svar på e-posten, så stopper vi dem.",
+    stopNews: "Stopp nyheter fra InFlight på e-post",
+    stopNotices: "Stopp e-post om de delte prosjektene dine",
+    confirmNews: "Trykk på knappen for å stoppe nyheter fra InFlight på e-post. E-post om kontoen, som en lisensnøkkel, kommer fortsatt.",
+    confirmNotices: "Trykk på knappen for å stoppe e-post om de delte prosjektene dine. Du ser dem fortsatt i appen.",
+    doneNews: "Ferdig. Slå nyheter på e-post på igjen under Innstillinger → Konto i InFlight.",
+    doneNotices: "Ferdig. Slå denne e-posten på igjen under Innstillinger → Konto i InFlight.",
   },
   news: {
     why: "Du får dette fordi du har bedt om nyheter fra InFlight på e-post. Slå det av under Innstillinger → Konto, eller bruk lenken nedenfor.",

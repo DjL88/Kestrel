@@ -143,7 +143,7 @@ test('app sign-in records the Firebase user (id and hash only) for the address b
     assert.deepEqual(await contacts.addressBook(accounts[0].id), { address: 'cleo@example.com' });
     // The app tells the server its language; product news by email starts off and is audited when changed.
     const token = signIn.body.accessToken as string;
-    assert.deepEqual((await h.call('GET', '/v1/notify/email', { token })).body, { available: false, productNews: false });
+    assert.deepEqual((await h.call('GET', '/v1/notify/email', { token })).body, { available: false, productNews: false, productEmail: true, productEmailAvailable: false });
     assert.equal((await h.call('POST', '/v1/notify/email', { token, body: { language: 'fr' } })).body.productNews, false);
     assert.deepEqual(await contacts.addressBook(accounts[0].id), { address: 'cleo@example.com', language: 'fr' });
     assert.equal((await h.call('POST', '/v1/notify/email', { token, body: { productNews: true } })).body.productNews, true);
@@ -178,6 +178,14 @@ test('a notice is emailed only when push reached no device; never when the kind 
   assert.deepEqual(fcm.sent.map((s) => s.token), [TOKEN(1)]);
   assert.deepEqual(sent.map((m) => m.to).sort(), ['c@example.test', 'd@example.test'], 'only where FCM is unavailable or failed, and only verified');
   assert.match(decodeText(sent[0].raw), /Erin commented on a photo/);
+  assert.match(sent[0].raw, /unsubscribe\?s=notice&a=acc_[cd]&t=/, 'a notice email links to stopping product emails only');
+
+  // Product emails switched off (Communication preferences): the inbox still has it, nothing is emailed.
+  await contacts.setProductEmail('acc_d', false);
+  const off = new NoticeStore(db, noticeDelivery(push, mailNoticeDelivery(mailer, contacts.addressBook, contacts.wantsNoticeEmail).email));
+  const again = await off.deliver({ kind: 'comment', projectId: 'p2', projectName: 'Owls', photoId: 'o1', actorName: 'Erin', recipients: ['acc_c', 'acc_d'] }, Date.UTC(2026, 10, 25, 13));
+  assert.equal(again.inbox, 2);
+  assert.deepEqual(sent.slice(2).map((m) => m.to), ['c@example.test'], 'acc_d turned product emails off');
 });
 
 // ---- Gap 2: product news -----------------------------------------------------------------------------------------
@@ -227,11 +235,21 @@ test('product news: push first; email only to people who opted in and could not 
     assert.equal(fcm.sent[0].message.data.kind, 'news');
     assert.deepEqual(sent.map((m) => m.to).sort(), ['c@example.test', 'd@example.test']);
     const welsh = sent.find((m) => m.to === 'd@example.test')!;
-    assert.match(welsh.raw, /^List-Unsubscribe: <https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?r=[0-9a-f]{64}&t=[A-Za-z0-9_-]+&l=cy>, <mailto:a@gmail\.com\?subject=unsubscribe>$/m);
+    assert.match(welsh.raw, /^List-Unsubscribe: <https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?s=news&a=acc_d&t=[A-Za-z0-9_-]+&l=cy>, <mailto:a@gmail\.com\?subject=unsubscribe>$/m);
     assert.match(welsh.raw, /^List-Unsubscribe-Post: List-Unsubscribe=One-Click$/m);
     assert.match(decodeText(welsh.raw), /Lens corrections now work offline\.[\s\S]*newyddion InFlight drwy e-bost/);
     const audit = JSON.stringify((await h.call('GET', '/v1/admin/audit', { token: h.adminToken })).body);
     assert.ok(!audit.includes('@example.test'), 'no address in the audit log');
+
+    // The news link stops news for that account only, and the app's switch shows it (and can turn it back on).
+    const link = welsh.raw.match(/<(https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?[^>]+)>/)![1].replace('https://inflight.studio', '');
+    const page = await fetch(h.url + link);
+    assert.equal(page.status, 200); assert.match(await page.text(), /<form method="post" action="\/v1\/mail\/unsubscribe\?s=news&amp;a=acc_d/);
+    assert.equal((await contacts.preferences('acc_d')).productNews, true, 'the link only shows a button');
+    assert.equal((await fetch(h.url + link, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'List-Unsubscribe=One-Click' })).status, 200);
+    assert.deepEqual(await contacts.preferences('acc_d'), { productNews: false, productEmail: true, language: 'cy' }, 'news off; product emails untouched');
+    assert.equal((await fetch(h.url + link.replace(/t=[^&]+/, 't=forged'), { method: 'POST' })).status, 400);
+    assert.equal((await fetch(h.url + link.replace('a=acc_d', 'a=acc_c'), { method: 'POST' })).status, 400, 'a link cannot be moved to another account');
 
     // Sending the same news again reaches nobody twice.
     const again = (await send({ ...words, broadcastId: r.broadcastId, dryRun: false })).body;

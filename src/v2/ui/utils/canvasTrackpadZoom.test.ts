@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
+import { isMouseWheelNotch, mouseWheelZoom, nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
 
 test('pinch apart zooms in, pinch together zooms out, normal zero delta is unchanged', () => {
   assert.ok(nextCanvasZoom(1, -30) > 1);
@@ -58,4 +58,22 @@ test('zoom keys step like the zoom bar, fit is 1, and 100% toggles back to fit',
   assert.equal(keyboardZoomTarget('in', Number.NaN, 0.2), 1.25);
   assert.equal(isCanvasZoomAction('in'), true);
   assert.equal(isCanvasZoomAction('sideways'), false);
+});
+
+test('a mouse wheel notch is told apart from a trackpad scroll', () => {
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 3, deltaMode: 1 }), true); // Firefox, in lines
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 100, deltaMode: 0, wheelDeltaY: -120 }), true); // Chromium on Windows
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 4, deltaMode: 0, wheelDeltaY: 240 }), true); // two notches at once
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 7.5, deltaMode: 0, wheelDeltaY: -9 }), false); // trackpad
+  assert.equal(isMouseWheelNotch({ deltaX: 1, deltaY: 100, deltaMode: 0, wheelDeltaY: -120 }), false); // sideways too
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 0, deltaMode: 1 }), false);
+  assert.equal(isMouseWheelNotch({ deltaX: 0, deltaY: 12, deltaMode: 0 }), false); // no legacy delta: assume trackpad
+});
+
+test('a mouse wheel notch zooms by the zoom bar step, within 0.25 to 8', () => {
+  assert.equal(mouseWheelZoom(1, -100), 1.25);
+  assert.equal(mouseWheelZoom(1, 100), 0.8);
+  assert.equal(mouseWheelZoom(7.9, -100), 8);
+  assert.equal(mouseWheelZoom(0.26, 100), 0.25);
+  assert.equal(mouseWheelZoom(2, 0), 2);
 });

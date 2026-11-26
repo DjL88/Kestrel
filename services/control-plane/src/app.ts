@@ -66,7 +66,7 @@ export function createApp(options: AppOptions) {
     const to = await options.contacts.addressBook(licence.accountId);
     if (!to) return 'skipped';
     const mail = licenceKeyMail(mintLicenceKey(licence, config.licencePrivateKey, now()), licence.majorVersion);
-    const sent = await options.mailer.sendNotice({ to: to.address, accountId: licence.accountId, ...mail, language: to.language });
+    const sent = await options.mailer.sendNotice({ to: to.address, accountId: licence.accountId, ...mail, language: to.language, stream: 'account' });
     await audit(licence.accountId, 'licence.key.email', sent.sent ? 'allowed' : 'denied', licence.licenceId);
     return sent.sent ? 'sent' : 'skipped';
   }
