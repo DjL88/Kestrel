@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Turn owner feature switches on (or off) in Cloud Shell, with a reviewed plan, without changing the control-plane image.
 # Companion to deploy-control-plane.sh, which only allows image updates. Only the variables listed in $allowed may change.
+# Account deletion, cloud recipe and the promo discount exist only in images from 26 Nov 2026: deploy main first.
 #
 #   bash switch-features.sh plan  REPO LIVE_CONFIG_DIR TF_DATA_DIR CHANGES_JSON   # candidate tfvars + saved plan + summary
 #   bash switch-features.sh apply REPO LIVE_CONFIG_DIR TF_DATA_DIR                # apply that saved plan after typing APPLY
@@ -12,7 +13,7 @@ set -euo pipefail
 umask 077
 fail(){ echo "STOP: $*" >&2; exit 1; }
 mode=${1:-}; repo=${2:-}; live=${3:-}; export TF_DATA_DIR=${4:-}
-allowed='["collaboration_enabled","presence_database_url","gallery_enabled","cloud_photos_enabled","push_enabled","smtp_mail_enabled","smtp_username","mail_from","firebase_project_id","phase5_paddle_enabled","phase5_paddle_environment","phase5_paddle_pro_price_id","paddle_key_rotation_enabled","download_credits_per_month","cloud_project_max_gb"]'
+allowed='["collaboration_enabled","presence_database_url","gallery_enabled","cloud_photos_enabled","push_enabled","smtp_mail_enabled","smtp_username","mail_from","firebase_project_id","phase5_paddle_enabled","phase5_paddle_environment","phase5_paddle_pro_price_id","paddle_key_rotation_enabled","download_credits_per_month","cloud_project_max_gb","licence_issuing_enabled","account_deletion_enabled","cloud_recipe_enabled","monthly_spend_ceiling_pence","phase5_paddle_promo_discount_id"]'
 for c in git terraform jq tar sha256sum; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
 [[ -f "$live/current.tfvars.json" && -f "$live/backend_override.tf" && -f "$live/.terraform.lock.hcl" ]] || fail "Missing private applied configuration"
