@@ -50,6 +50,7 @@ export const fr: AreaTranslation<typeof source> = {
     global: 'Aucun contour de sujet n’était fiable, donc le débruitage a été appliqué uniformément à toute la photo.',
     failedCheck: 'Le résultat n’a pas passé le contrôle de qualité. Vos retouches existantes ont été conservées.',
     mainThread: 'Cet appareil n’a pas pu réduire le bruit en arrière-plan : InFlight a donc pu se figer pendant le traitement.',
+    learnedLostDetail: 'En taille réelle, la réduction du bruit par IA a lissé de vrais détails du sujet : la réduction du bruit intégrée a donc été utilisée.',
     leftAsItWas: (notes) => `Laissé tel quel. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const fr: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Préparation d’1 vignette' : `Préparation de ${count} vignettes`),
     thumbnailStage: 'Lecture et réduction de cette photo',
     thumbnailFailed: (filename) => `Impossible de créer la vignette de ${filename}. Reconnectez l’original et réessayez.`,
+    rawJpegXl: 'Ce RAW utilise la compression JPEG XL, que InFlight ne sait pas encore lire. L’original n’est pas modifié.',
     notConnected: (names) => `Pas encore relié au moteur InFlight, donc non appliqué : ${names}.`,
     exportRunning: 'Un export est déjà en cours.',
     selectOneRaw: 'Sélectionnez une photo RAW pour exporter son TIFF.',

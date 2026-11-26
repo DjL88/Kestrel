@@ -10,13 +10,21 @@ substitutions:
   _FIREBASE_AUTH_DOMAIN: ''
   _FIREBASE_PROJECT_ID: ''
   _FIREBASE_APP_ID: ''
+  # Browser push alerts: the Firebase sender id and the public Web Push (VAPID) key. Public values.
+  _FIREBASE_MESSAGING_SENDER_ID: ''
+  _FCM_VAPID_KEY: ''
   _CONTROL_PLANE_URL: ''
   _GRANT_KEYS: ''
+  # Public client ids for cloud drive sign-in (not secrets). Empty leaves that provider's button off.
+  _DROPBOX_APP_KEY: ''
+  _ONEDRIVE_CLIENT_ID: ''
   # G10 build provenance. Trigger builds get the commit from $COMMIT_SHA. A manual `gcloud builds submit` has none, so pass
   # --substitutions=_REVISION=$(git rev-parse HEAD) from a clean checkout. _RELEASE=1 makes the image build refuse an
   # unknown revision (scripts/build-provenance.mjs), so nothing unlabelled is deployed.
   _REVISION: '${COMMIT_SHA}'
   _RELEASE: '1'
+  # Sign in with Microsoft: set to '1' on the trigger once Firebase Auth's Microsoft provider is enabled. Empty hides it.
+  _MICROSOFT_SIGN_IN: ''
 steps:
   # The Firebase web SDK in package-lock.json requires Node 24.12 or newer.
   - name: node:24-bookworm
@@ -31,12 +39,17 @@ steps:
       - --build-arg=V2PROTO_REQUIRE_ONLINE_CONFIG=${_REQUIRE_ONLINE_CONFIG}
       - --build-arg=KESTREL_BUILD_REVISION=${_REVISION}
       - --build-arg=KESTREL_RELEASE=${_RELEASE}
+      - --build-arg=VITE_MICROSOFT_SIGN_IN=${_MICROSOFT_SIGN_IN}
       - --build-arg=VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}
       - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
       - --build-arg=VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
       - --build-arg=VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - --build-arg=VITE_FIREBASE_MESSAGING_SENDER_ID=${_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg=VITE_FCM_VAPID_KEY=${_FCM_VAPID_KEY}
       - --build-arg=VITE_KESTREL_CONTROL_PLANE_URL=${_CONTROL_PLANE_URL}
       - --build-arg=VITE_KESTREL_GRANT_KEYS=${_GRANT_KEYS}
+      - --build-arg=VITE_DROPBOX_APP_KEY=${_DROPBOX_APP_KEY}
+      - --build-arg=VITE_ONEDRIVE_CLIENT_ID=${_ONEDRIVE_CLIENT_ID}
       - -t
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA
       - .

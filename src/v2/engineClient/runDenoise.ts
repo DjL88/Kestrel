@@ -74,6 +74,8 @@ export function trueDetailNote(regions: readonly RegionChoice[] | undefined, sub
 export const DENOISE_WORKING_EDGE = 1600;
 /** A first-cut strength used when the photo has none yet (same 0 to 2 range as `PhotoEdit.denoise`). Not calibrated on real photos. */
 export const DEFAULT_DENOISE_STRENGTH = 0.8;
+/** The blend strengths the guardian may try for a learned result in subjects and eyes. */
+export const LEARNED_STRENGTHS = [1, 0.6] as const;
 
 export interface DenoiseOutcome {
   /** Who produced the result: the cloud runner, or this device. */
@@ -208,7 +210,15 @@ async function denoiseVerifiedSource(
   const learnedOutcome = subject ? await runLearnedOnSubject(source, framing, original, subject.alpha, signal,
     (done, total) => progress?.(done, total, `AI denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
   signal?.throwIfAborted();
-  const learned = learnedOutcome.kind === 'ready' ? learnedOutcome.result : null;
+  // Judge the learned result where it was made, too: the working copy is scaled down and hides the fine detail a
+  // learned denoiser can smooth away. Only the blend strengths that pass at full size are offered to the guardian.
+  const ran = learnedOutcome.kind === 'ready' ? learnedOutcome.result : null;
+  const learnedStrengths = ran
+    ? (await compute.qualifyLearned(ran.fullSize.original, ran.fullSize.learned, ran.fullSize.alpha, [...LEARNED_STRENGTHS]))
+      .filter(verdict => verdict.reason === null).map(verdict => verdict.strength)
+    : [];
+  signal?.throwIfAborted();
+  const learned = ran && learnedStrengths.length ? ran : null;
   const session = await compute.open({
     original, baseEdit: frame.edit, recipeId: id, newLayers, lumaPerStrength, subjects, subjectAlpha: subject?.alpha,
     ...(learned ? { learned: learned.working } : {}),
@@ -226,7 +236,7 @@ async function denoiseVerifiedSource(
   // Each attempt is rendered and checked in the worker by the same rules runDenoiseAction applies in-thread.
   const request = { capability: 'denoise' as const, backgroundDenoise: asked, render, original: baseline, subject, signal,
     luminancePerStrength: lumaPerStrength,
-    ...(learned ? { learned: { source: learned.model, strengths: [1, 0.6] } } : {}),
+    ...(learned ? { learned: { source: learned.model, strengths: learnedStrengths } } : {}),
     assess: (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend) => session.assess(edit, masks, blend) };
   let response = await runEngineCapability(request, attempt);
   // Even a verified remote raster is not the recipe the editor will save.
@@ -245,6 +255,7 @@ async function denoiseVerifiedSource(
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push(engineText.denoise.layersFull);
   if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
   if (learnedOutcome.kind === 'skipped') notes.push(learnedOutcome.note);
+  if (ran && !learned) notes.push(engineText.denoise.learnedLostDetail);
   let trueDetailAi: TrueDetailAi | undefined;
   if (result.verification.ok && result.learned && learned) {
     // Stored once, on this device only, beside the original (never over it); the recipe points at it.

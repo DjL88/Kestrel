@@ -50,6 +50,7 @@ export const fi: AreaTranslation<typeof source> = {
     global: 'Yksikään kohteen rajaus ei ollut luotettava, joten kohinanpoisto tehtiin tasaisesti koko kuvaan.',
     failedCheck: 'Tulos ei läpäissyt laatutarkistusta. Nykyiset muokkauksesi säilytettiin.',
     mainThread: 'Tämä laite ei voinut poistaa kohinaa taustalla, joten InFlight saattoi pysähtyä hetkeksi työn aikana.',
+    learnedLostDetail: 'Täysikokoisena tekoälykohinanpoisto silotti kohteen todellisia yksityiskohtia, joten käytettiin sisäänrakennettua kohinanpoistoa.',
     leftAsItWas: (notes) => `Jätettiin ennalleen. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const fi: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Valmistellaan 1 pikkukuva' : `Valmistellaan ${count} pikkukuvaa`),
     thumbnailStage: 'Luetaan ja pienennetään tätä kuvaa',
     thumbnailFailed: (filename) => `Pikkukuvaa ei voitu tehdä tiedostosta ${filename}. Yhdistä alkuperäinen uudelleen ja yritä taas.`,
+    rawJpegXl: 'Tämä RAW käyttää JPEG XL -pakkausta, jota InFlight ei vielä osaa lukea. Alkuperäiseen ei ole koskettu.',
     notConnected: (names) => `Ei vielä yhdistetty InFlight-moottoriin, joten ei käytetty: ${names}.`,
     exportRunning: 'Vienti on jo käynnissä.',
     selectOneRaw: 'Valitse yksi RAW-kuva, niin sen TIFF viedään.',

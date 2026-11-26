@@ -50,6 +50,7 @@ export const cy: AreaTranslation<typeof source> = {
     global: 'Doedd dim amlinell gwrthrych yn ddibynadwy, felly lleihawyd sŵn yn gyfartal dros y llun cyfan.',
     failedCheck: 'Ni wnaeth y canlyniad basio’r gwiriad ansawdd. Cadwyd eich golygiadau presennol.',
     mainThread: 'Ni allai’r ddyfais hon leihau sŵn yn y cefndir, felly efallai fod InFlight wedi oedi wrth weithio.',
+    learnedLostDetail: 'Ar faint llawn, fe wnaeth y dad-sŵn AI lyfnhau manylion go iawn ar y gwrthrych, felly defnyddiwyd y dad-sŵn adeiledig yn lle hynny.',
     leftAsItWas: (notes) => `Gadawyd fel yr oedd. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const cy: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Paratoi 1 llun bach' : `Paratoi ${count} llun bach`),
     thumbnailStage: 'Darllen a lleihau’r llun hwn',
     thumbnailFailed: (filename) => `Doedd dim modd creu’r llun bach ar gyfer ${filename}. Ailgysylltwch y gwreiddiol a rhowch gynnig arall arni.`,
+    rawJpegXl: 'Mae’r RAW hwn yn defnyddio cywasgu JPEG XL, na all InFlight ei ddarllen eto. Mae’r gwreiddiol heb ei gyffwrdd.',
     notConnected: (names) => `Heb ei gysylltu ag injan InFlight eto, felly heb ei roi ar waith: ${names}.`,
     exportRunning: 'Mae allforio eisoes ar waith.',
     selectOneRaw: 'Dewiswch un llun RAW i allforio ei TIFF.',

@@ -1,27 +1,43 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseSnapshot, type ProjectSnapshot, type SyncedPhoto } from '../../src/core/projectSnapshot.ts';
+import { buildSnapshot, type ProjectSnapshot, type SyncedPhoto } from '../../src/core/projectSnapshot.ts';
+import { restoreProjectBackup } from '../../src/core/projectBackup.ts';
+import { proposalFileName, proposalItemProblem, MAX_PROPOSAL_ITEMS, type ProposalItem } from '../../src/core/assistantProposals.ts';
 
 /**
- * What an assistant may see of an InFlight project, read from the sync folder a person chose to share. It reads only the
- * small project files InFlight writes there (decisions, ratings, tags, edit settings): never photographs, never the
- * rest of the disk. Anything it wants changed becomes a proposal file the person reviews; nothing is applied for them.
+ * What an assistant may see of an InFlight project, read from the folder a person chose to share. It reads only the
+ * project backups InFlight itself writes there (`kestrel/v1/project-backups/<project>/…kestrel.json`: decisions,
+ * ratings, tags, edit settings): never photographs, never the rest of the disk. Anything it wants changed becomes a
+ * proposal file beside them (`kestrel/v1/proposals/<project>/`), which InFlight shows in Co-pilot for the person to
+ * apply or dismiss; nothing is applied for them.
  */
-const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
+const IDENTITY = /^[a-f0-9]{64}$/;
+const BACKUP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
 const root = (folder: string) => join(folder, 'kestrel', 'v1');
 
 export class McpInputError extends Error {}
 
-const checkSlug = (slug: string) => { if (!SLUG.test(slug)) throw new McpInputError('That is not a project name InFlight uses.'); return slug; };
+const checkProject = (project: string) => { if (!IDENTITY.test(project)) throw new McpInputError('That is not a project id InFlight uses. Use list_projects.'); return project; };
 
-async function load(folder: string, slug: string): Promise<ProjectSnapshot> {
-  checkSlug(slug);
-  let text: string;
-  try { text = await readFile(join(root(folder), 'recipes', slug, 'project.json'), 'utf8'); }
-  catch { throw new McpInputError(`No project called “${slug}” in the sync folder. Use list_projects.`); }
-  const snapshot = parseSnapshot(text);
-  if (!snapshot) throw new McpInputError(`The saved copy of “${slug}” could not be read.`);
-  return snapshot;
+/** "2026-11-16T09-00-00-000Z_…" back to an ISO time. */
+const savedAtOf = (name: string) => name.slice(0, 24).replace(/^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, '$1:$2:$3.$4Z');
+
+async function load(folder: string, project: string): Promise<ProjectSnapshot> {
+  checkProject(project);
+  let names: string[];
+  try { names = (await readdir(join(root(folder), 'project-backups', project))).filter((name) => BACKUP.test(name)).sort(); }
+  catch { throw new McpInputError(`No project “${project}” in this folder. Use list_projects.`); }
+  // The newest readable backup; an older one stands in if the newest is damaged.
+  for (const name of names.reverse()) {
+    try {
+      const text = await readFile(join(root(folder), 'project-backups', project, name), 'utf8');
+      // Restoring validates every field; the title is the project's own (a restore would add "(restored)").
+      const state = restoreProjectBackup(text, project);
+      const title = String((JSON.parse(text) as { project: { shoot: { title: string } } }).project.shoot.title);
+      return buildSnapshot(title, state.frames, new Date(savedAtOf(name)), project);
+    } catch { /* try the one before */ }
+  }
+  throw new McpInputError(`The saved copy of “${project}” could not be read.`);
 }
 
 const counts = (photos: SyncedPhoto[]) => ({
@@ -34,10 +50,10 @@ const counts = (photos: SyncedPhoto[]) => ({
 
 export async function listProjects(folder: string) {
   let names: string[] = [];
-  try { names = await readdir(join(root(folder), 'recipes')); } catch { return []; }
+  try { names = await readdir(join(root(folder), 'project-backups')); } catch { return []; }
   const out = [];
-  for (const slug of names.filter((name) => SLUG.test(name)).sort()) {
-    try { const snapshot = await load(folder, slug); out.push({ project: slug, title: snapshot.title, savedAt: snapshot.savedAt, ...counts(snapshot.photos) }); } catch { /* skip an unreadable copy */ }
+  for (const project of names.filter((name) => IDENTITY.test(name)).sort()) {
+    try { const snapshot = await load(folder, project); out.push({ project, title: snapshot.title, savedAt: snapshot.savedAt, ...counts(snapshot.photos) }); } catch { /* skip an unreadable copy */ }
   }
   return out;
 }
@@ -47,9 +63,9 @@ const brief = (photo: SyncedPhoto) => ({
   subjectKind: photo.subjectKind ?? null, edited: Boolean(photo.edit),
 });
 
-export async function getProject(folder: string, slug: string) {
-  const snapshot = await load(folder, slug);
-  return { project: slug, title: snapshot.title, savedAt: snapshot.savedAt, ...counts(snapshot.photos) };
+export async function getProject(folder: string, project: string) {
+  const snapshot = await load(folder, project);
+  return { project, title: snapshot.title, savedAt: snapshot.savedAt, ...counts(snapshot.photos) };
 }
 
 export interface Filter { decision?: 'keep' | 'reject' | 'unreviewed'; minRating?: number; tag?: string; edited?: boolean; limit?: number; offset?: number }
@@ -73,26 +89,24 @@ export async function getEdit(folder: string, slug: string, key: string) {
   return { ...brief(photo), edit: photo.edit ?? null, framing: photo.framing ?? null };
 }
 
-export interface ProposalItem { photo: string; decision?: 'keep' | 'reject' | 'unreviewed'; rating?: number; addTags?: string[]; reason: string }
+export type { ProposalItem };
 
 /**
- * Saves suggestions for the person to look over. Writes one file in a proposals folder and nothing else; the project
- * itself is never changed. Every suggestion must name a photo that exists, and say why.
+ * Saves suggestions for the person to look over. Writes one file in the project's proposals folder and nothing else; the
+ * project itself is never changed. Every suggestion must name a photo that exists, and say why.
  */
-export async function writeProposal(folder: string, slug: string, items: ProposalItem[], now = new Date()) {
-  const snapshot = await load(folder, slug);
-  if (!items.length || items.length > 200) throw new McpInputError('Suggest between 1 and 200 changes at a time.');
+export async function writeProposal(folder: string, project: string, items: ProposalItem[], now = new Date()) {
+  const snapshot = await load(folder, project);
+  if (!items.length || items.length > MAX_PROPOSAL_ITEMS) throw new McpInputError(`Suggest between 1 and ${MAX_PROPOSAL_ITEMS} changes at a time.`);
   const known = new Set(snapshot.photos.map((photo) => photo.key));
   for (const item of items) {
     if (!known.has(item.photo)) throw new McpInputError('A suggestion names a photo that is not in this project.');
-    if (item.decision === undefined && item.rating === undefined && !item.addTags?.length) throw new McpInputError('Each suggestion needs a decision, a rating or tags.');
-    if (item.rating !== undefined && (!Number.isInteger(item.rating) || item.rating < 0 || item.rating > 5)) throw new McpInputError('A rating is a whole number from 0 to 5.');
-    if (!item.reason?.trim() || item.reason.length > 300) throw new McpInputError('Each suggestion needs a short reason (up to 300 characters).');
-    if ((item.addTags?.length ?? 0) > 20 || item.addTags?.some((tag) => !tag.trim() || tag.length > 80)) throw new McpInputError('Tags must be short, and no more than 20 per photo.');
+    const problem = proposalItemProblem(item);
+    if (problem) throw new McpInputError(problem);
   }
-  const folderPath = join(root(folder), 'proposals', slug);
+  const folderPath = join(root(folder), 'proposals', project);
   await mkdir(folderPath, { recursive: true });
-  const name = `${now.toISOString().replace(/[:.]/g, '-')}.json`;
-  await writeFile(join(folderPath, name), JSON.stringify({ format: 'kestrel-proposal', version: 1, source: 'assistant', createdAt: now.toISOString(), project: slug, items }, null, 2));
-  return { saved: `kestrel/v1/proposals/${slug}/${name}`, suggestions: items.length };
+  const name = proposalFileName(now);
+  await writeFile(join(folderPath, name), JSON.stringify({ format: 'kestrel-proposal', version: 1, source: 'assistant', createdAt: now.toISOString(), project, items }, null, 2));
+  return { saved: `kestrel/v1/proposals/${project}/${name}`, suggestions: items.length, next: 'InFlight shows these in Co-pilot when this project is open. Nothing changes until the person applies them.' };
 }

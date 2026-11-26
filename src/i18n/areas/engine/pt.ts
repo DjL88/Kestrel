@@ -50,6 +50,7 @@ export const pt: AreaTranslation<typeof source> = {
     global: 'Nenhum contorno de motivo era fiável, por isso a redução de ruído foi aplicada por igual a toda a fotografia.',
     failedCheck: 'O resultado não passou a verificação de qualidade. As suas edições foram mantidas.',
     mainThread: 'Este dispositivo não conseguiu reduzir o ruído em segundo plano, por isso o InFlight pode ter parado enquanto trabalhava.',
+    learnedLostDetail: 'Em tamanho real, a redução de ruído com IA suavizou detalhes reais do motivo, por isso foi usada a redução de ruído integrada.',
     leftAsItWas: (notes) => `Ficou como estava. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const pt: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'A preparar 1 miniatura' : `A preparar ${count} miniaturas`),
     thumbnailStage: 'A ler e reduzir esta fotografia',
     thumbnailFailed: (filename) => `Não foi possível criar a miniatura de ${filename}. Volte a ligar o original e tente de novo.`,
+    rawJpegXl: 'Este RAW usa compressão JPEG XL, que o InFlight ainda não consegue ler. O original não foi alterado.',
     notConnected: (names) => `Ainda não está ligado ao motor do InFlight, por isso não foi aplicado: ${names}.`,
     exportRunning: 'Já há uma exportação em curso.',
     selectOneRaw: 'Selecione uma fotografia RAW para exportar o seu TIFF.',

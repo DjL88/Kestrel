@@ -50,6 +50,7 @@ export const nl: AreaTranslation<typeof source> = {
     global: 'Geen omtrek van een onderwerp was betrouwbaar, dus ruisonderdrukking is gelijkmatig op de hele foto toegepast.',
     failedCheck: 'Het resultaat kwam niet door de kwaliteitscontrole. Uw bestaande bewerkingen zijn behouden.',
     mainThread: 'Dit apparaat kon de ruis niet op de achtergrond verwijderen, dus InFlight kan even hebben stilgestaan.',
+    learnedLostDetail: 'Op volle grootte streek de AI-ruisreductie echte details van het onderwerp weg, dus is de ingebouwde ruisreductie gebruikt.',
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const nl: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? '1 miniatuur wordt voorbereid' : `${count} miniaturen worden voorbereid`),
     thumbnailStage: 'Deze foto wordt gelezen en verkleind',
     thumbnailFailed: (filename) => `De miniatuur van ${filename} kon niet worden gemaakt. Koppel het origineel opnieuw en probeer het nog eens.`,
+    rawJpegXl: 'Deze RAW gebruikt JPEG XL-compressie, die InFlight nog niet kan lezen. Het origineel is niet aangeraakt.',
     notConnected: (names) => `Nog niet gekoppeld aan de InFlight-engine, dus niet toegepast: ${names}.`,
     exportRunning: 'Er loopt al een export.',
     selectOneRaw: 'Selecteer één RAW-foto om de TIFF ervan te exporteren.',

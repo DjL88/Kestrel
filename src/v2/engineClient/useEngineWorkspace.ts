@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
 import { marksOf } from '../../core/sharedMarks';
-import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { computeCullCounts, applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -28,6 +28,7 @@ import { stackText } from '../../i18n/areas/stack';
 import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackDoneNotice, stackedFilename, stackSelection } from './focusStackOps';
 import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
 import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
+import { bracketsByFrame, type ExposureBracket } from '../../core/hdrBracket';
 import { hdrText } from '../../i18n/areas/hdr';
 import { cullWarmupPreviewOn, warmupNeighbours } from './previewWarmup';
 import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
@@ -36,7 +37,9 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectPreviewBlobs } from './projectCover';
+import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
+import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
+import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -54,6 +57,10 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { canWatchFolder, chooseHotFolder, desktopHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
+import { canReceiveFromCamera, startFtpInbox, stopFtpInbox, type FtpInbox } from '../../providers/ftpInbox';
+import { canOpenShootRoom } from '../../providers/shootRoom';
+import { useShootRoom } from './useShootRoom';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -121,6 +128,14 @@ import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
+import { agreeManagedAi, aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
+import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
+import { consentFor } from '../../providers/aiProviders';
+import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
+import { languageOption } from '../../core/locale';
+import { matchProposal, withProposalMarks } from '../../core/assistantProposals';
+import { findProposals, forgetProposal, type FoundProposal } from '../../providers/assistantProposals';
+import { aiReviewText } from '../../i18n/areas/aiReview';
 import { planExport } from './exportOps';
 import { useExternalEdits } from './useExternalEdits';
 import { placeBeside, readExternalEdit, returnedExif, type ExternalEditRecord } from '../../core/externalEdit';
@@ -142,6 +157,8 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
+import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -163,7 +180,7 @@ import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../provider
 import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
-import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarEdits, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
 import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
@@ -175,7 +192,7 @@ import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enla
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
-import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
@@ -348,6 +365,18 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
 const NO_FRAMES: PhotoFrame[] = [];
 
 const USER_LOOKS_KEY = 'kestrel.v2.userLooks';
+
+/** The launch welcome's "pick up where you left off" snapshot for a project, built with lastProjectFrom. */
+function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): void {
+  const last = lastProjectFrom({
+    id: project.shoot.id,
+    name: project.shoot.title,
+    photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
+    lastUpdatedAt: project.shoot.lastUpdatedAt,
+  });
+  if (last) writeLastProject(last);
+}
+
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
 const USER_LOOK_PREFIX = 'mine-';
 const userLookId = () => newId().replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || String(Date.now());
@@ -357,6 +386,11 @@ function userLookPreset(look: UserLook): LookPreset {
     id: USER_LOOK_PREFIX + look.id, name: look.name, category: looksText.mine, description: looksText.description,
     previewFilter: buildPreviewFilterCss({ ...NEUTRAL_RECIPE, ...recipeDelta }), recipeDelta, mine: true,
   };
+}
+
+/** The photo, with the exposure bracket it belongs to (from the camera's settings) when there is one. */
+function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBracket | undefined): import('../ui/contract').Photo {
+  return bracket ? { ...photo, bracket: { photoIds: bracket.frameIds, ev: bracket.ev, fromCamera: bracket.fromCamera } } : photo;
 }
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
@@ -453,6 +487,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
+  // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
+  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean; ftp?: FtpInbox } | null>(null);
+  const liveWatch = useRef<AbortController | null>(null);
+  const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
+  const lastFollowed = useRef<string | null>(null);
   const relinking = useRef(false);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
@@ -502,6 +541,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       hubCoverUrls.current = nextUrls;
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
+      // The welcome never offers, or shows photos from, a project that is deleted (here, in another window, or expired).
+      forgetLaunchProjectsExcept(openableProjectIds(loaded));
     } catch {
       nextUrls.forEach((url) => URL.revokeObjectURL(url));
       setHubState('error');
@@ -515,6 +556,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const found = await store.loadProject(id);
       if (!found) { setNotice('That project could not be found.'); return; }
       await store.saveProject(setTrashed(found, at));
+      if (at !== undefined) forgetLaunchProject(id);
       await loadHub();
     })().catch(() => setNotice('InFlight could not update the project.'));
   }, [loadHub]);
@@ -596,6 +638,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => () => { openRequest.current += 1; }, []);
 
   const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    // Remember it for the launch welcome's "pick up where you left off", however it was entered (opened from the hub,
+    // just created, quick start). Local only; erased with device data.
+    rememberLastProject(next);
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
@@ -608,6 +653,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setScreen('editor');
   }, []);
 
+  const projectsRef = useRef<Project[]>([]);
+  projectsRef.current = projects;
   const openProject = useCallback(async (id: string) => {
     const request = ++openRequest.current;
     const store = catalogue.current!;
@@ -638,6 +685,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (provider.current !== restored) restored.clear();
     }
   }, [enterProject]);
+
+  // The launch welcome's choice: once projects have loaded (now, or when the welcome finishes later), open the chosen
+  // project or stay on the hub. The intent is taken once, so it can never open a project twice.
+  const projectsLoaded = hubState === 'ready' || hubState === 'empty';
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const consume = () => {
+      const intent = takeLaunchIntent();
+      if (!intent) return;
+      const { open, notice: why } = resolveLaunchIntent(intent, openableProjectIds(projectsRef.current));
+      if (why === 'missing-project') setNotice(v2Text.welcome.missingProject);
+      if (open) void openProject(open);
+    };
+    consume();
+    return onLaunchIntent(consume);
+  }, [projectsLoaded, openProject]);
+
+  // The welcome-back slideshow: while a project is open, remember which of its flagged photos to show next launch, as
+  // references to previews already stored on this device (never the pictures, never uploaded). A moment after the
+  // flags settle, so culling is never slowed. No flagged photos forgets it. The last project is written with it, so the
+  // welcome's card and the slideshow's caption always name the same project (and the photo count stays current).
+  // Local only; erased with device data.
+  const slideshowFrames = state?.frames;
+  const slideshowProject = state?.shoot;
+  useEffect(() => {
+    if (!slideshowFrames || !slideshowProject) return;
+    const timer = window.setTimeout(() => {
+      rememberLastProject({ shoot: slideshowProject, frames: slideshowFrames });
+      const keys = pickSlideshowPhotos(slideshowFrames).map(hubPreviewKey);
+      writeSlideshow(keys.length ? { projectId: slideshowProject.id, projectName: slideshowProject.title, developVersion: DEVELOP_VERSION, keys } : null);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [slideshowFrames, slideshowProject]);
 
   // The opened project is on screen: add the photos an import finished while it was opening. Their originals were
   // registered in the provider of the time, so register them in this project's provider first (from the stored copy or
@@ -683,10 +763,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
         ctx.checkCancelled();
         if (generation !== thumbs.current.generation) return;
-        if (!thumb) {
+        // A DNG shown only by its camera preview (or not at all) may be one whose compression can't be read yet (JPEG
+        // XL): then say that, never "original unavailable", which would be untrue.
+        const unsupported = !thumb || sourceProvider.pictureSourceOf(thumb) === 'camera-preview'
+          ? await sourceProvider.unsupportedCompression(frame) : null;
+        if (unsupported) {
           ctx.commitIfCurrent(() => setUrls(current =>
-            ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
-          throw new Error(engineText.workspace.thumbnailFailed(frame.filename));
+            ({ ...current, [frame.id]: { ...current[frame.id], unsupported } })));
+        }
+        if (!thumb) {
+          if (!unsupported) {
+            ctx.commitIfCurrent(() => setUrls(current =>
+              ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+          }
+          throw new Error(unsupported ? engineText.workspace.rawJpegXl : engineText.workspace.thumbnailFailed(frame.filename));
         }
         ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
           : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
@@ -830,6 +920,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
   }, [mutate]);
 
+  // Live shoot room (desktop): other screens on this network watch the shoot and star or pick; their marks are combined
+  // with the photographer's own and never overwrite a change the photographer made meanwhile.
+  const shootRoom = useShootRoom({
+    stateRef, provider, projectId: state?.shoot.id ?? null,
+    hidden: (photoId) => pairsRef.current.rawOf.has(photoId),
+    apply: (photoId, marks) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return;
+      if ((frame.rating ?? 0) !== marks.rating) {
+        const ids = withPartners([photoId], pairsRef.current);
+        mutate((current) => ({ ...current, frames: current.frames.map((each) => (ids.includes(each.id) ? { ...each, rating: marks.rating } : each)), shoot: { ...current.shoot, lastUpdatedAt: Date.now() } }));
+      }
+      if (frame.decision !== marks.decision) decide([photoId], marks.decision);
+    },
+    onKeptYours: (count) => setNotice(V2_STRINGS.liveShoot.roomKeptYours(count)),
+    onProblem: (message) => setNotice(message),
+  });
+
   // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
   // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
   // written to the same undoStack that per-photo Undo already reads, so Cmd/Ctrl+Z brings it straight back.
@@ -862,7 +970,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // photo per session, from the first megabyte of the original (and its XMP sidecar on the desktop). Only the status is
   // recorded; nothing else in the photo's metadata changes, and an original that cannot be reached now is tried next time.
   const editStatusTried = useRef(new Set<string>());
-  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && !frame.exif.editStatus && !editStatusTried.current.has(frame.id);
+  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet.
+  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || frame.exif.cameraFocus === undefined) && !editStatusTried.current.has(frame.id);
   // Only whether any photo is waiting: the fill's own writes must not restart it.
   const editStatusWaiting = (state?.frames ?? []).some(needsEditStatus);
   const editStatusProject = state?.shoot.id;
@@ -870,26 +979,31 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!editStatusWaiting || !provider.current) return;
     let live = true;
     const timer = window.setTimeout(() => void (async () => {
-      const found = new Map<string, NonNullable<PhotoFrame['exif']['editStatus']>>();
+      const found = new Map<string, { status?: NonNullable<PhotoFrame['exif']['editStatus']>; focus: PhotoFrame['exif']['cameraFocus'] }>();
       const flush = () => {
         if (!found.size || !live) return;
         const batch = new Map(found);
         found.clear();
         mutate((current) => ({ ...current, frames: current.frames.map((item) => {
-          const status = batch.get(item.id);
-          return status && !item.exif.editStatus ? { ...item, exif: { ...item.exif, editStatus: status } } : item;
+          const read = batch.get(item.id);
+          if (!read) return item;
+          const exif = { ...item.exif };
+          if (read.status && !exif.editStatus) exif.editStatus = read.status;
+          if (exif.cameraFocus === undefined && read.focus !== undefined) exif.cameraFocus = read.focus;
+          return { ...item, exif };
         }) }));
       };
       for (const id of (stateRef.current?.frames ?? []).filter(needsEditStatus).map((frame) => frame.id)) {
         if (!live) return;
         editStatusTried.current.add(id);
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
-        if (!frame || frame.exif.editStatus) continue;
+        if (!frame || (frame.exif.editStatus && frame.exif.cameraFocus !== undefined)) continue;
         const head = await provider.current?.readOriginalHead(frame.stableKey).catch(() => undefined);
         if (!head || !live) continue;
         const exif = await parseImageExif(head, frame.filename).catch(() => null);
-        const status = await editStatusWithSidecar(exif?.editStatus, frame.filename, frame.sourcePath).catch(() => exif?.editStatus);
-        if (status) found.set(id, status);
+        const status = frame.exif.editStatus ? undefined
+          : await editStatusWithSidecar(exif?.editStatus, frame.filename, frame.sourcePath).catch(() => exif?.editStatus);
+        if (status || exif?.cameraFocus !== undefined) found.set(id, { status, focus: exif?.cameraFocus });
         if (found.size >= 25) flush();
         // Leave the main thread to the person between photos.
         await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -1721,7 +1835,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  // Each project keeps its own Flight mode; an older project without one follows Settings' default.
+  const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
@@ -1873,20 +1988,132 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
   }, []);
 
+  // Bring your own AI: a second opinion on colour and light from the person's own key or a model on this computer.
+  // Advisory only. The answer is kept for one photo; Apply is one undoable edit, refused if the photo changed since.
+  const aiSettings = useAiSettings();
+  const [aiOpinion, setAiOpinion] = useState<AiOpinionRecord | null>(null);
+  const aiAbort = useRef<AbortController | null>(null);
+  const cancelAiOpinion = useCallback(() => {
+    aiAbort.current?.abort();
+    aiAbort.current = null;
+    setAiOpinion((current) => (current?.phase === 'asking' ? null : current));
+  }, []);
+  const askAiOpinion = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame || !aiSettings || !provider.current || aiAbort.current) return;
+    const controller = new AbortController();
+    aiAbort.current = controller;
+    const base = frame.edit ?? DEFAULT_EDIT;
+    const record: AiOpinionRecord = { photoId, base, stableKey: frame.stableKey, phase: 'asking' };
+    setAiOpinion(record);
+    const findings = (assists[photoId]?.run.detail ?? []).slice(0, 4);
+    void askAiSecondOpinion(frame, provider.current, aiSettings, languageOption(language).englishName, findings, controller.signal)
+      .then(({ review, targets }) => {
+        if (controller.signal.aborted) return;
+        setAiOpinion((current) => (current === record ? { ...record, phase: 'ready', review, targets } : current));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setAiOpinion((current) => (current === record ? { ...record, phase: 'failed', message: errorWords(error) } : current));
+      })
+      .finally(() => { if (aiAbort.current === controller) aiAbort.current = null; });
+  }, [aiSettings, assists]);
+  const applyAiOpinion = useCallback((photoId: string) => {
+    const record = aiOpinion;
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!record || record.photoId !== photoId || record.phase !== 'ready' || !record.targets || !frame) return;
+    const valid = (latest: PhotoFrame) => latest.stableKey === record.stableKey && sameRecipe(latest.edit ?? DEFAULT_EDIT, record.base);
+    if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); setAiOpinion(null); return; }
+    editFrames([photoId], (latest) => (valid(latest) ? applyTargets(latest.edit ?? DEFAULT_EDIT, record.targets!) : latest.edit));
+    setAiOpinion({ ...record, phase: 'applied' });
+  }, [aiOpinion, editFrames]);
+  const agreeAiOpinion = useCallback(() => {
+    if (!aiSettings) return;
+    saveAiSettings({ ...aiSettings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, aiSettings) });
+    // InFlight's own AI also needs the account's standing Gemini consent on the server; this press is that choice.
+    if (aiSettings.kind === 'inflight') void agreeManagedAi().catch(() => undefined);
+  }, [aiSettings]);
+  // A different provider or photo never leaves an old answer on screen.
+  useEffect(() => { aiAbort.current?.abort(); aiAbort.current = null; setAiOpinion(null); }, [aiSettings]);
+
+  // Suggestions an AI assistant left through the MCP tool, beside this project's backups. Read when a project opens and
+  // every minute while it is open; shown in Co-pilot; nothing changes until the person presses Apply.
+  const [proposals, setProposals] = useState<FoundProposal[]>([]);
+  const handledProposals = useRef(new Set<string>());
+  const proposalProjectId = state?.shoot.id;
+  useEffect(() => {
+    setProposals([]);
+    if (!proposalProjectId) return;
+    let live = true;
+    const look = () => {
+      const current = stateRef.current;
+      if (!current || current.shoot.id !== proposalProjectId || current.shoot.collage) return;
+      void findProposals(current).then((found) => {
+        if (live) setProposals(found.filter((item) => !handledProposals.current.has(`${proposalProjectId}/${item.proposal.name}`)));
+      }).catch(() => undefined);
+    };
+    const first = window.setTimeout(look, 2000);
+    const timer = window.setInterval(look, 60_000);
+    return () => { live = false; window.clearTimeout(first); window.clearInterval(timer); };
+  }, [proposalProjectId]);
+  const closeProposal = useCallback((name: string) => {
+    const found = proposals.find((item) => item.proposal.name === name);
+    if (!found || !proposalProjectId) return null;
+    handledProposals.current.add(`${proposalProjectId}/${name}`);
+    setProposals((current) => current.filter((item) => item !== found));
+    void forgetProposal(found);
+    return found;
+  }, [proposals, proposalProjectId]);
+  const applyProposal = useCallback((name: string) => {
+    const found = proposals.find((item) => item.proposal.name === name);
+    const current = stateRef.current;
+    if (!found || !current) return;
+    const matched = matchProposal(current.frames, found.proposal);
+    closeProposal(name);
+    if (!matched.length) { setNotice(aiReviewText.assistant.noneLeft); return; }
+    const at = Date.now();
+    mutate((latest) => {
+      const fresh = matchProposal(latest.frames, found.proposal);
+      let next = { ...latest, frames: withProposalMarks(latest.frames, fresh), shoot: { ...latest.shoot, lastUpdatedAt: at } };
+      for (const item of fresh) if (item.decision) next = applyDecisionWithHistory(next, item.frameId, item.decision, { allowAdvance: false });
+      return next;
+    });
+    setNotice(aiReviewText.assistant.applied(matched.length));
+  }, [proposals, closeProposal, mutate]);
+  const proposalView = useMemo(() => {
+    const first = proposals[0];
+    if (!first || !state) return undefined;
+    const t = aiReviewText.assistant;
+    const matched = matchProposal(state.frames, first.proposal);
+    const when = (() => { try { return new Date(first.proposal.createdAt).toLocaleString(); } catch { return first.proposal.createdAt; } })();
+    return {
+      name: first.proposal.name,
+      intro: t.intro(matched.length, when),
+      lines: matched.slice(0, 8).map((item) => ({
+        photo: item.filename,
+        change: [item.decision ? t[item.decision] : null, item.rating !== undefined ? t.stars(item.rating) : null, item.addTags?.length ? t.tags(item.addTags.join(', ')) : null].filter(Boolean).join(', '),
+        reason: item.reason,
+      })),
+      more: matched.length > 8 ? t.more(matched.length - 8) : undefined,
+    };
+  }, [proposals, state]);
+
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
     /** Fields to add to a photo as it is read (a focus stack's, panorama's or HDR merge's recipe), by its picked key. */
-    attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
+    attach?: (key: string) => Partial<PhotoFrame> | undefined,
+    /** A frame from a watched folder during a live shoot: no notices for each arrival, and it never waits for a picker. */
+    live = false): Promise<boolean> => {
     const target = stateRef.current;
-    if (!target) return;
-    if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
+    if (!target) return false;
+    if (importController.current) { if (!live) setNotice(engineText.workspace.importRunning); return false; }
     const picks = suppliedPicks === undefined ? await pickFiles() : suppliedPicks;
-    if (!picks?.length) return;
+    if (!picks?.length) return false;
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     const existing = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => { const key = pickedKey(file); if (existing.has(key)) return false; existing.add(key); return true; });
-    if (!additions.length) { setNotice(engineText.workspace.importNothingNew); return; }
+    if (!additions.length) { if (!live) setNotice(engineText.workspace.importNothingNew); return true; }
     const projectKey = target.shoot.id;
     const controller = new AbortController();
     importController.current = controller;
@@ -1976,11 +2203,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (stateRef.current?.shoot.id === projectKey) {
         const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome);
         if (next === 'run') void afterImport.current.run();
-        else if (outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
-        else if (outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        // Live shoot: show the frame that just landed, so the photographer sees each shot as it arrives.
+        const newest = live ? importedFrames.at(-1) : undefined;
+        if (newest) followLiveFrame.current?.(newest.id);
       }
+      return true;
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : engineText.workspace.importFailed);
+      return true;
     } finally {
       controller.abort();
       if (importingInto.current === projectKey) importingInto.current = null;
@@ -1988,6 +2220,52 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setImporting(false);
     }
   }, []);
+
+  // Live shoot: follow the newest frame only while the photographer is at the newest one, so culling an earlier frame
+  // is never pulled away by the next arrival.
+  followLiveFrame.current = (photoId: string) => {
+    void (async () => {
+      for (let wait = 0; !stateRef.current?.frames.some((frame) => frame.id === photoId) && wait < 100; wait++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const current = stateRef.current;
+      if (!current?.frames.some((frame) => frame.id === photoId)) return;
+      const atNewest = current.selectedFrameId == null || current.selectedFrameId === lastFollowed.current || lastFollowed.current === null;
+      lastFollowed.current = photoId;
+      if (!atNewest) return;
+      setSelected([photoId]);
+      mutate((now) => (now.shoot.id === current.shoot.id ? { ...now, selectedFrameId: photoId } : now));
+    })();
+  };
+
+  const stopLiveFolder = useCallback(() => {
+    liveWatch.current?.abort();
+    liveWatch.current = null;
+    lastFollowed.current = null;
+    setLiveFolder((current) => { if (current?.ftp) void stopFtpInbox(); return null; });
+  }, []);
+
+  const startLiveFolder = useCallback((source: HotFolderSource, ftp?: FtpInbox) => {
+    const projectId = stateRef.current?.shoot.id;
+    if (!projectId) return;
+    liveWatch.current?.abort();
+    const controller = new AbortController();
+    liveWatch.current = controller;
+    lastFollowed.current = null;
+    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false, ...(ftp ? { ftp } : {}) });
+    watchHotFolder(source, {
+      signal: controller.signal,
+      // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
+      onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
+      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status, ...(ftp ? { ftp } : {}) }); },
+    });
+  }, [importPhotos]);
+
+  // Leaving the project (or closing InFlight's editor) ends the watch: a live shoot belongs to the project it started in.
+  useEffect(() => {
+    if (liveFolder && liveFolder.projectId !== state?.shoot.id) stopLiveFolder();
+  }, [liveFolder, state?.shoot.id, stopLiveFolder]);
+  useEffect(() => () => { liveWatch.current?.abort(); void stopFtpInbox(); }, []);
 
   // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
   // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
@@ -2617,9 +2895,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })();
     },
     openProject: (id) => { void openProject(id); },
-    createProject: (name, kind = 'photography') => {
+    createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
-      const created = kind === 'collage' ? { ...empty, shoot: { ...empty.shoot, collage: createCollage() } } : empty;
+      const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -2735,7 +3014,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     restoreDeletedProject: (id) => { setProjectTrashed(id, undefined); },
     // Removing for good is offered only from Recently deleted, after its own confirmation.
     deleteProjectForever: (id) => {
-      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+      void catalogue.current!.deleteProject(id).then(() => { forgetLaunchProject(id); return loadHub(); }, () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
     duplicateProject: (id) => {
@@ -2895,6 +3174,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }),
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderPhotos(setNotice).then((chosen) => { if (chosen) void importPhotos(chosen.picks); }); },
+    watchFolder: () => {
+      if (!canWatchFolder()) { setNotice(V2_STRINGS.liveShoot.notHere); return; }
+      // The picker opens straight from the person's click; nothing in the folder is moved or written.
+      void chooseHotFolder().then((source) => { if (source) startLiveFolder(source); });
+    },
+    stopWatchingFolder: () => stopLiveFolder(),
+    // Wi-Fi cameras (FTP transfer): receive into a chosen folder on this computer and watch it like any hot folder.
+    ...(canOpenShootRoom() ? {
+      openShootRoom: () => { const title = stateRef.current?.shoot.title; if (title !== undefined) void shootRoom.open(title); },
+      closeShootRoom: () => shootRoom.close(),
+    } : {}),
+    ...(canReceiveFromCamera() ? {
+      receiveFromCamera: () => {
+        void startFtpInbox().then((inbox) => { if (inbox) startLiveFolder(desktopHotFolder(inbox.folder), inbox); })
+          .catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)));
+      },
+    } : {}),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
@@ -2932,8 +3228,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(sidecarFailureText(null));
           return;
         }
+        const { patches, kept } = sidecarEdits(now, planned);
         mutate((current) => applySidecarImports(current, planned));
-        setNotice(V2_STRINGS.xmp.read(planned.length));
+        // Lightroom's basic sliders go into photos not yet edited here, each as its own Undo step.
+        if (patches.size) editFrames([...patches.keys()], (frame) => applyRecipePatch(frame.edit, patches.get(frame.id) ?? {}).edit);
+        setNotice([V2_STRINGS.xmp.read(planned.length), patches.size ? V2_STRINGS.xmp.editsRead(patches.size) : '',
+          kept ? V2_STRINGS.xmp.editsKept(kept) : ''].filter(Boolean).join(' '));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
     readLightroomCatalogue: (file) => {
@@ -3171,6 +3471,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
       ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    agreeAiSecondOpinion: agreeAiOpinion,
+    askAiSecondOpinion: askAiOpinion,
+    cancelAiSecondOpinion: cancelAiOpinion,
+    applyAiSecondOpinion: applyAiOpinion,
+    dismissAiSecondOpinion: () => setAiOpinion(null),
+    applyAssistantSuggestions: applyProposal,
+    dismissAssistantSuggestions: (name: string) => { closeProposal(name); },
     saveOverlayTemplate: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame) return;
@@ -3370,7 +3677,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
-    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
+    // Inside a project this changes that project's mode only (saved with it); Settings changes the default for new ones.
+    setAssistMode: (mode) => {
+      if (stateRef.current) { mutate((current) => ({ ...current, shoot: { ...current.shoot, assistMode: mode } })); return; }
+      setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; });
+    },
     importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
@@ -3443,8 +3754,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const look = looks.find((entry) => entry.id === lookId);
       if (!look) return;
       const targets = editTargets(photoId);
-      applyPatch(targets, look.recipeDelta);
-      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
+      // "None" takes the photo's current look off: the sliders that look set go back to where they start.
+      const previous = looks.find((entry) => entry.id === stateRef.current?.frames.find((frame) => frame.id === photoId)?.appliedLookId);
+      applyPatch(targets, lookId === 'none' ? removeLookPatch(previous) : look.recipeDelta);
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId === 'none' ? undefined : lookId } : frame)) }));
     },
     saveUserLook: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -3541,7 +3854,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3550,12 +3863,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
   const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
   useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
-  const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
+  const photos = useMemo(() => {
+    const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
+    // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
+    const brackets = bracketsByFrame(shown);
+    return recountBursts(shown.map((frame) => {
+    const bracket = brackets.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }));
-  })), [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
+    return withBracket(withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined })), bracket);
+  }));
+  }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -3594,6 +3913,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
+    aiSecondOpinion: aiOpinionView(aiSettings, aiOpinion, activeId),
+    assistantSuggestions: proposalView,
     // Finished tasks join the history in an effect, one render after the store marks them done. Merge them here too,
     // so a task that has just finished is never missing from both lists (the Tasks panel would lose its row).
     tasks: visibleTasks(
@@ -3612,11 +3933,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    shootRoom: shootRoom.room,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password } } : {}) } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
 
   return { store, actions };
 }

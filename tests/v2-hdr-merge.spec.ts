@@ -80,7 +80,10 @@ test('a three-frame bracket becomes one new photo with detail where the middle f
   await options.nth(2).click({ modifiers: ['Shift'] });
   await options.nth(1).click({ button: 'right' });
   const menu = root.getByRole('menu');
-  await menu.getByRole('menuitem', { name: 'Merge 3 photos to HDR' }).click();
+  const item = menu.getByRole('menuitem', { name: 'Merge 3 photos to HDR' });
+  // HDR is explained in plain words where it is offered: not high definition.
+  await expect(item).toHaveAttribute('title', /High Dynamic Range, not high definition/);
+  await item.click();
   await expect(root.getByText(/Added dawn_1-hdr3\.png, merged from 3 photos\. Your original photos are untouched\./)).toBeVisible({ timeout: 60000 });
   await expect(options).toHaveCount(4);
   // It ran in the background worker: no note that it had to run on the interface thread.
@@ -101,6 +104,7 @@ test('a three-frame bracket becomes one new photo with detail where the middle f
   await expect(info).toContainText(/dawn_2\.png: 0 stops/);
   await expect(info).toContainText(/dawn_3\.png: \+2 stops/);
   await expect(info).toContainText('No pixels were generated.');
+  await expect(info).toContainText('HDR means High Dynamic Range, not high definition.');
 
   // The sources are still there, unchanged.
   await options.nth(1).click();

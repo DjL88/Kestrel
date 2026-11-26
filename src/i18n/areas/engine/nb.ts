@@ -50,6 +50,7 @@ export const nb: AreaTranslation<typeof source> = {
     global: 'Ingen motivkontur var pålitelig, så støyreduksjonen ble brukt jevnt på hele bildet.',
     failedCheck: 'Resultatet besto ikke kvalitetskontrollen. De eksisterende redigeringene dine ble beholdt.',
     mainThread: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
+    learnedLostDetail: 'I full størrelse glattet KI-støyreduksjonen bort ekte detaljer på motivet, så den innebygde støyreduksjonen ble brukt i stedet.',
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const nb: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniatyrbilde' : `Forbereder ${count} miniatyrbilder`),
     thumbnailStage: 'Leser og forminsker dette bildet',
     thumbnailFailed: (filename) => `Kunne ikke lage miniatyrbildet for ${filename}. Koble til originalen på nytt og prøv igjen.`,
+    rawJpegXl: 'Denne RAW-filen bruker JPEG XL-komprimering, som InFlight ikke kan lese ennå. Originalen er urørt.',
     notConnected: (names) => `Ikke koblet til InFlight-motoren ennå, så ikke brukt: ${names}.`,
     exportRunning: 'En eksport kjører allerede.',
     selectOneRaw: 'Velg ett RAW-bilde for å eksportere TIFF-filen.',

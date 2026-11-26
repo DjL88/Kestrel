@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyDetail, applyPhotoEdit, isNeutralEdit } from '../../core/photoEdits.ts';
-import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, previewLookEdit } from './recipeMap.ts';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, previewLookEdit, removeLookPatch } from './recipeMap.ts';
+import { INITIAL_LOOKS } from '../ui/stub.ts';
 
 test('a photo with no edit shows a neutral recipe, never invented adjustments', () => {
   assert.deepEqual(editToRecipe(undefined), NEUTRAL_RECIPE);
@@ -222,4 +223,16 @@ test('AI denoise shows as on while a stored result is in the edit, and the recip
   assert.equal(editToRecipe({ exposure: 0, warmth: 0, colour: 0 }).aiDenoise, undefined);
   assert.equal(applyRecipePatch(edit, { aiDenoise: false }).edit.trueDetailAi, undefined);
   assert.deepEqual(applyRecipePatch({ exposure: 0, warmth: 0, colour: 0 }, { aiDenoise: true }).edit.trueDetailAi, undefined);
+});
+
+test('a photo starts with no look, and "None" is the first look on offer', () => {
+  assert.equal(NEUTRAL_RECIPE.lookId, 'none');
+  assert.equal(INITIAL_LOOKS[0].id, 'none');
+  assert.deepEqual(INITIAL_LOOKS[0].recipeDelta, {}, 'choosing None changes no slider by itself');
+});
+
+test('taking a look off puts back only the sliders that look set', () => {
+  const look = { recipeDelta: { exposure: 0.2, shadows: 26, temperature: -12 } };
+  assert.deepEqual(removeLookPatch(look), { exposure: 0, shadows: 0, temperature: 0 });
+  assert.deepEqual(removeLookPatch(undefined), {}, 'no look on the photo: nothing to undo');
 });

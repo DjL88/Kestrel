@@ -29,4 +29,9 @@ export const gd: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Air a dhèanamh à ${n} dealbh:`, other: `Air a dhèanamh à ${n} dealbhan:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} ceumannan`,
   infoHow: "Thig gach pàirt às na dealbhan a bha air an deisearadh gu math an sin, air an co-thaobhadh is air an cuideamachadh a rèir an deisearaidh. An uair sin, tha Solais àrda is Sgàilean an deasaiche gan gleusadh. Cha deach piogsail sam bith a chruthachadh.",
+  whatIs: "Tha HDR a' ciallachadh raon dinamach àrd, chan e mìneachadh àrd. Co-aonaichidh e grunn dheisearan den aon sealladh gus an cum speuran soilleir is sgàilean dorcha am mion-fhiosrachadh.",
+  bracketTitle: "Sreath deisearaidh",
+  bracketFound: (n: number, stops: string) => `${n} dealbhan air an togail beagan às dèidh a chèile le deisearan eadar-dhealaichte (${stops} ceumannan).`,
+  bracketFromCamera: "Chomharraich an camara agad na dealbhan seo mar shreath deisearaidh.",
+  bracketFromExposures: "Air an lorg on astar còmhla, an fhosgladh is an ISO aca.",
 };

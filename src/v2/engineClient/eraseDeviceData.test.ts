@@ -51,3 +51,14 @@ test('unavailable database deletion is not counted as success', async () => {
   assert.equal(result.databasesDeleted, 0);
   assert.equal(result.problems.length, 1);
 });
+
+test('"Forget me" removes the welcome slideshow memory and its switch', async () => {
+  const local = fakeStorage({
+    'inflight.launch.slideshow': '{"projectId":"p1","projectName":"Dawn","developVersion":3,"keys":["k"]}',
+    'inflight.launch.slideshowOff': '1',
+    'other-site': 'keep',
+  });
+  const result = await eraseDeviceData({ clearCatalogue: async () => undefined, storages: [local] });
+  assert.equal(result.keysRemoved, 2);
+  assert.deepEqual(Array.from(local.map.keys()), ['other-site']);
+});

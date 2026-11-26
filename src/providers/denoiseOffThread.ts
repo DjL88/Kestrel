@@ -6,7 +6,7 @@ import type { LearnedBlend } from '../engine/denoiseAction';
 import { estimateNoiseSigma } from '../core/noiseEstimate';
 import { engineText } from '../i18n/areas/engine';
 import {
-  openDenoiseSession, type DenoiseJob, type DenoiseSession, type DenoiseWorkerReply, type DenoiseWorkerRequest,
+  learnedVerdicts, openDenoiseSession, type DenoiseJob, type DenoiseSession, type DenoiseWorkerReply, type DenoiseWorkerRequest,
 } from '../v2/engineClient/denoiseCompute';
 
 /**
@@ -38,6 +38,8 @@ export interface AsyncDenoiseSession {
 export interface DenoiseCompute {
   measureNoise(rgba: Uint8ClampedArray, width: number, height: number): Promise<number | null>;
   open(job: DenoiseJob): Promise<AsyncDenoiseSession>;
+  /** TrueDetail: which blend strengths of a learned result pass the guardian at full size, on the subject's pixels. */
+  qualifyLearned(original: Pixels, learned: Pixels, alpha: Float32Array, strengths: number[]): Promise<Array<{ strength: number; reason: string | null }>>;
   /** True once any of this job's work had to run on the interface thread. */
   readonly onMainThread: boolean;
   dispose(): void;
@@ -126,6 +128,8 @@ export function createDenoiseCompute(options: { createWorker?: () => DenoiseWork
     get onMainThread() { return onMainThread; },
     measureNoise: (rgba, width, height) => offThread<number | null>({ type: 'noise', rgba, width, height },
       () => estimateNoiseSigma(rgba, width, height)),
+    qualifyLearned: (original, learned, alpha, strengths) => offThread<Array<{ strength: number; reason: string | null }>>(
+      { type: 'qualify', original, learned, alpha, strengths }, () => learnedVerdicts(original, learned, alpha, strengths)),
     async open(job) {
       const session = nextSession++;
       let local: DenoiseSession | null = null;
