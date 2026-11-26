@@ -6,7 +6,8 @@ import {
   extraKey, nextStep, previousStep, SETUP_EXPERIENCE, SETUP_GENRES, SETUP_STEPS, suggestedExtras, suggestedFlightMode, tailoredSettings,
   type SetupAnswers, type SetupExperience, type SetupFlightMode, type SetupGenre, type SetupStep,
 } from '../../../core/quickSetup';
-import { PRO_PLAN_CHOICES } from '../../../core/proCheckout';
+import { proPlanChoices } from '../../../core/proCheckout';
+import { appPricing, browserRegion } from '../../../providers/pricing';
 import { readSetup, saveSetupToAccount, writeSetup } from '../../../providers/quickSetupMemory';
 import { requestSetupResult } from '../../setupBridge';
 import FlightModePicker from '../panels/FlightModePicker';
@@ -119,8 +120,9 @@ export default function QuickSetup({ online, signedInName, onSignIn, onClose }: 
   const back = previousStep(step);
   const title = { language: t.language.title, about: t.about.title, pro: t.pro.title, cloud: t.cloud.title, flight: t.flight.title, extras: t.extras.title }[step];
   const toggleGenre = (g: SetupGenre) => setGenres((was) => (was.includes(g) ? was.filter((x) => x !== g) : [...was, g]));
-  // The amounts come from the one price list (PRO_PLAN_CHOICES), so setup never shows a different price from checkout.
-  const amount = (plan: string) => PRO_PLAN_CHOICES.find((p) => p.plan === plan)?.price.match(/[£$€][\d.,]+/)?.[0];
+  // The amounts come from the Admin price list (the same choices checkout shows), in the person's currency.
+  const plans = proPlanChoices(appPricing.current(), browserRegion(), language);
+  const amount = (plan: string) => plans.find((p) => p.plan === plan)?.price.replace(/ a (month|year)$/, '');
   const monthly = amount('monthly');
   const annual = amount('annual');
   const suggested = suggestedFlightMode({ experience, genres });
