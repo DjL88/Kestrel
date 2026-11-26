@@ -214,7 +214,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, []);
   useEffect(() => {
     const favicon = document.querySelector<HTMLLinkElement>('link[data-inflight-theme-icon]');
-    if (favicon) favicon.href = activeTheme === 'dark' ? '/brand/favicon-dark.svg' : '/brand/favicon-light.svg';
+    if (favicon) favicon.href = `${import.meta.env.BASE_URL || '/'}brand/favicon-${activeTheme === 'dark' ? 'dark' : 'light'}.svg`;
     const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (theme) theme.content = activeTheme === 'dark' ? '#0e1116' : '#f8f6f2';
   }, [activeTheme]);
