@@ -6,6 +6,7 @@ import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLin
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
 import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
+import { DESKTOP_MICROSOFT_REFUSED, desktopMicrosoftClient, desktopMicrosoftRefused, microsoftCodeExchangeBody, microsoftIdTokenFromAnswer, microsoftSignInEnabled, microsoftSignInUrl, MICROSOFT_TOKEN_URL } from '../core/microsoftSignIn';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
 const env = import.meta.env;
@@ -31,10 +32,14 @@ const appleDesktop = desktopAppleConfig(env as Record<string, string | undefined
 export const isDesktopAppleConfigured = () => appleDesktop !== null;
 
 /** Sign in with Microsoft is switched on per build, once its provider is enabled in the Firebase console. */
-export const isMicrosoftSignInEnabled = () => env.VITE_MICROSOFT_SIGN_IN === '1' || env.VITE_MICROSOFT_SIGN_IN === 'true';
+export const isMicrosoftSignInEnabled = () => microsoftSignInEnabled(env as Record<string, string | undefined>);
+
+/** The Entra client the desktop app signs in with through the browser, if its flag is on (see microsoftSignIn.ts). */
+const microsoftDesktop = desktopMicrosoftClient(env as Record<string, string | undefined>);
+export const isDesktopMicrosoftConfigured = () => microsoftDesktop !== null;
 
 /** The sign-in options for this build and device. */
-export const currentSignInOptions = () => signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured(), isMicrosoftSignInEnabled());
+export const currentSignInOptions = () => signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured(), isMicrosoftSignInEnabled(), isDesktopMicrosoftConfigured());
 
 export function signInPlatform(): SignInPlatform {
   if (!isDesktopApp()) return 'web';
@@ -184,6 +189,7 @@ export async function signInMethods(): Promise<SignInMethod[]> {
 export async function addSignInMethod(method: SignInMethod, password?: string): Promise<SignInMethod[]> {
   if (method === 'google' && signInPlatform() === 'desktop' && googleDesktop) await signInWithGoogleOnDesktop(googleDesktop, 'link');
   else if (method === 'apple' && signInPlatform() === 'desktop' && appleDesktop) await signInWithAppleOnDesktop(appleDesktop, 'link');
+  else if (method === 'microsoft' && signInPlatform() === 'desktop' && microsoftDesktop) await signInWithMicrosoftOnDesktop(microsoftDesktop, 'link');
   else await withAuth(async ({ auth, instance }) => {
     await instance.authStateReady();
     const user = instance.currentUser;
@@ -289,6 +295,55 @@ async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>
   });
 }
 
+/**
+ * Desktop: Microsoft's own page opens in the person's normal browser, the one-shot loopback listener receives the
+ * one-time code, the app swaps it for Microsoft's ID token (public client with PKCE, no secret) and hands it to Firebase
+ * with the raw nonce. Behind VITE_MICROSOFT_DESKTOP_SIGNIN until a real installed build proves Firebase accepts it.
+ */
+async function signInWithMicrosoftOnDesktop(client: NonNullable<typeof microsoftDesktop>, mode: 'signIn' | 'link' = 'signIn'): Promise<Session> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const verifier = randomToken();
+  const state = randomToken();
+  const rawNonce = randomToken();
+  const hashedNonce = await sha256Hex(rawNonce);
+  const challenge = await challengeFor(verifier);
+  const failed = (error: unknown) => new Error(typeof error === 'string' ? error : 'Microsoft sign-in did not finish. Try again.');
+  let redirectUri: string;
+  try { redirectUri = await invoke<string>('oauth_listen_start'); } catch (error) { throw failed(error); }
+  let query: string;
+  try {
+    const { openUrl } = await import('@tauri-apps/plugin-opener');
+    await openUrl(microsoftSignInUrl({ clientId: client.clientId, redirectUri, state, challenge, hashedNonce }));
+    query = await invoke<string>('oauth_listen_wait', { timeoutSecs: 180 });
+  } catch (error) {
+    await invoke('oauth_listen_stop').catch(() => undefined);
+    throw failed(error);
+  }
+  const answer = parseCallbackQuery(query, state);
+  if (answer.error || !answer.code) throw new Error(`${explainSignInError(answer.error)} (Microsoft: ${answer.error ?? 'no code returned'})`);
+  const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
+  let response: Response;
+  try {
+    response = await tauriFetch(MICROSOFT_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: microsoftCodeExchangeBody({ clientId: client.clientId, code: answer.code, verifier, redirectUri }) });
+  } catch { throw new Error('Could not reach Microsoft. Check your connection.'); }
+  const json = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(`${explainSignInError(json?.error)} (Microsoft: ${json?.error ?? `HTTP ${response.status}`})`);
+  const idToken = microsoftIdTokenFromAnswer(json, { clientId: client.clientId, hashedNonce });
+  if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
+  const { auth, instance } = await firebase();
+  const credential = new auth.OAuthProvider('microsoft.com').credential({ idToken, rawNonce });
+  try {
+    return toSession(await useCredential(auth, instance, credential, 'microsoft', mode), 'microsoft');
+  } catch (error) {
+    if (error instanceof LinkingError) throw error;
+    // Firebase documents that it may refuse a Microsoft token handed over this way: say so plainly, change nothing.
+    if (desktopMicrosoftRefused(codeOf(error))) throw new Error(DESKTOP_MICROSOFT_REFUSED);
+    if (error instanceof Error && !codeOf(error)) throw error; // already in plain words, such as "Sign in first"
+    throw new Error(friendlyAuthError(error));
+  }
+}
+
 export const firebaseAuth: AuthProvider = {
   signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => {
     const { user } = await auth.signInWithEmailAndPassword(instance, email.trim(), password);
@@ -305,6 +360,7 @@ export const firebaseAuth: AuthProvider = {
     if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
     if (signInPlatform() === 'desktop' && provider === 'google' && googleDesktop) return signInWithGoogleOnDesktop(googleDesktop);
     if (signInPlatform() === 'desktop' && provider === 'apple' && appleDesktop) return signInWithAppleOnDesktop(appleDesktop);
+    if (signInPlatform() === 'desktop' && provider === 'microsoft' && microsoftDesktop) return signInWithMicrosoftOnDesktop(microsoftDesktop);
     if (signInPlatform() !== 'web') throw new Error('Google, Apple and Microsoft sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.');
     try {
       const { auth, instance } = await firebase();

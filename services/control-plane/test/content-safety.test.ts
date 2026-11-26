@@ -90,6 +90,23 @@ test('a known-hash test image is blocked, kept as evidence, reported, and its ac
   } finally { await ctx.h.close(); }
 });
 
+test('after a hash match every gallery of the suspended account stops serving, and its feedback is refused', async () => {
+  const ctx = await harness();
+  try {
+    const other = await gallery(ctx);
+    assert.equal((await publish(ctx, other.galleryId, 'p1', CLEAN)).status, 200);
+    assert.equal((await ctx.h.call('POST', '/v1/gallery/open', { body: { token: other.linkToken } })).status, 200, 'serves before the match');
+    const matched = await gallery(ctx);
+    assert.equal((await publish(ctx, matched.galleryId, 'p1', KNOWN)).status, 403);
+    const opened = await ctx.h.call('POST', '/v1/gallery/open', { body: { token: other.linkToken } });
+    assert.equal(opened.status, 451, 'the other gallery of the suspended account is taken down too');
+    assert.equal(opened.body.error?.code ?? opened.body.code, 'GALLERY_UNAVAILABLE');
+    assert.equal(JSON.stringify(opened.body).includes('suspend'), false, 'the visitor is not told why');
+    const fb = await ctx.h.call('POST', '/v1/gallery/feedback', { body: { token: other.linkToken, visitor: 'visitor-one', photoId: 'p1', kind: 'favourite', text: null } });
+    assert.equal(fb.status, 451, 'no feedback reaches a gallery of a suspended account');
+  } finally { await ctx.h.close(); }
+});
+
 test('an AI flag holds the picture for review, never reports it, and a person can release it from the details only', async () => {
   const ctx = await harness();
   try {

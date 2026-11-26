@@ -353,6 +353,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # Safety checks on shared and cloud photos (safety.tf). Secrets are named here, never their values.
+        for_each = local.safety_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.learning_signal_enabled ? { KCP_LEARNING_ENABLED = "1" } : {}
         content {
           name  = env.key
@@ -376,6 +384,8 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
     google_secret_manager_secret_iam_member.phase5_paddle,
+    google_secret_manager_secret_iam_member.safety,
+    google_project_service.vision,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,

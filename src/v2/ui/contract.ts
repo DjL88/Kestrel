@@ -494,6 +494,8 @@ export interface Photo {
   panorama?: { sources: string[] };
   /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
   hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
+  /** This photo is one frame of an exposure bracket found from the camera's settings: the bracket's photos in shooting order, each one's stops against the middle, and whether the camera marked it. */
+  bracket?: { photoIds: string[]; ev: number[]; fromCamera: boolean };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -675,6 +677,8 @@ export interface ExportRequest {
   photoIds: string[];
   /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
   brandKitId?: string;
+  /** Captions and credits (IPTC) written into each JPEG or PNG, with code replacements. Absent = none. */
+  captions?: import('../../core/captionTemplate').CaptionTemplate;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -810,6 +814,9 @@ export interface WorkspaceStore {
    * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
    * doubted it ('held'), or could not check it ('failed'). */
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
+  /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
+   * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -872,6 +879,9 @@ export interface WorkspaceActions {
   removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
+  /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
+  watchFolder?: () => void;
+  stopWatchingFolder?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

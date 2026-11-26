@@ -28,6 +28,7 @@ import { stackText } from '../../i18n/areas/stack';
 import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackDoneNotice, stackedFilename, stackSelection } from './focusStackOps';
 import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
 import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
+import { bracketsByFrame, type ExposureBracket } from '../../core/hdrBracket';
 import { hdrText } from '../../i18n/areas/hdr';
 import { cullWarmupPreviewOn, warmupNeighbours } from './previewWarmup';
 import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
@@ -54,6 +55,7 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { canWatchFolder, chooseHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -367,6 +369,11 @@ function userLookPreset(look: UserLook): LookPreset {
   };
 }
 
+/** The photo, with the exposure bracket it belongs to (from the camera's settings) when there is one. */
+function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBracket | undefined): import('../ui/contract').Photo {
+  return bracket ? { ...photo, bracket: { photoIds: bracket.frameIds, ev: bracket.ev, fromCamera: bracket.fromCamera } } : photo;
+}
+
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
@@ -461,6 +468,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
+  // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
+  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean } | null>(null);
+  const liveWatch = useRef<AbortController | null>(null);
+  const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
+  const lastFollowed = useRef<string | null>(null);
   const relinking = useRef(false);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
@@ -2005,16 +2017,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
     /** Fields to add to a photo as it is read (a focus stack's, panorama's or HDR merge's recipe), by its picked key. */
-    attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
+    attach?: (key: string) => Partial<PhotoFrame> | undefined,
+    /** A frame from a watched folder during a live shoot: no notices for each arrival, and it never waits for a picker. */
+    live = false): Promise<boolean> => {
     const target = stateRef.current;
-    if (!target) return;
-    if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
+    if (!target) return false;
+    if (importController.current) { if (!live) setNotice(engineText.workspace.importRunning); return false; }
     const picks = suppliedPicks === undefined ? await pickFiles() : suppliedPicks;
-    if (!picks?.length) return;
+    if (!picks?.length) return false;
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     const existing = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => { const key = pickedKey(file); if (existing.has(key)) return false; existing.add(key); return true; });
-    if (!additions.length) { setNotice(engineText.workspace.importNothingNew); return; }
+    if (!additions.length) { if (!live) setNotice(engineText.workspace.importNothingNew); return true; }
     const projectKey = target.shoot.id;
     const controller = new AbortController();
     importController.current = controller;
@@ -2104,11 +2118,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (stateRef.current?.shoot.id === projectKey) {
         const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome);
         if (next === 'run') void afterImport.current.run();
-        else if (outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
-        else if (outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
+        else if (!live && outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+        // Live shoot: show the frame that just landed, so the photographer sees each shot as it arrives.
+        const newest = live ? importedFrames.at(-1) : undefined;
+        if (newest) followLiveFrame.current?.(newest.id);
       }
+      return true;
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : engineText.workspace.importFailed);
+      return true;
     } finally {
       controller.abort();
       if (importingInto.current === projectKey) importingInto.current = null;
@@ -2116,6 +2135,52 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setImporting(false);
     }
   }, []);
+
+  // Live shoot: follow the newest frame only while the photographer is at the newest one, so culling an earlier frame
+  // is never pulled away by the next arrival.
+  followLiveFrame.current = (photoId: string) => {
+    void (async () => {
+      for (let wait = 0; !stateRef.current?.frames.some((frame) => frame.id === photoId) && wait < 100; wait++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const current = stateRef.current;
+      if (!current?.frames.some((frame) => frame.id === photoId)) return;
+      const atNewest = current.selectedFrameId == null || current.selectedFrameId === lastFollowed.current || lastFollowed.current === null;
+      lastFollowed.current = photoId;
+      if (!atNewest) return;
+      setSelected([photoId]);
+      mutate((now) => (now.shoot.id === current.shoot.id ? { ...now, selectedFrameId: photoId } : now));
+    })();
+  };
+
+  const stopLiveFolder = useCallback(() => {
+    liveWatch.current?.abort();
+    liveWatch.current = null;
+    lastFollowed.current = null;
+    setLiveFolder(null);
+  }, []);
+
+  const startLiveFolder = useCallback((source: HotFolderSource) => {
+    const projectId = stateRef.current?.shoot.id;
+    if (!projectId) return;
+    liveWatch.current?.abort();
+    const controller = new AbortController();
+    liveWatch.current = controller;
+    lastFollowed.current = null;
+    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false });
+    watchHotFolder(source, {
+      signal: controller.signal,
+      // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
+      onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
+      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status }); },
+    });
+  }, [importPhotos]);
+
+  // Leaving the project (or closing InFlight's editor) ends the watch: a live shoot belongs to the project it started in.
+  useEffect(() => {
+    if (liveFolder && liveFolder.projectId !== state?.shoot.id) stopLiveFolder();
+  }, [liveFolder, state?.shoot.id, stopLiveFolder]);
+  useEffect(() => () => liveWatch.current?.abort(), []);
 
   // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
   // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
@@ -3023,6 +3088,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }),
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderPhotos(setNotice).then((chosen) => { if (chosen) void importPhotos(chosen.picks); }); },
+    watchFolder: () => {
+      if (!canWatchFolder()) { setNotice(V2_STRINGS.liveShoot.notHere); return; }
+      // The picker opens straight from the person's click; nothing in the folder is moved or written.
+      void chooseHotFolder().then((source) => { if (source) startLiveFolder(source); });
+    },
+    stopWatchingFolder: () => stopLiveFolder(),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
@@ -3685,12 +3756,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
   const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
   useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
-  const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
+  const photos = useMemo(() => {
+    const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
+    // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
+    const brackets = bracketsByFrame(shown);
+    return recountBursts(shown.map((frame) => {
+    const bracket = brackets.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }));
-  })), [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
+    return withBracket(withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined })), bracket);
+  }));
+  }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -3749,6 +3826,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,

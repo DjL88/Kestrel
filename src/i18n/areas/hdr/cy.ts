@@ -29,4 +29,9 @@ export const cy: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Wedi'i wneud o ${n} llun:`, other: `Wedi'i wneud o ${n} llun:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stop`,
   infoHow: "Daw pob rhan o'r lluniau oedd wedi'u datguddio'n dda yno, wedi'u halinio a'u pwysoli yn ôl datguddiad, yna wedi'u haddasu gydag Uchafbwyntiau a Chysgodion y golygydd. Ni chrëwyd unrhyw bicseli.",
+  whatIs: "Ystyr HDR yw ystod ddynamig uchel, nid diffiniad uchel. Mae'n cyfuno sawl datguddiad o'r un olygfa fel bod awyr lachar a chysgodion tywyll yn cadw eu manylion.",
+  bracketTitle: "Cyfres datguddio",
+  bracketFound: (n: number, stops: string) => `${n} llun wedi'u tynnu eiliadau ar wahân ar ddatguddiadau gwahanol (${stops} stop).`,
+  bracketFromCamera: "Marciodd eich camera'r lluniau hyn fel cyfres datguddio.",
+  bracketFromExposures: "Wedi'u canfod o'u cyflymder caead, agorfa ac ISO.",
 };

@@ -29,4 +29,9 @@ export const nl: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Gemaakt van ${n} foto:`, other: `Gemaakt van ${n} foto's:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stops`,
   infoHow: "Elk deel komt uit de foto's die daar goed belicht waren, uitgelijnd en gewogen naar belichting, en daarna afgesteld met Hoge lichten en Schaduwen van de editor. Er zijn geen pixels gegenereerd.",
+  whatIs: "HDR betekent hoog dynamisch bereik, niet hoge definitie. Het combineert meerdere belichtingen van dezelfde scène, zodat heldere luchten en donkere schaduwen allebei hun detail houden.",
+  bracketTitle: "Belichtingsreeks",
+  bracketFound: (n: number, stops: string) => `${n} foto's, vlak na elkaar met verschillende belichting genomen (${stops} stops).`,
+  bracketFromCamera: "Uw camera heeft deze foto's als belichtingsreeks gemarkeerd.",
+  bracketFromExposures: "Gevonden aan de hand van sluitertijd, diafragma en ISO.",
 };
