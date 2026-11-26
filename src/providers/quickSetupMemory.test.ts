@@ -53,9 +53,14 @@ test('this device\'s finished answers are saved to an account that has none, wit
 test('signed out or offline, nothing breaks and this device keeps its answers', async () => {
   const store = memory();
   writeSetup({ status: 'skipped' }, store);
-  assert.equal(await syncSetupWithAccount({ baseUrl: 'https://control.example.com', idToken: async () => null }, store), null);
+  assert.equal(await syncSetupWithAccount({ baseUrl: 'https://control.example.com', idToken: async () => null }, store), undefined);
   const offline = (async () => { throw new TypeError('offline'); }) as unknown as typeof fetch;
-  assert.equal(await syncSetupWithAccount(deps(offline), store), null);
+  assert.equal(await syncSetupWithAccount(deps(offline), store), undefined);
   assert.equal(await saveSetupToAccount({ status: 'done' }, deps(offline)), false);
   assert.equal(readSetup(store)?.status, 'skipped');
+});
+
+test('a new account, or one with nothing saved, is reported as checked and empty, so setup runs after sign-up', async () => {
+  const s = server(null);
+  assert.equal(await syncSetupWithAccount(deps(s.fetcher), memory()), null);
 });

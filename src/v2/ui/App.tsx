@@ -53,6 +53,7 @@ import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
 import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
+import { setupFinished } from '../../core/quickSetup';
 import { launchedBefore } from '../../providers/launchMemory';
 const QuickSetup = React.lazy(() => import('./screens/QuickSetup'));
 import type { MenuAction } from './commands/menuMap';
@@ -213,7 +214,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   React.useEffect(() => {
     if (!accountName || setupSynced.current) return;
     setupSynced.current = true;
-    void syncSetupWithAccount().then((answers) => { if (answers) void applyAccountSetup(answers); });
+    // Saved answers on the account are applied; signed in (from Settings too) with none anywhere, setup is offered once.
+    void syncSetupWithAccount().then((answers) => {
+      if (answers) void applyAccountSetup(answers);
+      else if (answers === null && !setupFinished(readSetup())) setSetupOpen(true);
+    });
   }, [accountName]);
   // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
   const notices = useNotices(sharing, signedInName);

@@ -78,12 +78,13 @@ export async function saveSetupToAccount(answers: SetupAnswers, deps: AccountSet
 /**
  * After signing in: compares this device's answers with the account's. The account's finished answers are applied
  * here (returned, so the caller can switch the language and settings, and setup is not shown again); this device's
- * finished answers are saved to the account. Null when nothing came from the account (signed out, offline, none).
+ * finished answers are saved to the account. Null when the account was checked and has nothing to apply; undefined
+ * when it could not be checked (signed out, offline, not set up in this build), so setup is not offered on a guess.
  */
-export async function syncSetupWithAccount(deps: AccountSetupDeps = {}, store: Store | null = local()): Promise<SetupAnswers | null> {
+export async function syncSetupWithAccount(deps: AccountSetupDeps = {}, store: Store | null = local()): Promise<SetupAnswers | null | undefined> {
   try {
     const s = await session(deps);
-    if (!s) return null;
+    if (!s) return undefined;
     const fetcher = deps.fetcher ?? fetch;
     const reply = await call(s.origin + '/v1/me/preferences', fetcher, 'GET', undefined, s.token);
     const account = parseSetupAnswers((reply.preferences as Record<string, unknown> | null | undefined)?.setup);
@@ -96,6 +97,6 @@ export async function syncSetupWithAccount(deps: AccountSetupDeps = {}, store: S
     if (which === 'device' && device) await call(s.origin + '/v1/me/preferences', fetcher, 'POST', { setup: accountCopy(device) }, s.token);
     return null;
   } catch {
-    return null;
+    return undefined;
   }
 }

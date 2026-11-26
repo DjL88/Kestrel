@@ -163,7 +163,8 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
         setSetup(false);
         setOutcome(`${note} ${STRINGS.setup.appliedFromAccount}`.trim());
         await applyAccountSetup(fromAccount);
-      } else if (!fromSetup && setupWanted()) setSetup(true);
+      // A new account, or a first sign-in with nothing saved on the account or here: setup runs, as after Continue as guest.
+      } else if (fromAccount === null && !fromSetup && !setupFinished(readSetup())) setSetup(true);
     });
   };
 
