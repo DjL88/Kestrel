@@ -6,7 +6,6 @@ import { forPublicDocument } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { randomId, sha256Hex, signEnvelope, verifyPassword, verifyWebhook } from './crypto.ts';
-import { publicExamples } from './demoStudio.ts';
 import { licenceIsUsable } from './store.ts';
 import { identify, suggest, verifyColour } from './gateway.ts';
 import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, PADDLE_ADJUSTMENT_ID, PADDLE_SUBSCRIPTION_ID } from './commerce/paddle.ts';
@@ -19,7 +18,7 @@ import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } f
 import type { AppContext } from './appContext.ts';
 
 export function generalRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, demoStudio, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
+  const { options, config, store, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
   return [
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
@@ -67,12 +66,6 @@ export function generalRoutes(ctx: AppContext): Route[] {
 
 
   // ---- Owner-approved, fixed photographs for the real website editor
-  {
-    method: 'GET', path: '/v1/demo/photos', summary: 'Read published photographs and exact approved edit recipes only', auth: 'none',
-    handler: async () => ({
-      status: 200, body: { photos: demoStudio ? publicExamples(await demoStudio.list(), (photo) => demoStudio.imageUrl(photo)) : [] },
-    }),
-  },
 
   // ---- Identity & licensing
   {

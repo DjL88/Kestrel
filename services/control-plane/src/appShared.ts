@@ -3,7 +3,6 @@ import { PRO_PLANS } from './commerce/proCheckout.ts';
 import { z } from 'zod';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
-import { type DemoStudioStore } from './demoStudio.ts';
 import { type Store } from './store.ts';
 import { type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
@@ -84,8 +83,6 @@ export interface AppOptions {
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
-  /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
-  demoStudio?: DemoStudioStore;
   /** Cloud Processing Engine. Absent in production until the owner approves the bucket and runner: the routes then answer 503. */
   cloud?: CloudOptions;
   /** Opt-in learning signal. Absent in production until approved: the routes then answer 503. */
@@ -154,40 +151,6 @@ export const AdminTaxSettings = z.object({
 });
 export const SignedEnvelopeSchema = z.object({ payload: z.unknown(), signature: z.string(), keyId: z.string() });
 
-export const DemoDetails = z.object({
-  title: z.string().trim().min(1).max(80),
-  subject: z.string().trim().max(120),
-  credit: z.string().trim().max(200),
-  alt: z.string().trim().min(1).max(220),
-}).strict();
-export const DemoEdit = z.object({
-  exposure: z.number().finite().min(-2).max(2),
-  warmth: z.number().finite().min(-2).max(2),
-  colour: z.number().finite().min(-2).max(2),
-  brightness: z.number().finite().min(-2).max(2).optional(),
-  contrast: z.number().finite().min(-2).max(2).optional(),
-  highlights: z.number().finite().min(-2).max(2).optional(),
-  shadows: z.number().finite().min(-2).max(2).optional(),
-  whites: z.number().finite().min(-2).max(2).optional(),
-  blacks: z.number().finite().min(-2).max(2).optional(),
-  vibrance: z.number().finite().min(-2).max(2).optional(),
-  texture: z.number().finite().min(-2).max(2).optional(),
-  clarity: z.number().finite().min(-2).max(2).optional(),
-  sharpen: z.number().finite().min(-2).max(2).optional(),
-  denoise: z.number().finite().min(0).max(2).optional(),
-  // Real PhotoEditor masks are shaped by its own editing model. Save only
-  // a bounded, owner-authenticated JSON recipe; request limit is 128 KiB.
-  masks: z.array(z.unknown()).max(8).optional(),
-}).strict();
-export const DemoFraming = z.object({
-  ratio: z.number().finite().min(0.1).max(10).nullable(),
-  turns: z.number().int().min(-360).max(360),
-  straighten: z.number().finite().min(-45).max(45),
-  x: z.number().finite().min(0).max(1),
-  y: z.number().finite().min(0).max(1),
-  size: z.number().finite().min(0.08).max(1).optional(),
-  free: z.boolean().optional(),
-}).strict();
 /** Slider name to value: short identifiers and bounded numbers only, so a free-text field cannot hide in here. */
 export const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 export const Sha = z.string().regex(/^[0-9a-f]{64}$/);
@@ -288,10 +251,6 @@ export const Schemas = {
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
   SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
-  DemoCreate: DemoDetails.extend({ jpegBase64: z.string().min(128).max(2_200_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
-  DemoSave: DemoDetails.extend({ revision: z.number().int().positive(), edit: DemoEdit, framing: DemoFraming }).strict(),
-  DemoRevision: z.object({ revision: z.number().int().positive() }).strict(),
-  DemoPublish: z.object({ revision: z.number().int().positive(), published: z.boolean() }).strict(),
   SessionRequest: z.object({ email: z.string().email().max(254), password: z.string().min(8).max(200) }).strict(),
   RefreshRequest: z.object({ refreshToken: z.string().min(20).max(200) }).strict(),
   SessionResponse: z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.number() }),

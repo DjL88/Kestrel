@@ -123,10 +123,12 @@ test('no provider key, the kill switch, or no AI plan each give a clear refusal'
 });
 
 test('release notices only accept allow-listed https links and report the newest version', async () => {
-  const bad = await h.call('POST', '/v1/admin/releases', { token: h.adminToken, body: { platform: 'windows', version: '26.11.9', url: 'https://evil.example/kestrel.exe' } });
-  assert.equal(bad.status, 400);
+  for (const url of ['https://evil.example/kestrel.exe', 'https://storage.googleapis.com/someone-elses-bucket/kestrel.exe', 'https://github.com/DjL88/Kestrel/releases/tag/v26.11.9']) {
+    const bad = await h.call('POST', '/v1/admin/releases', { token: h.adminToken, body: { platform: 'windows', version: '26.11.9', url } });
+    assert.equal(bad.status, 400);
+  }
   for (const version of ['26.11.3', '26.12.0', '26.11.10']) {
-    const ok = await h.call('POST', '/v1/admin/releases', { token: h.adminToken, body: { platform: 'windows', version, url: `https://github.com/DjL88/Kestrel/releases/tag/v${version}` } });
+    const ok = await h.call('POST', '/v1/admin/releases', { token: h.adminToken, body: { platform: 'windows', version, url: `https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/releases/${version}/` } });
     assert.equal(ok.status, 200);
   }
   const latest = await h.call('GET', '/v1/desktop/releases?platform=windows');

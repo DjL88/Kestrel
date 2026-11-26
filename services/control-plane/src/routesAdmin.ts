@@ -4,7 +4,6 @@ import crypto from 'node:crypto';
 import { parseFlagSet, MAX_GRANT_FLAGS } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, sha256Hex, signSession } from './crypto.ts';
-import { adminExamples, type ExampleFields } from './demoStudio.ts';
 import { newLicence } from './store.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { verifyGoogleIdToken } from './googleIdToken.ts';
@@ -17,7 +16,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './
 import type { AppContext } from './appContext.ts';
 
 export function adminRoutes(ctx: AppContext): Route[] {
-  const { options, config, commerce, store, demoStudio, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  const { options, config, commerce, store, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
   return [
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
@@ -36,63 +35,6 @@ export function adminRoutes(ctx: AppContext): Route[] {
       const claims = await admin(req, 'mail.read');
       if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
       return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
-    },
-  },
-  {
-    method: 'GET', path: '/v1/admin/demo/photos', summary: 'Private list of all staged and published demonstration photographs', auth: 'admin',
-    handler: async (req) => {
-      const claims = await admin(req, 'demo.list');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      return adminDone(claims, 'demo.list', 'listed', { photos: adminExamples(await demoStudio.list(), (photo) => demoStudio.imageUrl(photo)) });
-    },
-  },
-  {
-    method: 'GET', path: '/v1/admin/demo/photos/:id/image', summary: 'Read a private draft preview with owner authentication', auth: 'admin',
-    handler: async (req, params) => {
-      const claims = await admin(req, 'demo.image');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      const jpeg = await demoStudio.image(params.id);
-      return adminDone(claims, 'demo.image', params.id, { jpegBase64: jpeg.toString('base64') });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/demo/photos', summary: 'Add a stripped JPEG example as a private draft', auth: 'admin', body: Schemas.DemoCreate,
-    handler: async (req) => {
-      const claims = await admin(req, 'demo.create');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      const { jpegBase64, ...fields } = parseJson(Schemas.DemoCreate, req.rawBody);
-      const photo = await demoStudio.create(Buffer.from(jpegBase64, 'base64'), fields, now());
-      return adminDone(claims, 'demo.create', photo.id, { photo: { id: photo.id, revision: photo.revision } });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/demo/photos/:id/save', summary: 'Save draft subject, metadata, exact editor recipe and crop; not public until approved', auth: 'admin', body: Schemas.DemoSave,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'demo.save');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      const { revision, ...changes } = parseJson(Schemas.DemoSave, req.rawBody);
-      const photo = await demoStudio.save(params.id, revision, changes as unknown as ExampleFields, now());
-      return adminDone(claims, 'demo.save', photo.id + ' revision=' + photo.revision, { revision: photo.revision });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/demo/photos/:id/publish', summary: 'Explicitly publish or unpublish a photo snapshot', auth: 'admin', body: Schemas.DemoPublish,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'demo.publish');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      const { revision, published } = parseJson(Schemas.DemoPublish, req.rawBody);
-      const photo = await demoStudio.publish(params.id, revision, published, now());
-      return adminDone(claims, 'demo.publish', photo.id + ' published=' + published, { published: photo.published, revision: photo.revision });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/demo/photos/:id/delete', summary: 'Delete a draft and revoke its publication', auth: 'admin', body: Schemas.DemoRevision,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'demo.delete');
-      if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
-      const { revision } = parseJson(Schemas.DemoRevision, req.rawBody);
-      await demoStudio.remove(params.id, revision);
-      return adminDone(claims, 'demo.delete', params.id, { deleted: true });
     },
   },
   // ---- Safety review. Admins see details only: no route ever returns a held or blocked picture.
@@ -646,9 +588,9 @@ export function adminRoutes(ctx: AppContext): Route[] {
       const claims = await admin(req, 'release.publish');
       const body = parseJson(Schemas.AdminRelease, req.rawBody);
       const url = new URL(body.url);
-      if (url.protocol !== 'https:' || !config.releaseHosts.includes(url.hostname) || url.username || url.password) {
+      if (url.protocol !== 'https:' || !config.releaseUrlPrefixes.some((prefix) => url.toString().startsWith(prefix)) || url.username || url.password) {
         await audit(claims.sub, 'release.publish', 'denied', `host ${url.hostname}`);
-        throw new ApiError(400, 'RELEASE_URL_NOT_ALLOWED', `Release links must be https on ${config.releaseHosts.join(', ')}.`);
+        throw new ApiError(400, 'RELEASE_URL_NOT_ALLOWED', `Release links must start with ${config.releaseUrlPrefixes.join(' or ')}.`);
       }
       const inserted = await store.insertRelease({ platform: body.platform, channel: body.channel, version: body.version, url: url.toString(), notes: body.notes, minSupported: body.minSupported, publishedAtMs: now() });
       if (!inserted) throw new ApiError(409, 'RELEASE_EXISTS', 'That version is already published on this channel.');
