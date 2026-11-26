@@ -1360,6 +1360,7 @@ export const nl: AreaTranslation<typeof source> = {
     more: 'Meer',
     moreTools: 'Meer gereedschap',
     closeDrawer: 'Mobiele lade sluiten',
+    navigation: "Terug, ongedaan maken en volledig scherm",
     photoPosition: (n, total) => `${n} van ${total}`,
   },
   autoCullSummary: {
@@ -2161,6 +2162,12 @@ export const nl: AreaTranslation<typeof source> = {
     roomClose: 'Sluiten',
     roomCloseHint: 'Stoppen met tonen van de shoot op andere schermen.',
     roomKeptYours: (n: number) => `Jouw keuze behouden (${n}): je had dezelfde foto gewijzigd.`,
+    usb: 'Camera-USB',
+    usbHint: 'Verbind je camera via USB en voeg elke foto toe zodra je hem maakt. Een kopie van elk nieuw beeld wordt bewaard in een map naar keuze; op de camera wordt niets gewijzigd of verwijderd.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `${name} ophalen`,
+    usbNoCamera: 'Geen camera gevonden via USB. Zet de camera aan, sluit de kabel aan en sluit andere apps die hem gebruiken (de tether-app van de fabrikant, Foto\'s of Fotolader).',
+    usbEnded: (camera: string, reason: string) => `${camera} is gestopt met tetheren: ${reason} Al toegevoegde foto's blijven.`,
   },
   activityBar: {
     photoLoading: 'Foto wordt geladen',

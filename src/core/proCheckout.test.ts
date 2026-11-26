@@ -52,3 +52,22 @@ test('a price is shown only when the server gives one', () => {
   assert.equal(priceText(4900, 'GBP', 'en-GB'), '£49.00');
   assert.equal(priceText(null, 'GBP'), null);
 });
+
+test('Manage or cancel Pro: only Paddle portal links survive, and every state says what happens next', async () => {
+  const { parseSubscriptionManage, subscriptionStateText, isPaddlePortalUrl } = await import('./proCheckout');
+  assert.equal(isPaddlePortalUrl('https://customer-portal.paddle.com/cpl_1/overview'), true);
+  assert.equal(isPaddlePortalUrl('https://customer-portal.paddle.com.evil.test/x'), false);
+  assert.equal(isPaddlePortalUrl('http://customer-portal.paddle.com/x'), false);
+  const ok = parseSubscriptionManage(200, { plan: 'monthly', state: 'ending', paidThroughMs: Date.UTC(2026, 11, 18), cancelUrl: 'https://evil.test/cancel', manageUrl: 'https://sandbox-customer-portal.paddle.com/cpl_1/overview' });
+  assert.ok(ok.ok);
+  if (ok.ok) {
+    assert.equal(ok.cancelUrl, undefined, 'a link that is not Paddle\'s portal is dropped');
+    assert.equal(ok.manageUrl, 'https://sandbox-customer-portal.paddle.com/cpl_1/overview');
+    assert.match(subscriptionStateText(ok, 'en-GB'), /Pro lasts until 18 December 2026, then this account goes back to Basic\. Your projects, edits and exports are never locked\./);
+    for (const state of ['renewing', 'payment-due', 'paused', 'ended'] as const) assert.ok(subscriptionStateText({ ...ok, state }, 'en-GB').length > 10);
+  }
+  const none = parseSubscriptionManage(404, { error: { code: 'NO_SUBSCRIPTION' } });
+  assert.equal(none.ok, false);
+  assert.match(!none.ok ? none.message : '', /no Pro subscription/);
+  assert.equal(parseSubscriptionManage(200, { plan: 'lifetime', state: 'renewing' }).ok, false);
+});

@@ -3,8 +3,9 @@
  * and the control plane. Pure: no network, no clock, no storage. This module DISPLAYS and ESTIMATES; the control plane
  * must still meter and authorise every cloud request itself (see spendGuard.ts).
  *
- * Software: Basic is free. Pro is £29 once for the current major version, or £2.99 a month that becomes ownership of the
- * latest major version after 12 successfully paid months.
+ * Software (owner decision, 26 Nov 2026): Basic is free for good. Pro is sold only as a subscription, £2.99 a month or
+ * £29.99 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
+ * Basic again; projects, edits and exports are never locked. One-off licences sold before then are still honoured.
  *
  * Cloud, the same for everyone who signs in (unused free photos and downloads carry over for one month, owner 26 Nov 2026):
  *  - cloud processing: a monthly photo allowance (Basic 500, Pro 5,000), then paid from the cloud balance;
@@ -19,12 +20,10 @@
 export type SoftwarePlan = 'basic' | 'pro';
 
 export const SOFTWARE_PRICES = {
-  /** Pro, current major version, kept forever. */
-  proOneOffPence: 2900,
-  /** Pro, rent to own. */
+  /** Pro, paid monthly. */
   proMonthlyPence: 299,
-  /** Successfully paid months that turn rent into ownership of the latest major version. */
-  rentToOwnPayments: 12,
+  /** Pro, paid yearly. */
+  proAnnualPence: 2999,
 } as const;
 
 /** Cloud photos included each calendar month (UTC). */
@@ -112,19 +111,6 @@ const whole = (n: number) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
 export function nextResetMs(nowMs: number): number {
   const d = new Date(nowMs);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-}
-
-export interface RentToOwn {
-  owned: boolean;
-  paymentsMade: number;
-  paymentsLeft: number;
-}
-
-/** Only successful, non-refunded, consecutive payments count; the server decides which those are. */
-export function rentToOwn(successfulPayments: number): RentToOwn {
-  const made = whole(successfulPayments);
-  const need = SOFTWARE_PRICES.rentToOwnPayments;
-  return { owned: made >= need, paymentsMade: Math.min(made, need), paymentsLeft: Math.max(0, need - made) };
 }
 
 export interface CloudUsage {

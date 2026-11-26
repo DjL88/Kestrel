@@ -1,8 +1,8 @@
 /** Module-level constants, request schemas and helpers shared by the control-plane app and its route groups. */
+import { PRO_PLANS } from './commerce/proCheckout.ts';
 import { z } from 'zod';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
-import { type DemoStudioStore } from './demoStudio.ts';
 import { type Store } from './store.ts';
 import { type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
@@ -60,7 +60,11 @@ export interface AppOptions {
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]>; listTransactionsForMonth?(month: string): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
-  settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  settlePaddle?: (transactionId: string, hint?: { subscriptionId?: string }) => Promise<'paid' | 'pending' | 'unknown'>;
+  /** Re-fetches a Pro subscription from Paddle and moves its licence's end date to match (commerce/proSettlement.ts). */
+  syncPaddleSubscription?: (subscriptionId: string) => Promise<'synced' | 'unknown'>;
+  /** Manage or cancel Pro: the account's subscription and Paddle's own pages to cancel it or change the card. */
+  managePaddleSubscription?: (accountId: string) => Promise<import('./commerce/proSettlement.ts').SubscriptionManagement | null>;
   /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
   revokePaddle?: (eventId: string, adjustmentId: string) => Promise<import('./commerce/paddleRefunds.ts').RefundOutcome>;
   /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
@@ -70,7 +74,7 @@ export interface AppOptions {
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: ReturnType<typeof paddleProCheckout>;
+  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -79,8 +83,6 @@ export interface AppOptions {
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
-  /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
-  demoStudio?: DemoStudioStore;
   /** Cloud Processing Engine. Absent in production until the owner approves the bucket and runner: the routes then answer 503. */
   cloud?: CloudOptions;
   /** Opt-in learning signal. Absent in production until approved: the routes then answer 503. */
@@ -149,40 +151,6 @@ export const AdminTaxSettings = z.object({
 });
 export const SignedEnvelopeSchema = z.object({ payload: z.unknown(), signature: z.string(), keyId: z.string() });
 
-export const DemoDetails = z.object({
-  title: z.string().trim().min(1).max(80),
-  subject: z.string().trim().max(120),
-  credit: z.string().trim().max(200),
-  alt: z.string().trim().min(1).max(220),
-}).strict();
-export const DemoEdit = z.object({
-  exposure: z.number().finite().min(-2).max(2),
-  warmth: z.number().finite().min(-2).max(2),
-  colour: z.number().finite().min(-2).max(2),
-  brightness: z.number().finite().min(-2).max(2).optional(),
-  contrast: z.number().finite().min(-2).max(2).optional(),
-  highlights: z.number().finite().min(-2).max(2).optional(),
-  shadows: z.number().finite().min(-2).max(2).optional(),
-  whites: z.number().finite().min(-2).max(2).optional(),
-  blacks: z.number().finite().min(-2).max(2).optional(),
-  vibrance: z.number().finite().min(-2).max(2).optional(),
-  texture: z.number().finite().min(-2).max(2).optional(),
-  clarity: z.number().finite().min(-2).max(2).optional(),
-  sharpen: z.number().finite().min(-2).max(2).optional(),
-  denoise: z.number().finite().min(0).max(2).optional(),
-  // Real PhotoEditor masks are shaped by its own editing model. Save only
-  // a bounded, owner-authenticated JSON recipe; request limit is 128 KiB.
-  masks: z.array(z.unknown()).max(8).optional(),
-}).strict();
-export const DemoFraming = z.object({
-  ratio: z.number().finite().min(0.1).max(10).nullable(),
-  turns: z.number().int().min(-360).max(360),
-  straighten: z.number().finite().min(-45).max(45),
-  x: z.number().finite().min(0).max(1),
-  y: z.number().finite().min(0).max(1),
-  size: z.number().finite().min(0.08).max(1).optional(),
-  free: z.boolean().optional(),
-}).strict();
 /** Slider name to value: short identifiers and bounded numbers only, so a free-text field cannot hide in here. */
 export const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 export const Sha = z.string().regex(/^[0-9a-f]{64}$/);
@@ -202,7 +170,7 @@ export const SWITCHES = [
   { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can subscribe to Pro (monthly or annual) through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
   { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
   { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
   { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
@@ -217,7 +185,9 @@ export const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key 
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
-  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
+  // Pro is a subscription, monthly or annual; older apps send no plan and get monthly, the smallest commitment.
+  // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
+  ProCheckoutRequest: z.object({ plan: z.enum(PRO_PLANS).default('monthly'), country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
@@ -281,10 +251,6 @@ export const Schemas = {
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
   SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
-  DemoCreate: DemoDetails.extend({ jpegBase64: z.string().min(128).max(2_200_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
-  DemoSave: DemoDetails.extend({ revision: z.number().int().positive(), edit: DemoEdit, framing: DemoFraming }).strict(),
-  DemoRevision: z.object({ revision: z.number().int().positive() }).strict(),
-  DemoPublish: z.object({ revision: z.number().int().positive(), published: z.boolean() }).strict(),
   SessionRequest: z.object({ email: z.string().email().max(254), password: z.string().min(8).max(200) }).strict(),
   RefreshRequest: z.object({ refreshToken: z.string().min(20).max(200) }).strict(),
   SessionResponse: z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.number() }),

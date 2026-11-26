@@ -24,7 +24,8 @@ test('turning a phone sideways and back keeps the open tool, the selected photo 
   await page.setViewportSize({ width: 844, height: 390 });
   await expect(studio.getByRole('button', { name: /^Adjust/, pressed: true }).first()).toBeVisible();
   await expect(zoom).toHaveText('100%');
-  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').nth(1)).toHaveAttribute('aria-selected', 'true');
+  // Sideways the open tool is a side panel and the filmstrip steps aside for it, so the chosen photo is checked once
+  // the phone is upright again (below).
 
   // Upright again: still Adjust, still that photo, still 100%.
   await page.setViewportSize({ width: 390, height: 844 });

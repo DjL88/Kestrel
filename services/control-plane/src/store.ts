@@ -174,6 +174,11 @@ export interface Store {
   activateDevice(request: ActivationRequest): Promise<ActivationOutcome>;
   /** False when there is no such licence. */
   setLicenceStatus(licenceId: string, status: LicenceStatus, nowMs: number): Promise<boolean>;
+  /**
+   * Sets when the licence stops (a subscription's paid-through date plus grace), leaving its status alone, so a
+   * refunded or revoked licence is never switched back on by a renewal. False when there is no such licence.
+   */
+  setLicenceValidUntil(licenceId: string, validUntilMs: number, nowMs: number): Promise<boolean>;
   /** Extends validity and reactivates. Undefined when there is no such licence. */
   extendLicence(licenceId: string, days: number, nowMs: number): Promise<number | undefined>;
   /** Most recently changed first. */

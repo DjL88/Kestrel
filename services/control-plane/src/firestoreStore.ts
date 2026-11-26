@@ -269,6 +269,14 @@ export class FirestoreStore implements Store {
       return true;
     });
   }
+  async setLicenceValidUntil(licenceId: string, validUntilMs: number, nowMs: number): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.licences, licenceId);
+      if (!(await tx.get(ref)).exists) return false;
+      tx.update(ref, { validUntilMs, updatedAtMs: nowMs });
+      return true;
+    });
+  }
   async extendLicence(licenceId: string, days: number, nowMs: number): Promise<number | undefined> {
     return this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.licences, licenceId);

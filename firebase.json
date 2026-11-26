@@ -34,13 +34,6 @@
         }
       },
       {
-        "source": "/v1/demo/**",
-        "run": {
-          "serviceId": "kestrel-control-plane",
-          "region": "europe-west2"
-        }
-      },
-      {
         "source": "/v1/gallery/**",
         "run": {
           "serviceId": "kestrel-control-plane",

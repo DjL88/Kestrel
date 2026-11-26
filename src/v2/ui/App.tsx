@@ -10,6 +10,7 @@ import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
+import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -276,8 +277,23 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
   // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
   // follows its content.
-  const sheetRef = useRef<HTMLDivElement | null>(null);
+  // A callback ref, not useRef: the sheet's content loads lazily, so the sheet can appear after the effect below has run,
+  // and it must be measured when it actually mounts.
+  const [sheetEl, setSheetEl] = useState<HTMLDivElement | null>(null);
   const [sheetHeight, setSheetHeight] = useState(0);
+  const [sheetWidth, setSheetWidth] = useState(0);
+  // A touch phone held sideways gets its own layout (V2-WORKSPACE 26.4); see utils/layoutQueries.ts.
+  const [isPhoneLandscape, setIsPhoneLandscape] = useState<boolean>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(PHONE_LANDSCAPE_QUERY).matches : false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(PHONE_LANDSCAPE_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setIsPhoneLandscape(e.matches);
+    setIsPhoneLandscape(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -302,7 +318,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     startLayoutApplied.current = true;
     const startsWithoutPanel = [
       '(max-width: 767px)',
-      '(orientation: landscape) and (max-height: 520px) and (max-width: 899px)',
+      SHORT_LANDSCAPE_QUERY,
       '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)',
     ].some((query) => window.matchMedia(query).matches);
     if (startsWithoutPanel) setActivePanel(null);
@@ -833,19 +849,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  // Phone layouts: upright (bottom tool bar and bottom sheet) and sideways (tools on the right, side panels).
+  const phoneLandscape = isPhoneLandscape && !composingCollage;
+  const phoneLayout = isMobile || phoneLandscape;
+  const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
-  const sheetOpen = isMobile && Boolean(store.activePanel) && !composingCollage;
   useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheetOpen || !sheet) { setSheetHeight(0); return; }
-    const measure = () => setSheetHeight(sheet.offsetHeight);
+    const sheet = sheetEl;
+    if (!sheetOpen || !sheet) { setSheetHeight(0); setSheetWidth(0); return; }
+    const measure = () => { setSheetHeight(sheet.offsetHeight); setSheetWidth(sheet.offsetWidth); };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(sheet);
     return () => observer.disconnect();
-  }, [sheetOpen]);
+  }, [sheetOpen, phoneLandscape, sheetEl]);
 
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible) && !composingCollage;
 
@@ -892,6 +911,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
+      data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
@@ -969,7 +989,29 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               event.target.value = '';
               if (file) actions.readLightroomCatalogue(file);
             }} />
-          {!canvasOnlyShown && <TopBar
+          {phoneLandscape && !canvasOnlyShown && (
+            <nav aria-label={STRINGS.mobile.navigation} data-testid="phone-landscape-nav"
+              className="fixed inset-y-0 left-0 z-40 flex w-[calc(3.25rem+env(safe-area-inset-left))] flex-col items-center gap-1 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pt-[max(0.5rem,env(safe-area-inset-top))]">
+              {([
+                { icon: 'arrow-left', label: STRINGS.topBar.backToProjects, enabled: true, action: actions.backToProjects },
+                { icon: 'undo', label: STRINGS.topBar.editActions.undo, enabled: store.canUndo, action: actions.undo },
+                { icon: 'refresh', label: STRINGS.topBar.editActions.redo, enabled: store.canRedo, action: actions.redo },
+              ] as const).map(({ icon, label, enabled, action }) => (
+                <button key={label} type="button" aria-label={label} title={label} disabled={!enabled} onClick={() => action()}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40">
+                  <BrandIcon name={icon} size={20} />
+                </button>
+              ))}
+              <span className="flex-1" aria-hidden="true" />
+              <button type="button" onClick={actions.toggleFullScreen}
+                aria-label={store.isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
+                title={store.isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name={store.isFullScreen ? 'collapse' : 'expand'} size={18} />
+              </button>
+            </nav>
+          )}
+          {!phoneLandscape && !canvasOnlyShown && <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
             keymap={keymap}
@@ -1025,9 +1067,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />}
 
           {/* Main Workspace Row */}
-          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetHeight ? 'v2-sheet-open' : ''}`}
-            style={sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
-            {(!store.collage || collageEditingId) && !canvasOnlyShown && <Rail
+          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
+            style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
+            {(!store.collage || collageEditingId) && !phoneLandscape && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
@@ -1046,7 +1088,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             />}
 
             {/* Left-docked panel (desktop/tablet only) */}
-            {!isMobile && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
+            {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1214,6 +1256,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 shootRoom={store.shootRoom}
                 onOpenShootRoom={actions.openShootRoom}
                 onCloseShootRoom={actions.closeShootRoom}
+                onTetherCamera={actions.tetherCamera}
                 liveFolder={store.liveFolder}
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
@@ -1230,7 +1273,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             </div>
 
             {/* Right-docked panel (desktop/tablet only) */}
-            {!isMobile && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
+            {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1246,7 +1289,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             )}
 
             {/* Undocked windows: independent on large displays, one on compact screens. */}
-            {!isMobile && !composingCollage && !canvasOnlyShown && shownFloatingPanelIds.map((panelId) => {
+            {!phoneLayout && !composingCollage && !canvasOnlyShown && shownFloatingPanelIds.map((panelId) => {
               const state = store.panels[panelId];
               return (
                 <DockPanel
@@ -1266,17 +1309,28 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             })}
           </div>
 
-          {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
-          {isMobile && !composingCollage && !canvasOnlyShown && (
+          {/* Phone tool bar. Upright (<= 767px): four large targets along the bottom, like Lightroom; everything else lives
+              in More. Sideways (V2-WORKSPACE 26.4): a column on the right, thumb side, with Export on top and Masks added,
+              because a landscape phone has the height for one more. */}
+          {phoneLayout && !composingCollage && !canvasOnlyShown && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
-              className="flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]"
+              className={phoneLandscape
+                ? 'fixed inset-y-0 right-0 z-40 flex w-[calc(4.5rem+env(safe-area-inset-right))] flex-col items-stretch gap-1 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-1 pr-[calc(0.25rem+env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))]'
+                : 'flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]'}
             >
+              {phoneLandscape && (
+                <button type="button" onClick={() => actions.setExportOpen(true)}
+                  className="mb-1 inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--brand-accent)] px-2 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
+                  {STRINGS.topBar.exportButton}
+                </button>
+              )}
               {(
                 [
                   { id: 'copilot', label: 'Flight', icon: assistModeIconName(store.assistMode) },
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
+                  ...(phoneLandscape ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
                 ] as const
               ).map((item) => {
                 const active = store.activePanel === item.id && !moreOpen;
@@ -1289,7 +1343,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                       setMoreOpen(false);
                       actions.setActivePanel(item.id);
                     }}
-                    className={`v2-current-mark-top relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
+                    className={`${phoneLandscape ? 'v2-current-mark min-h-[52px]' : 'v2-current-mark-top min-h-[56px] flex-1'} relative flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
                       active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                     }`}
                   >
@@ -1303,7 +1357,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 aria-pressed={moreOpen}
                 aria-expanded={moreOpen}
                 onClick={() => setMoreOpen((v) => !v)}
-                className={`v2-current-mark-top relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
+                className={`${phoneLandscape ? 'v2-current-mark min-h-[52px]' : 'v2-current-mark-top min-h-[56px] flex-1'} relative flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
                   moreOpen ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                 }`}
               >
@@ -1315,11 +1369,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             </nav>
           )}
 
-          {isMobile && moreOpen && !composingCollage && (
+          {phoneLayout && moreOpen && !composingCollage && (
             <div
               role="dialog"
               aria-label={STRINGS.mobile.moreTools}
-              className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"
+              className={phoneLandscape
+                ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-40 grid w-64 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto border-l border-[var(--border-default)] bg-[var(--bg-surface)] p-3 pt-[max(0.75rem,env(safe-area-inset-top))]'
+                : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
             >
               {(
                 [
@@ -1354,8 +1410,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           )}
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
-          {isMobile && store.activePanel && !composingCollage && (
-            <div ref={sheetRef} className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+          {phoneLayout && store.activePanel && !composingCollage && (
+            <div ref={setSheetEl} className={phoneLandscape
+              ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
+              : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1523,7 +1581,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
           } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
-          style={isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
+          style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >
           {noticeSticky && <BrandIcon name="alert" size={14} className="mt-0.5 shrink-0 text-[var(--semantic-warning)]" />}

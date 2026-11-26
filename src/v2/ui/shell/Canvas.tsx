@@ -52,7 +52,7 @@ import {
 } from '../utils/studioMath';
 
 /** Matches the short-landscape rule in v2.css that hides the size caption above the frame. */
-const SHORT_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 520px) and (max-width: 899px)';
+import { SHORT_LANDSCAPE_QUERY } from '../utils/layoutQueries';
 
 interface CanvasProps {
   /** Engine-supplied renderer; falls back to a plain image. */

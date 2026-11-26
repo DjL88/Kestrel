@@ -137,18 +137,18 @@ export function meRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await bearer(req);
       const checkout = options.proCheckout;
-      if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
+      if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
       if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
-      parseJson(Schemas.ProCheckoutRequest, req.rawBody);
+      const { plan } = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
       const t = now();
       const current = await effectiveAccountLicence(claims.sub, t);
       if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
       const account = await store.getAccount(claims.sub);
-      if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
+      if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to subscribe to Pro.');
       try {
         // The offer (admin flag proPromo, with its dates) counts only for someone signed in and buying while it is on.
         const promo = evaluateFlag('proPromo', await loadFlags(), {}, { audience: { plan: 'basic', user: account.emailHash }, nowMs: t }).on;
-        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo });
+        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo, plan });
         await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
         return { status: 201, body: started };
       } catch {
@@ -167,6 +167,20 @@ export function meRoutes(ctx: AppContext): Route[] {
       catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
       if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
       return { status: 200, body: { status } };
+    },
+  },
+  {
+    method: 'POST', path: '/v1/me/subscription/manage', summary: "Signed in: this account's Pro subscription (renewing, ending, payment due) and Paddle's own pages to cancel it or change the card", auth: 'user',
+    handler: async (req) => {
+      const claims = await bearer(req);
+      if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+      if (!options.managePaddleSubscription) throw new ApiError(404, 'NO_SUBSCRIPTION', 'This account has no Pro subscription to manage.');
+      let managed: Awaited<ReturnType<NonNullable<typeof options.managePaddleSubscription>>>;
+      try { managed = await options.managePaddleSubscription(claims.sub); }
+      catch { throw new ApiError(503, 'SUBSCRIPTION_UNAVAILABLE', 'Your subscription could not be checked just now. Nothing has changed; try again shortly.', true); }
+      if (!managed) throw new ApiError(404, 'NO_SUBSCRIPTION', 'This account has no Pro subscription to manage. A one-off licence bought earlier never needs cancelling.');
+      await audit(claims.sub, 'subscription.manage', 'allowed', managed.state);
+      return { status: 200, headers: { 'cache-control': 'no-store' }, body: managed };
     },
   },
   {

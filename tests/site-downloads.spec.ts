@@ -68,7 +68,7 @@ test('the Basic and Pro table says in words what each edition includes', async (
   await expect(species.getByRole('cell')).toHaveText(['Included', 'Included']);
   const masks = table.getByRole('row', { name: /Masks and subject detection/ });
   await expect(masks.getByRole('cell')).toHaveText(['Included', 'Included']);
-  await expect(page.getByText('nothing is on sale yet')).toBeVisible();
+  await expect(page.getByText('nothing you made is ever locked', { exact: false })).toBeVisible();
 });
 
 test('the table scrolls inside its box on a phone instead of widening the page', async ({ page }) => {

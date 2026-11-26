@@ -35,6 +35,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # The bundled models are not in git (models/bundled-models.json); npm run build fetches them by checksum from the
+      # public models bucket. Cached by the list, so they download once per change, not on every run.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            public/models/clip-vit-b32-vision-uint8.onnx
+            public/models/dinov2-small-fp16.onnx
+            public/models/species-world.json
+            public/models/species-mammals.json
+            public/models/species-reptiles.json
+            public/models/species-amphibians.json
+            public/models/species-odonata.json
+            public/models/species-lepidoptera.json
+          key: bundled-models-${{ hashFiles('models/bundled-models.json') }}
+      # The species unit tests read these lists, so fetch before npm test (a no-op when the cache hit).
+      - run: npm run models:fetch
       - run: node --test scripts/check-release-version.test.mjs
       - run: node scripts/check-release-version.mjs
       - run: npm run lint

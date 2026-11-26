@@ -90,7 +90,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 667, height: 375 }
   test(`Export controls stay reachable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const studio = await importPhoto(page);
-    await studio.getByRole('banner').getByRole('button', { name: 'Export', exact: true }).tap();
+    // Upright, Export is in the top bar; a phone held sideways has no top bar, and Export heads the tools on the right.
+    await studio.getByRole('banner').or(studio.getByRole('navigation', { name: 'Mobile studio tools' })).getByRole('button', { name: 'Export', exact: true }).first().tap();
     const dialog = studio.getByRole('dialog', { name: 'Export & Share' });
     const close = dialog.getByRole('button', { name: 'Close export dialog' });
     const submit = dialog.getByRole('button', { name: 'Export bundle' });

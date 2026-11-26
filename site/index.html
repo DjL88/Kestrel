@@ -27,7 +27,8 @@
     "description": "InFlight is a calm, privacy-first photo workspace for importing, culling, editing and exporting photographs. Designed to be easy for beginners, and built with colour-blind, ADHD, autistic and other neurodivergent photographers in mind.",
     "offers": [
       { "@type": "Offer", "name": "Basic", "price": "0", "priceCurrency": "GBP" },
-      { "@type": "Offer", "name": "InFlight Pro", "price": "29", "priceCurrency": "GBP", "category": "yearly or monthly subscription, planned and not yet on sale" }
+      { "@type": "Offer", "name": "InFlight Pro, monthly", "price": "2.99", "priceCurrency": "GBP", "category": "subscription" },
+      { "@type": "Offer", "name": "InFlight Pro, yearly", "price": "29", "priceCurrency": "GBP", "category": "subscription" }
     ],
     "accessibilityFeature": ["colorblindFriendly", "highContrastDisplay", "fullKeyboardControl", "reducedMotion", "noColorOnlyIndicators"],
     "accessibilityHazard": "none",
@@ -491,14 +492,14 @@
       <article class="card"><h3 data-i18n="chooseFreeTitle">Use Basic for free, or sign in</h3>
         <p data-i18n="chooseFreeBody">Basic is free for good and needs no account. Import, cull, edit and export on your own device, offline.</p>
         <p><a class="cta" href="#downloads" data-i18n="chooseFreeGet">Get Basic</a></p>
-        <p data-i18n="chooseSignInWeb">Already have an account? Sign in on the web or in the InFlight app.</p>
+        <p data-i18n="chooseSignIn">Already have an account? Sign in from the InFlight app. Any licence you have bought is added to that device when you sign in.</p>
       </article>
-      <article class="card"><h3 data-i18n="chooseProSubTitle">Sign up to Pro</h3>
+      <article class="card"><h3 data-i18n="chooseProTitle">Subscribe to Pro</h3>
         <p class="promo" id="promo-banner" role="note" hidden data-i18n="promoBanner">Black Friday offer: Pro costs less when you sign in and buy by the end of {lastDay}. The checkout shows the reduced price before you pay.</p>
-        <h4><span data-i18n="chooseSubTitle">Subscribe to Pro</span> <span class="pill" data-i18n="chooseSubSoon">Not on sale yet</span></h4>
-        <p data-i18n="chooseSubYearMonth">Yearly or monthly. Cancel any time, and Basic stays yours.</p>
+        <p><strong>£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong>£29</strong> <span data-i18n="priceAnnual">a year</span></p>
+        <p data-i18n="chooseSubBody">Pay monthly or yearly and cancel at any time. If you stop, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
         <p class="note" data-i18n="choosePricePromise">Price promise: your subscription price never goes up without at least 30 days’ notice by email, and a new price only starts at a renewal after that notice. You can cancel before then.</p>
-        <p data-i18n="chooseBuyHow">To buy, sign in from the InFlight app and choose Buy Pro. Paddle, our reseller, runs the checkout.</p>
+        <p data-i18n="chooseBuyHow">To subscribe, sign in from the InFlight app and choose Subscribe to Pro. Paddle, our reseller, runs the checkout.</p>
       </article>
       <article class="card"><h3 data-i18n="chooseTeamTitle">Teams and organisations</h3>
         <p data-i18n="chooseTeamBody">Enterprise is priced per seat, with one bill for your organisation. Tell us how many people need it and we will send a quote.</p>
@@ -507,9 +508,9 @@
     </div>
   </section>
 
-  <section id="pricing" aria-labelledby="plans-title">
-    <h2 id="plans-title" data-i18n="plansTitle">Plans</h2>
-    <p class="muted" data-i18n-html="plansIntro"><strong>Purchases are not open yet.</strong> Basic will always be free. Invited testers can receive Pro at no charge. This website does not take payments yet.</p>
+  <section id="pricing" aria-labelledby="pricing-title">
+    <h2 id="pricing-title" data-i18n="pricingTitle">Pricing</h2>
+    <p class="muted" data-i18n-html="pricingIntro"><strong>Basic is free for good.</strong> Pro is a subscription, paid monthly or yearly. You subscribe from the InFlight app; this website does not take payments itself.</p>
     <div class="grid plans">
       <article class="card"><h3><span data-i18n="freeTitle">Basic</span> <span class="pill"><span data-i18n="priceFree">Free</span></span></h3>
         <ul class="ticks">
@@ -519,22 +520,20 @@
           <li data-i18n="basicCloud">Cloud runner: 500 photos a month when signed in</li>
         </ul>
       </article>
-      <article class="card featured"><h3><span data-i18n="proTitle">Pro</span> <span class="pill" data-i18n="proPill">Planned, not on sale</span></h3>
-        <p class="price"><strong id="pro-price">£29</strong> <span data-i18n="priceYear">a year</span></p>
-        <p class="muted"><span data-i18n="priceOr">or</span> <strong id="pro-price-month">£2.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
-        <p class="price-tax" data-i18n="priceTax">Before any local tax. VAT and sales tax will be confirmed before anything goes on sale.</p>
+      <article class="card featured"><h3><span data-i18n="proTitle">Pro</span> </h3>
+        <p class="price"><strong id="pro-price-annual">£29</strong> <span data-i18n="priceYear">a year</span></p>
+        <p class="muted"><span data-i18n="priceOr">or</span> <strong id="pro-price-monthly">£2.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
+        <p class="price-tax" data-i18n="priceTax">UK prices, including VAT. Paddle shows the price in your currency, with any tax for your country, before you pay.</p>
         <ul class="ticks">
           <li data-i18n="proEverything">Everything in Basic</li>
           <li data-i18n="proCloud">Cloud runner: 5,000 photos a month, plus larger checks</li>
           <li data-i18n="proStorage">2.5 GB cloud storage for the web app's cloud projects</li>
         </ul>
-        <button type="button" class="cta buy" disabled data-i18n="buySoon">Available soon</button>
       </article>
       <article class="card"><h3 data-i18n="creditTitle">PAYG Cloud Credit</h3>
         <p data-i18n="creditBody">Collaborate across platforms and with friends, with cloud storage. Pay only for what you use beyond what's included. Top up from £5, or let it top up automatically when your balance runs low. Credit rolls over and can be refunded at any time.</p>
       </article>
     </div>
-    <p class="picker currency"><label for="currency-select" data-i18n="currencyLabel">Show prices in</label><select id="currency-select"></select></p>
   </section>
   <section id="compare" aria-labelledby="compare-title">
     <h2 id="compare-title" data-i18n="matrixTitle">What is in Basic and what is in Pro</h2>
@@ -559,7 +558,7 @@
         </tbody>
       </table>
     </div>
-    <p class="note" data-i18n="matrixNoteYours">Basic never expires and needs no account: download it and it is yours. Importing, editing and exporting are never held back, and your originals are never changed in either plan. Nothing is on sale yet.</p>
+    <p class="note" data-i18n="matrixNote">Basic never expires and needs no account. Pro is a subscription; if it ends, the account goes back to Basic. Importing, editing and exporting are never held back, nothing you made is ever locked, and your originals are never changed in either edition.</p>
   </section>
 
   <section id="downloads" aria-labelledby="downloads-title">
@@ -633,7 +632,6 @@
 
 <script src="assets/i18n-strings.js"></script>
 <script src="assets/i18n.js"></script>
-<script src="assets/prices.js"></script>
 <script>
   const i18n = window.KestrelI18n;
   // InFlight's own download bucket (Google Cloud). The page links only to installers listed there.

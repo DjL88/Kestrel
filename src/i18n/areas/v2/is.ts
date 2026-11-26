@@ -1360,6 +1360,7 @@ export const is: AreaTranslation<typeof source> = {
     more: 'Meira',
     moreTools: 'Fleiri verkfæri',
     closeDrawer: 'Loka farsímaskúffu',
+    navigation: "Til baka, afturkalla og allur skjárinn",
     photoPosition: (n, total) => `${n} af ${total}`,
   },
   autoCullSummary: {
@@ -2161,6 +2162,12 @@ export const is: AreaTranslation<typeof source> = {
     roomClose: 'Loka',
     roomCloseHint: 'Hætta að sýna myndatökuna á öðrum skjáum.',
     roomKeptYours: (n: number) => `Þitt val hélst (${n}): þú hafðir breytt sömu mynd.`,
+    usb: 'Myndavél USB',
+    usbHint: 'Tengdu myndavélina með USB og bættu hverri mynd við um leið og þú tekur hana. Afrit af hverjum nýjum ramma er vistað í möppu sem þú velur; engu er breytt eða eytt á myndavélinni.',
+    usbTethered: (camera: string) => `${camera} með USB`,
+    usbFetching: (name: string) => `Sæki ${name}`,
+    usbNoCamera: 'Engin myndavél fannst á USB. Kveiktu á myndavélinni, tengdu snúruna og lokaðu öðrum forritum sem nota hana (tengiforriti framleiðandans, Myndum eða Myndatöku).',
+    usbEnded: (camera: string, reason: string) => `${camera} hætti tengingu: ${reason} Myndir sem þegar var bætt við verða áfram.`,
   },
   activityBar: {
     photoLoading: 'Hleð mynd',

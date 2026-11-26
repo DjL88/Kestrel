@@ -1360,6 +1360,7 @@ export const it: AreaTranslation<typeof source> = {
     more: 'Altro',
     moreTools: 'Altri strumenti',
     closeDrawer: 'Chiudi il pannello mobile',
+    navigation: "Indietro, annulla e schermo intero",
     photoPosition: (n, total) => `${n} di ${total}`,
   },
   autoCullSummary: {
@@ -2161,6 +2162,12 @@ export const it: AreaTranslation<typeof source> = {
     roomClose: 'Chiudi',
     roomCloseHint: 'Smetti di mostrare il servizio su altri schermi.',
     roomKeptYours: (n: number) => `Mantenute le tue scelte (${n}): avevi modificato la stessa foto.`,
+    usb: 'Fotocamera USB',
+    usbHint: 'Collega la fotocamera via USB e aggiungi ogni foto mentre scatti. Una copia di ogni nuovo fotogramma viene salvata in una cartella a tua scelta; sulla fotocamera non viene modificato né eliminato nulla.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `Ricezione di ${name}`,
+    usbNoCamera: 'Nessuna fotocamera trovata via USB. Accendi la fotocamera, collega il cavo e chiudi altre app che la usano (l\'app di scatto remoto del produttore, Foto o Acquisizione Immagine).',
+    usbEnded: (camera: string, reason: string) => `${camera} ha interrotto il collegamento: ${reason} Le foto già aggiunte restano.`,
   },
   activityBar: {
     photoLoading: 'Caricamento della foto',

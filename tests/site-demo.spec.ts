@@ -20,7 +20,7 @@ test('the page follows the browser language, and the picker changes and remember
   await page.goto(`${origin}/`);
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   await expect(page.locator('#language-select')).toHaveValue('fr');
-  await expect(page.locator('#pro-price')).toHaveText(/29\s?€/);
+  await expect(page.locator('#pricing-title')).toHaveText('Tarifs');
   await page.locator('#language-select').selectOption('de');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.locator('h1')).not.toHaveText('More time behind the camera.');
@@ -37,20 +37,15 @@ test('the page follows the browser language, and the picker changes and remember
   await context.close();
 });
 
-test('prices come from the region with a manual override, before tax, and nothing can be bought', async ({ page }) => {
+test('Pro is a subscription, monthly or yearly, with UK prices including VAT; nothing promises a lifetime licence', async ({ page }) => {
   await page.goto(`${origin}/#pricing`);
-  await expect(page.locator('#pro-price')).toHaveText('£29');
-  await expect(page.getByText('Before any local tax.', { exact: false })).toBeVisible();
-  const buy = page.getByRole('button', { name: 'Available soon' });
-  await expect(buy).toBeDisabled();
-  await page.locator('#currency-select').selectOption('CAD');
-  await expect(page.locator('#pro-price')).toHaveText('CA$39');
-  await page.locator('#currency-select').selectOption('USD');
-  await expect(page.locator('#pro-price')).toHaveText('$29');
-  await page.reload();
-  await expect(page.locator('#pro-price')).toHaveText('$29');
-  await page.locator('#currency-select').selectOption('auto');
-  await expect(page.locator('#pro-price')).toHaveText('£29');
+  await expect(page.locator('#pro-price-monthly')).toHaveText('£2.99');
+  await expect(page.locator('#pro-price-annual')).toHaveText('£29');
+  await expect(page.getByText('UK prices, including VAT.', { exact: false })).toBeVisible();
+  // The website never takes a payment itself: people subscribe from the app.
+  await expect(page.locator('#pricing button')).toHaveCount(0);
+  const words = (await page.locator('body').innerText()).toLowerCase();
+  for (const promise of ['one-off', 'buy once', 'keep forever', 'lifetime', 'yours for good', 'keep a copy']) expect(words).not.toContain(promise);
   await expect(page.locator('a[href*="github.com"], a[href*="beta"]')).toHaveCount(0);
 });
 

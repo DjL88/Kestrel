@@ -3,20 +3,19 @@
  * it: the real Paddle client (commerce/paddle.ts) over a fake fetch, the real checkout, settlement and refund modules,
  * the real routes, and the app's own licence client (src/providers/licenceSync.ts) as a web browser and as desktops.
  *
- * One buyer walks the whole path: checkout with the offer off and on (#1687), Paddle's signed notification, Pro on in
- * web and desktop, their licence key by email (#1685), the 5-device limit (#1680), then a full refund turns Pro off
- * everywhere, by account and by key.
+ * Pro is sold only as a subscription (26 Nov 2026). One buyer walks the whole path: a monthly checkout with the offer
+ * off and on (#1687), Paddle's signed notification, Pro on in web and desktop until the paid-through date (no permanent
+ * key: a subscription is not owned), the 5-device limit (#1680), then a full refund turns Pro off everywhere.
  */
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import test from 'node:test';
-import { verifyLicence } from '../../../src/core/licence.ts';
-import { decideAccess, decideAccountAccess, type KestrelPlatform } from '../../../src/core/licenceOnline.ts';
+import { decideAccountAccess, type KestrelPlatform } from '../../../src/core/licenceOnline.ts';
 import { LicenceSync, type KeyValueStorage } from '../../../src/providers/licenceSync.ts';
 import { paddleApi } from '../src/commerce/paddle.ts';
 import { paddleProCheckout, type StoredProOrder } from '../src/commerce/proCheckout.ts';
 import { paddleProLicenceId, paddleRefundRevocation } from '../src/commerce/paddleRefunds.ts';
-import { paddleProSettlement } from '../src/commerce/proSettlement.ts';
+import { paddleProSettlement, SUBSCRIPTION_GRACE_DAYS, type ProSubscriptionRecord } from '../src/commerce/proSettlement.ts';
 import { CommerceLedger, countsAsUkTurnover } from '../src/commerce/ledger.ts';
 import { commerceCollections, type TransactionRecord } from '../src/commerce/records.ts';
 import type { Mailer } from '../src/mailer.ts';
@@ -24,7 +23,7 @@ import type { NoticeContacts } from '../src/noticeContacts.ts';
 import { startHarness, type Harness } from './helpers.ts';
 import { MemoryFirestore } from './memoryFirestore.ts';
 
-const PRICE = 'pri_01testlifetimepro';
+const PRICE = 'pri_01testmonthlypro';
 const PROMO = 'dsc_01testblackfriday';
 const SECRET = 'pdl_ntfset_test_only_secret';
 const CHECKOUT_PAGE = 'https://inflight.studio/pro-checkout';
@@ -32,21 +31,21 @@ const DAY = 86_400_000;
 
 /** Paddle's sandbox API as the control plane sees it: transactions it opened, and refunds approved in the dashboard. */
 function fakePaddleSandbox() {
-  const txns = new Map<string, { custom_data: Record<string, string>; price: string; discount?: string; status: string }>();
+  const txns = new Map<string, { custom_data: Record<string, string>; price: string; discount?: string; status: string; subscription_id?: string }>();
   const adjustments = new Map<string, Record<string, unknown>>();
   const view = (id: string) => {
     const t = txns.get(id)!;
     const done = t.status === 'completed';
-    // £29 full price; the offer takes 30% off. Paddle adds the buyer's tax on top and pays out what is left after its fee.
-    const subtotal = t.discount ? 2030 : 2900;
+    // £2.99 a month full price; the offer takes 30% off. Paddle adds the buyer's tax and pays out what is left after its fee.
+    const subtotal = t.discount ? 209 : 299;
     const tax = Math.round(subtotal * 0.2);
     return {
-      id, status: t.status, currency_code: 'GBP', custom_data: t.custom_data, subscription_id: null,
+      id, status: t.status, currency_code: 'GBP', custom_data: t.custom_data, subscription_id: t.subscription_id ?? null,
       billed_at: done ? '2026-11-28T12:00:00Z' : null, updated_at: '2026-11-28T12:00:00Z',
       items: [{ price: { id: t.price }, quantity: 1 }],
       details: {
         totals: { subtotal: String(subtotal), tax: String(tax), total: String(subtotal + tax), currency_code: 'GBP' },
-        payout_totals: done ? { subtotal: String(subtotal), tax: '0', total: String(subtotal), fee: '150', earnings: String(subtotal - 150), currency_code: 'GBP' } : null,
+        payout_totals: done ? { subtotal: String(subtotal), tax: '0', total: String(subtotal), fee: '50', earnings: String(subtotal - 50), currency_code: 'GBP' } : null,
       },
       checkout: { url: CHECKOUT_PAGE + '?_ptxn=' + id },
       address: { country_code: 'GB' },
@@ -62,12 +61,18 @@ function fakePaddleSandbox() {
       txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, discount: body.discount_id, status: 'ready' });
       return Response.json({ data: view(id) }, { status: 201 });
     }
+    if (u.pathname.startsWith('/subscriptions/')) {
+      const sid = decodeURIComponent(u.pathname.split('/').pop()!);
+      const t = [...txns.values()].find((x) => x.subscription_id === sid);
+      return t ? Response.json({ data: { id: sid, status: 'active', custom_data: t.custom_data, customer_id: 'ctm_01sandboxbuyer01',
+        current_billing_period: { starts_at: '2026-11-28T12:00:00Z', ends_at: '2026-12-28T12:00:00Z' } } }) : new Response(null, { status: 404 });
+    }
     if (u.pathname === '/adjustments') return Response.json({ data: [...adjustments.values()].filter((a) => a.id === u.searchParams.get('id')) });
     const id = decodeURIComponent(u.pathname.split('/').pop()!);
     return txns.has(id) ? Response.json({ data: view(id) }) : new Response(null, { status: 404 });
   }) as typeof fetch;
   /** What the buyer does on Paddle's form: pay with the test card 4242 4242 4242 4242. */
-  const pay = (id: string) => { txns.get(id)!.status = 'completed'; };
+  const pay = (id: string) => { const t = txns.get(id)!; t.status = 'completed'; t.subscription_id = 'sub_01sandbox' + id.slice(-6); };
   /** What the owner does in the sandbox dashboard: approve a full refund of the transaction. */
   const refund = (id: string, txn: string) => adjustments.set(id, { id, action: 'refund', type: 'full', status: 'approved', transaction_id: txn, totals: { total: view(txn).details.totals.total, currency_code: 'GBP' } });
   return { request, txns, pay, refund };
@@ -81,7 +86,7 @@ async function rig() {
   let settle: ReturnType<typeof paddleProSettlement> | undefined;
   let revoke: ReturnType<typeof paddleRefundRevocation> | undefined;
   const h = await startHarness(null, undefined, {
-    settlePaddle: (id) => settle!(id),
+    settlePaddle: (id, hint) => settle!(id, hint),
     revokePaddle: (eventId, adjustmentId) => revoke!(eventId, adjustmentId),
     paddleWebhookSecret: SECRET,
     paddleClient: { environment: 'sandbox', clientToken: 'test_sandbox_clienttoken' },
@@ -98,9 +103,11 @@ async function rig() {
   const api = paddleApi({ apiKey: 'pdl_sdbx_test_only_key', environment: 'sandbox' }, paddle.request);
   const findOrder = async (id: string) => orders.get(id) ?? null;
   // As server.ts: the buyer's key is emailed once, when the payment first creates the licence.
+  const subscriptions = new Map<string, ProSubscriptionRecord>();
   settle = paddleProSettlement({
     findOrder, paddle: api, licences: h.app.store,
-    commerce,
+    commerce, now: () => h.clock.now,
+    subscriptions: { save: async (r) => { subscriptions.set(r.subscriptionId, r); }, get: async (id) => subscriptions.get(id) ?? null },
     onNewLicence: async (licence) => { await h.app.sendLicenceKey(licence); },
   });
   revoke = paddleRefundRevocation({
@@ -108,7 +115,7 @@ async function rig() {
     events: { claim: async (id) => (claimed.has(id) ? false : (claimed.add(id), true)), release: async (id) => { claimed.delete(id); } },
   });
   checkout = paddleProCheckout({
-    paddle: api, priceId: PRICE, checkoutUrl: CHECKOUT_PAGE, settle, promoDiscountId: PROMO, now: () => h.clock.now,
+    paddle: api, priceIds: { monthly: PRICE }, checkoutUrl: CHECKOUT_PAGE, settle, promoDiscountId: PROMO, now: () => h.clock.now,
     orders: { save: async (o) => { assert.ok(!orders.has(o.transactionId)); orders.set(o.transactionId, o); }, get: findOrder },
   });
   const notify = (body: unknown) => {
@@ -145,7 +152,7 @@ async function buyer(h: Harness, email: string) {
 
 const event = (type: string, id: string) => ({ event_id: 'evt_' + type + '_' + id, event_type: type, occurred_at: '2026-11-28T12:00:00Z', data: { id } });
 
-test('buy Pro with the offer on: signed notification, Pro on web and desktop, key by email, 5 devices, refund turns it off', async () => {
+test('subscribe to Pro with the offer on: signed notification, Pro on web and desktop until the paid-through date, 5 devices, refund turns it off', async () => {
   const { h, paddle, orders, sales, mails, addresses, notify } = await rig();
   try {
     // The offer (#1687) runs on Black Friday only.
@@ -187,44 +194,32 @@ test('buy Pro with the offer on: signed notification, Pro on web and desktop, ke
     const sale = sales()[0]!;
     assert.equal(sale.status, 'paid');
     assert.ok(countsAsUkTurnover(sale));
-    assert.deepEqual(sale.buyer, { country: 'GB', currency: 'GBP', totalMinor: 2436, taxMinor: 406 }, 'the discounted price was charged');
-    assert.equal(sale.netPence, 1880);
+    assert.deepEqual(sale.buyer, { country: 'GB', currency: 'GBP', totalMinor: 251, taxMinor: 42 }, 'the discounted price was charged');
+    assert.equal(sale.netPence, 159);
 
-    // Their key by email, once (#1685). It is a real KESTREL1 key for the licence the payment created.
-    assert.equal(mails.length, 1);
-    assert.equal(mails[0]!.to, 'journey@example.test');
-    assert.equal(mails[0]!.subject, 'Your InFlight 1 Pro licence key');
-    const emailedKey = mails[0]!.text.split('\n\n').find((line) => line.startsWith('KESTREL1.'))!;
-    const check = await verifyLicence(emailedKey, h.app.config.licencePublicKey, 1);
-    assert.ok(check.ok);
+    // A subscription is not owned: no permanent key is emailed, and Pro lasts to the paid-through date plus grace.
+    assert.equal(mails.length, 0);
     const licenceId = paddleProLicenceId(orders.get(start.checkoutId)!);
-    assert.equal(check.ok && check.details.id, licenceId);
+    const paidThrough = Date.UTC(2026, 11, 28, 12);
+    assert.equal((await h.app.store.getLicence(licenceId))!.validUntilMs, paidThrough + SUBSCRIPTION_GRACE_DAYS * DAY);
 
-    // Pro turns on in the web app and on both desktops by signing in; each gets an owned grant and the buyer's key.
+    // Pro turns on in the web app and on both desktops by signing in, with no owned flag and no key.
     for (const app of [web, windows, mac]) {
       const standing = await app.activateAccount('id-token');
       assert.equal(standing?.kind, 'active', JSON.stringify(standing));
       if (standing?.kind !== 'active') return;
-      assert.deepEqual(standing.grant.flags?.['licence.owned'], { on: true });
+      assert.equal(standing.grant.flags?.['licence.owned'], undefined);
+      assert.equal(standing.licenceKey, undefined);
       assert.equal(decideAccountAccess(standing, h.clock.now).pro, true);
-      assert.ok(standing.licenceKey && (await verifyLicence(standing.licenceKey, h.app.config.licencePublicKey, 1)).ok);
-      // Still Pro long after, offline: it is theirs to keep.
-      assert.equal(decideAccountAccess(standing, h.clock.now + 400 * DAY).pro, true);
+      // Offline, Pro lasts its window (30 days at most since the last check), never for good.
+      assert.equal(decideAccountAccess(standing, h.clock.now + 400 * DAY).pro, false);
     }
-    // A fourth device with only the emailed key, no account (desktop key entry).
-    const keyOnly = device(h, 'windows', 'no-session');
-    const byKey = await keyOnly.activate(emailedKey);
-    assert.equal(byKey.kind, 'active');
-    assert.equal(decideAccess(true, byKey, h.clock.now).pro, true);
 
-    // The 5-device limit (#1680): a fifth device fits, a sixth is refused by account and by key alike.
+    // The 5-device limit (#1680): a fourth and fifth device fit, a sixth is refused.
     assert.equal((await device(h, 'ios', me.session).activateAccount('id-token'))?.kind, 'active');
-    const sixth = await device(h, 'android', me.session).activateAccount('id-token');
+    assert.equal((await device(h, 'android', me.session).activateAccount('id-token'))?.kind, 'active');
+    const sixth = await device(h, 'ios', me.session).activateAccount('id-token');
     assert.equal(sixth?.kind, 'device_limit');
-    assert.equal((await device(h, 'macos', 'no-session').activate(emailedKey)).kind, 'device_limit');
-    const devices = await web.status(emailedKey);
-    assert.equal(devices?.maxDevices, 5);
-    assert.equal(devices?.devices.length, 5);
 
     // Buying again is refused: they already have Pro.
     const again = await mac.startProCheckout('id-token');
@@ -241,20 +236,16 @@ test('buy Pro with the offer on: signed notification, Pro on web and desktop, ke
     assert.equal(sales()[0]!.status, 'refunded');
     assert.equal(countsAsUkTurnover(sales()[0]!), false);
 
-    // Every device hears it at its next check: by account and by key, on web and desktop.
+    // Every device hears it at its next check, on web and desktop.
     for (const app of [web, windows, mac]) {
       const standing = await app.activateAccount('id-token');
       assert.equal(standing?.kind, 'no_licence', 'refunded: the account is back to Free');
       assert.equal(await app.storedAccountStanding(), null, 'the owned grant is gone from the device');
     }
-    const keyAfter = await keyOnly.activate(emailedKey);
-    assert.equal(keyAfter.kind, 'revoked');
-    assert.equal(decideAccess(true, keyAfter, h.clock.now).pro, false, 'the emailed key stops working, as the email says');
-    assert.equal((await web.status(emailedKey))?.status, 'revoked');
     // A late or repeated completion cannot bring it back.
     assert.equal((await notify({ ...event('transaction.completed', start.checkoutId), event_id: 'evt_late' })).status, 200);
     assert.equal((await h.app.store.getLicence(licenceId))!.status, 'revoked');
-    assert.equal(mails.length, 1, 'no second key email');
+    assert.equal(mails.length, 0, 'never a key email for a subscription');
   } finally { await h.close(); }
 });
 
@@ -271,7 +262,7 @@ test('with the offer off, the checkout is full price and a refund still removes 
     paddle.pay(start.checkoutId);
     // The notification is late: the app's own check settles the payment.
     assert.equal(await app.proCheckoutStatus('id-token', start.checkoutId), 'paid');
-    assert.equal(sales()[0]!.buyer?.totalMinor, 3480);
+    assert.equal(sales()[0]!.buyer?.totalMinor, 359);
     assert.equal((await app.activateAccount('id-token'))?.kind, 'active');
     paddle.refund('adj_01sandboxrefund0002', start.checkoutId);
     assert.equal((await notify(event('adjustment.created', 'adj_01sandboxrefund0002'))).body.outcome, 'revoked');

@@ -13,6 +13,7 @@ import { downloadExport } from '../providers/browserExport';
 import { useAccess } from '../providers/useAccess';
 import { accountLicenceDevices, consumeExpiredAccountNotice, deviceLicenceKey, deviceReleaseRefusal, freeAccountLicenceDevice, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
+import { ManageProPanel } from './ManageProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
@@ -318,6 +319,9 @@ export function AccountAndLicenceSettings() {
             )}
             {licenceOnlineConfigured() && !((licence.status === 'valid' || licence.status === 'account') && licence.access.pro) && !isMobileShell() && (
               <BuyProPanel offline={offline} onPaid={buyProPaid} />
+            )}
+            {licenceOnlineConfigured() && (licence.status === 'valid' || licence.status === 'account') && licence.access.pro && !isMobileShell() && (
+              <ManageProPanel offline={offline} />
             )}
           </>
         ) : (

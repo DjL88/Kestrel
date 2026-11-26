@@ -1361,6 +1361,7 @@ export const gd: AreaTranslation<typeof source> = {
     more: 'Barrachd',
     moreTools: 'Barrachd innealan',
     closeDrawer: 'Dùin an drathair mobile',
+    navigation: "Air ais, neo-dhèan agus làn-sgrìn",
     photoPosition: (n, total) => `${n} à ${total}`,
   },
   autoCullSummary: {
@@ -2162,6 +2163,12 @@ export const gd: AreaTranslation<typeof source> = {
     roomClose: 'Dùin',
     roomCloseHint: 'Sguir a shealltainn an tog air sgrìnichean eile.',
     roomKeptYours: (n: number) => `Chaidh na bh' agad-sa a chumail (${n}): dh'atharraich thu an aon dealbh.`,
+    usb: 'Camara USB',
+    usbHint: 'Ceangail an camara agad le USB agus cuir ris gach dealbh fhad \'s a thogas tu i. Thèid lethbhreac de gach frèam ùr a shàbhaladh ann am pasgan a thaghas tu; chan atharraichear no sguabar às dad air a\' chamara.',
+    usbTethered: (camera: string) => `${camera} le USB`,
+    usbFetching: (name: string) => `A' faighinn ${name}`,
+    usbNoCamera: 'Cha deach camara a lorg air USB. Cuir an camara air, ceangail an càball, is dùin aplacaid sam bith eile a tha ga chleachdadh (aplacaid an dèanadair, Photos no Image Capture).',
+    usbEnded: (camera: string, reason: string) => `Sguir ${camera} dhen cheangal: ${reason} Fanaidh na dealbhan a chaidh a chur ris mu thràth.`,
   },
   activityBar: {
     photoLoading: 'A\' luchdadh an deilbh',

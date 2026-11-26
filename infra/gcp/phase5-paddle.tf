@@ -16,10 +16,29 @@ variable "phase5_paddle_environment" {
     error_message = "phase5_paddle_environment is sandbox or production."
   }
 }
-# The Paddle price ID for lifetime Pro (pri_...). Not a secret.
+# Retired 26 Nov 2026: the one-off Pro price (pri_...). Pro is now sold only as a subscription, so the server no longer
+# offers this price; one-off licences already sold are still honoured from their stored orders. Kept so tfvars parse.
 variable "phase5_paddle_pro_price_id" {
   type    = string
   default = ""
+}
+# Pro subscription prices (pri_..., recurring, made in Paddle → Catalog). Not secrets. Checkout opens only when at least
+# one is set; a plan whose price is empty is not offered.
+variable "phase5_paddle_monthly_price_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = var.phase5_paddle_monthly_price_id == "" || can(regex("^pri_[a-z0-9]{10,60}$", var.phase5_paddle_monthly_price_id))
+    error_message = "phase5_paddle_monthly_price_id is empty or a Paddle price ID (pri_...)."
+  }
+}
+variable "phase5_paddle_annual_price_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = var.phase5_paddle_annual_price_id == "" || can(regex("^pri_[a-z0-9]{10,60}$", var.phase5_paddle_annual_price_id))
+    error_message = "phase5_paddle_annual_price_id is empty or a Paddle price ID (pri_...)."
+  }
 }
 # Optional offer discount (dsc_..., e.g. Black Friday), made in Paddle → Catalog → Discounts. Not a secret. It applies
 # only to a Pro checkout started while the admin flag proPromo is on. Empty means no offer discount.

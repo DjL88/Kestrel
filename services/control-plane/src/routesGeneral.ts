@@ -6,10 +6,9 @@ import { forPublicDocument } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { randomId, sha256Hex, signEnvelope, verifyPassword, verifyWebhook } from './crypto.ts';
-import { publicExamples } from './demoStudio.ts';
 import { licenceIsUsable } from './store.ts';
 import { identify, suggest, verifyColour } from './gateway.ts';
-import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, PADDLE_ADJUSTMENT_ID } from './commerce/paddle.ts';
+import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, PADDLE_ADJUSTMENT_ID, PADDLE_SUBSCRIPTION_ID } from './commerce/paddle.ts';
 import { DEFAULT_MAX_JOB_MS } from './cloudJobs.ts';
 import { galleryIdFor } from './gallery.ts';
 import { SAFE_COPY_MAX_BYTES, safeCopyKey } from './safeCopy.ts';
@@ -19,7 +18,7 @@ import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } f
 import type { AppContext } from './appContext.ts';
 
 export function generalRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, demoStudio, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
+  const { options, config, store, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
   return [
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
@@ -67,12 +66,6 @@ export function generalRoutes(ctx: AppContext): Route[] {
 
 
   // ---- Owner-approved, fixed photographs for the real website editor
-  {
-    method: 'GET', path: '/v1/demo/photos', summary: 'Read published photographs and exact approved edit recipes only', auth: 'none',
-    handler: async () => ({
-      status: 200, body: { photos: demoStudio ? publicExamples(await demoStudio.list(), (photo) => demoStudio.imageUrl(photo)) : [] },
-    }),
-  },
 
   // ---- Identity & licensing
   {
@@ -467,7 +460,7 @@ export function generalRoutes(ctx: AppContext): Route[] {
   {
     method: 'GET', path: '/v1/billing/paddle/config', summary: 'Paddle.js settings for the checkout page: environment and client-side token (public by design)', auth: 'none',
     handler: async () => {
-      if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet.');
+      if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet.');
       return { status: 200, headers: { 'cache-control': 'no-store' }, body: options.paddleClient };
     },
   },
@@ -480,12 +473,22 @@ export function generalRoutes(ctx: AppContext): Route[] {
         throw new ApiError(401, 'WEBHOOK_SIGNATURE_INVALID', 'Paddle signature missing, wrong or outside the replay window.');
       }
       const event = parseJson(PaddleEvent, req.rawBody);
-      // One-off Pro is fulfilled from transactions. Subscriptions (Cloud, Teams) will get their own handler on
-      // subscription.* events; until then they are acknowledged and ignored, so Paddle does not retry them.
+      // Payments (a first subscription payment, a renewal, or an older one-off order) are fulfilled from transactions.
+      // The body's subscription_id is only a pointer: settlement fetches the transaction and subscription from Paddle.
       if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
         if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
-        try { await options.settlePaddle(event.data.id!); }
+        const subscriptionId = typeof event.data.subscription_id === 'string' && PADDLE_SUBSCRIPTION_ID.test(event.data.subscription_id) ? event.data.subscription_id : undefined;
+        try { await options.settlePaddle(event.data.id!, subscriptionId ? { subscriptionId } : undefined); }
         catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+      }
+      // A subscription renewed, fell behind, was paused, resumed or cancelled: Pro's end date follows Paddle. When it
+      // ends the account is Basic; nothing on anyone's devices is touched. Unknown subscriptions are acknowledged.
+      if (event.event_type.startsWith('subscription.') && options.syncPaddleSubscription && PADDLE_SUBSCRIPTION_ID.test(event.data.id ?? '')) {
+        if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+        let outcome: string;
+        try { outcome = await options.syncPaddleSubscription(event.data.id!); }
+        catch { throw new ApiError(503, 'SUBSCRIPTION_VERIFICATION_PENDING', 'The subscription will be checked again when Paddle retries.', true); }
+        return { status: 200, body: { received: true, outcome } };
       }
       // Refunds and chargebacks: a full one removes Pro, a partial one keeps it. Each event is acted on once.
       if ((event.event_type === 'adjustment.created' || event.event_type === 'adjustment.updated') && options.revokePaddle && PADDLE_ADJUSTMENT_ID.test(event.data.id ?? '')) {

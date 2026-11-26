@@ -1360,6 +1360,7 @@ export const da: AreaTranslation<typeof source> = {
     more: 'Mere',
     moreTools: 'Flere værktøjer',
     closeDrawer: 'Luk mobilskuffe',
+    navigation: "Tilbage, fortryd og fuld skærm",
     photoPosition: (n, total) => `${n} af ${total}`,
   },
   autoCullSummary: {
@@ -2161,6 +2162,12 @@ export const da: AreaTranslation<typeof source> = {
     roomClose: 'Luk',
     roomCloseHint: 'Stop med at vise fotograferingen på andre skærme.',
     roomKeptYours: (n: number) => `Dine valg beholdt (${n}): du havde ændret det samme foto.`,
+    usb: 'Kamera-USB',
+    usbHint: 'Forbind kameraet med USB, og tilføj hvert foto, når du tager det. En kopi af hvert nyt billede gemmes i en mappe, du vælger; intet på kameraet ændres eller slettes.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `Henter ${name}`,
+    usbNoCamera: 'Intet kamera fundet via USB. Tænd kameraet, tilslut kablet, og luk andre apps, der bruger det (producentens tether-app, Fotos eller Billedoverførsel).',
+    usbEnded: (camera: string, reason: string) => `${camera} stoppede tethering: ${reason} Fotos, der allerede er tilføjet, bliver.`,
   },
   activityBar: {
     photoLoading: 'Indlæser foto',
