@@ -75,6 +75,8 @@ export interface AppOptions {
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
+  /** Server-owned Paddle checkout for cloud top-ups (commerce/topUpCheckout.ts); off until 'cloud-top-ups' is switched on. */
+  topUpCheckout?: Pick<ReturnType<typeof import('./commerce/topUpCheckout.ts').paddleTopUps>, 'start' | 'status' | 'amounts'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -171,6 +173,7 @@ export const SWITCHES = [
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
   { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can subscribe to Pro (monthly or annual) through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'cloud-top-ups', label: 'Cloud top-ups (Paddle)', note: 'People can add £5, £10 or £20 to their prepaid cloud balance through Paddle\'s checkout. Switching off stops new top-ups only; payments already made are still verified and credited.' },
   { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
   { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
   { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
@@ -187,6 +190,7 @@ export const Schemas = {
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
   // Pro is a subscription, monthly or annual; older apps send no plan and get monthly, the smallest commitment.
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
+  TopUpCheckoutRequest: z.object({ pence: z.union([z.literal(500), z.literal(1000), z.literal(2000)]) }).strict(),
   ProCheckoutRequest: z.object({ plan: z.enum(PRO_PLANS).default('monthly'), country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [

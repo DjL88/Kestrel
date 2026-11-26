@@ -50,6 +50,7 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { useCloudTopUp } from './useCloudTopUp';
 import type { MenuAction } from './commands/menuMap';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
@@ -167,6 +168,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     sharing.usage().then((body) => { if (live) setCloudUsage(usageFromServer(body, Date.now()) ?? undefined); }).catch(() => { if (live) setCloudUsage(undefined); });
     return () => { live = false; };
   }, [sharing, store.settingsOpen, store.settingsTab, store.activePanel]);
+  // A paid top-up: read the balance again once the server has credited it. Mobile app stores handle their own purchases later.
+  const rereadUsage = React.useCallback(() => { sharing.usage().then((body) => setCloudUsage(usageFromServer(body, Date.now()) ?? undefined)).catch(() => undefined); }, [sharing]);
+  const cloudTopUp = useCloudTopUp(rereadUsage);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -1542,6 +1546,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
+        cloudTopUp={cloudUsage && !isMobileShell() ? cloudTopUp : undefined}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}

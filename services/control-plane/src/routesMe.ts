@@ -170,6 +170,40 @@ export function meRoutes(ctx: AppContext): Route[] {
     },
   },
   {
+    method: 'POST', path: '/v1/me/checkout/topup', summary: 'Signed in: start a server-priced Paddle checkout for a prepaid cloud top-up (500, 1000 or 2000 pence), bound to this account', auth: 'user',
+    body: Schemas.TopUpCheckoutRequest,
+    handler: async (req) => {
+      const claims = await bearer(req);
+      const checkout = options.topUpCheckout;
+      if (!checkout || !(await switchOn('cloud-top-ups'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
+      if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+      const { pence } = parseJson(Schemas.TopUpCheckoutRequest, req.rawBody);
+      if (!checkout.amounts.includes(pence)) throw new ApiError(400, 'TOP_UP_UNAVAILABLE', 'That amount is not on sale.');
+      const account = await store.getAccount(claims.sub);
+      if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to top up.');
+      try {
+        const started = await checkout.start({ accountId: claims.sub, pence });
+        await audit(claims.sub, 'checkout.topup.start', 'allowed', `${started.checkoutId} ${pence}p`);
+        return { status: 201, body: started };
+      } catch {
+        throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true);
+      }
+    },
+  },
+  {
+    method: 'GET', path: '/v1/me/checkout/topup/:id', summary: 'Signed in: has this top-up been paid and verified with Paddle? Paid means the cloud balance has been credited.', auth: 'user',
+    handler: async (req, params) => {
+      const claims = await bearer(req);
+      if (!options.topUpCheckout || !PADDLE_TRANSACTION_ID.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+      if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
+      let status: 'paid' | 'pending' | null;
+      try { status = await options.topUpCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
+      catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
+      if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+      return { status: 200, body: { status } };
+    },
+  },
+  {
     method: 'POST', path: '/v1/me/subscription/manage', summary: "Signed in: this account's Pro subscription (renewing, ending, payment due) and Paddle's own pages to cancel it or change the card", auth: 'user',
     handler: async (req) => {
       const claims = await bearer(req);

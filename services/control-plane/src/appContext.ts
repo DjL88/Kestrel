@@ -135,7 +135,7 @@ export function createContext(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'cloud-top-ups' ? !!options.topUpCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';

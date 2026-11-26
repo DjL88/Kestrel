@@ -31,7 +31,8 @@ export type CheckoutPoll = 'paid' | 'pending' | 'retry' | 'gone';
 /** Calm, plain words for every answer the checkout can give. Nothing here ever touches photos or edits. */
 export function checkoutErrorText(code: string | undefined): string {
   switch (code) {
-    case 'CHECKOUT_DISABLED': return 'Pro subscriptions are not open yet. Everything else in InFlight keeps working.';
+    case 'CHECKOUT_DISABLED': return 'Paying online is not open yet. Everything else in InFlight keeps working.';
+    case 'TOP_UP_UNAVAILABLE': return 'That top-up amount is not on sale. Choose £5, £10 or £20.';
     case 'ALREADY_PRO': return 'This account already has Pro. Choose Check Pro online to use it on this device.';
     case 'ACCOUNT_UNVERIFIED': return 'Sign in again before subscribing to Pro. If you signed up with email, verify the address first.';
     case 'RATE_LIMITED': return 'That was a lot of attempts in a short time. Wait a minute and try again.';
