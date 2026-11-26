@@ -50,6 +50,7 @@ export const is: AreaTranslation<typeof source> = {
     global: 'Engin útlína myndefnis var áreiðanleg, svo suðeyðing var notuð jafnt á alla myndina.',
     failedCheck: 'Niðurstaðan stóðst ekki gæðaprófun. Núverandi breytingum þínum var haldið.',
     mainThread: 'Þetta tæki gat ekki fjarlægt suð í bakgrunni, svo InFlight gæti hafa stöðvast á meðan.',
+    learnedLostDetail: 'Í fullri stærð slétti suðeyðing með gervigreind út raunveruleg smáatriði á myndefninu, svo innbyggða suðeyðingin var notuð í staðinn.',
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
   },
   workspace: {

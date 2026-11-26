@@ -50,6 +50,7 @@ export const ga: AreaTranslation<typeof source> = {
     global: 'Ní raibh imlíne aon ábhair iontaofa, mar sin laghdaíodh torann go cothrom ar fud an ghrianghraif.',
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
     mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
+    learnedLostDetail: 'Ag lánmhéid, shlíoc laghdú torainn AI fíormhionsonraí den ábhar, mar sin úsáideadh an laghdú torainn ionsuite ina ionad.',
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {

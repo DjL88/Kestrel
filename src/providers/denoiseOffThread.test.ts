@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseWorkerLike } from './denoiseOffThread';
-import { createDenoiseWorkerState, handleDenoiseWorkerMessage, openDenoiseSession, type DenoiseJob } from '../v2/engineClient/denoiseCompute';
+import { createDenoiseWorkerState, handleDenoiseWorkerMessage, learnedVerdicts, openDenoiseSession, type DenoiseJob } from '../v2/engineClient/denoiseCompute';
 import { estimateNoiseSigma } from '../core/noiseEstimate';
 import { createSubjectMask, type SubjectGrid } from '../core/maskTypes';
 import { DEFAULT_EDIT } from '../core/photoEdits';
@@ -157,4 +157,25 @@ test('a TrueDetail learned result is blended in the worker exactly as the in-thr
   assert.notDeepEqual(viaWorker.data, (await remote.render(edit, masks)).data, 'the blend changed the subject');
   assert.deepEqual(await remote.assess(edit, masks, blend), openDenoiseSession({ ...base, learned }).assess(edit, masks, blend));
   compute.dispose();
+});
+
+test('the full-size learned check gives the same verdicts in the worker as in-thread, and without Workers', async () => {
+  const photo = syntheticPhoto(96, 72, 21);
+  // A "learned" result that smooths everything: box-blurred copy of the photo.
+  const blurred = new Uint8ClampedArray(photo.data);
+  for (let y = 1; y < photo.height - 1; y++) for (let x = 1; x < photo.width - 1; x++) for (let c = 0; c < 3; c++) {
+    let sum = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) sum += photo.data[((y + dy) * photo.width + x + dx) * 4 + c];
+    blurred[(y * photo.width + x) * 4 + c] = Math.round(sum / 9);
+  }
+  const learned = { data: blurred, width: photo.width, height: photo.height };
+  const alpha = new Float32Array(photo.width * photo.height).fill(1);
+  const expected = learnedVerdicts(photo, learned, alpha, [1, 0.6]);
+  const worker = new ClonedWorker();
+  const viaWorker = await createDenoiseCompute({ createWorker: () => worker }).qualifyLearned(photo, learned, alpha, [1, 0.6]);
+  assert.deepEqual(viaWorker, expected);
+  assert.ok(worker.received > 0, 'the check went to the worker');
+  const fallback = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); } });
+  assert.deepEqual(await fallback.qualifyLearned(photo, learned, alpha, [1, 0.6]), expected);
+  assert.equal(fallback.onMainThread, true);
 });

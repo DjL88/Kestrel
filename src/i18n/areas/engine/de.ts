@@ -50,6 +50,7 @@ export const de: AreaTranslation<typeof source> = {
     global: 'Kein Motivumriss war zuverlässig, daher wurde das ganze Foto gleichmäßig entrauscht.',
     failedCheck: 'Das Ergebnis hat die Qualitätsprüfung nicht bestanden. Ihre bisherigen Bearbeitungen wurden beibehalten.',
     mainThread: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher hat InFlight währenddessen vielleicht kurz gestockt.',
+    learnedLostDetail: 'In voller Größe hat die KI-Rauschreduzierung echte Details am Motiv weggeglättet, daher wurde stattdessen die eingebaute Rauschreduzierung verwendet.',
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
   },
   workspace: {

@@ -50,6 +50,7 @@ export const sv: AreaTranslation<typeof source> = {
     global: 'Ingen motivkontur var tillförlitlig, så brusreduceringen tillämpades jämnt på hela fotot.',
     failedCheck: 'Resultatet klarade inte kvalitetskontrollen. Dina befintliga redigeringar behölls.',
     mainThread: 'Den här enheten kunde inte ta bort brus i bakgrunden, så InFlight kan ha stannat upp medan den arbetade.',
+    learnedLostDetail: 'I full storlek jämnade AI-brusreduceringen ut verkliga detaljer på motivet, så den inbyggda brusreduceringen användes i stället.',
     leftAsItWas: (notes) => `Lämnat som det var. ${notes}`,
   },
   workspace: {

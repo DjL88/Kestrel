@@ -32,6 +32,41 @@ wins and the losses together. The measurements describe pixels, not truth: sharp
 raises "detail". **TrueDetail's done-when line is met** when, on these frames, "InFlight" beats "InFlight plain" on
 eye and feather rows and its background noise is lower.
 
+### 1b. TrueDetail candidates on open-licence high-ISO RAWs (`p3-maskdenoise`)
+
+`scripts/quality/truedetail-bench.mts` runs the app's own code (RAW develop, noise measurement, conventional denoise,
+NAFNet through the tile runner, the regional guardian) on CC0 RAW files, with no editor exports needed. The file list
+is `scripts/quality/truedetail-samples.json`: 11 frames from raw.pixls.us, ISO 3,200 to 32,000, each with its SHA-256.
+
+1. Download the files in that list into one folder, named `<id>.<ext>` (the script checks each SHA-256).
+2. `npx tsx scripts/quality/truedetail-bench.mts scripts/quality/truedetail-samples.json raw/ nafnet-sidd-w32-w16.onnx out/`
+   (the NAFNet file must match the app's pinned SHA-256).
+3. `out/results.json` holds every crop's guardian scores and picks; `out/shoot.json` feeds step 3 of section 1
+   (`blind_compare.py make out/shoot.json out/blind/`) for a blind judgement of Original, InFlight plain, NAFNet only
+   and InFlight TrueDetail.
+
+Per frame it takes the most detailed 768 px area at 100% (judged as a subject), the flattest mid-tone area (judged as
+background), and a synthetic control: a 4x-downscaled area with noise added at the measured level, so PSNR against a
+clean reference can be given. It takes about 20 minutes on the Windows laptop (NAFNet: about 2 s per 256 px tile, one thread).
+
+**Results, 26 Nov 2026** (11 frames, 22 real crops and 11 synthetic; 506 NAFNet tiles):
+- **At 100%, NAFNet fails the guardian's detail check on every subject crop**, at full strength and at a 60% blend.
+  With the #1621 harness's measure it keeps 36% of the subject's fine contrast, against 94% for TrueDetail's pick.
+- **At the 1600 px working size the app used to judge at, the same NAFNet result passed on 4 of 11 subject crops**, so
+  it would have been stored for those subjects. TrueDetail now judges a learned result at full size too
+  (`qualifyLearned`), and on these frames NAFNet is no longer chosen for any subject.
+- Synthetic control, median PSNR gain over the noisy input: plain one-model denoise +1.60 dB (better on 11 of 11),
+  TrueDetail +1.05 dB (7 of 11, never worse than the input), NAFNet 60% +1.56 dB but down to −11.7 dB on cleaner frames,
+  NAFNet 100% −1.03 dB.
+- **Where TrueDetail loses:** it is more cautious than the plain denoise on subjects, so its median PSNR is 0.55 dB lower,
+  and on four frames (the Canon R50 at ISO 32,000, Sony FX3 at 20,000, Sony RX1R at 6,400 and Canon 7D Mark II at 4,000) the 60% NAFNet blend scored the highest PSNR of all candidates,
+  but the guardian refused it for detail loss. NAFNet at a 60% blend also passes the background policy on 5 of 11
+  frames, but the app does not offer a learned result for the background.
+
+What this does not show: these are conformance test frames (rooms, charts, streets), not birds or feathers; the
+measurements describe pixels, not what a person prefers; no blind picks have been made yet; and NAFNet-SIDD was trained
+on smartphone noise, so a model trained on camera RAW noise may behave differently.
+
 ## 2. Auto-Cull on a shoot you've already rated (`p5-cull`)
 
 **You drop in:** a shoot you rated before (in camera, Lightroom with "write to XMP", Photo Mechanic...), and nothing
