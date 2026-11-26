@@ -53,6 +53,9 @@ import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import type { MenuAction } from './commands/menuMap';
+import type { FeedbackRequest } from './shell/ContributorFeedback';
+import { describeFeedbackScreen, describeFeedbackTarget } from '../../core/feedbackTarget';
+import { activeLanguage } from '../../core/locale';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
 // the background once the list has drawn (preloadEditorParts), so opening a project does not wait for it either.
@@ -89,6 +92,7 @@ const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
 const KeyboardSettings = lazyPart(() => import('./dialogs/KeyboardSettings'));
 const GamepadSettings = lazyPart(() => import('./dialogs/GamepadSettings'));
 const LightroomOfferDialog = lazyPart(() => import('./dialogs/LightroomOfferDialog'));
+const ContributorFeedback = lazyPart(() => import('./shell/ContributorFeedback'));
 const QuickStartCard = lazyPart(() => import('./panels/QuickStartCard'));
 const SpeciesPlacePrompt = lazyPart(() => import('./panels/SpeciesPlacePrompt'));
 const CloudOriginalPrompt = lazyPart(() => import('./dialogs/CloudOriginalPrompt'));
@@ -185,6 +189,32 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
     return () => { live = false; };
   }, [accountPanel, signedInName, store.settingsOpen]);
+  // Contributors (owner, 26 Nov 2026): an admin-granted free Pro whose holders get "Feedback on this" on right-click.
+  // Asked of the server once signed in, and again when Settings closes (where sign-in happens). Offline: not offered.
+  const [contributor, setContributor] = React.useState(false);
+  const [feedbackRequest, setFeedbackRequest] = React.useState<FeedbackRequest | null>(null);
+  React.useEffect(() => {
+    if (!isSignInConfigured() || store.settingsOpen || !accountName) { if (!accountName) setContributor(false); return; }
+    let live = true;
+    void (async () => {
+      const [{ parseControlPlaneUrl }, { readContributorStatus }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
+      const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
+      const token = await firebaseAuth.idToken().catch(() => null);
+      const yes = origin && token ? await readContributorStatus(origin, token) : false;
+      if (live) setContributor(yes);
+    })().catch(() => undefined);
+    return () => { live = false; };
+  }, [accountName, store.settingsOpen]);
+  const closeFeedback = React.useCallback(() => setFeedbackRequest(null), []);
+  const sendFeedback = React.useCallback(async (request: FeedbackRequest, comment: string) => {
+    const [{ parseControlPlaneUrl }, { sendContributorFeedback }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
+    const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
+    const token = await firebaseAuth.idToken().catch(() => null);
+    await sendContributorFeedback(origin, token, {
+      comment, target: request.target, text: request.text, screen: request.screen, language: request.language,
+      appVersion: import.meta.env.VITE_KESTREL_BUILD_REVISION?.slice(0, 40) ?? '',
+    });
+  }, []);
   const accountButton = accountPanel && isSignInConfigured()
     ? <AccountButton name={accountName} onOpen={() => actions.setSettingsOpen(true, 'account')} />
     : undefined;
@@ -945,6 +975,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         // Suppress native browser context menu inside the studio workspace
         const target = e.target as HTMLElement | null;
         if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+        // A part with its own menu (filmstrip, rail, collage) has already handled it; elsewhere a contributor gets
+        // "Feedback on this" (Shift+F10 or the menu key opens it from the keyboard, on the focused element).
+        if (contributor && !feedbackRequest && !e.defaultPrevented) {
+          setFeedbackRequest({
+            ...describeFeedbackTarget(target), x: e.clientX, y: e.clientY, language: activeLanguage(),
+            screen: describeFeedbackScreen({ screen: store.screen, activePanel: store.activePanel, settingsOpen: store.settingsOpen, settingsTab: store.settingsTab }),
+          });
+        }
         e.preventDefault();
       }}
     >
@@ -1510,6 +1548,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       {store.screen === 'editor' && store.speciesPlace?.prompt && actions.setSpeciesArea && (
         <React.Suspense fallback={null}><SpeciesPlacePrompt place={store.speciesPlace} onChoose={actions.setSpeciesArea} /></React.Suspense>
       )}
+
+      {contributor && feedbackRequest && <React.Suspense fallback={null}><ContributorFeedback request={feedbackRequest} onClose={closeFeedback} onSend={sendFeedback} /></React.Suspense>}
 
       <React.Suspense fallback={null}><LightroomOfferDialog
         offer={store.screen === 'editor' ? store.lightroomOffer : null}
