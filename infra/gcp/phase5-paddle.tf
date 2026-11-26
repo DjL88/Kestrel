@@ -21,6 +21,16 @@ variable "phase5_paddle_pro_price_id" {
   type    = string
   default = ""
 }
+# Optional offer discount (dsc_..., e.g. Black Friday), made in Paddle → Catalog → Discounts. Not a secret. It applies
+# only to a Pro checkout started while the admin flag proPromo is on. Empty means no offer discount.
+variable "phase5_paddle_promo_discount_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = var.phase5_paddle_promo_discount_id == "" || can(regex("^dsc_[a-z0-9]{10,60}$", var.phase5_paddle_promo_discount_id))
+    error_message = "phase5_paddle_promo_discount_id is empty or a Paddle discount ID (dsc_...)."
+  }
+}
 
 # Retired with SumUp (25 Nov 2026). Kept so existing tfvars files still parse, and the old secret-reader binding is
 # kept so an image-only deploy (deploy-control-plane.sh) never has to delete it. Remove both in a reviewed apply later.
