@@ -43,7 +43,9 @@ async function digestEvidence(root, entry) {
   // Disallow symlinked parent directories too; a check on lstat(file) alone
   // would not stop an evidence file pointing outside the selected workspace.
   const parent = await realpath(dirname(location));
-  if (!inside(root, parent)) fail('Evidence parent resolves outside manifest directory');
+  // Compare real paths on both sides: a release folder under a symlinked path (macOS /var is /private/var, or a
+  // symlinked home folder) is not an escape, and was wrongly refused when only the evidence side was resolved.
+  if (!inside(await realpath(root), parent)) fail('Evidence parent resolves outside manifest directory');
   const digest = createHash('sha256');
   for await (const chunk of createReadStream(location)) digest.update(chunk);
   if (digest.digest('hex') !== sha256.toLowerCase()) fail('Evidence SHA-256 mismatch');
