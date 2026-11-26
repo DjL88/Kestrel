@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Danish. DRAFT: written without a native speaker's check. */
+export const da: AreaTranslation<typeof source> = {
+  heading: "Dine looks",
+  intro: "Gem dette fotos skyderindstillinger som et look til andre fotos. Masker, beskæring, kurver og objektivrettelser er ikke med.",
+  nameLabel: "Navn til dette look",
+  namePlaceholder: "For eksempel Tåget morgen",
+  save: "Gem som look",
+  empty: "Du har ikke gemt nogen looks endnu.",
+  rename: (name: string) => `Omdøb ${name}`,
+  renameLabel: (name: string) => `Nyt navn til ${name}`,
+  renameShort: "Omdøb",
+  removeShort: "Slet",
+  renameDone: "Gem navn",
+  cancel: "Annuller",
+  remove: (name: string) => `Slet ${name}`,
+  exportLooks: "Gem looks i en fil",
+  importLooks: "Tilføj looks fra en fil",
+  mine: "Dine",
+  description: "Et look, du har gemt på denne enhed.",
+  saved: (name: string) => `Gemte looket “${name}” på denne enhed.`,
+  updated: (name: string) => `Dit look “${name}” har nu dette fotos indstillinger.`,
+  needName: "Giv først looket et navn.",
+  full: "Du har gemt så mange looks, som du kan. Slet et først.",
+  nameTaken: "Du har allerede et look med det navn.",
+  removed: (name: string) => `Slettede looket “${name}”. Fotos, der brugte det, beholder deres indstillinger.`,
+  notSaved: "Dine looks kunne ikke gemmes på denne enhed. De holder, til Kestrel lukkes.",
+  imported: (added: number, replaced: number) => `Looks tilføjet: ${added}. Looks opdateret: ${replaced}.`,
+  skipped: (n: number) => ` Udeladt, uden brugbare indstillinger: ${n}.`,
+  nothingUsable: "Den fil har ingen looks med indstillinger, som Kestrel kan bruge.",
+  unreadable: "Den fil kunne ikke læses som looks.",
+  notLooks: "Den fil er ikke en looks-fil fra Kestrel.",
+  newer: "Den looks-fil er lavet af en nyere version af Kestrel. Opdater Kestrel for at tilføje den.",
+};

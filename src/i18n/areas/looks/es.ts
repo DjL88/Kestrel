@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Spanish (usted). DRAFT: written without a native speaker's check. */
+export const es: AreaTranslation<typeof source> = {
+  heading: "Sus estilos",
+  intro: "Guarde los ajustes de esta foto como estilo para otras fotos. No se incluyen máscaras, recorte, curvas ni correcciones de objetivo.",
+  nameLabel: "Nombre de este estilo",
+  namePlaceholder: "Por ejemplo, Mañana de niebla",
+  save: "Guardar como estilo",
+  empty: "Todavía no ha guardado ningún estilo.",
+  rename: (name: string) => `Cambiar el nombre de ${name}`,
+  renameLabel: (name: string) => `Nombre nuevo para ${name}`,
+  renameShort: "Cambiar nombre",
+  removeShort: "Eliminar",
+  renameDone: "Guardar nombre",
+  cancel: "Cancelar",
+  remove: (name: string) => `Eliminar ${name}`,
+  exportLooks: "Guardar estilos en un archivo",
+  importLooks: "Añadir estilos desde un archivo",
+  mine: "Suyos",
+  description: "Un estilo que guardó en este dispositivo.",
+  saved: (name: string) => `Estilo «${name}» guardado en este dispositivo.`,
+  updated: (name: string) => `Su estilo «${name}» ahora tiene los ajustes de esta foto.`,
+  needName: "Primero dé un nombre al estilo.",
+  full: "Ha guardado el máximo de estilos posible. Elimine uno primero.",
+  nameTaken: "Ya tiene un estilo con ese nombre.",
+  removed: (name: string) => `Estilo «${name}» eliminado. Las fotos que lo usaban conservan sus ajustes.`,
+  notSaved: "Sus estilos no se pudieron guardar en este dispositivo. Durarán hasta que se cierre Kestrel.",
+  imported: (added: number, replaced: number) => `Estilos añadidos: ${added}. Estilos actualizados: ${replaced}.`,
+  skipped: (n: number) => ` Omitidos, sin ajustes útiles: ${n}.`,
+  nothingUsable: "Ese archivo no tiene estilos con ajustes que Kestrel pueda usar.",
+  unreadable: "Ese archivo no se pudo leer como estilos.",
+  notLooks: "Ese archivo no es un archivo de estilos de Kestrel.",
+  newer: "Ese archivo de estilos es de una versión más reciente de Kestrel. Actualice Kestrel para añadirlo.",
+};

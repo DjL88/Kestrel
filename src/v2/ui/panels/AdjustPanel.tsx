@@ -9,6 +9,7 @@ import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
 import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
+import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -23,6 +24,8 @@ interface AdjustPanelProps {
   onApplyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
+  /** Your own looks. Without these the section is not shown. */
+  userLookActions?: UserLookActions;
   onResetPhoto: (photoId: string) => void;
   /** White balance from the picture: Auto (no point) runs at once; the eyedropper waits for a click on the canvas. */
   onNeutralWhite?: (photoId: string) => void;
@@ -128,6 +131,7 @@ export default function AdjustPanel({
   onApplyLensProfile,
   onApplyLook,
   onHoverLook,
+  userLookActions,
   onResetPhoto,
   onNeutralWhite,
   whitePicking = false,
@@ -150,6 +154,7 @@ export default function AdjustPanel({
 
   const group = getActiveGroup(photo);
   const recipe = group.recipe;
+  const builtInLooks = looks.filter((look) => !look.mine);
 
   return (
     <div className="space-y-5">
@@ -182,7 +187,7 @@ export default function AdjustPanel({
           <h3 id="looks-heading" className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.adjust.looksHeading}
           </h3>
-          <span className="text-[0.625rem] text-[var(--text-muted)]">{looks.length} styles</span>
+          <span className="text-[0.625rem] text-[var(--text-muted)]">{builtInLooks.length} styles</span>
         </div>
         <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
 
@@ -190,7 +195,7 @@ export default function AdjustPanel({
           className="grid grid-cols-2 gap-2"
           onMouseLeave={() => onHoverLook(null)}
         >
-          {looks.map((look) => {
+          {builtInLooks.map((look) => {
             const active = recipe.lookId === look.id;
             return (
               <button
@@ -229,6 +234,10 @@ export default function AdjustPanel({
           })}
         </div>
       </section>
+      {userLookActions && (
+        <UserLooksSection photo={photo} looks={looks.filter((look) => look.mine)} appliedLookId={recipe.lookId}
+          onApplyLook={onApplyLook} onHoverLook={onHoverLook} {...userLookActions} />
+      )}
 
       </div>
       <div role="tabpanel" id="adjust-advanced-panel" aria-labelledby="adjust-advanced-tab" hidden={activeTab !== 'advanced'}>

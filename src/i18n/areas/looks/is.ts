@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Icelandic. DRAFT: written without a native speaker's check. */
+export const is: AreaTranslation<typeof source> = {
+  heading: "Þínir stílar",
+  intro: "Vistaðu sleðastillingar þessarar myndar sem stíl fyrir aðrar myndir. Grímur, skurður, ferlar og linsuleiðréttingar fylgja ekki með.",
+  nameLabel: "Heiti stílsins",
+  namePlaceholder: "Til dæmis Þokukenndur morgunn",
+  save: "Vista sem stíl",
+  empty: "Þú hefur ekki vistað neina stíla enn.",
+  rename: (name: string) => `Endurnefna ${name}`,
+  renameLabel: (name: string) => `Nýtt heiti fyrir ${name}`,
+  renameShort: "Endurnefna",
+  removeShort: "Eyða",
+  renameDone: "Vista heiti",
+  cancel: "Hætta við",
+  remove: (name: string) => `Eyða ${name}`,
+  exportLooks: "Vista stíla í skrá",
+  importLooks: "Bæta við stílum úr skrá",
+  mine: "Þínir",
+  description: "Stíll sem þú vistaðir á þessu tæki.",
+  saved: (name: string) => `Stíllinn „${name}“ var vistaður á þessu tæki.`,
+  updated: (name: string) => `Stíllinn þinn „${name}“ fékk stillingar þessarar myndar.`,
+  needName: "Gefðu stílnum fyrst heiti.",
+  full: "Þú hefur vistað eins marga stíla og hægt er. Eyddu einum fyrst.",
+  nameTaken: "Þú átt nú þegar stíl með þessu heiti.",
+  removed: (name: string) => `Stílnum „${name}“ var eytt. Myndir sem notuðu hann halda stillingum sínum.`,
+  notSaved: "Ekki tókst að vista stílana þína á þessu tæki. Þeir haldast þar til Kestrel er lokað.",
+  imported: (added: number, replaced: number) => `Stílum bætt við: ${added}. Stílar uppfærðir: ${replaced}.`,
+  skipped: (n: number) => ` Sleppt, engar nothæfar stillingar: ${n}.`,
+  nothingUsable: "Í skránni eru engir stílar með stillingum sem Kestrel getur notað.",
+  unreadable: "Ekki tókst að lesa skrána sem stíla.",
+  notLooks: "Þetta er ekki stílaskrá frá Kestrel.",
+  newer: "Þessi stílaskrá kemur úr nýrri útgáfu af Kestrel. Uppfærðu Kestrel til að bæta henni við.",
+};
