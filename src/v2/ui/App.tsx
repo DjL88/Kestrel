@@ -269,6 +269,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => mq.removeEventListener('change', onChange);
   }, [setActivePanel]);
 
+  // An upright tablet or unfolded foldable keeps the desktop layout (rail, panels docked left or right, or floating) but
+  // opens with no panel docked, so the photo has the full width until a tool is chosen (owner, 26 Nov). Only at start:
+  // turning the device keeps whatever panel is open.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    if (window.matchMedia('(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)').matches) setActivePanel(null);
+  }, [setActivePanel]);
+
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
   const activePhoto =
