@@ -34,9 +34,9 @@ export const FEATURES = {
   cloudAssist: 'paid',
   zoomVideo: 'free',
   splitFrames: 'free',
-  // Settings → Account "Download my data" and "Delete my account". Off for everyone until an admin flag turns it on
-  // (the owner checks the wording first). Not a paid feature: once on, it is for every signed-in person.
-  accountData: 'flagged',
+  // Settings → Account "Download my data" and "Delete my account". On for every signed-in person (owner approved the
+  // wording, 26 Nov 2026). An admin flag can still turn it off. Not a paid feature.
+  accountData: 'free',
   // On for everyone since 26 Nov 2026 (owner: switch finished, tested, on-device features on by default). An admin
   // flag can still switch any of them off. Focus stacking, panorama stitching and HDR merge make a new photo and never
   // touch the sources; saved views and next-to-review keys only change what is shown; culling read-ahead only
