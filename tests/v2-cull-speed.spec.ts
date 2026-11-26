@@ -116,6 +116,15 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   const rated: number[] = [];
   for (let i = 0; i < STEPS / 2; i++) rated.push(await timeKey('3'));
 
+  // Auto pick over the whole shoot: every photo decoded, scored and looked at by the subject detector. This is the
+  // work the culling workers take off the interface thread (x-std-parallel-preflight); the time is the whole pass.
+  const autoPickStarted = Date.now();
+  await root.getByRole('button', { name: /Auto pick/ }).first().click();
+  await expect(page.getByText(/Photos checked by Auto pick: \d+/).first()).toBeVisible({ timeout: 60_000 + PHOTOS * 2_000 })
+    .catch((reason) => { throw new Error(`${reason}\n${errors.join('\n')}`); });
+  const autoPickMs = Date.now() - autoPickStarted;
+  const cores = await page.evaluate(() => navigator.hardwareConcurrency);
+
   const stats = (values: number[]) => {
     const sorted = [...values].sort((a, b) => a - b);
     const at = (q: number) => Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]);
@@ -124,6 +133,7 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   const result = {
     photos: PHOTOS, firstPhotoMs, first20Ms,
     nextPhoto: stats(next), rateAndMoveOn: stats(rated),
+    autoPick: { totalMs: autoPickMs, perPhotoMs: Math.round(autoPickMs / PHOTOS), cores },
     note: 'Synthetic DNGs with a 1620x1080 embedded JPEG preview, headless Chromium, built app. Measured while the import still works in the background. Not a Photo Mechanic comparison.',
   };
   writeFileSync(testInfo.outputPath('cull-speed.json'), JSON.stringify(result, null, 2));
@@ -134,4 +144,5 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   expect(result.nextPhoto.medianMs).toBeLessThan(400);
   expect(result.rateAndMoveOn.medianMs).toBeLessThan(400);
   expect(Number.isFinite(result.nextPhoto.worstMs) && Number.isFinite(result.rateAndMoveOn.worstMs)).toBe(true);
+  expect(errors.filter((error) => /worker/i.test(error))).toEqual([]);
 });

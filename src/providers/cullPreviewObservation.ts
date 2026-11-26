@@ -4,6 +4,13 @@ import type { PictureSource } from '../core/pictureSource';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
 import { findSubjectsSamePass } from './objectDetector';
+import { sharedCullObservationPool } from './cullObservationPool';
+
+/** The RF-DETR tandem runs on the main thread only, so with that pack installed the workers are not used. */
+async function tandemInstalled(): Promise<boolean> {
+  const { rfDetrStatus } = await import('./rfDetrDetector');
+  return (await rfDetrStatus().catch(() => 'unavailable')) === 'ready';
+}
 
 export interface CullImageObservation {
   result: CullSuggestion;
@@ -34,6 +41,20 @@ export async function observeCullImage(
     const url = await provider.getFullPreviewUrl(frame, 'background');
     if (!url) return { result: unavailable, detectorFailed: false };
     const source = provider.pictureSourceOf(url);
+    // Off the interface thread when it can be: a worker decodes, scores and runs the detector, and posts back
+    // numbers only. Same evidence, same rules; any worker failure is treated like a failure here.
+    const pool = await sharedCullObservationPool();
+    if (pool && !(tryDetector && await tandemInstalled())) {
+      const blob = await fetch(url).then((response) => {
+        if (!response.ok) throw new Error('The preview could not be read.');
+        return response.blob();
+      });
+      signal.throwIfAborted();
+      const observed = await pool.observe(frame.id, blob, tryDetector).catch(() => null);
+      signal.throwIfAborted();
+      // A worker that died mid-photo: this photo is looked at here instead, the way it always was.
+      if (observed) return { ...observed, source };
+    }
     const image = await loadImage(url);
     signal.throwIfAborted();
     const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
