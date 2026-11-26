@@ -1280,6 +1280,8 @@ export const ga: AreaTranslation<typeof source> = {
     evidenceRaw: "Comhad RAW gan aon eagarthóireacht taifeadta ann.",
     evidenceMakerNotes: "Tá nótaí déantóra an cheamara slán agus níl aon aip eagarthóireachta luaite.",
     evidenceUnrecognised: (app: string) => `S\u00e1bh\u00e1ilte ag ${app}, nach n-aithn\u00edonn InFlight.`,
+    evidenceSidecar: "Tá comhad XMP lena thaobh a bhfuil socruithe eagarthóireachta ann.",
+    evidenceSidecarApp: (app: string) => `Tá comhad XMP ó ${app} lena thaobh a bhfuil socruithe eagarthóireachta ann.`,
     evidenceNone: "Ní deir an comhad.",
     rawColourSource: "Maitrís datha an cheamara féin ón gcomhad RAW, cuma chaighdeánach InFlight (ní stíl pictiúir an déantóra)",
     heading: 'Eolas an ghrianghraif',

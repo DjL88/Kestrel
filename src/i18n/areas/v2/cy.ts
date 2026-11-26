@@ -1277,6 +1277,8 @@ export const cy: AreaTranslation<typeof source> = {
     evidenceRaw: "Ffeil RAW heb unrhyw olygiad wedi’i gofnodi ynddi.",
     evidenceMakerNotes: "Mae nodiadau gwneuthurwr y camera’n gyfan ac nid oes ap golygu wedi’i enwi.",
     evidenceUnrecognised: (app: string) => `Wedi\u2019i gadw gan ${app}, nad yw InFlight yn ei adnabod.`,
+    evidenceSidecar: "Mae ffeil XMP ochr yn ochr ag ef yn dal gosodiadau golygu.",
+    evidenceSidecarApp: (app: string) => `Mae ffeil XMP gan ${app} ochr yn ochr ag ef yn dal gosodiadau golygu.`,
     evidenceNone: "Nid yw’r ffeil yn dweud.",
     rawColourSource: "Matrics lliw y camera ei hun o’r ffeil RAW, golwg safonol InFlight (nid arddull llun y gwneuthurwr)",
     heading: 'Gwybodaeth y llun',

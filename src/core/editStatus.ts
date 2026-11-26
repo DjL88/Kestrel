@@ -14,6 +14,8 @@ export type EditStatusKind = 'edited-elsewhere' | 'camera' | 'unknown';
 export type EditEvidence =
   | { kind: 'develop-settings'; app?: string }
   | { kind: 'edit-history'; app?: string }
+  /** Develop settings or an edit history in an XMP sidecar file beside the photo (Lightroom, darktable, Capture One). */
+  | { kind: 'sidecar'; app?: string }
   | { kind: 'editing-app'; app: string }
   | { kind: 'content-credentials'; actions: string[] }
   | { kind: 'raw-file' }
@@ -87,7 +89,9 @@ function historyApps(xmpMM: unknown): { edited: boolean; app?: string } {
   const record = xmpMM as Record<string, unknown>;
   const raw = record.History;
   const events = (Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []) as Record<string, unknown>[];
-  const changes = events.filter((event) => event && typeof event === 'object' && typeof event.action === 'string' && event.action !== 'created');
+  // Lightroom records a metadata-only save (a rating, a keyword) as "saved" with changed="/metadata": not an edit.
+  const changes = events.filter((event) => event && typeof event === 'object' && typeof event.action === 'string' && event.action !== 'created'
+    && !(typeof event.changed === 'string' && event.changed.trim() === '/metadata'));
   const app = changes.map((event) => text(event.softwareAgent)).find(Boolean);
   return { edited: changes.length > 0 || record.DerivedFrom != null, app };
 }
@@ -113,6 +117,28 @@ export function readEditStatus(input: EditStatusInput): EditStatus {
   if (input.isRaw) return { kind: 'camera', evidence: [{ kind: 'raw-file' }] };
   if (input.hasMakerNote) return { kind: 'camera', evidence: [{ kind: 'maker-notes' }] };
   return { kind: 'unknown', evidence: [] };
+}
+
+/** The sidecar names editing apps use beside a photo: "DSC_0001.xmp" (Lightroom, Camera Raw) and "DSC_0001.NEF.xmp" (darktable). */
+export function sidecarFilenames(filename: string): string[] {
+  const stem = filename.replace(/\.[^.]+$/, '');
+  return stem && stem !== filename ? [`${stem}.xmp`, `${filename}.xmp`] : [`${filename}.xmp`];
+}
+
+/** XMP sidecars larger than this are not read for the status (Lightroom's with many masks are a few hundred KB). */
+export const MAX_SIDECAR_STATUS_BYTES = 4 << 20;
+
+/**
+ * Add what an XMP sidecar says. Develop settings or an edit history in it mean "Edited elsewhere"; a sidecar with only
+ * a rating or keywords changes nothing. The file's own edit evidence is kept.
+ */
+export function withSidecar(status: EditStatus, sidecar: { crs?: unknown; xmpMM?: unknown; creatorTool?: unknown }): EditStatus {
+  const history = historyApps(sidecar.xmpMM);
+  if (!developFromCrs(sidecar.crs) && !history.edited) return status;
+  const creator = text(sidecar.creatorTool);
+  const app = history.app ?? (creator && classifyApp(creator) === 'editor' ? creator : undefined);
+  const own = status.kind === 'edited-elsewhere' ? status.evidence : [];
+  return { kind: 'edited-elsewhere', evidence: [{ kind: 'sidecar', ...(app ? { app } : {}) }, ...own] };
 }
 
 /** C2PA actions that change the picture (c2pa.created, c2pa.published and the like do not). */

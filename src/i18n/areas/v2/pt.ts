@@ -1277,6 +1277,8 @@ export const pt: AreaTranslation<typeof source> = {
     evidenceRaw: "Um ficheiro RAW sem qualquer edição registada.",
     evidenceMakerNotes: "As notas do fabricante da câmara estão intactas e não é indicada nenhuma aplicação de edição.",
     evidenceUnrecognised: (app: string) => `Guardada por ${app}, que o InFlight n\u00e3o reconhece.`,
+    evidenceSidecar: "Um ficheiro XMP associado ao lado contém definições de edição.",
+    evidenceSidecarApp: (app: string) => `Um ficheiro XMP associado de ${app} ao lado contém definições de edição.`,
     evidenceNone: "O ficheiro não o indica.",
     rawColourSource: "A matriz de cor da própria câmara, do ficheiro RAW, com o aspeto padrão do InFlight (não o estilo de imagem do fabricante)",
     heading: 'Informações da fotografia',

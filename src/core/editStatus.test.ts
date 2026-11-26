@@ -79,3 +79,27 @@ test('parseImageExif reads the edit status from a synthetic JPEG header', async 
   assert.equal(bare.editStatus?.kind, 'unknown');
   assert.equal(bare.rating, 3);
 });
+
+test('a Lightroom or darktable sidecar with develop settings means edited elsewhere; a ratings-only one does not', async () => {
+  const { addSidecarEditStatus } = await import('./exifParser');
+  const { sidecarFilenames, withSidecar } = await import('./editStatus');
+  assert.deepEqual(sidecarFilenames('DSC_0001.NEF'), ['DSC_0001.xmp', 'DSC_0001.NEF.xmp']);
+  const xmp = (body: string) => new TextEncoder().encode('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' +
+    '<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"' +
+    ` xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#" ${body}</rdf:Description></rdf:RDF></x:xmpmeta>`);
+  const raw = readEditStatus({ isRaw: true, hasMakerNote: true });
+
+  const edited = await addSidecarEditStatus(raw, xmp('xmp:CreatorTool="Adobe Photoshop Lightroom Classic 13.0" crs:Exposure2012="+0.70" crs:HasSettings="True">'));
+  assert.deepEqual(edited, { kind: 'edited-elsewhere', evidence: [{ kind: 'sidecar', app: 'Adobe Photoshop Lightroom Classic 13.0' }] });
+
+  // Lightroom writes a sidecar for a star rating too: zeroed sliders and a metadata-only save are not an edit.
+  const ratedOnly = await addSidecarEditStatus(raw, xmp('xmp:Rating="4" crs:Exposure2012="0.00" crs:WhiteBalance="As Shot"><xmpMM:History><rdf:Seq>' +
+    '<rdf:li stEvt:action="saved" stEvt:changed="/metadata" stEvt:softwareAgent="Adobe Photoshop Lightroom Classic 13.0"/></rdf:Seq></xmpMM:History>'));
+  assert.deepEqual(ratedOnly, raw);
+
+  // A damaged sidecar changes nothing.
+  assert.deepEqual(await addSidecarEditStatus(raw, new TextEncoder().encode('not xml at all')), raw);
+  // The file's own edit evidence is kept after the sidecar's.
+  const own = readEditStatus({ isRaw: false, hasMakerNote: false, software: 'GIMP 2.10' });
+  assert.deepEqual(withSidecar(own, { crs: { HasCrop: true } }).evidence.map((item) => item.kind), ['sidecar', 'editing-app']);
+});
