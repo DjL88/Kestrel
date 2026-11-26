@@ -1,4 +1,6 @@
 import React from 'react';
+import ColourCheckerDialog from '../dialogs/ColourCheckerDialog';
+import type { CheckerFit } from '../../../core/colourChecker';
 import type { EditRecipe } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -146,8 +148,17 @@ const PRIMARIES = ['red', 'green', 'blue'] as const;
 type Primary = typeof PRIMARIES[number];
 
 /** Advanced: camera calibration, choose a primary by name, then its hue and saturation. */
-export function CalibrationControl({ recipe, calmView, onChange }: Props) {
+export function CalibrationControl({ recipe, calmView, onChange, pictureUrl }: Props & { pictureUrl?: string }) {
   const [primary, setPrimary] = React.useState<Primary>('red');
+  const [checkerOpen, setCheckerOpen] = React.useState(false);
+  const [checkerNote, setCheckerNote] = React.useState('');
+  const applyChecker = (fit: CheckerFit) => {
+    const pct = (v: number) => Math.round(v * 100);
+    onChange({ calibration: Object.fromEntries(PRIMARIES.map((p) => [p, { hue: pct(fit.calibration[p][0]), saturation: pct(fit.calibration[p][1]) }])) as NonNullable<EditRecipe['calibration']> });
+    const one = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+    setCheckerNote(C.checkerResult(one(fit.before), one(fit.after)));
+    setCheckerOpen(false);
+  };
   const zero = { hue: 0, saturation: 0 };
   const calibration = recipe.calibration ?? { red: zero, green: zero, blue: zero };
   const current = calibration[primary];
@@ -179,6 +190,14 @@ export function CalibrationControl({ recipe, calmView, onChange }: Props) {
         calmView={calmView} onChange={(v) => set('hue', v)} />
       <Row id="calibration-saturation" label={`${C.primaries[primary]} ${C.saturation.toLowerCase()}`} help={C.saturationHelp} value={current.saturation}
         min={-100} max={100} calmView={calmView} onChange={(v) => set('saturation', v)} />
+      {pictureUrl && (
+        <button type="button" onClick={() => { setCheckerNote(''); setCheckerOpen(true); }}
+          className="min-h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-[0.6875rem] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          {C.checkerButton}
+        </button>
+      )}
+      {checkerNote && <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{checkerNote}</p>}
+      {checkerOpen && pictureUrl && <ColourCheckerDialog pictureUrl={pictureUrl} onApply={applyChecker} onClose={() => setCheckerOpen(false)} />}
     </div>
   );
 }
