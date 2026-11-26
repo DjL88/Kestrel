@@ -22,6 +22,7 @@ import type {
 } from '../contract';
 import { STRINGS } from '../strings';
 import { readProfile, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff } from '../../../providers/launchMemory';
+import FlightModePicker from '../panels/FlightModePicker';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
 import { ModelsSection } from '../panels/ModelsSection';
@@ -90,8 +91,6 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
 ];
 
 export default function SettingsDialog({
-  assistMode,
-  onSetAssistMode,
   open,
   activeTab,
   accountPanel,
@@ -494,25 +493,10 @@ export default function SettingsDialog({
             {activeTab === 'assistance' && (
               <div className="space-y-5">
                 <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                    {STRINGS.settings.assistance.defaultModeLabel}
-                  </h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['solo', 'copilot', 'autopilot'] as AssistMode[]).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => { onSetAssistMode(m); onUpdateSettings({ defaultAssistMode: m }); }}
-                        className={`h-9 rounded-[var(--radius-sm)] border text-xs font-medium ${
-                          assistMode === m
-                            ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-                        }`}
-                      >
-                        {STRINGS.topBar.assistModes[m]}
-                      </button>
-                    ))}
-                  </div>
+                  {/* The default for new projects only; each project keeps its own mode, changed from its Flight panel. */}
+                  <FlightModePicker name="default-flight-mode" label={STRINGS.settings.assistance.defaultModeLabel}
+                    value={settings.defaultAssistMode} onChange={(m) => onUpdateSettings({ defaultAssistMode: m })} />
+                  <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.settings.assistance.defaultModeNote}</p>
                 </section>
 
                 <SettingSwitch
