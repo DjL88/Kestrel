@@ -9,7 +9,8 @@ import WatchSteps from './WatchSteps';
 import type { CloudRecipeOfferView, EditRecipe } from '../contract';
 import CloudRecipeCard from './CloudRecipeCard';
 import AiSecondOpinionCard from './AiSecondOpinionCard';
-import type { AiSecondOpinionView } from '../contract';
+import AssistantSuggestionsCard from './AssistantSuggestionsCard';
+import type { AiSecondOpinionView, AssistantSuggestionsView } from '../contract';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -41,6 +42,10 @@ interface CoPilotPanelProps {
   /** Bring your own AI (real workspace only). Absent: nothing is shown. */
   aiOpinion?: AiSecondOpinionView;
   aiOpinionActions?: Omit<React.ComponentProps<typeof AiSecondOpinionCard>, 'photoId' | 'view'>;
+  /** Suggestions an AI assistant left through the MCP tool for this project. */
+  assistantSuggestions?: AssistantSuggestionsView;
+  onApplyAssistantSuggestions?: (name: string) => void;
+  onDismissAssistantSuggestions?: (name: string) => void;
 }
 
 export default function CoPilotPanel({
@@ -60,6 +65,9 @@ export default function CoPilotPanel({
   cloudRecipe,
   aiOpinion,
   aiOpinionActions,
+  assistantSuggestions,
+  onApplyAssistantSuggestions,
+  onDismissAssistantSuggestions,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
   // Which suggestion is being watched step by step. A different photo stops watching.
@@ -154,6 +162,7 @@ export default function CoPilotPanel({
           onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn} />
       )}
 
+      {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}
       {aiOpinion && <AiSecondOpinionCard photoId={photo.id} view={aiOpinion} {...aiOpinionActions} />}
 
       {/* Assist, merged: the plain-English read of the photo, and the colour check */}

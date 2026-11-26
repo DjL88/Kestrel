@@ -57,4 +57,17 @@ export const ga: AreaTranslation<typeof source> = {
     unreadable: 'Níorbh fhéidir freagra do AI a léamh, mar sin níor athraíodh aon rud.',
     other: 'Chuaigh rud éigin mícheart agus do AI á fhiafraí. Níor athraíodh aon rud.',
   },
+  assistant: {
+    title: 'Moltaí ó do chúntóir AI',
+    intro: (count, when) => `D’fhág do chúntóir ${count === 1 ? 'moladh amháin' : `${count} moladh`} don tionscadal seo (${when}). Ní athraíonn aon rud go gcuireann tú i bhfeidhm iad.`,
+    keep: 'Coinnigh', reject: 'Cuir i leataobh', unreviewed: 'Ar ais le hathbhreithniú',
+    stars: (n) => (n === 1 ? '1 réalta' : `${n} réalta`),
+    tags: (tags) => `cuir na clibeanna ${tags} leis`,
+    why: 'Cén fáth',
+    apply: 'Cuir gach ceann i bhfeidhm',
+    dismiss: 'Diúltaigh',
+    applied: (count) => `Curtha i bhfeidhm: ${count === 1 ? 'moladh amháin' : `${count} moladh`}. Cuireann Cealaigh na cinntí ar ais.`,
+    noneLeft: 'Baineann na moltaí seo le grianghraif nach bhfuil sa tionscadal a thuilleadh, mar sin níor athraíodh aon rud.',
+    more: (count) => `agus ${count} eile`,
+  },
 };

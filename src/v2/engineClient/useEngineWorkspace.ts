@@ -126,6 +126,9 @@ import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
 import { consentFor } from '../../providers/aiProviders';
 import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
 import { languageOption } from '../../core/locale';
+import { matchProposal, withProposalMarks } from '../../core/assistantProposals';
+import { findProposals, forgetProposal, type FoundProposal } from '../../providers/assistantProposals';
+import { aiReviewText } from '../../i18n/areas/aiReview';
 import { planExport } from './exportOps';
 import { useExternalEdits } from './useExternalEdits';
 import { placeBeside, readExternalEdit, returnedExif, type ExternalEditRecord } from '../../core/externalEdit';
@@ -1923,6 +1926,68 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // A different provider or photo never leaves an old answer on screen.
   useEffect(() => { aiAbort.current?.abort(); aiAbort.current = null; setAiOpinion(null); }, [aiSettings]);
 
+  // Suggestions an AI assistant left through the MCP tool, beside this project's backups. Read when a project opens and
+  // every minute while it is open; shown in Co-pilot; nothing changes until the person presses Apply.
+  const [proposals, setProposals] = useState<FoundProposal[]>([]);
+  const handledProposals = useRef(new Set<string>());
+  const proposalProjectId = state?.shoot.id;
+  useEffect(() => {
+    setProposals([]);
+    if (!proposalProjectId) return;
+    let live = true;
+    const look = () => {
+      const current = stateRef.current;
+      if (!current || current.shoot.id !== proposalProjectId || current.shoot.collage) return;
+      void findProposals(current).then((found) => {
+        if (live) setProposals(found.filter((item) => !handledProposals.current.has(`${proposalProjectId}/${item.proposal.name}`)));
+      }).catch(() => undefined);
+    };
+    const first = window.setTimeout(look, 2000);
+    const timer = window.setInterval(look, 60_000);
+    return () => { live = false; window.clearTimeout(first); window.clearInterval(timer); };
+  }, [proposalProjectId]);
+  const closeProposal = useCallback((name: string) => {
+    const found = proposals.find((item) => item.proposal.name === name);
+    if (!found || !proposalProjectId) return null;
+    handledProposals.current.add(`${proposalProjectId}/${name}`);
+    setProposals((current) => current.filter((item) => item !== found));
+    void forgetProposal(found);
+    return found;
+  }, [proposals, proposalProjectId]);
+  const applyProposal = useCallback((name: string) => {
+    const found = proposals.find((item) => item.proposal.name === name);
+    const current = stateRef.current;
+    if (!found || !current) return;
+    const matched = matchProposal(current.frames, found.proposal);
+    closeProposal(name);
+    if (!matched.length) { setNotice(aiReviewText.assistant.noneLeft); return; }
+    const at = Date.now();
+    mutate((latest) => {
+      const fresh = matchProposal(latest.frames, found.proposal);
+      let next = { ...latest, frames: withProposalMarks(latest.frames, fresh), shoot: { ...latest.shoot, lastUpdatedAt: at } };
+      for (const item of fresh) if (item.decision) next = applyDecisionWithHistory(next, item.frameId, item.decision, { allowAdvance: false });
+      return next;
+    });
+    setNotice(aiReviewText.assistant.applied(matched.length));
+  }, [proposals, closeProposal, mutate]);
+  const proposalView = useMemo(() => {
+    const first = proposals[0];
+    if (!first || !state) return undefined;
+    const t = aiReviewText.assistant;
+    const matched = matchProposal(state.frames, first.proposal);
+    const when = (() => { try { return new Date(first.proposal.createdAt).toLocaleString(); } catch { return first.proposal.createdAt; } })();
+    return {
+      name: first.proposal.name,
+      intro: t.intro(matched.length, when),
+      lines: matched.slice(0, 8).map((item) => ({
+        photo: item.filename,
+        change: [item.decision ? t[item.decision] : null, item.rating !== undefined ? t.stars(item.rating) : null, item.addTags?.length ? t.tags(item.addTags.join(', ')) : null].filter(Boolean).join(', '),
+        reason: item.reason,
+      })),
+      more: matched.length > 8 ? t.more(matched.length - 8) : undefined,
+    };
+  }, [proposals, state]);
+
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
@@ -3226,6 +3291,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     cancelAiSecondOpinion: cancelAiOpinion,
     applyAiSecondOpinion: applyAiOpinion,
     dismissAiSecondOpinion: () => setAiOpinion(null),
+    applyAssistantSuggestions: applyProposal,
+    dismissAssistantSuggestions: (name: string) => { closeProposal(name); },
     saveOverlayTemplate: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame) return;
@@ -3596,7 +3663,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3650,6 +3717,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
     aiSecondOpinion: aiOpinionView(aiSettings, aiOpinion, activeId),
+    assistantSuggestions: proposalView,
     // Finished tasks join the history in an effect, one render after the store marks them done. Merge them here too,
     // so a task that has just finished is never missing from both lists (the Tasks panel would lose its row).
     tasks: visibleTasks(
@@ -3672,7 +3740,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
 
   return { store, actions };
 }

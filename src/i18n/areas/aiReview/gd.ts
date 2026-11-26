@@ -57,4 +57,17 @@ export const gd: AreaTranslation<typeof source> = {
     unreadable: 'Cha b’ urrainn dhuinn freagairt an AI agad a leughadh, mar sin cha deach dad atharrachadh.',
     other: 'Chaidh rudeigin ceàrr le faighneachd dhen AI agad. Cha deach dad atharrachadh.',
   },
+  assistant: {
+    title: 'Molaidhean bhon chuidiche AI agad',
+    intro: (count, when) => `Dh’fhàg an cuidiche agad ${count === 1 ? 'aon mholadh' : `${count} molaidhean`} airson a’ phròiseict seo (${when}). Cha atharraich dad gus an cuir thu an sàs iad.`,
+    keep: 'Cùm', reject: 'Cuir an dàrna taobh', unreviewed: 'Air ais airson lèirmheas',
+    stars: (n) => (n === 1 ? '1 rionnag' : `${n} rionnagan`),
+    tags: (tags) => `cuir ris na tagaichean ${tags}`,
+    why: 'Carson',
+    apply: 'Cuir a h-uile an sàs',
+    dismiss: 'Leig seachad',
+    applied: (count) => `Air a chur an sàs: ${count === 1 ? 'aon mholadh' : `${count} molaidhean`}. Aisigidh Neo-dhèan na co-dhùnaidhean.`,
+    noneLeft: 'Tha na molaidhean seo airson dhealbhan nach eil sa phròiseact tuilleadh, mar sin cha deach dad atharrachadh.',
+    more: (count) => `agus ${count} a bharrachd`,
+  },
 };

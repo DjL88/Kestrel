@@ -57,4 +57,17 @@ export const nl: AreaTranslation<typeof source> = {
     unreadable: 'Het antwoord van uw AI kon niet worden gelezen, dus er is niets gewijzigd.',
     other: 'Er ging iets mis bij het vragen aan uw AI. Er is niets gewijzigd.',
   },
+  assistant: {
+    title: 'Suggesties van je AI-assistent',
+    intro: (count, when) => `Je assistent heeft ${count === 1 ? 'één suggestie' : `${count} suggesties`} voor dit project achtergelaten (${when}). Er verandert niets tot je ze toepast.`,
+    keep: 'Bewaren', reject: 'Opzijleggen', unreviewed: 'Opnieuw bekijken',
+    stars: (n) => (n === 1 ? '1 ster' : `${n} sterren`),
+    tags: (tags) => `tags ${tags} toevoegen`,
+    why: 'Waarom',
+    apply: 'Alles toepassen',
+    dismiss: 'Negeren',
+    applied: (count) => `Toegepast: ${count === 1 ? 'één suggestie' : `${count} suggesties`}. Ongedaan maken herstelt de beslissingen.`,
+    noneLeft: 'Deze suggesties gaan over foto’s die niet meer in dit project staan, dus er is niets veranderd.',
+    more: (count) => `en nog ${count}`,
+  },
 };

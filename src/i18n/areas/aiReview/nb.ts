@@ -57,4 +57,17 @@ export const nb: AreaTranslation<typeof source> = {
     unreadable: 'Svaret fra KI-en din kunne ikke leses, så ingenting ble endret.',
     other: 'Noe gikk galt da KI-en din ble spurt. Ingenting ble endret.',
   },
+  assistant: {
+    title: 'Forslag fra AI-assistenten din',
+    intro: (count, when) => `Assistenten din har lagt igjen ${count === 1 ? 'ett forslag' : `${count} forslag`} for dette prosjektet (${when}). Ingenting endres før du bruker dem.`,
+    keep: 'Behold', reject: 'Legg til side', unreviewed: 'Gå gjennom igjen',
+    stars: (n) => (n === 1 ? '1 stjerne' : `${n} stjerner`),
+    tags: (tags) => `legg til stikkordene ${tags}`,
+    why: 'Hvorfor',
+    apply: 'Bruk alle',
+    dismiss: 'Avvis',
+    applied: (count) => `Brukt: ${count === 1 ? 'ett forslag' : `${count} forslag`}. Angre gjenoppretter avgjørelsene.`,
+    noneLeft: 'Disse forslagene gjelder bilder som ikke lenger er i prosjektet, så ingenting ble endret.',
+    more: (count) => `og ${count} til`,
+  },
 };

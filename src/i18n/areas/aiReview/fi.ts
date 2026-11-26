@@ -57,4 +57,17 @@ export const fi: AreaTranslation<typeof source> = {
     unreadable: 'Tekoälysi vastausta ei voitu lukea, joten mitään ei muutettu.',
     other: 'Jokin meni vikaan, kun tekoälyltäsi kysyttiin. Mitään ei muutettu.',
   },
+  assistant: {
+    title: 'Tekoälyavustajasi ehdotukset',
+    intro: (count, when) => `Avustajasi jätti tälle projektille ${count === 1 ? 'yhden ehdotuksen' : `${count} ehdotusta`} (${when}). Mikään ei muutu, ennen kuin otat ne käyttöön.`,
+    keep: 'Säilytä', reject: 'Siirrä sivuun', unreviewed: 'Tarkista uudelleen',
+    stars: (n) => (n === 1 ? '1 tähti' : `${n} tähteä`),
+    tags: (tags) => `lisää tunnisteet ${tags}`,
+    why: 'Miksi',
+    apply: 'Ota kaikki käyttöön',
+    dismiss: 'Hylkää',
+    applied: (count) => `Käytetty: ${count === 1 ? 'yhden ehdotuksen' : `${count} ehdotusta`}. Kumoa palauttaa päätökset.`,
+    noneLeft: 'Nämä ehdotukset koskevat kuvia, jotka eivät enää ole tässä projektissa, joten mitään ei muutettu.',
+    more: (count) => `ja ${count} muuta`,
+  },
 };

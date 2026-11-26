@@ -54,4 +54,17 @@ export const source = {
     unreadable: 'Your AI’s answer couldn’t be read, so nothing was changed.',
     other: 'Something went wrong asking your AI. Nothing was changed.',
   },
+  assistant: {
+    title: 'Suggestions from your AI assistant',
+    intro: (count: number, when: string) => `Your assistant left ${count === 1 ? 'one suggestion' : `${count} suggestions`} for this project (${when}). Nothing changes until you apply them.`,
+    keep: 'Keep', reject: 'Set aside', unreviewed: 'Back to review',
+    stars: (n: number) => (n === 1 ? '1 star' : `${n} stars`),
+    tags: (tags: string) => `add tags ${tags}`,
+    why: 'Why',
+    apply: 'Apply all',
+    dismiss: 'Dismiss',
+    applied: (count: number) => `Applied ${count === 1 ? 'one suggestion' : `${count} suggestions`}. Undo restores the decisions.`,
+    noneLeft: 'These suggestions are for photos that are no longer in this project, so nothing was changed.',
+    more: (count: number) => `and ${count} more`,
+  },
 } as const;

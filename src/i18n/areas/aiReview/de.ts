@@ -57,4 +57,17 @@ export const de: AreaTranslation<typeof source> = {
     unreadable: 'Die Antwort Ihrer KI konnte nicht gelesen werden, daher wurde nichts geändert.',
     other: 'Beim Fragen Ihrer KI ist etwas schiefgegangen. Es wurde nichts geändert.',
   },
+  assistant: {
+    title: 'Vorschläge von Ihrem KI-Assistenten',
+    intro: (count, when) => `Ihr Assistent hat ${count === 1 ? 'einen Vorschlag' : `${count} Vorschläge`} für dieses Projekt hinterlassen (${when}). Nichts ändert sich, bis Sie sie anwenden.`,
+    keep: 'Behalten', reject: 'Beiseitelegen', unreviewed: 'Wieder prüfen',
+    stars: (n) => (n === 1 ? '1 Stern' : `${n} Sterne`),
+    tags: (tags) => `Schlagwörter ${tags} hinzufügen`,
+    why: 'Warum',
+    apply: 'Alle anwenden',
+    dismiss: 'Verwerfen',
+    applied: (count) => `${count === 1 ? 'einen Vorschlag' : `${count} Vorschläge`} angewendet. Rückgängig stellt die Entscheidungen wieder her.`,
+    noneLeft: 'Diese Vorschläge betreffen Fotos, die nicht mehr in diesem Projekt sind, daher wurde nichts geändert.',
+    more: (count) => `und ${count} weitere`,
+  },
 };

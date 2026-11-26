@@ -57,4 +57,17 @@ export const is: AreaTranslation<typeof source> = {
     unreadable: 'Ekki var hægt að lesa svar gervigreindarinnar, svo engu var breytt.',
     other: 'Eitthvað fór úrskeiðis þegar gervigreindin þín var spurð. Engu var breytt.',
   },
+  assistant: {
+    title: 'Tillögur frá gervigreindaraðstoðinni þinni',
+    intro: (count, when) => `Aðstoðin þín skildi eftir ${count === 1 ? 'eina tillögu' : `${count} tillögur`} fyrir þetta verkefni (${when}). Ekkert breytist fyrr en þú notar þær.`,
+    keep: 'Halda', reject: 'Leggja til hliðar', unreviewed: 'Skoða aftur',
+    stars: (n) => (n === 1 ? '1 stjarna' : `${n} stjörnur`),
+    tags: (tags) => `bæta við merkjunum ${tags}`,
+    why: 'Hvers vegna',
+    apply: 'Nota allt',
+    dismiss: 'Hafna',
+    applied: (count) => `Notað: ${count === 1 ? 'eina tillögu' : `${count} tillögur`}. Afturkalla endurheimtir ákvarðanirnar.`,
+    noneLeft: 'Þessar tillögur eiga við myndir sem eru ekki lengur í verkefninu, svo engu var breytt.',
+    more: (count) => `og ${count} til viðbótar`,
+  },
 };

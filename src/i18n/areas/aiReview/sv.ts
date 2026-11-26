@@ -57,4 +57,17 @@ export const sv: AreaTranslation<typeof source> = {
     unreadable: 'Svaret från din AI gick inte att läsa, så ingenting ändrades.',
     other: 'Något gick fel när din AI tillfrågades. Ingenting ändrades.',
   },
+  assistant: {
+    title: 'Förslag från din AI-assistent',
+    intro: (count, when) => `Din assistent har lämnat ${count === 1 ? 'ett förslag' : `${count} förslag`} för det här projektet (${when}). Inget ändras förrän du tillämpar dem.`,
+    keep: 'Behåll', reject: 'Lägg åt sidan', unreviewed: 'Granska igen',
+    stars: (n) => (n === 1 ? '1 stjärna' : `${n} stjärnor`),
+    tags: (tags) => `lägg till taggarna ${tags}`,
+    why: 'Varför',
+    apply: 'Tillämpa alla',
+    dismiss: 'Avvisa',
+    applied: (count) => `Tillämpat: ${count === 1 ? 'ett förslag' : `${count} förslag`}. Ångra återställer besluten.`,
+    noneLeft: 'De här förslagen gäller foton som inte längre finns i projektet, så inget ändrades.',
+    more: (count) => `och ${count} till`,
+  },
 };

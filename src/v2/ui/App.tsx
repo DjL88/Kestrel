@@ -577,6 +577,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onStepPreview={setStepPreview}
             onResetStyle={actions.resetEditStyle}
             aiOpinion={store.aiSecondOpinion}
+            assistantSuggestions={store.assistantSuggestions}
+            onApplyAssistantSuggestions={actions.applyAssistantSuggestions}
+            onDismissAssistantSuggestions={actions.dismissAssistantSuggestions}
             aiOpinionActions={{
               onAgree: actions.agreeAiSecondOpinion, onAsk: actions.askAiSecondOpinion, onCancel: actions.cancelAiSecondOpinion,
               onApply: actions.applyAiSecondOpinion, onDismiss: actions.dismissAiSecondOpinion,

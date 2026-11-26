@@ -57,4 +57,17 @@ export const es: AreaTranslation<typeof source> = {
     unreadable: 'No se ha podido leer la respuesta de su IA, así que no se ha cambiado nada.',
     other: 'Algo ha fallado al preguntar a su IA. No se ha cambiado nada.',
   },
+  assistant: {
+    title: 'Sugerencias de tu asistente de IA',
+    intro: (count, when) => `Tu asistente ha dejado ${count === 1 ? 'una sugerencia' : `${count} sugerencias`} para este proyecto (${when}). No cambia nada hasta que las apliques.`,
+    keep: 'Conservar', reject: 'Apartar', unreviewed: 'Volver a revisar',
+    stars: (n) => (n === 1 ? '1 estrella' : `${n} estrellas`),
+    tags: (tags) => `añadir las etiquetas ${tags}`,
+    why: 'Por qué',
+    apply: 'Aplicar todo',
+    dismiss: 'Descartar',
+    applied: (count) => `Aplicado: ${count === 1 ? 'una sugerencia' : `${count} sugerencias`}. Deshacer restaura las decisiones.`,
+    noneLeft: 'Estas sugerencias son para fotos que ya no están en este proyecto, así que no se ha cambiado nada.',
+    more: (count) => `y ${count} más`,
+  },
 };

@@ -57,4 +57,17 @@ export const cy: AreaTranslation<typeof source> = {
     unreadable: 'Doedd dim modd darllen ateb eich AI, felly ni newidiwyd dim.',
     other: 'Aeth rhywbeth o’i le wrth ofyn i’ch AI. Ni newidiwyd dim.',
   },
+  assistant: {
+    title: 'Awgrymiadau gan eich cynorthwyydd AI',
+    intro: (count, when) => `Mae eich cynorthwyydd wedi gadael ${count === 1 ? 'un awgrym' : `${count} awgrym`} ar gyfer y prosiect hwn (${when}). Does dim yn newid nes i chi eu rhoi ar waith.`,
+    keep: 'Cadw', reject: 'Rhoi o’r neilltu', unreviewed: 'Yn ôl i’w adolygu',
+    stars: (n) => (n === 1 ? '1 seren' : `${n} seren`),
+    tags: (tags) => `ychwanegu’r tagiau ${tags}`,
+    why: 'Pam',
+    apply: 'Rhoi’r cyfan ar waith',
+    dismiss: 'Diystyru',
+    applied: (count) => `Wedi rhoi ar waith: ${count === 1 ? 'un awgrym' : `${count} awgrym`}. Mae Dadwneud yn adfer y penderfyniadau.`,
+    noneLeft: 'Mae’r awgrymiadau hyn ar gyfer lluniau sydd ddim yn y prosiect mwyach, felly does dim wedi newid.',
+    more: (count) => `a ${count} arall`,
+  },
 };

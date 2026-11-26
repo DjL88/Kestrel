@@ -57,4 +57,17 @@ export const da: AreaTranslation<typeof source> = {
     unreadable: 'Din AI’s svar kunne ikke læses, så intet blev ændret.',
     other: 'Noget gik galt, da din AI blev spurgt. Intet blev ændret.',
   },
+  assistant: {
+    title: 'Forslag fra din AI-assistent',
+    intro: (count, when) => `Din assistent har efterladt ${count === 1 ? 'ét forslag' : `${count} forslag`} til dette projekt (${when}). Intet ændres, før du anvender dem.`,
+    keep: 'Behold', reject: 'Læg til side', unreviewed: 'Gennemse igen',
+    stars: (n) => (n === 1 ? '1 stjerne' : `${n} stjerner`),
+    tags: (tags) => `tilføj tags ${tags}`,
+    why: 'Hvorfor',
+    apply: 'Anvend alle',
+    dismiss: 'Afvis',
+    applied: (count) => `Anvendt: ${count === 1 ? 'ét forslag' : `${count} forslag`}. Fortryd gendanner beslutningerne.`,
+    noneLeft: 'Disse forslag gælder fotos, der ikke længere er i projektet, så intet blev ændret.',
+    more: (count) => `og ${count} mere`,
+  },
 };

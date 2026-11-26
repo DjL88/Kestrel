@@ -584,6 +584,13 @@ export interface AiSecondOpinionView {
   changes?: string[];
 }
 
+export interface AssistantSuggestionsView {
+  name: string;
+  intro: string;
+  lines: { photo: string; change: string; reason: string }[];
+  more?: string;
+}
+
 export interface AiProviderConfig {
   id: 'gemini' | 'claude' | 'chatgpt' | 'local';
   name: string;
@@ -760,6 +767,8 @@ export interface WorkspaceStore {
   reviewingPhotoIds: string[];
   /** Bring your own AI, in the real workspace only: set-up state and the answer for the photo on screen. */
   aiSecondOpinion?: AiSecondOpinionView;
+  /** The oldest set of suggestions an AI assistant left for this project, in words; absent when there are none. */
+  assistantSuggestions?: AssistantSuggestionsView;
   settings: WorkspaceSettings;
 
   // Shell UI layout state
@@ -914,6 +923,9 @@ export interface WorkspaceActions {
   /** Apply the checked, one-small-step suggestion as one undoable edit; refused if the photo changed since. */
   applyAiSecondOpinion?: (photoId: string) => void;
   dismissAiSecondOpinion?: () => void;
+  /** Suggestions an AI assistant left through the MCP tool: apply them all (decisions undoable), or dismiss. */
+  applyAssistantSuggestions?: (name: string) => void;
+  dismissAssistantSuggestions?: (name: string) => void;
   /** Personal style (a preview, off by default; present only while it is on): forget everything learnt on this device. */
   resetEditStyle?: () => void;
   /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */
