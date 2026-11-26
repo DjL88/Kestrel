@@ -33,13 +33,15 @@ pub struct LensCorrection {
     pub vignette: Option<Vignette>,
     /// Distortion (OpcodeList3).
     pub warp: Option<Warp>,
+    /// A camera maker's radial lens profile stored in the file (Sony ARW today).
+    pub profile: Option<RadialProfile>,
     /// Opcode ids present in the file that Kestrel does not apply (for plain reporting).
     pub skipped: Vec<u32>,
 }
 
 impl LensCorrection {
     pub fn is_empty(&self) -> bool {
-        self.sensor_gain_maps.is_empty() && self.image_gain_maps.is_empty() && self.vignette.is_none() && self.warp.is_none()
+        self.sensor_gain_maps.is_empty() && self.image_gain_maps.is_empty() && self.vignette.is_none() && self.warp.is_none() && self.profile.is_none()
     }
 
     /// A short description for the developed picture's comment: which corrections were applied.
@@ -50,6 +52,7 @@ impl LensCorrection {
         if let Some(warp) = &self.warp {
             parts.push(if warp.planes.len() == 3 { "distortion+ca" } else { "distortion" });
         }
+        if self.profile.is_some() { parts.push("camera-profile"); }
         let mut text = format!("{LENS_PREFIX}source=file applied={}", if parts.is_empty() { "none".to_string() } else { parts.join(",") });
         if !self.skipped.is_empty() {
             text.push_str(&format!(" skipped={}", self.skipped.iter().map(u32::to_string).collect::<Vec<_>>().join(",")));
@@ -148,10 +151,113 @@ impl Warp {
     }
 }
 
+/// A radial lens profile from the camera: correction factors at a few radii from the picture's centre (radius 1 = half
+/// the diagonal), joined linearly. Distortion and lateral colour as a scale on the distance from the centre per plane;
+/// vignetting as the brightness falloff to divide out.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RadialProfile {
+    pub knots: Vec<f64>,
+    /// Per plane (red, green, blue): where a corrected point at radius r is found, as a multiple of r.
+    pub distortion: [Vec<f64>; 3],
+    /// Relative brightness the lens gives at each knot (1 = none lost).
+    pub falloff: Vec<f64>,
+    /// Zoom so the corrected picture still fills the frame with no empty corners, as the camera's own JPEG does.
+    pub fill: f64,
+}
+
+/// Linear interpolation through (knots, values), held at the ends.
+fn spline(knots: &[f64], values: &[f64], x: f64) -> f64 {
+    if x <= knots[0] { return values[0]; }
+    let last = knots.len() - 1;
+    if x >= knots[last] { return values[last]; }
+    let i = knots.partition_point(|&k| k <= x) - 1;
+    let t = (x - knots[i]) / (knots[i + 1] - knots[i]);
+    values[i] + (values[i + 1] - values[i]) * t
+}
+
+impl RadialProfile {
+    /// Sony's lens correction tags (DistortionCorrParams 0x7037, ChromaticAberrationCorrParams 0x7035,
+    /// VignettingCorrParams 0x7032), each starting with its number of values. The encoding, as documented by ExifTool
+    /// and used by darktable and RawTherapee: knot i sits at radius (i + 0.5) / (n - 1); distortion is
+    /// 1 + d / 2^14; lateral colour scales red and blue by 1 + c / 2^21; brightness is (2^(0.5 - 2^(v / 2^13 - 1)))^2.
+    pub fn from_sony(distortion: &[i32], ca: &[i32], vignetting: &[i32], picture: (f64, f64)) -> Option<RadialProfile> {
+        let n = *distortion.first()? as usize;
+        if !(2..=16).contains(&n) || ca.first().copied()? as usize != 2 * n || vignetting.first().copied()? as usize != n {
+            return None;
+        }
+        if distortion.len() < n + 1 || ca.len() < 2 * n + 1 || vignetting.len() < n + 1 {
+            return None;
+        }
+        let knots: Vec<f64> = (0..n).map(|i| (i as f64 + 0.5) / (n - 1) as f64).collect();
+        let green: Vec<f64> = (0..n).map(|i| 1.0 + distortion[i + 1] as f64 / 16384.0).collect();
+        let red: Vec<f64> = (0..n).map(|i| green[i] * (1.0 + ca[i + 1] as f64 / 2_097_152.0)).collect();
+        let blue: Vec<f64> = (0..n).map(|i| green[i] * (1.0 + ca[n + i + 1] as f64 / 2_097_152.0)).collect();
+        let falloff: Vec<f64> = (0..n).map(|i| 2f64.powf(0.5 - 2f64.powf(vignetting[i + 1] as f64 / 8192.0 - 1.0)).powi(2)).collect();
+        let mut profile = RadialProfile { knots, distortion: [red, green, blue], falloff, fill: 1.0 };
+        profile.fill = profile.fill_zoom(picture);
+        profile.plausible().then_some(profile)
+    }
+
+    /// The largest scale any plane needs between the short edge and the corner: zooming by it keeps every corrected
+    /// pixel inside the recorded picture.
+    fn fill_zoom(&self, (w, h): (f64, f64)) -> f64 {
+        let half_diagonal = (w * w + h * h).sqrt() / 2.0;
+        let short = (w.min(h) / 2.0) / half_diagonal;
+        let mut zoom = 0f64;
+        for i in 0..200 {
+            let r = short + (1.0 - short) * i as f64 / 199.0;
+            for plane in &self.distortion {
+                zoom = zoom.max(spline(&self.knots, plane, r));
+            }
+        }
+        zoom
+    }
+
+    /// A real lens profile moves the edges by a few percent and loses at most a few stops in the corners.
+    fn plausible(&self) -> bool {
+        self.distortion.iter().flatten().all(|v| v.is_finite() && (0.8..=1.25).contains(v))
+            && self.falloff.iter().all(|v| v.is_finite() && (0.1..=1.5).contains(v))
+            && (0.8..=1.25).contains(&self.fill)
+    }
+
+    /// Brightness gain at a radius (1 = half the diagonal).
+    pub fn gain(&self, r: f64) -> f64 {
+        1.0 / spline(&self.knots, &self.falloff, r).max(1e-3)
+    }
+
+    /// Where a corrected point at radius r (1 = half the diagonal) is found, as a multiple of its distance, per plane.
+    pub fn scale(&self, plane: usize, r: f64) -> f64 {
+        spline(&self.knots, &self.distortion[plane], r / self.fill) / self.fill
+    }
+}
+
+/// Sony's lens tags, from the raw IFD (SubIFD) or, after a DNG round trip, IFD 0.
+fn sony_profile(bytes: &[u8], picture: (f64, f64)) -> Option<RadialProfile> {
+    use rawler::formats::tiff::reader::TiffReader;
+    let tiff = rawler::formats::tiff::GenericTiffReader::new_with_buffer(bytes, 0, 0, None).ok()?;
+    let root = tiff.root_ifd();
+    let mut candidates = vec![root];
+    if let Some(subs) = root.get_sub_ifd_all(rawler::tags::TiffCommonTag::SubIFDs) {
+        candidates.extend(subs.iter());
+    }
+    let values = |ifd: &rawler::formats::tiff::IFD, tag: u16| -> Option<Vec<i32>> {
+        let value = &ifd.get_entry(tag)?.value;
+        Some((0..value.count()).map(|i| value.force_i32(i)).collect())
+    };
+    candidates.into_iter().find_map(|ifd| {
+        RadialProfile::from_sony(&values(ifd, 0x7037)?, &values(ifd, 0x7035)?, &values(ifd, 0x7032)?, picture)
+    })
+}
+
 // ---- Reading the opcode lists ------------------------------------------------------------------------------------
 
 /// Read the corrections a file carries. Files with none (every non-DNG today) give an empty result.
 pub fn from_file(bytes: &[u8]) -> LensCorrection {
+    from_file_for(bytes, None)
+}
+
+/// As `from_file`, also reading a camera maker's lens profile, which needs the developed picture's size.
+pub fn from_file_for(bytes: &[u8], picture: Option<(f64, f64)>) -> LensCorrection {
     let lists = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let source = RawSource::new_from_slice(bytes);
         let decoder = rawler::get_decoder(&source).ok()?;
@@ -164,8 +270,11 @@ pub fn from_file(bytes: &[u8]) -> LensCorrection {
     }))
     .ok()
     .flatten();
-    let Some((list2, list3)) = lists else { return LensCorrection::default() };
     let mut out = LensCorrection::default();
+    let Some((list2, list3)) = lists else {
+        out.profile = picture.and_then(|picture| std::panic::catch_unwind(|| sony_profile(bytes, picture)).ok().flatten());
+        return out;
+    };
     if let Some(data) = list2 {
         for op in parse_list(&data, &mut out.skipped) {
             match op {
@@ -184,6 +293,10 @@ pub fn from_file(bytes: &[u8]) -> LensCorrection {
                 Opcode::Warp(w) => out.warp = Some(w),
             }
         }
+    }
+    // A DNG's own opcodes describe this shot; a camera profile is used only when there are none.
+    if out.is_empty() {
+        out.profile = picture.and_then(|picture| std::panic::catch_unwind(|| sony_profile(bytes, picture)).ok().flatten());
     }
     out
 }
@@ -322,9 +435,11 @@ fn parse_warp(body: &[u8]) -> Option<Warp> {
 /// Apply the brightness corrections (gain maps and vignetting) to the sensor data in place.
 /// Returns true when anything was applied.
 pub fn apply_to_sensor(correction: &LensCorrection, raw: &mut RawImage) -> bool {
-    if correction.sensor_gain_maps.is_empty() && correction.image_gain_maps.is_empty() && correction.vignette.is_none() {
+    if correction.sensor_gain_maps.is_empty() && correction.image_gain_maps.is_empty() && correction.vignette.is_none() && correction.profile.is_none() {
         return false;
     }
+    // The developed picture's place on the sensor, for the camera profile (centred on the picture).
+    let ((px, py), _, (pw, ph)) = crate::scene_develop::picture_frame(raw);
     let (width, height, cpp) = (raw.width, raw.height, raw.cpp.max(1));
     let (ax, ay, aw, ah) = match raw.active_area {
         Some(rect) => (rect.p.x, rect.p.y, rect.d.w, rect.d.h),
@@ -350,6 +465,12 @@ pub fn apply_to_sensor(correction: &LensCorrection, raw: &mut RawImage) -> bool 
                 let m = unit_radius(aw as f64, ah as f64, cx, cy);
                 let (dx, dy) = ((sx as f64 + 0.5 - cx) / m, (sy as f64 + 0.5 - cy) / m);
                 g *= v.gain(dx * dx + dy * dy) as f32;
+            }
+            if let Some(profile) = &correction.profile {
+                let half_diagonal = ((pw * pw + ph * ph) as f64).sqrt() / 2.0;
+                let dx = sx as f64 + 0.5 - (px as f64 + pw as f64 / 2.0);
+                let dy = sy as f64 + 0.5 - (py as f64 + ph as f64 / 2.0);
+                g *= profile.gain((dx * dx + dy * dy).sqrt() / half_diagonal) as f32;
             }
         }
         g
@@ -440,6 +561,41 @@ pub fn apply_warp(warp: &Warp, image: &mut ImageBuffer<Rgb<u16>, Vec<u16>>, orig
             }
         }
     });
+}
+
+/// Correct distortion and lateral colour from a camera profile on the developed picture (before orientation), at any
+/// size: the profile works in radii relative to the picture's half diagonal.
+pub fn apply_profile(profile: &RadialProfile, image: &mut ImageBuffer<Rgb<u16>, Vec<u16>>) {
+    let (w, h) = (image.width() as usize, image.height() as usize);
+    if w < 2 || h < 2 {
+        return;
+    }
+    let (cx, cy) = (w as f64 / 2.0, h as f64 / 2.0);
+    let half_diagonal = (cx * cx + cy * cy).sqrt();
+    let src = image.as_raw().clone();
+    image.as_mut().par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
+        for x in 0..w {
+            let (dx, dy) = (x as f64 + 0.5 - cx, y as f64 + 0.5 - cy);
+            let r = (dx * dx + dy * dy).sqrt() / half_diagonal;
+            for plane in 0..3 {
+                let s = profile.scale(plane, r);
+                row[x * 3 + plane] = bilinear(&src, w, h, plane, cx + s * dx - 0.5, cy + s * dy - 0.5);
+            }
+        }
+    });
+}
+
+/// One plane of a 16-bit RGB picture at a fractional position, edges held.
+fn bilinear(src: &[u16], w: usize, h: usize, plane: usize, fx: f64, fy: f64) -> u16 {
+    let fx = fx.clamp(0.0, (w - 1) as f64);
+    let fy = fy.clamp(0.0, (h - 1) as f64);
+    let (x0, y0) = (fx.floor() as usize, fy.floor() as usize);
+    let (x1, y1) = ((x0 + 1).min(w - 1), (y0 + 1).min(h - 1));
+    let (tx, ty) = ((fx - x0 as f64) as f32, (fy - y0 as f64) as f32);
+    let at = |x: usize, y: usize| src[(y * w + x) * 3 + plane] as f32;
+    let top = at(x0, y0) + (at(x1, y0) - at(x0, y0)) * tx;
+    let bottom = at(x0, y1) + (at(x1, y1) - at(x0, y1)) * tx;
+    (top + (bottom - top) * ty + 0.5) as u16
 }
 
 #[cfg(test)]
@@ -600,6 +756,12 @@ mod tests {
     /// Add tags (sorted, as TIFF wants) to IFD 0 of a little-endian DNG: data appended at the end, IFD rewritten.
     #[cfg(feature = "nikon-he")]
     fn with_tags(dng: &[u8], extra: &[(u16, Vec<u8>)]) -> Vec<u8> {
+        with_typed_tags(dng, &extra.iter().map(|(t, d)| (*t, 7u16, d.len() as u32, d.clone())).collect::<Vec<_>>())
+    }
+
+    /// As `with_tags`, with each tag's TIFF type and count.
+    #[cfg(feature = "nikon-he")]
+    fn with_typed_tags(dng: &[u8], extra: &[(u16, u16, u32, Vec<u8>)]) -> Vec<u8> {
         assert_eq!(&dng[..4], b"II*\0");
         let rd16 = |b: &[u8], o: usize| u16::from_le_bytes([b[o], b[o + 1]]);
         let rd32 = |b: &[u8], o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]);
@@ -607,15 +769,19 @@ mod tests {
         let n = rd16(dng, ifd) as usize;
         let mut entries: Vec<[u8; 12]> = (0..n).map(|i| dng[ifd + 2 + 12 * i..ifd + 14 + 12 * i].try_into().unwrap()).collect();
         let mut out = dng.to_vec();
-        for (tag, data) in extra {
-            while out.len() % 2 == 1 { out.push(0); }
-            let at = out.len() as u32;
-            out.extend(data);
+        for (tag, kind, count, data) in extra {
             let mut e = [0u8; 12];
             e[0..2].copy_from_slice(&tag.to_le_bytes());
-            e[2..4].copy_from_slice(&7u16.to_le_bytes()); // UNDEFINED
-            e[4..8].copy_from_slice(&(data.len() as u32).to_le_bytes());
-            e[8..12].copy_from_slice(&at.to_le_bytes());
+            e[2..4].copy_from_slice(&kind.to_le_bytes());
+            e[4..8].copy_from_slice(&count.to_le_bytes());
+            if data.len() <= 4 {
+                e[8..8 + data.len()].copy_from_slice(data);
+            } else {
+                while out.len() % 2 == 1 { out.push(0); }
+                let at = out.len() as u32;
+                out.extend(data);
+                e[8..12].copy_from_slice(&at.to_le_bytes());
+            }
             entries.push(e);
         }
         entries.sort_by_key(|e| u16::from_le_bytes([e[0], e[1]]));
@@ -707,5 +873,90 @@ mod tests {
         // The screen-size develop and the 16-bit develop get the same correction.
         let screen = corner_to_centre(&crate::develop_jpeg_screen(&dng).unwrap());
         assert!((screen - 1.0).abs() < 0.04, "screen copy {screen:.3}");
+    }
+
+    #[test]
+    fn a_zero_sony_profile_changes_nothing_and_a_bulging_one_zooms_to_fill() {
+        let n = 16;
+        let zeros = |count: usize| { let mut v = vec![count as i32]; v.extend(std::iter::repeat(0).take(count)); v };
+        let flat = RadialProfile::from_sony(&zeros(n), &zeros(2 * n), &zeros(n), (6000.0, 4000.0)).unwrap();
+        assert!((flat.fill - 1.0).abs() < 1e-9);
+        for r in [0.0, 0.3, 0.7, 1.0] {
+            assert!((flat.gain(r) - 1.0).abs() < 1e-9 && (0..3).all(|p| (flat.scale(p, r) - 1.0).abs() < 1e-9));
+        }
+        // Barrel correction: corners must be pulled in from further out, up to 4% (d = 0.04 * 2^14 at the edge).
+        let mut d = vec![n as i32];
+        d.extend((0..n).map(|i| ((i as f64 / (n - 1) as f64).powi(2) * 0.04 * 16384.0) as i32));
+        let barrel = RadialProfile::from_sony(&d, &zeros(2 * n), &zeros(n), (6000.0, 4000.0)).unwrap();
+        assert!(barrel.fill > 1.01, "zoomed so no corner is empty: {}", barrel.fill);
+        // With the zoom, the corner's source is still inside the picture: radius scale * 1 <= the farthest knot's reach.
+        assert!(barrel.scale(1, 1.0) <= 1.0 + 1e-9, "{}", barrel.scale(1, 1.0));
+        // Counts that don't agree, or wild values, are refused.
+        assert!(RadialProfile::from_sony(&zeros(n), &zeros(n), &zeros(n), (6000.0, 4000.0)).is_none());
+        let mut wild = vec![n as i32]; wild.extend(std::iter::repeat(16000).take(n));
+        assert!(RadialProfile::from_sony(&wild, &zeros(2 * n), &zeros(n), (6000.0, 4000.0)).is_none());
+    }
+
+    #[test]
+    fn sony_lateral_colour_brings_red_and_blue_back_into_register() {
+        let n = 16;
+        let zeros = |count: usize| { let mut v = vec![count as i32]; v.extend(std::iter::repeat(0).take(count)); v };
+        // Red imaged 0.5% larger, blue 0.5% smaller: the correction looks 0.5% further out / in for them.
+        let mut ca = vec![(2 * n) as i32];
+        ca.extend(std::iter::repeat((0.005 * 2_097_152.0) as i32).take(n));
+        ca.extend(std::iter::repeat((-0.005 * 2_097_152.0) as i32).take(n));
+        let profile = RadialProfile::from_sony(&zeros(n), &ca, &zeros(n), (300.0, 200.0)).unwrap();
+        let (w, h) = (300u32, 200u32);
+        let (cx, cy) = (150.0f64, 100.0f64);
+        let dot = (280.0f64, 185.0f64);
+        let img = ImageBuffer::from_fn(w, h, |x, y| {
+            let p = (x as f64 + 0.5, y as f64 + 0.5);
+            Rgb([0, 1, 2].map(|plane| {
+                let r = (((dot.0 - cx) as f64).powi(2) + ((dot.1 - cy) as f64).powi(2)).sqrt() / (cx * cx + cy * cy).sqrt();
+                let s = profile.scale(plane, r);
+                let (sx, sy) = (cx + s * (dot.0 - cx), cy + s * (dot.1 - cy));
+                if (p.0 - sx).powi(2) + (p.1 - sy).powi(2) < 4.0 { 60000 } else { 0 }
+            }))
+        });
+        let centroid = |img: &ImageBuffer<Rgb<u16>, Vec<u16>>, plane: usize| {
+            let (mut sx, mut sy, mut n) = (0f64, 0f64, 0f64);
+            for (x, y, p) in img.enumerate_pixels() { let v = p[plane] as f64; sx += v * x as f64; sy += v * y as f64; n += v; }
+            (sx / n, sy / n)
+        };
+        let split = |img: &ImageBuffer<Rgb<u16>, Vec<u16>>| { let (r, b) = (centroid(img, 0), centroid(img, 2)); ((r.0 - b.0).powi(2) + (r.1 - b.1).powi(2)).sqrt() };
+        assert!(split(&img) > 1.2, "{}", split(&img));
+        let mut corrected = img.clone();
+        apply_profile(&profile, &mut corrected);
+        assert!(split(&corrected) < 0.3, "colours back in register: {}", split(&corrected));
+    }
+
+    #[cfg(feature = "nikon-he")]
+    #[test]
+    fn sony_lens_tags_in_the_file_take_the_dark_corners_out() {
+        let n = 16usize;
+        let knots: Vec<f64> = (0..n).map(|i| (i as f64 + 0.5) / (n - 1) as f64).collect();
+        // Sony's vignetting values for a falloff to about 0.7 in the corners.
+        let v: Vec<i32> = knots.iter().map(|k| (4905.0 * k * k) as i32).collect();
+        let falloff: Vec<f64> = v.iter().map(|&v| 2f64.powf(0.5 - 2f64.powf(v as f64 / 8192.0 - 1.0)).powi(2)).collect();
+        let (w, h) = (320usize, 240usize);
+        let hd = ((w * w + h * h) as f64).sqrt() / 2.0;
+        let bare = vignetted_dng(w, h, |u, t| {
+            let r = (((u - 0.5) * w as f64).powi(2) + ((t - 0.5) * h as f64).powi(2)).sqrt() / hd;
+            spline(&knots, &falloff, r)
+        });
+        let sshorts = |values: Vec<i32>| -> (u32, Vec<u8>) { (values.len() as u32, values.iter().flat_map(|&v| (v as i16).to_le_bytes()).collect()) };
+        let zeros = |count: usize| { let mut z = vec![count as i32]; z.extend(std::iter::repeat(0).take(count)); z };
+        let mut vig = vec![n as i32]; vig.extend(&v);
+        let tags: Vec<(u16, u16, u32, Vec<u8>)> = [(0x7032u16, vig), (0x7035, zeros(2 * n)), (0x7037, zeros(n))]
+            .into_iter().map(|(tag, values)| { let (count, data) = sshorts(values); (tag, 8u16, count, data) }).collect();
+        let dng = with_typed_tags(&bare, &tags);
+        let lens = from_file_for(&dng, Some((w as f64, h as f64)));
+        assert!(lens.profile.is_some(), "{lens:?}");
+        assert!(from_file_for(&bare, Some((w as f64, h as f64))).profile.is_none());
+        let before = corner_to_centre(&crate::develop_jpeg(&bare).unwrap());
+        let jpeg = crate::develop_jpeg(&dng).unwrap();
+        let after = corner_to_centre(&jpeg);
+        assert!(before < 0.92 && (after - 1.0).abs() < 0.03, "{before:.3} -> {after:.3}");
+        assert!(String::from_utf8_lossy(&jpeg[..300]).contains("applied=camera-profile"));
     }
 }

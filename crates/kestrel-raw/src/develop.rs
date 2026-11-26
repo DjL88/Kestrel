@@ -152,15 +152,19 @@ fn develop_jpeg_sized(bytes: &[u8], half: bool) -> Result<Vec<u8>, String> {
 /// Read the lens corrections the file carries (`lens_correction`) and apply the brightness ones (shading, vignetting)
 /// to the sensor data. Every develop that starts from a RAW calls this, so the screen and the export match.
 pub fn correct_sensor(bytes: &[u8], raw: &mut rawler::RawImage) -> crate::lens_correction::LensCorrection {
-    let lens = crate::lens_correction::from_file(bytes);
+    let (_, _, (w, h)) = crate::scene_develop::picture_frame(raw);
+    let lens = crate::lens_correction::from_file_for(bytes, Some((w as f64, h as f64)));
     crate::lens_correction::apply_to_sensor(&lens, raw);
     lens
 }
 
 /// Apply the file's distortion correction to the developed picture (before orientation). `half`: the half-size develop.
 pub fn correct_geometry(lens: &crate::lens_correction::LensCorrection, raw: &rawler::RawImage, display: &mut ImageBuffer<Rgb<u16>, Vec<u16>>, half: bool) {
+    if let Some(profile) = &lens.profile {
+        crate::lens_correction::apply_profile(profile, display);
+    }
     let Some(warp) = &lens.warp else { return };
-    let ((x, y), (w, h)) = crate::scene_develop::picture_frame(raw);
+    let ((x, y), (w, h), _) = crate::scene_develop::picture_frame(raw);
     crate::lens_correction::apply_warp(warp, display, (x as f64, y as f64), if half { 2.0 } else { 1.0 }, (w as f64, h as f64));
 }
 
