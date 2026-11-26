@@ -4,13 +4,15 @@ import { PROVIDERS, type Health, type ProviderKind } from '../../../core/connect
 import { CLOUD_DRIVES, isCloudDrive } from '../../../core/cloudDrive';
 import type { S3Settings } from '../../../core/storageConnectors';
 import type { BrandIconId } from '../../../core/brandIcons';
-import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, useConnections } from '../../../providers/connectionStore';
+import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, setSftpLogin, sftpPlaceFor, useConnections } from '../../../providers/connectionStore';
+import { isDesktopApp } from '../../../providers/desktopShell';
 import { cloudDriveAvailable, cloudDriveUnavailableReason, rememberTokens, signInToCloudDrive } from '../../../providers/oauthSession';
 import { pickSyncFolder } from '../../../providers/folderConnector';
 import { BrandIcon, WorksWith } from '../../../components/BrandIcon';
 import { ProviderIcon } from '../../../components/ProviderIcon';
 import { WebDavForm } from '../../../components/WebDavForm';
 import { CloudStorageForm } from '../../../components/CloudStorageForm';
+import { SftpForm } from './SftpForm';
 
 /**
  * Where the person keeps their work, in V2 Settings. It is the same connections as the current app (one shared store, so
@@ -33,6 +35,8 @@ export function StorageConnections() {
   const [label, setLabel] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  /** The SFTP place being signed in to again, if any. */
+  const [sftpAgain, setSftpAgain] = useState<string | null>(null);
 
   useEffect(() => { if (list.length) void checkAllConnections(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -92,6 +96,7 @@ export function StorageConnections() {
               <div className="flex items-center gap-2">
                 <span role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{HEALTH_WORD[health]}{reports[connection.id]?.message && health !== 'ok' ? `: ${reports[connection.id]!.message}` : ''}</span>
                 <button type="button" className={button} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>{STRINGS.storagePlaces.check}</button>
+                {health === 'needs-signin' && connection.kind === 'sftp' && sftpPlaceFor(connection.id) && <button type="button" className={button} onClick={() => { setSftpAgain(connection.id); setAdding(null); }}>{STRINGS.storagePlaces.signInAgain}</button>}
                 {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as 'dropbox', connection.id)}>{STRINGS.storagePlaces.signInAgain}</button>}
                 <button type="button" className={button} onClick={() => removeConnection(connection.id)} aria-label={STRINGS.storagePlaces.removeLabel(connection.label)}>{STRINGS.storagePlaces.remove}</button>
               </div>
@@ -105,8 +110,9 @@ export function StorageConnections() {
           <div role="radiogroup" aria-label={STRINGS.storagePlaces.kindLabel} className="space-y-1">
             {PROVIDERS.map((provider) => {
               const cloud = isCloudDrive(provider.kind);
-              const available = cloud ? cloudDriveAvailable(provider.kind as 'dropbox') : provider.available;
-              const reason = cloud && !available ? cloudDriveUnavailableReason(provider.kind as 'dropbox') : null;
+              const sftp = provider.kind === 'sftp';
+              const available = cloud ? cloudDriveAvailable(provider.kind as 'dropbox') : sftp ? isDesktopApp() : provider.available;
+              const reason = cloud && !available ? cloudDriveUnavailableReason(provider.kind as 'dropbox') : sftp && !available ? STRINGS.storagePlaces.sftpDesktopOnly : null;
               return (
                 <label key={provider.kind} className={`flex min-h-9 items-start gap-2 ${available ? '' : 'opacity-60'}`}>
                   <input type="radio" name="v2-provider" className="mt-1" disabled={!available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
@@ -124,11 +130,22 @@ export function StorageConnections() {
           <label className="block text-[var(--text-primary)]">{STRINGS.storagePlaces.nameIt}
             <input className="mt-1 block h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-xs" value={label} onChange={(event) => setLabel(event.target.value)} />
           </label>
-          {adding === 'folder' && <button type="button" className={button} onClick={() => void addFolder()}>{STRINGS.storagePlaces.chooseFolder}</button>}
+          {adding === 'folder' && <>
+            <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.folderHint}</p>
+            <button type="button" className={button} onClick={() => void addFolder()}>{STRINGS.storagePlaces.chooseFolder}</button>
+          </>}
+          {(adding === 'webdav' || adding === 'sftp') && <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="v2-nas-away">{STRINGS.storagePlaces.awayFromHome}</p>}
           {adding === 'webdav' && (
             <WebDavForm onCancel={() => setAdding(null)} onSaved={(settings, remember) => {
               const url = new URL(settings.url);
               const created = addConnection('webdav', label || url.host, `${url.host}${url.pathname.replace(/\/$/, '')}`, { dav: settings, remember });
+              done(); void checkConnection(created.id);
+            }} />
+          )}
+          {adding === 'sftp' && (
+            <SftpForm onCancel={() => setAdding(null)} onSaved={(settings) => {
+              const where = `${settings.user}@${settings.host}${settings.port === 22 ? '' : `:${settings.port}`}${settings.root ? ` · ${settings.root}` : ''}`;
+              const created = addConnection('sftp', label || settings.host, where, { sftp: settings });
               done(); void checkConnection(created.id);
             }} />
           )}
@@ -149,6 +166,13 @@ export function StorageConnections() {
               </button>
             </div>
           )}
+        </div>
+      )}
+      {sftpAgain && (
+        <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-secondary)]" role="group" aria-label={STRINGS.storagePlaces.signInAgain}>
+          <SftpForm again={sftpPlaceFor(sftpAgain)} onCancel={() => setSftpAgain(null)} onSaved={(settings) => {
+            const id = sftpAgain; setSftpAgain(null); setSftpLogin(id, settings); void checkConnection(id);
+          }} />
         </div>
       )}
       {note && <p role="status" className="text-xs text-[var(--text-secondary)]">{note}</p>}
