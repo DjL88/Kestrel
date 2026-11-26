@@ -321,6 +321,7 @@ export const nb: AreaTranslation<typeof source> = {
       analysing: 'Analyserer',
       ready: 'Klar til redigering',
       unavailable: 'Originalen er utilgjengelig',
+      unsupported: 'Kan ikke leses ennå',
     },
     nothingMatches: 'Ingen bilder passer til gjeldende filter.',
   },

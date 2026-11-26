@@ -321,6 +321,7 @@ export const it: AreaTranslation<typeof source> = {
       analysing: 'Analisi',
       ready: 'Pronta da modificare',
       unavailable: 'Originale non disponibile',
+      unsupported: 'Non ancora leggibile',
     },
     nothingMatches: 'Nessuna foto corrisponde al filtro attuale.',
   },

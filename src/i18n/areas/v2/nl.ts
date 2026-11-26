@@ -321,6 +321,7 @@ export const nl: AreaTranslation<typeof source> = {
       analysing: 'Analyseren',
       ready: 'Klaar om te bewerken',
       unavailable: 'Origineel niet beschikbaar',
+      unsupported: 'Nog niet leesbaar',
     },
     nothingMatches: 'Geen foto’s passen bij het huidige filter.',
   },

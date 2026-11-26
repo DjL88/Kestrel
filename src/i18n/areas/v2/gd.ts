@@ -322,6 +322,7 @@ export const gd: AreaTranslation<typeof source> = {
       analysing: 'A’ mion-sgrùdadh',
       ready: 'Deiseil airson deasachadh',
       unavailable: 'Chan eil an dealbh tùsail ri fhaighinn',
+      unsupported: 'Cha ghabh a leughadh fhathast',
     },
     nothingMatches: 'Chan eil dealbh a’ freagairt ris a’ chriathrag làithreach.',
   },
