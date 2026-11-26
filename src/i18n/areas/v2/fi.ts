@@ -1278,6 +1278,8 @@ export const fi: AreaTranslation<typeof source> = {
     evidenceRaw: "RAW-tiedosto, johon ei ole tallennettu muokkauksia.",
     evidenceMakerNotes: "Kameran valmistajatiedot ovat ennallaan, eikä muokkaussovellusta mainita.",
     evidenceUnrecognised: (app: string) => `Tallentanut ${app}, jota InFlight ei tunnista.`,
+    evidenceSidecar: "Vieressä oleva XMP-sivutiedosto sisältää muokkausasetuksia.",
+    evidenceSidecarApp: (app: string) => `Vieressä oleva sovelluksen ${app} XMP-sivutiedosto sisältää muokkausasetuksia.`,
     evidenceNone: "Tiedosto ei kerro.",
     rawColourSource: "Kameran oma värimatriisi RAW-tiedostosta, InFlightin vakiotyyli (ei valmistajan kuvatyyliä)",
     heading: 'Kuvan tiedot',

@@ -19,7 +19,7 @@ import {
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
 import type { PictureSource } from '../core/pictureSource';
-import { materialize, type RangeBlob } from './rangeBlob';
+import { EXIF_HEAD_BYTES, headBlob, materialize, type RangeBlob } from './rangeBlob';
 import type { LinkedRange } from './linkedOriginals';
 
 /** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
@@ -148,6 +148,23 @@ export class BrowserPreviewProvider implements PreviewProvider {
         return isCurrent() ? original : undefined;
       },
     };
+  }
+
+  /**
+   * The first bytes of the original, for reading its metadata later. A held original is sliced; a linked one is read by
+   * range, never whole, so a 50 MB RAW costs one megabyte. undefined when the original is not reachable now.
+   */
+  async readOriginalHead(stableKey: string, bytes = EXIF_HEAD_BYTES): Promise<Blob | undefined> {
+    const held = this.localBlobs.get(stableKey);
+    if (held) return held.slice(0, Math.min(held.size, bytes));
+    const link = this.linked.get(stableKey);
+    if (!link?.openRange) return undefined;
+    const range = await link.openRange();
+    try {
+      return await headBlob(range.blob, bytes);
+    } finally {
+      await range.close().catch(() => undefined);
+    }
   }
 
   /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */
