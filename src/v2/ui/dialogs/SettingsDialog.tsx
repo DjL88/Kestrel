@@ -1,6 +1,7 @@
 import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
+import BrowserStorageSection from './BrowserStorageSection';
 import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
 import CloudUsagePanel from '../panels/CloudUsagePanel';
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
@@ -590,6 +591,7 @@ export default function SettingsDialog({
                   {accountPanel && <p id="v2-cache-unavailable" role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{cacheCapControl(true).description}</p>}
                 </section>
 
+                <BrowserStorageSection />
                 <StorageConnections />
                 <div>
                     <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>
