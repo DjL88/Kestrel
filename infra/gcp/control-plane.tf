@@ -23,7 +23,7 @@ locals {
   licence_private_key_secret = "kcp-licence-private-key-pem"
   control_plane_origin_list  = local.browser_origins
   control_plane_origins      = join(",", local.control_plane_origin_list)
-  storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled || var.gallery_enabled || var.presence_database_url != "" # presence signs Firebase tokens with the same self Token Creator binding
+  storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled || var.gallery_enabled || var.compliance_documents_enabled || var.presence_database_url != "" # presence signs Firebase tokens with the same self Token Creator binding
 }
 
 resource "google_project_service" "control_plane" {
@@ -353,6 +353,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # Signed compliance documents for /admin (compliance.tf).
+        for_each = var.compliance_documents_enabled ? { KCP_COMPLIANCE_BUCKET = try(google_storage_bucket.compliance[0].name, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         # Safety checks on shared and cloud photos (safety.tf). Secrets are named here, never their values.
         for_each = local.safety_env
         content {
@@ -390,6 +398,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,
     google_storage_bucket_iam_member.gallery_control_plane,
+    google_storage_bucket_iam_member.compliance_control_plane,
     google_cloud_run_v2_job_iam_member.control_plane_starts_job,
     google_service_account_iam_member.control_plane_acts_as_runner,
   ]

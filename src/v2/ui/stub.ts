@@ -44,7 +44,7 @@ const DEFAULT_CROP: CropTransform = {
 };
 
 const BASE_RECIPE: EditRecipe = {
-  lookId: 'natural-raw',
+  lookId: 'none',
   exposure: 0.2,
   highlights: -14,
   shadows: 18,
@@ -65,7 +65,18 @@ const BASE_RECIPE: EditRecipe = {
   lensCorrection: true,
 };
 
+/** The look every photo starts with: none. Import never applies a look; the photo opens as the camera rendered it. */
+export const NO_LOOK_ID = 'none';
+
 export const INITIAL_LOOKS: LookPreset[] = [
+  {
+    id: NO_LOOK_ID,
+    name: 'None',
+    category: 'Original',
+    description: 'No look: the photo as the camera rendered it, with only the edits you made.',
+    previewFilter: 'none',
+    recipeDelta: {},
+  },
   {
     id: 'natural-raw',
     name: 'Natural True',
@@ -814,10 +825,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    createProject: (name) => {
+    createProject: (name, _kind, mode) => {
       const clean = name.trim();
       if (!clean) return;
-      logAction('createProject', { name: clean });
+      logAction('createProject', { name: clean, mode });
       const newProject: Project = {
         id: `proj-${Date.now()}`,
         name: clean,
@@ -833,6 +844,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         hubState: 'ready',
         projects: [newProject, ...prev.projects],
         activeProjectId: newProject.id,
+        assistMode: mode ?? prev.settings.defaultAssistMode,
         screen: 'editor',
         lastActionNotice: `Created project "${clean}"`,
       }));
@@ -1343,7 +1355,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
                   saturation: 0,
                   clarity: 0,
                   sharpen: 15,
-                  lookId: 'natural-raw',
+                  lookId: NO_LOOK_ID,
                 },
               }
             : g

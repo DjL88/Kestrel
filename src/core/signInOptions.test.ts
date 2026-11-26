@@ -80,3 +80,15 @@ test('device family comes from the user agent', () => {
   assert.equal(deviceFamily('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'), 'apple');
   assert.equal(deviceFamily('Mozilla/5.0 (X11; Linux x86_64)'), 'other');
 });
+
+test('a restored session is labelled by the way actually used, not the first linked one', async () => {
+  const { sessionProvider } = await import('./signInOptions.ts');
+  const linked = ['apple.com', 'google.com'];
+  assert.equal(sessionProvider('google.com', linked), 'google');
+  assert.equal(sessionProvider('apple.com', linked), 'apple');
+  assert.equal(sessionProvider('microsoft.com', ['microsoft.com', 'apple.com']), 'microsoft');
+  assert.equal(sessionProvider('password', linked), 'password');
+  assert.equal(sessionProvider('custom', linked), 'google', 'unknown: falls back to the linked ways in a fixed order');
+  assert.equal(sessionProvider(null, ['apple.com']), 'apple');
+  assert.equal(sessionProvider(undefined, []), 'google');
+});

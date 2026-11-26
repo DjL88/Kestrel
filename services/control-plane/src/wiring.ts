@@ -5,7 +5,8 @@
  * these variables. Pence figures are estimates (spendGuard.ts), not Google's prices.
  */
 import type { AppOptions } from './app.ts';
-import { GcsCloudRunner, GcsSafeCopyStorage, CloudRunJobTrigger, metadataAccessToken, openGcsBucket, type GcsBucketLike } from './gcsAdapters.ts';
+import { GcsCloudRunner, GcsComplianceStorage, GcsSafeCopyStorage, CloudRunJobTrigger, metadataAccessToken, openGcsBucket, type GcsBucketLike, type GcsListingBucketLike } from './gcsAdapters.ts';
+import { ComplianceDocuments } from './complianceDocs.ts';
 import { FirestoreCloudLedger } from './cloudLedgerFirestore.ts';
 import { FirestoreLearningSink } from './learningSignalFirestore.ts';
 import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
@@ -43,7 +44,7 @@ export interface WiringDeps {
   /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
   firebaseUsers?: FirebaseUserLookup;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -125,6 +126,11 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       recipe: { enabled: env.KCP_CLOUD_RECIPE_ENABLED === '1', maxPreviewBytes: whole(env, 'KCP_CLOUD_RECIPE_MAX_PREVIEW_BYTES', 10_000_000, 50_000_000) },
     };
     out.enabled.push('cloud-processing');
+  }
+  // Signed compliance documents (risk assessments): their own private, versioned UK bucket (infra/gcp/compliance.tf).
+  if (env.KCP_COMPLIANCE_BUCKET) {
+    out.compliance = new ComplianceDocuments(new GcsComplianceStorage(await open(env.KCP_COMPLIANCE_BUCKET) as GcsListingBucketLike));
+    out.enabled.push('compliance-documents');
   }
   if (env.KCP_SAFE_COPY_BUCKET) {
     out.safeCopy = {

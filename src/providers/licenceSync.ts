@@ -22,6 +22,8 @@ export interface LicenceSyncOptions {
   appVersion: string;
   /** Fresh random id for this device, made once. */
   randomId?: () => string;
+  /** Waits out a "too many attempts" answer; tests pass one that returns at once. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface LicenceDevice { activationId: string; platform: string; appVersion: string; lastSeenMs: number; thisDevice: boolean }
@@ -35,6 +37,12 @@ const ACCOUNT_GRANT = 'kestrel.licence.account-grant.v1';
 /** When each key was first used on this device (by key hash), for the one-time check-in (NEW_DEVICE_CHECK_IN_DAYS). */
 const FIRST_USE = 'kestrel.licence.first-use.v1';
 const TIMEOUT_MS = 12_000;
+/**
+ * How long to wait after each "too many attempts" (429) answer at sign-in before asking again. The server counts per
+ * minute, so the waits add up to just over a minute; after that the check gives up and says the service could not be
+ * reached, as before. (26 Nov beta: a refused check left Pro off until the person pressed Check Pro online.)
+ */
+const BUSY_WAITS_MS = [15_000, 20_000, 30_000];
 
 interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash: string }
 
@@ -185,12 +193,14 @@ export class LicenceSync {
     // A fresh exchange must not expose an older account's bearer to cloud operations.
     this.session = null;
     try {
-      const session = await this.post('/v1/auth/firebase', { credential: idToken });
-      if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string' || !session.json.accessToken.trim()) return null;
+      const stillThisCheck = () => checkId === this.accountCheck;
+      const session = await this.postWaitingOutBusy('/v1/auth/firebase', { credential: idToken }, undefined, stillThisCheck);
+      if (!session || checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string' || !session.json.accessToken.trim()) return null;
       const deviceHash = await this.deviceHash();
       if (checkId !== this.accountCheck) return null;
       this.session = session.json.accessToken;
-      const reply = await this.post('/v1/me/activate', { deviceHash, platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken);
+      const reply = await this.postWaitingOutBusy('/v1/me/activate', { deviceHash, platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken, stillThisCheck);
+      if (!reply) return null;
       if (checkId !== this.accountCheck) return null;
       const code = reply.json?.error?.code as string | undefined;
       const message = (reply.json?.error?.message as string | undefined) ?? '';
@@ -204,6 +214,20 @@ export class LicenceSync {
       const licenceKey = typeof reply.json.licenceKey === 'string' && reply.json.licenceKey.startsWith('KESTREL1.') ? reply.json.licenceKey : undefined;
       return { kind: 'active', grant: check.grant, activationId: reply.json.activationId, ...(licenceKey ? { licenceKey } : {}) };
     } catch { return null; }
+  }
+
+  /**
+   * POST, and when the server answers "too many attempts" (429), wait and ask again (BUSY_WAITS_MS), so a sign-in
+   * that lands in a busy minute still gets its answer. Null when the check was overtaken (sign-out, a newer check).
+   */
+  private async postWaitingOutBusy(path: string, body: unknown, bearer: string | undefined, stillCurrent: () => boolean) {
+    const sleep = this.o.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+    for (let attempt = 0; ; attempt++) {
+      if (!stillCurrent()) return null;
+      const reply = await this.post(path, body, bearer);
+      if (reply.status !== 429 || reply.json?.error?.code === 'RELEASE_LIMIT' || attempt >= BUSY_WAITS_MS.length) return reply;
+      await sleep(BUSY_WAITS_MS[attempt]!);
+    }
   }
 
   /** Device management uses a fresh verified identity, without activating or replacing the offline grant.

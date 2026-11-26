@@ -40,7 +40,8 @@ import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from '.
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
 import { commandById, type CommandDefinition } from './commands/registry';
-import { useNativeMenu } from './commands/useNativeMenu';
+import { useNativeMenu, useNativeMenuState } from './commands/useNativeMenu';
+import { menuState } from './commands/menuState';
 import { lazyPart } from './utils/lazyPart';
 import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
@@ -73,6 +74,7 @@ const TasksPanel = lazyPart(() => import('./panels/TasksPanel'));
 const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog'));
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
 const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
+const PrintDialog = lazyPart(() => import('./dialogs/PrintDialog'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
@@ -129,6 +131,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const closeEnlargement = () => {
     enlargementRequest.current += 1;
     setEnlargement((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
+  };
+  // Print and soft proof: the export's own picture of the shown format, so the print is what export would save.
+  const [printing, setPrinting] = useState<{ result: EnlargementPreviewResult | null } | null>(null);
+  const printRequest = React.useRef(0);
+  const openPrint = (photoId: string, sizeId: string) => {
+    const request = ++printRequest.current;
+    setPrinting({ result: null });
+    void actions.previewEnlargement?.(photoId, sizeId).then((result) => {
+      if (request !== printRequest.current) { if (result.ok) URL.revokeObjectURL(result.url); return; }
+      setPrinting((current) => current ? { result } : current);
+    });
+  };
+  const closePrint = () => {
+    printRequest.current += 1;
+    setPrinting((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
   };
   const [shareVersion, setShareVersion] = useState(0);
   const [cursorsHidden, setCursorsHidden] = useState(false);
@@ -492,8 +509,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
+      case 'fullscreen': actions.toggleFullScreen(); break;
     }
   });
+  // Grey out the native menu items that cannot act on what is on screen now (no photo, nothing copied, nothing to undo).
+  useNativeMenuState(menuState({
+    inEditor: store.screen === 'editor',
+    collage: Boolean(store.collage),
+    photoCount: store.photos.length,
+    selectedCount: store.selectedPhotoIds.length,
+    hasActivePhoto: Boolean(activePhoto),
+    gridOpen: store.gridViewOpen,
+    canUndo: store.canUndo,
+    canRedo: store.canRedo,
+    hasCopiedEdits: Boolean(store.clipboardRecipe),
+    editLocked,
+  }));
 
   // Desktop keyboard shortcuts + suppress browser Ctrl/Cmd+A inside editor workspace
   useEffect(() => {
@@ -881,6 +912,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           theme={activeTheme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
+          defaultAssistMode={store.settings.defaultAssistMode}
           onCreateFromFolder={actions.createProjectFromFolder}
           onQuickStart={actions.startQuickStart}
           onRenameProject={actions.renameProject}
@@ -931,6 +963,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
+            onPrint={store.screen === 'editor' && !store.collage && activePhoto && actions.previewEnlargement ? () => openPrint(activePhoto.id, store.activeSizeId) : undefined}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
@@ -1147,6 +1180,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImportFolder={actions.importFolder}
                 onWatchFolder={actions.watchFolder}
                 onStopWatchingFolder={actions.stopWatchingFolder}
+                onReceiveFromCamera={actions.receiveFromCamera}
+                shootRoom={store.shootRoom}
+                onOpenShootRoom={actions.openShootRoom}
+                onCloseShootRoom={actions.closeShootRoom}
                 liveFolder={store.liveFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
@@ -1329,6 +1366,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       )}
 
       {/* Global Dialogs: each in its own boundary, so one still arriving hides nothing else. */}
+      {printing && <React.Suspense fallback={null}><PrintDialog result={printing.result} onClose={closePrint} /></React.Suspense>}
       {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
         formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
       {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
@@ -1342,6 +1380,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onSaveBrandKit={actions.saveBrandKit}
         onEditBrandKit={actions.editBrandKit}
         onDeleteBrandKit={actions.deleteBrandKit}
+        onPrint={activePhoto && actions.previewEnlargement ? () => { actions.setExportOpen(false); openPrint(activePhoto.id, store.activeSizeId); } : undefined}
       /></React.Suspense>
 
       <TaskAlerts />

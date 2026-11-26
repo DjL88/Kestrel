@@ -3,6 +3,7 @@ import type { CaptureStamp, ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
 import { rawSensorSize } from './rawSensorSize';
+import { readCameraFocus } from './cameraFocus';
 import { c2paActionsIn, MAX_SIDECAR_STATUS_BYTES, readEditStatus, withSidecar, type EditStatus } from './editStatus';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
@@ -331,6 +332,7 @@ export async function parseImageExif(
     return {
       ...rating,
       editStatus,
+      cameraFocus: readCameraFocus(segments?.makerNote, parsed.Make),
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:

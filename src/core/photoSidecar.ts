@@ -25,12 +25,17 @@ export interface ImportedPhotoSidecar {
   rating?: number;
   decision?: PhotoFrame['decision'];
   keywords: string[];
+  /** Lightroom / Camera Raw develop settings (crs:), as written, when the sidecar has them. */
+  cameraRaw?: Record<string, string>;
 }
 
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const XMP = 'http://ns.adobe.com/xap/1.0/';
 const XMP_DM = 'http://ns.adobe.com/xmp/1.0/DynamicMedia/';
 const DC = 'http://purl.org/dc/elements/1.1/';
+const CRS = 'http://ns.adobe.com/camera-raw-settings/1.0/';
+/** The Camera Raw settings InFlight can carry over; everything else in the block is left alone. */
+export const CAMERA_RAW_KEYS = ['ProcessVersion', 'Exposure2012', 'Contrast2012', 'Highlights2012', 'Shadows2012', 'Whites2012', 'Blacks2012', 'Clarity2012', 'Vibrance', 'Saturation', 'ConvertToGrayscale', 'Dehaze', 'Texture', 'LuminanceSmoothing', 'PostCropVignetteAmount', 'GrainAmount'] as const;
 const MAX_SIDECAR_BYTES = 1024 * 1024;
 
 /** Only apply explicitly chosen, matching sidecars. Never read edits or original EXIF. */
@@ -59,6 +64,12 @@ export async function readPhotoSidecar(file: File, frame: PhotoFrame): Promise<I
       .map(item => item.textContent ?? '') : [];
   });
   const accepted = addTags([], keywords);
-  if (rating === undefined && !decision && !accepted.length) throw new Error('No supported XMP metadata.');
-  return { rating, decision, keywords: accepted };
+  const cameraRaw: Record<string, string> = {};
+  for (const key of CAMERA_RAW_KEYS) {
+    const value = field(CRS, key);
+    if (value && value.length <= 32) cameraRaw[key] = value;
+  }
+  const hasEdit = Object.keys(cameraRaw).some((key) => key !== 'ProcessVersion');
+  if (rating === undefined && !decision && !accepted.length && !hasEdit) throw new Error('No supported XMP metadata.');
+  return { rating, decision, keywords: accepted, ...(hasEdit ? { cameraRaw } : {}) };
 }

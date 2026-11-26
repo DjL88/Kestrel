@@ -50,6 +50,7 @@ export const fr: AreaTranslation<typeof source> = {
     global: 'Aucun contour de sujet n’était fiable, donc le débruitage a été appliqué uniformément à toute la photo.',
     failedCheck: 'Le résultat n’a pas passé le contrôle de qualité. Vos retouches existantes ont été conservées.',
     mainThread: 'Cet appareil n’a pas pu réduire le bruit en arrière-plan : InFlight a donc pu se figer pendant le traitement.',
+    learnedLostDetail: 'En taille réelle, la réduction du bruit par IA a lissé de vrais détails du sujet : la réduction du bruit intégrée a donc été utilisée.',
     leftAsItWas: (notes) => `Laissé tel quel. ${notes}`,
   },
   workspace: {
