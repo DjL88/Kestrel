@@ -807,7 +807,7 @@ test('?v2 Denoise runs on this device when not signed in and says so', async ({ 
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
   await root.getByRole('button', { name: 'Enhance', exact: true }).first().click();
-  await root.getByRole('button', { name: 'Denoise this photo' }).click();
+  await root.getByRole('button', { name: 'Run TrueDetail on this photo' }).click();
   await expect(root.getByText(/Denoised on this device|Left as it was/).first()).toBeVisible({ timeout: 30000 });
 });
 

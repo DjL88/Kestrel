@@ -1135,8 +1135,10 @@ export const it: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Migliora',
-    denoiseHeading: 'Riduzione del rumore',
-    denoiseNow: 'Riduci il rumore di questa foto',
+    denoiseHeading: "Riduzione del rumore TrueDetail",
+    denoiseNow: "Applica TrueDetail a questa foto",
+    trueDetailRunning: (percent) => `TrueDetail sta elaborando questa foto: ${percent}%`,
+    trueDetailQueued: "TrueDetail inizierà tra un momento",
     denoiseCloudNote: 'Se hai effettuato l’accesso e sei online, questo pulsante invia una copia di lavoro (mai l’originale) al cloud InFlight solo per questa operazione e verifica il risultato su questo dispositivo. Se il cloud non è disponibile, l’elaborazione avviene qui.',
     denoiseDeviceNote: 'Viene eseguito su questo dispositivo. L’elaborazione nel cloud fa parte di Pro.',
     aiDenoiseInUse: 'La riduzione del rumore IA è applicata al soggetto. È salvata solo su questo dispositivo.',

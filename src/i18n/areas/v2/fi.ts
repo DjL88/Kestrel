@@ -1136,8 +1136,10 @@ export const fi: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Paranna',
-    denoiseHeading: 'Kohinanpoisto',
-    denoiseNow: 'Poista kohina tästä kuvasta',
+    denoiseHeading: "TrueDetail-kohinanpoisto",
+    denoiseNow: "Käytä TrueDetailia tähän kuvaan",
+    trueDetailRunning: (percent) => `TrueDetail käsittelee tätä kuvaa: ${percent} %`,
+    trueDetailQueued: "TrueDetail alkaa hetken kuluttua",
     denoiseCloudNote: 'Kun olet kirjautunut ja verkossa, tämä painike lähettää työkopion (ei koskaan alkuperäistä) InFlight-pilveen vain tätä tehtävää varten ja tarkistaa tuloksen tällä laitteella. Jos pilvi ei ole käytettävissä, käsittely tehdään täällä.',
     denoiseDeviceNote: 'Toimii tällä laitteella. Pilvikäsittely kuuluu Prohon.',
     aiDenoiseInUse: 'Tekoälykohinanpoisto on käytössä kohteessa. Se tallennetaan vain tälle laitteelle.',
