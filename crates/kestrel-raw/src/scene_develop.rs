@@ -341,6 +341,21 @@ struct StripPlan {
     cfa: CFA,
 }
 
+/// Where the developed picture sits in the sensor's active area: its top-left corner (active-area pixels) and the
+/// active area's size. The same default crop rawler's develop and the strip path use.
+pub fn picture_frame(raw: &RawImage) -> ((usize, usize), (usize, usize)) {
+    let full = Rect::new(Point::new(0, 0), Dim2::new(raw.width, raw.height));
+    let active = raw.active_area.unwrap_or(full);
+    let mut crop = raw.crop_area.or(raw.active_area).unwrap_or(full);
+    if raw.active_area.is_some() {
+        crop = crop.adapt(&active);
+    }
+    if crop.d == active.d || raw.crop_area.or(raw.active_area).is_none() {
+        crop = Rect::new(Point::new(0, 0), active.d);
+    }
+    ((crop.p.x, crop.p.y), (active.d.w, active.d.h))
+}
+
 /// When the strip path applies, and the exact active area and crop rawler's develop would use. None: use the whole frame.
 fn strip_plan(raw: &RawImage) -> Option<StripPlan> {
     let RawPhotometricInterpretation::Cfa(config) = &raw.photometric else { return None };
