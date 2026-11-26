@@ -1691,6 +1691,8 @@ export const nl: AreaTranslation<typeof source> = {
     export: 'Exporteren',
   },
   hubMore: {
+    accountSignIn: "Inloggen",
+    accountSignedIn: (name: string) => `Ingelogd als ${name}. Accountinstellingen openen`,
     archived: (count) => `Gearchiveerd (${count})`,
     archivedNote: 'Gearchiveerde projecten blijven bewaard. Zet er een terug om het weer te gebruiken.',
     nothingArchived: 'Niets gearchiveerd.',
@@ -2032,6 +2034,10 @@ export const nl: AreaTranslation<typeof source> = {
     newsEmailLabel: "Stuur me nieuws en nieuwe functies van InFlight per e-mail",
     newsEmailHint: "Uit tenzij je het aanzet. Nieuws gaat eerst naar je apparaten met meldingen; we e-mailen alleen als een melding je niet bereikt. Elke e-mail heeft een link om ermee te stoppen.",
     newsEmailFailed: "Dit kon niet worden gewijzigd. Verder is er niets veranderd.",
+    communicationHeading: "Communicatievoorkeuren",
+    productEmailLabel: "Mail me over opmerkingen en feedback op mijn gedeelde projecten",
+    productEmailHint: "Aan, tenzij je het uitzet. Alleen als een melding je niet bereikt. In de app zie je ze nog steeds.",
+    accountEmailNote: "Accountmails, zoals je licentiesleutel of een nieuw wachtwoord, komen altijd. Elke andere e-mail heeft een link om ze te stoppen.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Klaar: ${title}.`,

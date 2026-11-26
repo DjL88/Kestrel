@@ -1692,6 +1692,8 @@ export const fi: AreaTranslation<typeof source> = {
     export: 'Vie',
   },
   hubMore: {
+    accountSignIn: "Kirjaudu",
+    accountSignedIn: (name: string) => `Kirjautunut: ${name}. Avaa tilin asetukset`,
     archived: (count) => `Arkistoidut (${count})`,
     archivedNote: 'Arkistoidut projektit säilytetään. Palauta projekti käyttääksesi sitä uudelleen.',
     nothingArchived: 'Mitään ei ole arkistoitu.',
@@ -2033,6 +2035,10 @@ export const fi: AreaTranslation<typeof source> = {
     newsEmailLabel: "Lähetä minulle InFlightin uutiset ja uudet toiminnot sähköpostilla",
     newsEmailHint: "Pois päältä, kunnes otat sen käyttöön. Uutiset menevät ensin laitteillesi, joissa ilmoitukset ovat päällä; lähetämme sähköpostia vain, jos ilmoitus ei tavoita sinua. Jokaisessa viestissä on linkki niiden lopettamiseen.",
     newsEmailFailed: "Tätä ei voitu muuttaa. Mikään muu ei muuttunut.",
+    communicationHeading: "Viestintäasetukset",
+    productEmailLabel: "Lähetä minulle sähköpostia jaettujen projektieni kommenteista ja palautteesta",
+    productEmailHint: "Päällä, kunnes poistat sen. Vain kun ilmoitus ei tavoita sinua. Näet ne yhä sovelluksessa.",
+    accountEmailNote: "Tiliä koskevat viestit, kuten lisenssiavain tai salasanan vaihto, lähetetään aina. Muissa viesteissä on linkki niiden lopettamiseen.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Valmis: ${title}.`,

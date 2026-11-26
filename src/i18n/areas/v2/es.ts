@@ -1691,6 +1691,8 @@ export const es: AreaTranslation<typeof source> = {
     export: 'Exportar',
   },
   hubMore: {
+    accountSignIn: "Iniciar sesión",
+    accountSignedIn: (name: string) => `Sesión iniciada como ${name}. Abrir ajustes de la cuenta`,
     archived: (count) => `Archivados (${count})`,
     archivedNote: 'Los proyectos archivados se conservan. Restaure uno para volver a usarlo.',
     nothingArchived: 'No hay nada archivado.',
@@ -2032,6 +2034,10 @@ export const es: AreaTranslation<typeof source> = {
     newsEmailLabel: "Enviarme por correo las novedades y nuevas funciones de InFlight",
     newsEmailHint: "Desactivado salvo que lo actives. Las novedades llegan primero a tus dispositivos con avisos; solo enviamos un correo cuando un aviso no te llega. Cada correo tiene un enlace para dejar de recibirlos.",
     newsEmailFailed: "No se pudo cambiar. No cambió nada más.",
+    communicationHeading: "Preferencias de comunicación",
+    productEmailLabel: "Enviarme correos sobre comentarios y opiniones en mis proyectos compartidos",
+    productEmailHint: "Activado salvo que lo desactive. Solo si un aviso no le llega. Seguirá viéndolos en la aplicación.",
+    accountEmailNote: "Los correos de su cuenta, como su clave de licencia o un cambio de contraseña, se envían siempre. Los demás llevan un enlace para dejar de recibirlos.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Terminado: ${title}.`,
