@@ -12,7 +12,7 @@ const proKeys = FEATURE_NAMES.filter((name) => FEATURES[name] === 'paid');
 
 test('Basic includes overlays, custom watermarks and all local photographic essentials', () => {
   assert.deepEqual(FEATURE_NAMES.filter((name) => featureAvailable(name, basic)).sort(),
-    ['autoTab', 'basicEditing', 'brandKits', 'cropAndStraighten', 'cullWarmup', 'editStyle', 'export', 'focusStack', 'hdrMerge', 'import',
+    ['accountData', 'autoTab', 'basicEditing', 'brandKits', 'cropAndStraighten', 'cullWarmup', 'editStyle', 'export', 'focusStack', 'hdrMerge', 'import',
       'localBackup', 'macroPad', 'masks', 'nextToReview', 'overlayText', 'panorama', 'savedViews', 'smartCulling', 'speciesId',
       'splitFrames', 'subjectDetection', 'watermark', 'watermarkCustom', 'zoomVideo']);
 });

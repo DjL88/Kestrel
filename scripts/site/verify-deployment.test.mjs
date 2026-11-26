@@ -9,26 +9,19 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url));
 const privacy = '<h1>InFlight privacy</h1>';
 const callback = '<p id="m">Finishing sign-in…</p>';
-const bundle = 'console.log("editor")';
 const iconPath = '/assets/brand/inflight/app-icons/favicon.svg';
 const icon = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>';
 const iconLink = '<link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">';
-const landing = iconLink + '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
-const demo = (title, entry = '/editor/assets/demo.js') =>
-  `<html><title>${title}</title><body><div id="root" data-demo-editor></div><script type="module" src="${entry}"></script></body></html>`;
+const landing = iconLink + '<a href="/privacy">Privacy</a>';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'kestrel-site-gate-'));
-  const editor = join(root, 'editor');
-  mkdirSync(join(editor, 'assets'), { recursive: true });
   writeFileSync(join(root, 'index.html'), landing);
   writeFileSync(join(root, 'admin.html'), '<h1>Admin</h1>');
   writeFileSync(join(root, 'oauth-callback.html'), callback);
   writeFileSync(join(root, 'privacy.html'), privacy);
   mkdirSync(join(root, 'assets', 'brand', 'inflight', 'app-icons'), { recursive: true });
   writeFileSync(join(root, iconPath.slice(1)), icon);
-  writeFileSync(join(editor, 'demo-editor.html'), demo('InFlight editor demonstration'));
-  writeFileSync(join(editor, 'assets', 'demo.js'), bundle);
   return root;
 }
 function run(root, ...args) {
@@ -42,8 +35,6 @@ function runLive(root, overrides) {
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
-    '/editor/demo-editor.html': demo('InFlight editor demonstration'),
-    '/editor/assets/demo.js': bundle,
     ...overrides,
   };
   return runStub(root, pages, {}, '--live-url=https://demo.example.test');
@@ -68,7 +59,7 @@ function runStub(root, pages, api, ...args) {
   ], { encoding: 'utf8' });
 }
 
-test('accepts complete compiled editor assets but never claims remote deployment', () => {
+test('accepts a complete site but never claims remote deployment', () => {
   const root = fixture();
   try {
     const result = run(root);
@@ -76,59 +67,6 @@ test('accepts complete compiled editor assets but never claims remote deployment
     assert.match(result.stdout, /Local site PASS/);
     assert.match(result.stdout, /Live Firebase deployment NOT RUN/);
   } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('fails closed when homepage refers to missing compiled editor or missing JS', () => {
-  const root = fixture();
-  try {
-    writeFileSync(join(root, 'editor', 'demo-editor.html'), '');
-    assert.notEqual(run(root).status, 0);
-    writeFileSync(join(root, 'editor', 'demo-editor.html'), demo('Photo editor', '/editor/assets/missing.js'));
-    assert.match(run(root).stderr, /Missing or empty compiled editor asset/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('rejects an unbuilt Vite development editor', () => {
-  const root = fixture();
-  try {
-    writeFileSync(join(root, 'editor', 'demo-editor.html'), demo('Photo editor', '/src/demo/main.tsx'));
-    const result = run(root);
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /development entry point/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('accepts the current live entry and rejects stale HTML even if its assets are still hosted', () => {
-  const root = fixture();
-  try {
-    const current = runLive(root, { '/editor/demo-editor.html': demo('InFlight editor demonstration') });
-    assert.equal(current.status, 0, current.stderr);
-    assert.match(current.stdout, /Live Firebase PASS/);
-    assert.match(runLive(root, {
-      '/editor/demo-editor.html': demo('Demo Studio', '/editor/assets/older.js'),
-      '/editor/assets/older.js': bundle,
-    }).stderr, /Live editor HTML differs from the verified local build/);
-    assert.match(runLive(root, { '/editor/assets/demo.js': '<!doctype html><html></html>' }).stderr, /missing or wrong asset/);
-    assert.match(runLive(root, { '/editor/assets/demo.js': bundle.replace('editor', 'changed') }).stderr, /asset differs from the verified local build/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('checks both public Demo Editor routes and rejects a stale homepage or the wrong editor in the clean route', t => {
-  const root = fixture();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const v2Landing = landing.replace('demo-editor.html', 'demo-v2');
-  const v2 = demo('Version 2', '/editor/assets/v2.js');
-  writeFileSync(join(root, 'index.html'), v2Landing);
-  writeFileSync(join(root, 'editor', 'demo-v2.html'), v2);
-  writeFileSync(join(root, 'editor', 'assets', 'v2.js'), bundle);
-  const pages = { '/': v2Landing, '/editor/demo-v2.html': v2, '/editor/demo-v2': v2, '/editor/assets/v2.js': bundle };
-
-  const valid = runLive(root, pages);
-  assert.equal(valid.status, 0, valid.stderr);
-  assert.match(runLive(root, { ...pages, '/': landing }).stderr, /expected the demo-v2 editor iframe/);
-  assert.match(runLive(root, { ...pages, '/editor/demo-v2': undefined }).stderr, /path failed \(404\): \/editor\/demo-v2/);
-  assert.match(runLive(root, { ...pages, '/editor/demo-v2': demo('Demo Studio') }).stderr, /Live editor HTML differs from the verified local build: \/editor\/demo-v2/);
-  assert.match(runLive(root, { ...pages, '/editor/demo-editor.html': undefined }).stderr, /path failed \(404\): \/editor\/demo-editor\.html/);
 });
 
 test('fails closed when the sign-in callback page is missing or wrong', () => {
@@ -159,24 +97,10 @@ test('fails closed when the privacy page is missing or the homepage does not lin
     rmSync(join(root, 'privacy.html'));
     assert.match(run(root).stderr, /Required website file missing/);
     writeFileSync(join(root, 'privacy.html'), privacy);
-    writeFileSync(join(root, 'index.html'), iconLink + '<iframe src="editor/demo-editor.html"></iframe>');
+    writeFileSync(join(root, 'index.html'), iconLink + '<p>No privacy link</p>');
     assert.match(run(root).stderr, /privacy page is missing or the homepage does not link/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
-
-test('a homepage that embeds the Version 2 demo needs that demo compiled too, and still needs the current editor', () => {
-  const root = fixture();
-  writeFileSync(join(root, 'index.html'), iconLink + '<iframe src="editor/demo-v2.html"></iframe><a href="/privacy">Privacy</a>');
-  let result = run(root);
-  assert.notEqual(result.status, 0, 'demo-v2.html is missing');
-  assert.match(result.stderr + result.stdout, /demo-v2\.html/);
-  writeFileSync(join(root, 'editor', 'demo-v2.html'), demo('InFlight editor demonstration'));
-  result = run(root);
-  assert.equal(result.status, 0, result.stderr + result.stdout);
-  rmSync(join(root, 'editor', 'demo-editor.html'));
-  assert.notEqual(run(root).status, 0, 'the owner Demo Studio editor must stay compiled');
-});
-
 
 test('favicon gate rejects missing, mismatched and HTML-fallback icon assets', t => {
   const root = fixture();
@@ -189,12 +113,12 @@ test('favicon gate rejects missing, mismatched and HTML-fallback icon assets', t
   assert.match(run(root).stderr, /Required website file missing/);
   writeFileSync(join(root, iconPath.slice(1)), icon);
   assert.match(runLive(root, { [iconPath]: '<!doctype html><html></html>' }).stderr, /missing or wrong asset/);
-  assert.match(runLive(root, { [iconPath]: icon.replace('M0 0', 'M1 1') }).stderr, /asset differs from the verified local build/);
+  assert.match(runLive(root, { [iconPath]: icon.replace('M0 0', 'M1 1') }).stderr, /favicon differs from the verified local build/);
   assert.match(runLive(root, { '/': landing.replace(iconLink, '') }).stderr, /favicon missing/);
 });
 
 
-test('rejects a changed live homepage even when editor and favicon references match', () => {
+test('rejects a changed live homepage even when its favicon reference matches', () => {
   const root = fixture();
   try {
     const changed = landing.replace('Privacy</a>', 'Privacy notice</a>');
@@ -219,38 +143,6 @@ test('rejects changed live OAuth callback and privacy content', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-
-test('rejects stale editor HTML even when referenced compiled assets match', t => {
-  const root = fixture();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const original = demo('InFlight editor demonstration');
-  assert.equal(runLive(root, { '/editor/demo-editor.html': original }).status, 0);
-  for (const stale of [
-    original.replace('InFlight editor demonstration', 'Outdated editor'),
-    original.replace('<body>', '<body data-release="stale">'),
-    original.replace('type="module"', 'type="text/javascript"'),
-  ]) {
-    const result = runLive(root, { '/editor/demo-editor.html': stale });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Live editor HTML differs from the verified local build/);
-  }
-});
-
-test('both Version 2 editor URLs must serve the same exact compiled HTML', t => {
-  const root = fixture();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const v2Landing = landing.replace('demo-editor.html', 'demo-v2');
-  const v2 = demo('Version 2', '/editor/assets/v2.js');
-  writeFileSync(join(root, 'index.html'), v2Landing);
-  writeFileSync(join(root, 'editor', 'demo-v2.html'), v2);
-  writeFileSync(join(root, 'editor', 'assets', 'v2.js'), bundle);
-  const pages = { '/': v2Landing, '/editor/demo-editor.html': demo('InFlight editor demonstration'),
-    '/editor/demo-v2.html': v2, '/editor/demo-v2': v2, '/editor/assets/v2.js': bundle };
-  assert.equal(runLive(root, pages).status, 0);
-  const stale = v2.replace('<body>', '<body data-stale="true">');
-  assert.match(runLive(root, { ...pages, '/editor/demo-v2': stale }).stderr, /Live editor HTML differs/);
-  assert.match(runLive(root, { ...pages, '/editor/demo-v2.html': stale }).stderr, /Live editor HTML differs/);
-});
 
 test('live verification requires a bare HTTPS origin and rejects URL confusion', t => {
   const root = fixture();
@@ -277,14 +169,12 @@ test('live verification rejects a redirected response even when content matches'
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
-    '/editor/demo-editor.html': demo('InFlight editor demonstration'),
-    '/editor/assets/demo.js': bundle,
   };
   const stub = `globalThis.fetch = async url => {
     const pages = ${JSON.stringify(pages)};
     const body = pages[new URL(url).pathname];
     const response = new Response(body ?? null, { status: body === undefined ? 404 : 200 });
-    if (new URL(url).pathname === '/editor/demo-editor.html') {
+    if (new URL(url).pathname === '/admin.html') {
       Object.defineProperty(response, 'redirected', { value: true });
     }
     return response;
@@ -294,7 +184,7 @@ test('live verification rejects a redirected response even when content matches'
     script, '--root=' + root, '--live-url=https://demo.example.test',
   ], { encoding: 'utf8' });
   assert.notEqual(result.status, 0);
-  assert.ok(result.stderr.includes('Live Firebase path redirected: /editor/demo-editor.html'), result.stderr);
+  assert.ok(result.stderr.includes('Live Firebase path redirected: /admin.html'), result.stderr);
 });
 
 
@@ -339,43 +229,11 @@ test('release verifier source never contains an escaped newline between favicon 
 });
 
 
-test('local release gate rejects HTML fallback in compiled JS and CSS assets', t => {
-  const root = fixture();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const js = join(root, 'editor', 'assets', 'demo.js');
-  writeFileSync(js, '\uFEFF  <!DOCTYPE html><html>Fallback</html>');
-  assert.match(run(root).stderr, /Local compiled editor asset is an HTML fallback: \/editor\/assets\/demo.js/);
-  writeFileSync(js, bundle);
-  const entry = join(root, 'editor', 'demo-editor.html');
-  writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<link rel="stylesheet" href="/editor/assets/demo.css"></body>'));
-  const css = join(root, 'editor', 'assets', 'demo.css');
-  writeFileSync(css, '<html>Fallback</html>');
-  assert.match(run(root).stderr, /Local compiled editor asset is an HTML fallback: \/editor\/assets\/demo.css/);
-  writeFileSync(css, 'body { color: black; }');
-  assert.equal(run(root).status, 0);
-});
-
-
-test('a valid local bundle cannot conceal an unverified extra script', t => {
-  const root = fixture();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const entry = join(root, 'editor', 'demo-editor.html');
-  for (const url of ['https://elsewhere.example/extra.js', '//elsewhere.example/extra.js', '/extra.js', '/editor/assets/demo.js?stale=1', '']) {
-    writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<script src="' + url + '"></script></body>'));
-    const result = run(root);
-    assert.notEqual(result.status, 0, url);
-    assert.match(result.stderr, /Unverified compiled editor script/);
-  }
-  writeFileSync(join(root, 'editor', 'assets', 'extra.js'), bundle);
-  writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<script src="./assets/extra.js"></script></body>'));
-  assert.equal(run(root).status, 0);
-});
-
 test('live control plane must answer /health and allow the website origin', () => {
   const root = fixture();
   const pages = {
     '/': landing, '/admin.html': '<h1>Admin</h1>', '/oauth-callback.html': callback, '/privacy.html': privacy,
-    [iconPath]: icon, '/editor/demo-editor.html': demo('InFlight editor demonstration'), '/editor/assets/demo.js': bundle,
+    [iconPath]: icon,
   };
   const live = ['--live-url=https://demo.example.test', '--control-plane-url=https://api.example.test'];
   try {
