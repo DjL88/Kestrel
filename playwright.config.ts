@@ -8,6 +8,10 @@ export default defineConfig({
   // Many steps wait up to 60s for on-device model work (subject finder, species, auto-cull). Playwright's 30s default
   // cut those waits short whenever several browsers ran at once, so tests failed on load rather than on behaviour.
   timeout: 90_000,
+  // GitHub's 2-core runners (the repository is private) take two to three times as long as a laptop, so a 5 s wait for
+  // an import or a redraw ran out there while the app was still working. Locally the default stays, so a stuck screen
+  // still fails fast.
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   use: {
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',

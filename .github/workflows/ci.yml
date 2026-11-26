@@ -25,7 +25,9 @@ jobs:
   check:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 2-core runners (private repository, since 26 Nov 2026): about 5 min of set-up, lint, unit tests and build, about
+    # 20 min of browser tests and about 6 min of dev-server tests.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,10 +56,10 @@ jobs:
       - if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Playwright builds and serves the production app before running the tests. Desktop and phone projects.
-      # Every spec runs and any failure fails the job; the step never runs past 25 minutes (everything before it takes
-      # about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
+      # Every spec runs and any failure fails the job; the step never runs past 35 minutes (it takes about 20 on GitHub's
+      # 2-core runners). Each test still has its 90 s limit for slow on-device models.
       - name: Browser tests
-        timeout-minutes: 25
+        timeout-minutes: 35
         run: npx playwright test --workers=2
       # Board job p5-export: full-size exports are pixel-exact to the intended render and originals are never changed,
       # proved through the real app on synthetic files and two CC0 camera RAWs from raw.pixls.us (about 50 MB, cached,

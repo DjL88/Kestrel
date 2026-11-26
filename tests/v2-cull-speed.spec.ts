@@ -148,9 +148,12 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   writeFileSync('test-results/cull-speed.json', JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 
-  // Ceilings, generous for slow shared CI machines: a regression guard, not the published number.
-  expect(result.nextPhoto.medianMs).toBeLessThan(400);
-  expect(result.rateAndMoveOn.medianMs).toBeLessThan(400);
+  // Ceilings, generous for slow shared CI machines: a regression guard, not the published number. GitHub gives a private
+  // repository 2-core runners, where this ran at 534-680 ms beside a second test browser (26 Nov 2026; 100-160 ms on
+  // 4 cores, 11-28 ms on an M-series Mac), so fewer than 4 cores get a wider ceiling.
+  const ceilingMs = cores >= 4 ? 400 : 1_000;
+  expect(result.nextPhoto.medianMs).toBeLessThan(ceilingMs);
+  expect(result.rateAndMoveOn.medianMs).toBeLessThan(ceilingMs);
   expect(Number.isFinite(result.nextPhoto.worstMs) && Number.isFinite(result.rateAndMoveOn.worstMs)).toBe(true);
   expect(errors.filter((error) => /worker/i.test(error))).toEqual([]);
 });
