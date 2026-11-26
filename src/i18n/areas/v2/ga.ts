@@ -1501,6 +1501,8 @@ export const ga: AreaTranslation<typeof source> = {
     noClashes: 'Gan choimhlintí.',
     padHeading: 'Ceap macraí agus diailí',
     padHelp: 'Seolann ceap nó diail eochracha, cosúil le méarchlár. Do gach sliotán, abair cén eochair a sheolann sé (Foghlaim, ansin brúigh ar an gceap í) agus cad ba cheart dó a dhéanamh. Meaitseálann na heochracha tosaigh socrú ceap SinLoon ó InFlight Leagan 1. Oibríonn TourBox agus ceapanna eile a sheolann eochracha ar an mbealach céanna; níor tástáladh TourBox ar ghléas fíor.',
+    padKeysLabel: "Eochracha an phaid mhacra",
+    padKeysDesc: "Air, ritheann na heochracha a sheolann do phaid na gníomhartha thíos, ón bpaid nó ón méarchlár. Múch é seo mura bhfuil paid agat. Coinnítear do shocrú.",
     lastKey: (key, slot) => `An eochair dheireanach a fuarthas: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `An eochair dheireanach a fuarthas: ${key} (ní sliotán ceapa é)`,
     pressPadKey: 'Brúigh eochair ar do cheap chun a sheiceáil go sroicheann sí.',

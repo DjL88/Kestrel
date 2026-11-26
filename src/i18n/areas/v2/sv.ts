@@ -1498,6 +1498,8 @@ export const sv: AreaTranslation<typeof source> = {
     noClashes: 'Inga krockar.',
     padHeading: 'Makroplatta och vred',
     padHelp: 'En platta eller ett vred skickar tangenter, precis som ett tangentbord. Ange för varje plats vilken tangent den skickar (Lär in, tryck sedan på den på plattan) och vad den ska göra. Starttangenterna motsvarar SinLoon-plattans inställning från InFlight version 1. TourBox och andra plattor som skickar tangenter fungerar likadant; TourBox har inte testats på en riktig enhet.',
+    padKeysLabel: "Makroplattans tangenter",
+    padKeysDesc: "På: tangenterna som din platta skickar kör åtgärderna nedan, från plattan eller tangentbordet. Stäng av om du inte har någon platta. Dina inställningar sparas.",
     lastKey: (key, slot) => `Senast mottagna tangent: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Senast mottagna tangent: ${key} (inte en plats på plattan)`,
     pressPadKey: 'Tryck på en tangent på plattan för att kontrollera att den kommer fram.',

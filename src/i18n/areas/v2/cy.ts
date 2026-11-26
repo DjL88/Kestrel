@@ -1498,6 +1498,8 @@ export const cy: AreaTranslation<typeof source> = {
     noClashes: 'Dim gwrthdaro.',
     padHeading: 'Pad macro a deialau',
     padHelp: 'Mae pad neu ddeial yn anfon bysellau, fel bysellfwrdd. Ar gyfer pob slot, dywedwch pa fysell y mae’n ei hanfon (Dysgu, yna ei phwyso ar y pad) a beth ddylai ei wneud. Mae’r bysellau cychwynnol yn cyfateb i osodiad pad SinLoon o InFlight Fersiwn 1. Mae TourBox a phadiau eraill sy’n anfon bysellau yn gweithio yr un fath; nid yw TourBox wedi’i brofi ar ddyfais go iawn.',
+    padKeysLabel: "Bysellau’r pad macro",
+    padKeysDesc: "Ymlaen, mae’r bysellau mae’ch pad yn eu hanfon yn rhedeg y gweithredoedd isod, o’r pad neu’r bysellfwrdd. Diffoddwch hyn os nad oes gennych bad. Caiff eich gosodiad ei gadw.",
     lastKey: (key, slot) => `Bysell olaf a dderbyniwyd: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Bysell olaf a dderbyniwyd: ${key} (nid slot pad)`,
     pressPadKey: 'Pwyswch fysell ar eich pad i wirio ei bod yn cyrraedd.',

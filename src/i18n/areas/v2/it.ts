@@ -1498,6 +1498,8 @@ export const it: AreaTranslation<typeof source> = {
     noClashes: 'Nessun conflitto.',
     padHeading: 'Pad macro e manopole',
     padHelp: 'Un pad o una manopola invia tasti, come una tastiera. Per ogni posizione indica quale tasto invia (Apprendi, poi premilo sul pad) e che cosa deve fare. I tasti iniziali corrispondono alla configurazione del pad SinLoon di InFlight versione 1. TourBox e gli altri pad che inviano tasti funzionano allo stesso modo; TourBox non è stato provato su un dispositivo reale.',
+    padKeysLabel: "Tasti del macro pad",
+    padKeysDesc: "Attivo, i tasti inviati dal pad eseguono le azioni qui sotto, dal pad o dalla tastiera. Disattivalo se non hai un pad. La tua configurazione resta salvata.",
     lastKey: (key, slot) => `Ultimo tasto ricevuto: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Ultimo tasto ricevuto: ${key} (non è una posizione del pad)`,
     pressPadKey: 'Premi un tasto sul pad per verificare che arrivi.',

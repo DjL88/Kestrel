@@ -1498,6 +1498,8 @@ export const is: AreaTranslation<typeof source> = {
     noClashes: 'Engir árekstrar.',
     padHeading: 'Fjölvaborð og skífur',
     padHelp: 'Borð eða skífa sendir lykla, eins og lyklaborð. Segðu fyrir hvert sæti hvaða lykil það sendir (Læra, ýttu svo á hann á borðinu) og hvað það á að gera. Upphafslyklarnir passa við SinLoon-uppsetninguna úr InFlight útgáfu 1. TourBox og önnur borð sem senda lykla virka eins; TourBox hefur ekki verið prófað á raunverulegu tæki.',
+    padKeysLabel: "Lyklar makróborðs",
+    padKeysDesc: "Á: lyklarnir sem borðið sendir keyra aðgerðirnar hér fyrir neðan, frá borðinu eða lyklaborðinu. Slökktu á þessu ef þú átt ekkert borð. Stillingarnar þínar haldast.",
     lastKey: (key, slot) => `Síðasti lykill móttekinn: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Síðasti lykill móttekinn: ${key} (ekki sæti á borðinu)`,
     pressPadKey: 'Ýttu á lykil á borðinu til að athuga hvort hann berst.',

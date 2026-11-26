@@ -1560,6 +1560,8 @@ export const source = {
     noClashes: 'No clashes.',
     padHeading: 'Macro pad and dials',
     padHelp: 'A pad or dial sends keys, like a keyboard. For each slot, say which key it sends (Learn, then press it on the pad) and what it should do. The starting keys match the SinLoon pad set-up from InFlight Version 1. TourBox and other pads that send keys work the same way; TourBox has not been tested on a real device.',
+    padKeysLabel: "Macro pad keys",
+    padKeysDesc: "On, the keys your pad sends run the actions below, from the pad or the keyboard. Turn this off if you have no pad. Your set-up is kept.",
     lastKey: (key: string, slot: string) => `Last key received: ${key} (${slot})`,
     lastKeyNoSlot: (key: string) => `Last key received: ${key} (not a pad slot)`,
     pressPadKey: 'Press a key on your pad to check it arrives.',

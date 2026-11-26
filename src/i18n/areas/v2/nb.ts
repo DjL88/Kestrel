@@ -1498,6 +1498,8 @@ export const nb: AreaTranslation<typeof source> = {
     noClashes: 'Ingen konflikter.',
     padHeading: 'Makropanel og dreieknapper',
     padHelp: 'Et panel eller en dreieknapp sender taster, akkurat som et tastatur. Angi for hver plass hvilken tast den sender (Lær, og trykk så på den på panelet) og hva den skal gjøre. Starttastene tilsvarer SinLoon-oppsettet fra InFlight versjon 1. TourBox og andre panel som sender taster, virker på samme måte; TourBox er ikke testet på en ekte enhet.',
+    padKeysLabel: "Makropad-taster",
+    padKeysDesc: "På: tastene paden din sender, kjører handlingene nedenfor, fra paden eller tastaturet. Slå av hvis du ikke har en pad. Oppsettet ditt beholdes.",
     lastKey: (key, slot) => `Sist mottatte tast: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Sist mottatte tast: ${key} (ikke en plass på panelet)`,
     pressPadKey: 'Trykk på en tast på panelet for å sjekke at den kommer fram.',

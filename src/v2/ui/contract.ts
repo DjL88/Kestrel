@@ -586,6 +586,8 @@ export interface WorkspaceSettings {
   swipeBetweenPhotos: boolean;
   /** Game controllers (Gamepad API) run commands: Settings > Keyboard > Game controller. Off by default. */
   gamepadEnabled?: boolean;
+  /** Settings > Keyboard > Macro pad keys: the pad's keys run their actions. On unless turned off (plug and play). */
+  padKeysEnabled?: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';

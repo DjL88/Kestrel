@@ -1498,6 +1498,8 @@ export const es: AreaTranslation<typeof source> = {
     noClashes: 'Sin conflictos.',
     padHeading: 'Teclado de macros y diales',
     padHelp: 'Un teclado de macros o un dial envía teclas, como un teclado. Para cada posición, indique qué tecla envía (Aprender y luego púlsela en el teclado de macros) y qué debe hacer. Las teclas iniciales coinciden con la configuración del teclado SinLoon de InFlight versión 1. TourBox y otros dispositivos que envían teclas funcionan igual; TourBox no se ha probado en un dispositivo real.',
+    padKeysLabel: "Teclas del teclado macro",
+    padKeysDesc: "Activado, las teclas que envía tu teclado macro hacen las acciones de abajo, desde el teclado macro o el normal. Desactívalo si no tienes uno. Tu configuración se guarda.",
     lastKey: (key, slot) => `Última tecla recibida: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Última tecla recibida: ${key} (no es una posición del teclado de macros)`,
     pressPadKey: 'Pulse una tecla de su teclado de macros para comprobar que llega.',
