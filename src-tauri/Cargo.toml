@@ -48,3 +48,6 @@ sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["jpeg", "tiff", "png"] }
 # Tethered shooting over USB (PTP): the pipe only; the protocol is src/core/ptp.ts. Pure Rust, no libusb.
 nusb = "0.2"
+# Free memory and CPU load for the task scheduler (src-tauri/src/resource_sample.rs), so it can run several heavy jobs
+# at once only when the machine has room. Only the system figures are read, never other programs' details.
+sysinfo = { version = "0.40", default-features = false, features = ["system"] }
