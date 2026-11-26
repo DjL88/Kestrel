@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Welsh. DRAFT: written without a native speaker's check. */
+export const cy: AreaTranslation<typeof source> = {
+  heading: "Eich arddulliau",
+  intro: "Cadwch osodiadau llithrydd y llun hwn fel arddull ar gyfer lluniau eraill. Nid yw masgiau, tocio, cromliniau na chywiriadau lens wedi'u cynnwys.",
+  nameLabel: "Enw ar gyfer yr arddull hon",
+  namePlaceholder: "Er enghraifft, Bore niwlog",
+  save: "Cadw fel arddull",
+  empty: "Nid ydych wedi cadw unrhyw arddulliau eto.",
+  rename: (name: string) => `Ailenwi ${name}`,
+  renameLabel: (name: string) => `Enw newydd ar gyfer ${name}`,
+  renameShort: "Ailenwi",
+  removeShort: "Dileu",
+  renameDone: "Cadw'r enw",
+  cancel: "Canslo",
+  remove: (name: string) => `Dileu ${name}`,
+  exportLooks: "Cadw arddulliau mewn ffeil",
+  importLooks: "Ychwanegu arddulliau o ffeil",
+  mine: "Eich rhai chi",
+  description: "Arddull a gadwyd gennych ar y ddyfais hon.",
+  saved: (name: string) => `Wedi cadw'r arddull “${name}” ar y ddyfais hon.`,
+  updated: (name: string) => `Mae gan eich arddull “${name}” osodiadau'r llun hwn nawr.`,
+  needName: "Rhowch enw i'r arddull yn gyntaf.",
+  full: "Rydych wedi cadw'r nifer mwyaf o arddulliau. Dilëwch un yn gyntaf.",
+  nameTaken: "Mae gennych arddull gyda'r enw hwnnw eisoes.",
+  removed: (name: string) => `Wedi dileu'r arddull “${name}”. Mae lluniau a'i defnyddiodd yn cadw eu gosodiadau.`,
+  notSaved: "Nid oedd modd cadw eich arddulliau ar y ddyfais hon. Byddant yn para nes bydd Kestrel yn cau.",
+  imported: (added: number, replaced: number) => `Arddulliau wedi'u hychwanegu: ${added}. Arddulliau wedi'u diweddaru: ${replaced}.`,
+  skipped: (n: number) => ` Wedi'u gadael allan, heb osodiadau defnyddiol: ${n}.`,
+  nothingUsable: "Nid oes gan y ffeil honno arddulliau â gosodiadau y gall Kestrel eu defnyddio.",
+  unreadable: "Nid oedd modd darllen y ffeil honno fel arddulliau.",
+  notLooks: "Nid yw'r ffeil honno'n ffeil arddulliau Kestrel.",
+  newer: "Daw'r ffeil arddulliau honno o fersiwn mwy newydd o Kestrel. Diweddarwch Kestrel i'w hychwanegu.",
+};

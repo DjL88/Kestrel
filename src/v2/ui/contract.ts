@@ -239,6 +239,8 @@ export interface LookPreset {
   description: string;
   previewFilter: string;
   recipeDelta: Partial<EditRecipe>;
+  /** A look the person saved on this device, rather than one that comes with Kestrel. */
+  mine?: boolean;
 }
 
 /** A piece of information a text row can show: a field the photo file records, what subject detection found, or the person's own words. */
@@ -886,6 +888,13 @@ export interface WorkspaceActions {
   /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
   denoisePhoto: (photoId: string) => void;
   applyLook: (photoId: string, lookId: string) => void;
+  /** Your own looks, kept on this device. Each returns false (with a notice) when it was refused. */
+  saveUserLook?: (photoId: string, name: string) => boolean;
+  renameUserLook?: (lookId: string, name: string) => boolean;
+  deleteUserLook?: (lookId: string) => void;
+  /** The looks file text, or null when there are no looks of your own to save. */
+  exportUserLooks?: () => string | null;
+  importUserLooks?: (text: string) => void;
   setHoveredLook: (lookId: string | null) => void;
   resetPhotoEdits: (photoId: string) => void;
   copyRecipe: () => void;

@@ -75,3 +75,127 @@ export function addPreset(list: Preset[], name: string, edit: PhotoEdit, id: str
 export function removePreset(list: Preset[], id: string): Preset[] {
   return list.filter((preset) => preset.id !== id);
 }
+
+/*
+ * Your own looks in the V2 editor. A look is a reversible recipe of the global sliders only: no masks, crop, curves,
+ * lens profile or AI layers, and never pixels. Applying one is the same single undoable step as a built-in look.
+ * Values use the V2 slider scales (exposure in stops, the rest -100 to 100 or 0 to 100).
+ */
+export const USER_LOOK_RANGES: Readonly<Record<string, readonly [number, number]>> = {
+  exposure: [-5, 5],
+  highlights: [-100, 100], shadows: [-100, 100], contrast: [-100, 100], whites: [-100, 100], blacks: [-100, 100],
+  temperature: [-100, 100], tint: [-100, 100], vibrance: [-100, 100], saturation: [-100, 100], clarity: [-100, 100],
+  dehaze: [-100, 100],
+  sharpen: [0, 100], captureSharpen: [0, 100], deblur: [0, 100],
+  denoiseLuminance: [0, 100], denoiseColour: [0, 100], detailRecovery: [0, 100],
+  vignette: [-100, 100], vignetteSize: [0, 100], vignetteBlur: [0, 100], vignetteRoundness: [-100, 100], vignetteFeather: [0, 100],
+};
+export const USER_LOOK_KEYS = Object.keys(USER_LOOK_RANGES);
+export const MAX_USER_LOOKS = 60;
+const LOOK_NAME_LIMIT = 40;
+export const USER_LOOKS_FORMAT = 'kestrel-looks';
+export const USER_LOOKS_VERSION = 1;
+
+export type UserLookRecipe = Record<string, number>;
+export interface UserLook { id: string; name: string; recipe: UserLookRecipe; savedAt: number }
+
+const cleanName = (name: unknown) => (typeof name === 'string' ? name.replace(/\s+/g, ' ').trim().slice(0, LOOK_NAME_LIMIT) : '');
+const sameName = (a: string, b: string) => a.toLocaleLowerCase('en-GB') === b.toLocaleLowerCase('en-GB');
+
+/**
+ * Keep only known global sliders, each a finite number clamped to its range. Zeros are kept on purpose: a saved look
+ * records where every slider sat, so applying it to another photo gives the same look rather than a partial one.
+ */
+export function userLookRecipe(value: unknown): UserLookRecipe {
+  const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  const recipe: UserLookRecipe = {};
+  for (const key of USER_LOOK_KEYS) {
+    const number = raw[key];
+    if (typeof number !== 'number' || !Number.isFinite(number)) continue;
+    const [low, high] = USER_LOOK_RANGES[key];
+    recipe[key] = Math.round(Math.max(low, Math.min(high, number)) * 100) / 100;
+  }
+  return recipe;
+}
+
+function readLook(item: unknown): UserLook | null {
+  if (typeof item !== 'object' || item === null) return null;
+  const { id, name, recipe, savedAt } = item as Record<string, unknown>;
+  const clean = cleanName(name);
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,40}$/.test(id) || !clean) return null;
+  const kept = userLookRecipe(recipe);
+  if (!Object.keys(kept).length) return null;
+  return { id, name: clean, recipe: kept, savedAt: typeof savedAt === 'number' && Number.isFinite(savedAt) ? savedAt : 0 };
+}
+
+/** Looks kept on this device. Anything corrupt, duplicated or past the limit is left out rather than crashing. */
+export function parseUserLooks(json: string | null): UserLook[] {
+  if (!json) return [];
+  try {
+    const list: unknown = JSON.parse(json);
+    if (!Array.isArray(list)) return [];
+    const kept: UserLook[] = [];
+    for (const item of list) {
+      const look = readLook(item);
+      if (look && kept.length < MAX_USER_LOOKS && !kept.some((other) => other.id === look.id || sameName(other.name, look.name))) kept.push(look);
+    }
+    return kept;
+  } catch {
+    return [];
+  }
+}
+
+/** Save a look. The same name (any case) replaces that look's settings and keeps its id. Null: no name, nothing to keep, or full. */
+export function saveUserLook(list: UserLook[], name: string, recipe: unknown, id: string, now: number): UserLook[] | null {
+  const clean = cleanName(name);
+  const kept = userLookRecipe(recipe);
+  if (!clean || !Object.keys(kept).length) return null;
+  const index = list.findIndex((look) => sameName(look.name, clean));
+  if (index !== -1) return list.map((look, at) => (at === index ? { id: look.id, name: clean, recipe: kept, savedAt: now } : look));
+  if (list.length >= MAX_USER_LOOKS) return null;
+  return [...list, { id, name: clean, recipe: kept, savedAt: now }];
+}
+
+/** Rename a look. Refused (null) when the name is empty or another of your looks already has it. */
+export function renameUserLook(list: UserLook[], id: string, name: string): UserLook[] | null {
+  const clean = cleanName(name);
+  if (!clean || !list.some((look) => look.id === id)) return null;
+  if (list.some((look) => look.id !== id && sameName(look.name, clean))) return null;
+  return list.map((look) => (look.id === id ? { ...look, name: clean } : look));
+}
+
+export function removeUserLook(list: UserLook[], id: string): UserLook[] {
+  return list.filter((look) => look.id !== id);
+}
+
+/** A small, readable file to share looks between devices or people. It holds slider numbers and names only. */
+export function exportUserLooks(list: UserLook[]): string {
+  return JSON.stringify({ format: USER_LOOKS_FORMAT, version: USER_LOOKS_VERSION, looks: list.map(({ name, recipe }) => ({ name, recipe })) }, null, 2);
+}
+
+export interface UserLookImport { looks: UserLook[]; added: number; replaced: number; skipped: number; error?: 'unreadable' | 'not-looks' | 'newer' }
+
+/**
+ * Read a looks file into your list. Every value is checked and clamped; unknown keys are dropped. A look with the name
+ * of one you already have replaces its settings (it is the same look, updated). Nothing changes on any error.
+ */
+export function importUserLooks(list: UserLook[], text: string, makeId: () => string, now: number): UserLookImport {
+  const none = (error: UserLookImport['error']): UserLookImport => ({ looks: list, added: 0, replaced: 0, skipped: 0, error });
+  let data: unknown;
+  try { data = JSON.parse(text); } catch { return none('unreadable'); }
+  if (typeof data !== 'object' || data === null) return none('not-looks');
+  const { format, version, looks } = data as Record<string, unknown>;
+  if (format !== USER_LOOKS_FORMAT || !Array.isArray(looks)) return none('not-looks');
+  if (typeof version !== 'number' || version > USER_LOOKS_VERSION) return none('newer');
+  let next = list;
+  let added = 0, replaced = 0, skipped = 0;
+  for (const item of looks) {
+    const name = cleanName((item as Record<string, unknown> | null)?.name);
+    const existed = next.some((look) => sameName(look.name, name));
+    const saved = typeof item === 'object' && item !== null ? saveUserLook(next, name, (item as Record<string, unknown>).recipe, makeId(), now) : null;
+    if (!saved) { skipped += 1; continue; }
+    next = saved;
+    if (existed) replaced += 1; else added += 1;
+  }
+  return { looks: next, added, replaced, skipped };
+}

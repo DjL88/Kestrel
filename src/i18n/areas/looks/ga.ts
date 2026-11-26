@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Irish. DRAFT: written without a native speaker's check. */
+export const ga: AreaTranslation<typeof source> = {
+  heading: "Do stíleanna",
+  intro: "Sábháil socruithe sleamhnáin an ghrianghraif seo mar stíl do ghrianghraif eile. Níl maisc, bearradh, cuair ná ceartúcháin lionsa san áireamh.",
+  nameLabel: "Ainm don stíl seo",
+  namePlaceholder: "Mar shampla, Maidin cheomhar",
+  save: "Sábháil mar stíl",
+  empty: "Níor shábháil tú aon stíl go fóill.",
+  rename: (name: string) => `Athainmnigh ${name}`,
+  renameLabel: (name: string) => `Ainm nua do ${name}`,
+  renameShort: "Athainmnigh",
+  removeShort: "Scrios",
+  renameDone: "Sábháil an t-ainm",
+  cancel: "Cealaigh",
+  remove: (name: string) => `Scrios ${name}`,
+  exportLooks: "Sábháil stíleanna i gcomhad",
+  importLooks: "Cuir stíleanna leis ó chomhad",
+  mine: "Leatsa",
+  description: "Stíl a shábháil tú ar an ngléas seo.",
+  saved: (name: string) => `Sábháladh an stíl “${name}” ar an ngléas seo.`,
+  updated: (name: string) => `Tá socruithe an ghrianghraif seo ag do stíl “${name}” anois.`,
+  needName: "Tabhair ainm don stíl ar dtús.",
+  full: "Shábháil tú an líon is mó stíleanna is féidir. Scrios ceann ar dtús.",
+  nameTaken: "Tá stíl leis an ainm sin agat cheana.",
+  removed: (name: string) => `Scriosadh an stíl “${name}”. Coinníonn grianghraif a d'úsáid í a socruithe.`,
+  notSaved: "Níorbh fhéidir do stíleanna a shábháil ar an ngléas seo. Mairfidh siad go ndúntar Kestrel.",
+  imported: (added: number, replaced: number) => `Stíleanna curtha leis: ${added}. Stíleanna nuashonraithe: ${replaced}.`,
+  skipped: (n: number) => ` Fágtha ar lár, gan socruithe úsáideacha: ${n}.`,
+  nothingUsable: "Níl aon stíl sa chomhad sin le socruithe is féidir le Kestrel a úsáid.",
+  unreadable: "Níorbh fhéidir an comhad sin a léamh mar stíleanna.",
+  notLooks: "Ní comhad stíleanna Kestrel é an comhad sin.",
+  newer: "Tháinig an comhad stíleanna sin ó leagan níos nuaí de Kestrel. Nuashonraigh Kestrel chun é a chur leis.",
+};

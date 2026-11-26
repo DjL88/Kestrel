@@ -577,6 +577,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLensProfile={actions.applyLensProfile}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
+            userLookActions={actions.saveUserLook && actions.renameUserLook && actions.deleteUserLook && actions.exportUserLooks && actions.importUserLooks
+              ? { onSave: actions.saveUserLook, onRename: actions.renameUserLook, onDelete: actions.deleteUserLook, onExport: actions.exportUserLooks, onImport: actions.importUserLooks }
+              : undefined}
             onResetPhoto={actions.resetPhotoEdits}
             onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
             whitePicking={whitePickActive}
