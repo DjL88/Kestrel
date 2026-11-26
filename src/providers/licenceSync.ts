@@ -6,7 +6,7 @@
 import { verifyEntitlementGrant, type EntitlementGrant } from '../core/entitlementGrant';
 import { type AccountStanding, type KestrelPlatform, type OnlineStanding } from '../core/licenceOnline';
 import { sha256Hex, type PinnedKeys } from '../core/signedEnvelope';
-import { CHECKOUT_ID, checkoutErrorText, parseCheckoutPoll, parseCheckoutStart, type CheckoutPoll, type CheckoutStart } from '../core/proCheckout';
+import { CHECKOUT_ID, checkoutErrorText, parseCheckoutPoll, parseCheckoutStart, type CheckoutPoll, type CheckoutStart, type ProPlan, parseSubscriptionManage, type SubscriptionManage } from '../core/proCheckout';
 
 export interface KeyValueStorage { getItem(name: string): string | null; setItem(name: string, value: string): void; removeItem(name: string): void }
 
@@ -306,17 +306,32 @@ export class LicenceSync {
    * Start buying Pro for the signed-in account: the server opens a Paddle transaction bound to the account and returns
    * our checkout page for it. Paddle asks for the country and adds the right tax. Never charges anything by itself.
    */
-  async startProCheckout(idToken: string): Promise<CheckoutStart> {
+  async startProCheckout(idToken: string, plan?: ProPlan): Promise<CheckoutStart> {
     if (!this.configured) return { ok: false, code: 'NOT_SET_UP', message: checkoutErrorText('NOT_SET_UP') };
     const checkId = this.accountCheck;
     try {
       const bearer = await this.checkoutBearer(idToken, true);
       if (!bearer || checkId !== this.accountCheck) return { ok: false, code: 'ACCOUNT_UNVERIFIED', message: checkoutErrorText('ACCOUNT_UNVERIFIED') };
-      const reply = await this.post('/v1/me/checkout/pro', {}, bearer);
+      const reply = await this.post('/v1/me/checkout/pro', plan ? { plan } : {}, bearer);
       if (checkId !== this.accountCheck) return { ok: false, code: 'NOT_SIGNED_IN', message: checkoutErrorText('NOT_SIGNED_IN') };
       return parseCheckoutStart(reply.status, reply.json);
     } catch {
       return { ok: false, code: 'UNREACHABLE', message: checkoutErrorText('UNREACHABLE') };
+    }
+  }
+
+  /** Manage or cancel Pro: where the subscription stands and Paddle's own pages to cancel it or change the card. */
+  async manageProSubscription(idToken: string): Promise<SubscriptionManage> {
+    if (!this.configured) return parseSubscriptionManage(0, { error: { code: 'NOT_SET_UP' } });
+    const checkId = this.accountCheck;
+    try {
+      const bearer = await this.checkoutBearer(idToken, true);
+      if (!bearer || checkId !== this.accountCheck) return parseSubscriptionManage(0, null);
+      const reply = await this.post('/v1/me/subscription/manage', {}, bearer);
+      if (checkId !== this.accountCheck) return parseSubscriptionManage(0, null);
+      return parseSubscriptionManage(reply.status, reply.json);
+    } catch {
+      return parseSubscriptionManage(0, null);
     }
   }
 

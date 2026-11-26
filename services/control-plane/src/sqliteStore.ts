@@ -153,6 +153,9 @@ export class SqliteStore implements Store {
   async setLicenceStatus(licenceId: string, status: LicenceStatus, nowMs: number) {
     return this.run('UPDATE licences SET status = ?, updated_at_ms = ? WHERE licence_id = ?', status, nowMs, licenceId) === 1;
   }
+  async setLicenceValidUntil(licenceId: string, validUntilMs: number, nowMs: number) {
+    return this.run('UPDATE licences SET valid_until_ms = ?, updated_at_ms = ? WHERE licence_id = ?', validUntilMs, nowMs, licenceId) === 1;
+  }
   async extendLicence(licenceId: string, days: number, nowMs: number) {
     return this.transaction(() => {
       const current = this.readLicence(licenceId);

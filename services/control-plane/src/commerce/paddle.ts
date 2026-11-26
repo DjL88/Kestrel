@@ -51,6 +51,38 @@ const adjustment = z.object({
 }).passthrough();
 export type PaddleAdjustment = z.infer<typeof adjustment>;
 
+/** Paddle subscription IDs look like sub_01h04vsc0qhwtsbsxh3422wjs4. */
+export const PADDLE_SUBSCRIPTION_ID = /^sub_[a-z0-9]{10,60}$/;
+/**
+ * A Pro subscription as Paddle has it. `current_billing_period` is the period paid for; Paddle leaves it empty once the
+ * subscription is cancelled or paused. Paddle copies the first transaction's custom_data onto the subscription.
+ */
+const subscription = z.object({
+  id: z.string().regex(PADDLE_SUBSCRIPTION_ID),
+  status: z.enum(['active', 'trialing', 'past_due', 'paused', 'canceled']),
+  custom_data: z.record(z.string(), z.unknown()).nullable().optional(),
+  current_billing_period: z.object({ starts_at: z.string(), ends_at: z.string() }).nullable().optional(),
+  /** Set when the person has cancelled (or paused) and it takes effect at the end of the paid period. */
+  scheduled_change: z.object({ action: z.string(), effective_at: z.string() }).nullable().optional(),
+  customer_id: z.string().regex(/^ctm_[a-z0-9]{10,60}$/).optional(),
+}).passthrough();
+export type PaddleSubscription = z.infer<typeof subscription>;
+
+/** Paddle's own pages for one customer (cancel, payment details, receipts). Paddle hosts them; links expire. */
+const portalSession = z.object({
+  urls: z.object({
+    general: z.object({ overview: z.string().url() }),
+    subscriptions: z.array(z.object({ id: z.string(), cancel_subscription: z.string().url(), update_subscription_payment_method: z.string().url() })).optional(),
+  }),
+}).passthrough();
+/** Paddle's customer portal hosts (production and sandbox). Nothing else is ever handed to the app. */
+export const isPaddlePortalUrl = (value: string) => {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && !u.username && !u.password && (u.hostname === 'customer-portal.paddle.com' || u.hostname === 'sandbox-customer-portal.paddle.com');
+  } catch { return false; }
+};
+
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
   apiKey: string | (() => Promise<string>);
@@ -97,6 +129,27 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
       if (!PADDLE_TRANSACTION_ID.test(id)) throw new Error('Invalid Paddle transaction ID.');
       return call('/transactions/' + encodeURIComponent(id) + '?include=address');
     },
+    /** The subscription as Paddle has it now. Never trust a webhook body on its own. */
+    async getSubscription(id: string): Promise<PaddleSubscription> {
+      if (!PADDLE_SUBSCRIPTION_ID.test(id)) throw new Error('Invalid Paddle subscription ID.');
+      return subscription.parse(await raw('/subscriptions/' + encodeURIComponent(id)));
+    },
+    /**
+     * A customer portal session for one subscription: Paddle's own page to cancel it, change the card or see receipts.
+     * Paddle runs the cancellation; its notification then moves the licence's end date (proSettlement.ts).
+     */
+    async createPortalSession(customerId: string, subscriptionId: string) {
+      if (!/^ctm_[a-z0-9]{10,60}$/.test(customerId) || !PADDLE_SUBSCRIPTION_ID.test(subscriptionId)) throw new Error('Invalid Paddle customer or subscription ID.');
+      const session = portalSession.parse(await raw('/customers/' + encodeURIComponent(customerId) + '/portal-sessions', {
+        method: 'POST', body: JSON.stringify({ subscription_ids: [subscriptionId] }),
+      }));
+      const links = session.urls.subscriptions?.find((s) => s.id === subscriptionId);
+      const manageUrl = session.urls.general.overview;
+      if (!isPaddlePortalUrl(manageUrl) || (links && (!isPaddlePortalUrl(links.cancel_subscription) || !isPaddlePortalUrl(links.update_subscription_payment_method)))) {
+        throw new Error('Paddle returned an unexpected portal address.');
+      }
+      return { manageUrl, cancelUrl: links?.cancel_subscription ?? manageUrl, paymentUrl: links?.update_subscription_payment_method ?? manageUrl };
+    },
     /** The adjustment as Paddle has it now (refund, credit, chargeback), or null when Paddle has no such adjustment. */
     async getAdjustment(id: string): Promise<PaddleAdjustment | null> {
       if (!PADDLE_ADJUSTMENT_ID.test(id)) throw new Error('Invalid Paddle adjustment ID.');
@@ -130,7 +183,7 @@ export const PaddleEvent = z.object({
   event_id: z.string().min(1).max(128),
   event_type: z.string().min(1).max(64),
   occurred_at: z.string().max(64),
-  data: z.object({ id: z.string().max(128).optional() }).passthrough(),
+  data: z.object({ id: z.string().max(128).optional(), subscription_id: z.string().max(128).nullable().optional() }).passthrough(),
 });
 
 /** Paid in full: Paddle has captured the money. 'completed' follows once Paddle has finished processing. */
