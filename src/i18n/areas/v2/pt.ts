@@ -321,6 +321,7 @@ export const pt: AreaTranslation<typeof source> = {
       analysing: 'A analisar',
       ready: 'Pronta para editar',
       unavailable: 'Original indisponível',
+      unsupported: 'Ainda não legível',
     },
     nothingMatches: 'Nenhuma fotografia corresponde ao filtro atual.',
   },
@@ -1975,5 +1976,17 @@ export const pt: AreaTranslation<typeof source> = {
     whileAway: 'Enquanto esteve fora:',
     allowSystem: 'Avisar-me também em segundo plano',
     dismiss: 'Fechar',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Fotografar em direto',
+    watchHint: 'Vigiar uma pasta onde a sua app de captura ligada ou a câmara grava, e adicionar cada nova foto assim que chega. Nada na pasta é movido ou alterado.',
+    watching: (name: string, added: number) => `A vigiar ${name} · adicionadas: ${added}`,
+    arriving: (n: number) => `a chegar: ${n}`,
+    problem: (name: string) => `${name}: não pode ser lida agora. A vigilância continua: as fotos chegam quando voltar.`,
+    stop: 'Parar',
+    stopHint: 'Deixar de vigiar a pasta. As fotos já adicionadas ficam.',
+    notHere: 'Vigiar uma pasta precisa da app de computador InFlight, ou do Chrome ou Edge.',
   },
 };

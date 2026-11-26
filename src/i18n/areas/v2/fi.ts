@@ -322,6 +322,7 @@ export const fi: AreaTranslation<typeof source> = {
       analysing: 'Analysoidaan',
       ready: 'Valmis muokattavaksi',
       unavailable: 'Alkuperäinen ei saatavilla',
+      unsupported: 'Ei vielä luettavissa',
     },
     nothingMatches: 'Mikään kuva ei vastaa nykyistä suodatinta.',
   },
@@ -1976,5 +1977,17 @@ export const fi: AreaTranslation<typeof source> = {
     whileAway: 'Kun olit poissa:',
     allowSystem: 'Kerro myös taustalla',
     dismiss: 'Sulje',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Kuvaa livenä',
+    watchHint: 'Seuraa kansiota, johon kytkentäsovelluksesi tai kamerasi kirjoittaa, ja lisää jokainen uusi kuva heti kun se saapuu. Kansiossa ei siirretä eikä muuteta mitään.',
+    watching: (name: string, added: number) => `Seurataan ${name} · lisätty: ${added}`,
+    arriving: (n: number) => `saapumassa: ${n}`,
+    problem: (name: string) => `${name}: ei ole juuri nyt luettavissa. Seuranta jatkuu: kuvat tulevat, kun se palaa.`,
+    stop: 'Lopeta',
+    stopHint: 'Lopeta kansion seuraaminen. Jo lisätyt kuvat jäävät.',
+    notHere: 'Kansion seuraaminen vaatii InFlight-työpöytäsovelluksen tai Chromen tai Edgen.',
   },
 };

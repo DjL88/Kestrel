@@ -338,6 +338,7 @@ export const source = {
       analysing: 'Analysing',
       ready: 'Ready to edit',
       unavailable: 'Original unavailable',
+      unsupported: 'Can’t read yet',
     },
     nothingMatches: 'No photos match your current filter.',
   },
@@ -2058,5 +2059,17 @@ export const source = {
     whileAway: 'While you were away:',
     allowSystem: 'Also tell me in the background',
     dismiss: 'Dismiss',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Shoot live',
+    watchHint: 'Watch a folder your tether app or camera writes into, and add each new photo as it lands. Nothing in the folder is moved or changed.',
+    watching: (name: string, added: number) => `Watching ${name} · ${added} added`,
+    arriving: (n: number) => `${n} arriving`,
+    problem: (name: string) => `${name} can't be read just now. Still watching: photos come in when it's back.`,
+    stop: 'Stop',
+    stopHint: 'Stop watching the folder. Photos already added stay.',
+    notHere: 'Watching a folder needs the InFlight desktop app, or Chrome or Edge.',
   },
 };

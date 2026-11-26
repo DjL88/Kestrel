@@ -2,6 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
+import { engineText } from '../../../i18n/areas/engine';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
@@ -60,6 +61,10 @@ interface FilmstripProps {
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
   onImportFolder: () => void;
+  /** Live shoot: watch a folder for new frames, and what is being watched now. */
+  onWatchFolder?: () => void;
+  onStopWatchingFolder?: () => void;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
@@ -118,6 +123,9 @@ export default function Filmstrip({
   onApplyLook,
   onImport,
   onImportFolder,
+  onWatchFolder,
+  onStopWatchingFolder,
+  liveFolder,
   onRunAutoCull,
   onOpenCullAssistant,
   onExportSelected,
@@ -329,6 +337,26 @@ export default function Filmstrip({
             <BrandIcon name="folder-open" size={13} />
             <span className="v2-compact-label">{STRINGS.filmstripLabels.label10}</span>
           </button>
+
+          {liveFolder ? (
+            <span role="status" data-testid="filmstrip-live-folder"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] pl-2 text-[0.6875rem] text-[var(--text-primary)] whitespace-nowrap">
+              <BrandIcon name={liveFolder.problem ? 'image-off' : 'folder-arrow'} size={13} />
+              <span>{liveFolder.problem ? STRINGS.liveShoot.problem(liveFolder.name) : STRINGS.liveShoot.watching(liveFolder.name, liveFolder.imported)}</span>
+              {!liveFolder.problem && liveFolder.arriving > 0 && <span className="text-[var(--text-secondary)]">· {STRINGS.liveShoot.arriving(liveFolder.arriving)}</span>}
+              <button type="button" onClick={onStopWatchingFolder} title={STRINGS.liveShoot.stopHint} data-testid="filmstrip-stop-live"
+                className="ml-1 inline-flex h-full items-center rounded-r-[var(--radius-sm)] border-l border-[var(--border-default)] px-2 font-medium hover:bg-[var(--bg-surface-hover)]">
+                {STRINGS.liveShoot.stop}
+              </button>
+            </span>
+          ) : onWatchFolder && (
+            <button type="button" onClick={onWatchFolder} data-testid="filmstrip-watch-folder"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.watchHint}>
+              <BrandIcon name="folder-arrow" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.watch}</span>
+            </button>
+          )}
 
           {onChooseFromProject && (
             <button type="button" onClick={onChooseFromProject} data-testid="filmstrip-from-project"
@@ -585,8 +613,9 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
+                          title={photo.state === 'unsupported' ? engineText.workspace.rawJpegXl : undefined}
                           className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
-                            photo.state === 'unavailable'
+                            photo.state === 'unavailable' || photo.state === 'unsupported'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
                               ? 'bg-[var(--semantic-info)] text-[#09121a]'
@@ -594,6 +623,7 @@ export default function Filmstrip({
                           }`}
                         >
                           {stateLabel}
+                          {photo.state === 'unsupported' && <span className="sr-only">. {engineText.workspace.rawJpegXl}</span>}
                         </span>
                       )}
                     </button>
@@ -677,7 +707,7 @@ export default function Filmstrip({
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
-          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={hdrText.menuHint} data-testid="v2-hdr-merge-menu"
+          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}

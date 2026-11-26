@@ -321,6 +321,7 @@ export const cy: AreaTranslation<typeof source> = {
       analysing: 'Yn dadansoddi',
       ready: 'Yn barod i’w olygu',
       unavailable: 'Y gwreiddiol ddim ar gael',
+      unsupported: 'Methu darllen eto',
     },
     nothingMatches: 'Does dim lluniau’n cyfateb i’r hidl presennol.',
   },
@@ -1975,5 +1976,17 @@ export const cy: AreaTranslation<typeof source> = {
     whileAway: 'Tra oeddech chi i ffwrdd:',
     allowSystem: 'Dweud wrthyf yn y cefndir hefyd',
     dismiss: 'Cau',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Saethu\'n fyw',
+    watchHint: 'Gwylio ffolder y mae eich ap tennyn neu\'ch camera yn ysgrifennu iddi, ac ychwanegu pob llun newydd wrth iddo gyrraedd. Does dim yn y ffolder yn cael ei symud na\'i newid.',
+    watching: (name: string, added: number) => `Yn gwylio ${name} · wedi'u hychwanegu: ${added}`,
+    arriving: (n: number) => `yn cyrraedd: ${n}`,
+    problem: (name: string) => `${name}: ddim ar gael ar hyn o bryd. Yn dal i wylio: daw lluniau i mewn pan fydd yn ôl.`,
+    stop: 'Stopio',
+    stopHint: 'Stopio gwylio\'r ffolder. Mae\'r lluniau a ychwanegwyd yn aros.',
+    notHere: 'Mae gwylio ffolder angen ap bwrdd gwaith InFlight, neu Chrome neu Edge.',
   },
 };

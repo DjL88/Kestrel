@@ -321,6 +321,7 @@ export const da: AreaTranslation<typeof source> = {
       analysing: 'Analyserer',
       ready: 'Klar til redigering',
       unavailable: 'Original utilgængelig',
+      unsupported: 'Kan ikke læses endnu',
     },
     nothingMatches: 'Ingen fotos passer til det aktuelle filter.',
   },
@@ -1975,5 +1976,17 @@ export const da: AreaTranslation<typeof source> = {
     whileAway: 'Mens du var væk:',
     allowSystem: 'Giv også besked i baggrunden',
     dismiss: 'Luk',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Fotografér live',
+    watchHint: 'Hold øje med en mappe, som din tether-app eller dit kamera skriver til, og tilføj hvert nyt foto, så snart det lander. Intet i mappen flyttes eller ændres.',
+    watching: (name: string, added: number) => `Holder øje med ${name} · tilføjet: ${added}`,
+    arriving: (n: number) => `på vej: ${n}`,
+    problem: (name: string) => `${name}: kan ikke læses lige nu. Holder stadig øje: fotos kommer ind, når den er tilbage.`,
+    stop: 'Stop',
+    stopHint: 'Stop med at holde øje med mappen. Fotos, der allerede er tilføjet, bliver.',
+    notHere: 'Det kræver InFlight-skrivebordsappen, eller Chrome eller Edge, at holde øje med en mappe.',
   },
 };

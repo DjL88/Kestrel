@@ -322,6 +322,7 @@ export const gd: AreaTranslation<typeof source> = {
       analysing: 'A’ mion-sgrùdadh',
       ready: 'Deiseil airson deasachadh',
       unavailable: 'Chan eil an dealbh tùsail ri fhaighinn',
+      unsupported: 'Cha ghabh a leughadh fhathast',
     },
     nothingMatches: 'Chan eil dealbh a’ freagairt ris a’ chriathrag làithreach.',
   },
@@ -1976,5 +1977,17 @@ export const gd: AreaTranslation<typeof source> = {
     whileAway: 'Fhad ’s a bha thu air falbh:',
     allowSystem: 'Innis dhomh sa chùlaibh cuideachd',
     dismiss: 'Dùin',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Tog beò',
+    watchHint: 'Cùm sùil air pasgan far an sgrìobh an aplacaid teadhar no an camara agad, agus cuir ris gach dealbh ùr nuair a ruigeas e. Cha tèid càil sa phasgan a ghluasad no atharrachadh.',
+    watching: (name: string, added: number) => `A' cumail sùil air ${name} · air an cur ris: ${added}`,
+    arriving: (n: number) => `a' ruighinn: ${n}`,
+    problem: (name: string) => `${name}: cha ghabh a leughadh an-dràsta. A' cumail sùil fhathast: thig dealbhan a-steach nuair a thilleas e.`,
+    stop: 'Sguir',
+    stopHint: 'Sguir a chumail sùil air a\' phasgan. Fuirichidh na dealbhan a chaidh a chur ris.',
+    notHere: 'Feumaidh tu aplacaid deasg InFlight, no Chrome no Edge, airson sùil a chumail air pasgan.',
   },
 };

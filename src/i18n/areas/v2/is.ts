@@ -321,6 +321,7 @@ export const is: AreaTranslation<typeof source> = {
       analysing: 'Greini',
       ready: 'Tilbúin til breytinga',
       unavailable: 'Frumrit ekki tiltækt',
+      unsupported: 'Ekki læsilegt enn',
     },
     nothingMatches: 'Engar myndir passa við núverandi síu.',
   },
@@ -1975,5 +1976,17 @@ export const is: AreaTranslation<typeof source> = {
     whileAway: 'Á meðan þú varst í burtu:',
     allowSystem: 'Láta mig líka vita í bakgrunni',
     dismiss: 'Loka',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Taka beint',
+    watchHint: 'Fylgjast með möppu sem tengiforritið eða myndavélin skrifar í, og bæta hverri nýrri mynd við um leið og hún berst. Engu í möppunni er fært eða breytt.',
+    watching: (name: string, added: number) => `Fylgist með ${name} · bætt við: ${added}`,
+    arriving: (n: number) => `á leiðinni: ${n}`,
+    problem: (name: string) => `${name}: er ekki hægt að lesa núna. Fylgist enn með: myndir berast þegar hún kemur aftur.`,
+    stop: 'Stöðva',
+    stopHint: 'Hætta að fylgjast með möppunni. Myndir sem þegar var bætt við verða áfram.',
+    notHere: 'Til að fylgjast með möppu þarf InFlight-skjáborðsforritið, eða Chrome eða Edge.',
   },
 };

@@ -8,7 +8,8 @@ import {
   MAX_RAW_DEVELOP_PREVIEW_BYTES,
   type OfflinePreviewPair,
 } from './offlinePreviewCache';
-import { extractNefPreview } from '../core/nefPreview';
+import { extractNefPreview, extractSmallRawPreview } from '../core/nefPreview';
+import { unsupportedRawCompression, type UnsupportedRawCompression } from '../core/rawCompression';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
 import { isHeifFile, isRawPreviewFile, looksLikeHeif } from '../core/rawFormats';
 import { decodeHeifForDisplay } from './heifDecode';
@@ -225,6 +226,30 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const blob = this.localBlobs.get(stableKey);
     if (blob) return { size: blob.size, lastModified: (blob as File).lastModified };
     return this.linked.get(stableKey);
+  }
+
+  private unsupported = new Map<string, Promise<UnsupportedRawCompression | null>>();
+
+  /**
+   * A DNG whose main image uses a compression InFlight can't read yet (JPEG XL), from its header only: the held original,
+   * or a ranged read of a linked one (never a full read). Null when it is readable, not a DNG, or not connected.
+   */
+  unsupportedCompression(frame: PhotoFrame): Promise<UnsupportedRawCompression | null> {
+    if (frame.isDemo || !/.dng$/i.test(frame.filename)) return Promise.resolve(null);
+    const key = `${frame.stableKey}|${frame.originalSha256 ?? ''}`;
+    let known = this.unsupported.get(key);
+    if (!known) {
+      known = (async () => {
+        const held = this.localBlobs.get(frame.stableKey);
+        if (held) return unsupportedRawCompression(held);
+        const range = await this.linked.get(frame.stableKey)?.openRange?.().catch(() => null);
+        if (!range) return null;
+        const found = await unsupportedRawCompression(range.blob as unknown as Blob);
+        return await range.verify() ? found : null;
+      })().catch(() => null);
+      this.unsupported.set(key, known);
+    }
+    return known;
   }
 
   hasBlob(stableKey: string): boolean {
@@ -806,6 +831,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (savedDevelop) shownSource = 'raw-review';
         reviewFallback = Boolean(previewBlob);
       }
+      // Last resort: the camera's small preview (such as a JPEG XL DNG's 256 px one), labelled as the camera preview.
+      if (!previewBlob) previewBlob = await extractSmallRawPreview(blob);
     } else if (blob && await isHeifOriginal(frame.filename, blob)) {
       // An undecodable HEIF has no picture to show; the interface says so rather than showing anything else.
       previewBlob = await this.heifPicture(blob).catch(() => null);
@@ -918,13 +945,18 @@ export class BrowserPreviewProvider implements PreviewProvider {
     let sourceBlob: Blob = blob;
     if (isRawPreviewFile(frame.filename)) {
       const extracted = await extractNefPreview(blob);
-      if (!extracted) {
+      if (extracted) sourceBlob = extracted;
+      else {
         const cached = await this.loadOfflinePreviews(cacheKey);
-        if (!cached) return '';
-        const url = this.tagUrl(URL.createObjectURL(cached.thumbnail), shownAs);
-        return this.rememberThumbnailUrl(frame, url, revision, epoch);
+        if (cached) {
+          const url = this.tagUrl(URL.createObjectURL(cached.thumbnail), shownAs);
+          return this.rememberThumbnailUrl(frame, url, revision, epoch);
+        }
+        // Last resort: the camera's small preview (such as a JPEG XL DNG's 256 px one), labelled as the camera preview.
+        const small = await extractSmallRawPreview(blob);
+        if (!small) return '';
+        sourceBlob = small;
       }
-      sourceBlob = extracted;
     } else if (await isHeifOriginal(frame.filename, blob)) {
       try {
         sourceBlob = await this.heifPicture(blob);

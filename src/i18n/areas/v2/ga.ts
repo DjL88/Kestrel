@@ -324,6 +324,7 @@ export const ga: AreaTranslation<typeof source> = {
       analysing: 'Ag déanamh anailíse',
       ready: 'Réidh le cur in eagar',
       unavailable: 'Níl an bunghrianghraf ar fáil',
+      unsupported: 'Ní féidir a léamh fós',
     },
     nothingMatches: 'Níl aon ghrianghraf ag meaitseáil leis an scagaire reatha.',
   },
@@ -1978,5 +1979,17 @@ export const ga: AreaTranslation<typeof source> = {
     whileAway: 'Fad a bhí tú as láthair:',
     allowSystem: 'Inis dom sa chúlra freisin',
     dismiss: 'Dún',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Grianghrafadh beo',
+    watchHint: 'Coinnigh súil ar fhillteán ina scríobhann d\'aip cheangail nó do cheamara, agus cuir gach grianghraf nua leis a luaithe a thagann sé. Ní bhogtar ná ní athraítear aon rud san fhillteán.',
+    watching: (name: string, added: number) => `Ag faire ar ${name} · curtha leis: ${added}`,
+    arriving: (n: number) => `ag teacht: ${n}`,
+    problem: (name: string) => `${name}: ní féidir é a léamh faoi láthair. Ag faire fós: tiocfaidh grianghraif isteach nuair a bheidh sé ar ais.`,
+    stop: 'Stop',
+    stopHint: 'Stop ag faire ar an bhfillteán. Fanann na grianghraif atá curtha leis cheana.',
+    notHere: 'Chun faire ar fhillteán, teastaíonn aip deisce InFlight, nó Chrome nó Edge.',
   },
 };

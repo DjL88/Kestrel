@@ -55,3 +55,14 @@ test('cloud edit settings (x-std-cloud-recipe) stay off until the owner switches
   const plane = code('control-plane.tf');
   assert.match(plane, /var\.cloud_processing_enabled && var\.cloud_runner_image != "" && var\.cloud_recipe_enabled \? \{ KCP_CLOUD_RECIPE_ENABLED = "1" \}/);
 });
+
+test('Cloud Vision (SafeSearch) is enabled only by safety.tf, and only when the owner switches it on', () => {
+  assert.deepEqual(files.filter((f) => code(f).includes('vision.googleapis.com')), ['safety.tf']);
+  const tf = code('safety.tf');
+  assert.match(tf, /variable "safesearch_enabled"\s*\{[^}]*default\s*=\s*false/s);
+  assert.match(tf, /variable "ncmec_environment"\s*\{[^}]*default\s*=\s*"test"/s);
+  const resource = tf.slice(tf.indexOf('resource "google_project_service" "vision"'));
+  assert.match(resource, /count\s*=\s*var\.safesearch_enabled \? 1 : 0/);
+  assert.match(tf, /var\.safesearch_enabled \? \{ KCP_SAFESEARCH_ENABLED = "1" \}/);
+  assert.match(code('control-plane.tf'), /for_each = local\.safety_env/);
+});

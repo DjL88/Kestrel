@@ -26,7 +26,7 @@ test('sharing is not contacted without a control plane or a signed-in person', a
   assert.equal(collabClient(undefined, async () => 'id', fetcher).configured, false);
 });
 
-test('each action exchanges the Firebase token for a session, sends no cookies, and maps refusals to plain kinds', async () => {
+test('the first action exchanges the Firebase token for a session, sends no cookies, and maps refusals to plain kinds', async () => {
   const { calls, fetcher } = fakeServer({
     ...session,
     'POST /v1/collab/projects': (body) => body.name === 'Kites' ? [200, { projectId: 'p1' }] : [403, { error: { code: 'COLLAB_NOT_ENTITLED', message: 'Cloud plan' } }],
@@ -42,4 +42,43 @@ test('each action exchanges the Firebase token for a session, sends no cookies, 
   const view = await client.invite('p1', 'a@b.test', 'client', ['x1']);
   assert.equal(view.invites[0].role, 'client');
   assert.deepEqual(calls.at(-1)!.body, { kind: 'inviteEmail', email: 'a@b.test', role: 'client', photoIds: ['x1'], language: 'en-GB' });
+});
+
+test('one sign-in serves many actions: the session is reused until the ID token changes, it nears expiry, or the server refuses it', async () => {
+  let issued = 0;
+  let accepted = new Set<string>();
+  const { calls, fetcher } = fakeServer({
+    'POST /v1/auth/firebase': () => { issued += 1; accepted.add(`Bearer s${issued}`); return [200, { accessToken: `s${issued}`, expiresIn: 900 }]; },
+    'GET /v1/collab/projects': (_b, auth) => (auth && accepted.has(auth) ? [200, { projects: [] }] : [401, { error: { code: 'UNAUTHORIZED', message: 'Sign in again.' } }]),
+  });
+  let idToken = 'firebase-a';
+  const client = collabClient('https://cp.example.test', async () => idToken, fetcher);
+  // A gallery of many photos is dozens of calls; the control plane allows 10 sign-ins a minute from one address.
+  await Promise.all(Array.from({ length: 12 }, () => client.myProjects()));
+  for (let i = 0; i < 12; i += 1) await client.myProjects();
+  assert.equal(calls.filter((c) => c.url.endsWith('/v1/auth/firebase')).length, 1);
+  assert.ok(calls.filter((c) => !c.url.endsWith('/auth/firebase')).every((c) => c.auth === 'Bearer s1'));
+
+  idToken = 'firebase-b'; // signed in as someone else, or Firebase refreshed the ID token
+  await client.myProjects();
+  assert.equal(issued, 2);
+  assert.equal(calls.at(-1)!.auth, 'Bearer s2');
+
+  accepted = new Set(); // the server restarted: the reused session is refused once, then one fresh sign-in
+  await client.myProjects();
+  assert.equal(issued, 3);
+  assert.equal(calls.at(-1)!.auth, 'Bearer s3');
+
+  accepted = new Set(); // refused again straight after a fresh sign-in: no loop, the person is asked to sign in
+  issued = 100;
+  const original = Date.now;
+  try {
+    Date.now = () => original() + 900_000; // past the session's life: a fresh exchange, not a retry
+    await assert.rejects(async () => { accepted = new Set(); const c2 = collabClient('https://cp.example.test', async () => 'firebase-c', (async (url: string, init: RequestInit) => {
+      if (url.endsWith('/auth/firebase')) return new Response(JSON.stringify({ accessToken: 'never-accepted', expiresIn: 900 }), { status: 200 });
+      return new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'no' } }), { status: 401 });
+    }) as unknown as typeof fetch); await c2.myProjects(); }, (e: CollabError) => e.kind === 'sign-in');
+    await client.myProjects();
+    assert.equal(issued, 101, 'an expired session is exchanged again before use');
+  } finally { Date.now = original; }
 });

@@ -321,6 +321,7 @@ export const de: AreaTranslation<typeof source> = {
       analysing: 'Wird analysiert',
       ready: 'Bereit zur Bearbeitung',
       unavailable: 'Original nicht verfügbar',
+      unsupported: 'Noch nicht lesbar',
     },
     nothingMatches: 'Keine Fotos entsprechen dem aktuellen Filter.',
   },
@@ -1975,5 +1976,17 @@ export const de: AreaTranslation<typeof source> = {
     whileAway: 'Während Sie weg waren:',
     allowSystem: 'Auch im Hintergrund melden',
     dismiss: 'Schließen',
+  },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Live fotografieren',
+    watchHint: 'Einen Ordner beobachten, in den Ihre Tether-App oder Kamera schreibt, und jedes neue Foto hinzufügen, sobald es ankommt. Im Ordner wird nichts verschoben oder verändert.',
+    watching: (name: string, added: number) => `Beobachtet ${name} · hinzugefügt: ${added}`,
+    arriving: (n: number) => `kommen an: ${n}`,
+    problem: (name: string) => `${name}: ist gerade nicht lesbar. Wird weiter beobachtet: Fotos kommen, sobald er wieder da ist.`,
+    stop: 'Beenden',
+    stopHint: 'Ordner nicht mehr beobachten. Bereits hinzugefügte Fotos bleiben.',
+    notHere: 'Zum Beobachten eines Ordners brauchen Sie die InFlight-Desktop-App oder Chrome bzw. Edge.',
   },
 };
