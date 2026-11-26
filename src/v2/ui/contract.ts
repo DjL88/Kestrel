@@ -677,6 +677,8 @@ export interface ExportRequest {
   photoIds: string[];
   /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
   brandKitId?: string;
+  /** Captions and credits (IPTC) written into each JPEG or PNG, with code replacements. Absent = none. */
+  captions?: import('../../core/captionTemplate').CaptionTemplate;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back

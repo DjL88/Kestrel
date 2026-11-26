@@ -17,6 +17,8 @@ import {
   writeLastExport, writePresets, type ExportSettings, type SavedExportPreset,
 } from '../../engineClient/exportSettings';
 import BrandKitSection, { type BrandKitChoice } from './BrandKitSection';
+import CaptionsSection from './CaptionsSection';
+import { readCaptionTemplate, writeCaptionTemplate, type CaptionTemplate } from '../../../core/captionTemplate';
 
 const deviceStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
   try { return window.localStorage; } catch { return null; }
@@ -33,6 +35,8 @@ interface ExportDialogProps {
   onSaveBrandKit?: (photoId: string, name: string) => boolean;
   onEditBrandKit?: (kitId: string, change: { name?: string; fromPhotoId?: string }) => boolean;
   onDeleteBrandKit?: (kitId: string) => void;
+  /** Print and soft proof the shown photo instead of saving files. */
+  onPrint?: () => void;
 }
 
 const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; sizeIds: string[] }> = [
@@ -54,6 +58,7 @@ export default function ExportDialog({
   onSaveBrandKit,
   onEditBrandKit,
   onDeleteBrandKit,
+  onPrint,
 }: ExportDialogProps) {
   const d = DEFAULT_EXPORT_SETTINGS;
   const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>(d.fileFormat);
@@ -72,6 +77,9 @@ export default function ExportDialog({
   const [presetName, setPresetName] = useState('');
   const [presetNote, setPresetNote] = useState('');
   const [brandKitId, setBrandKitId] = useState('');
+  // Captions and credits: one template on this device, used by every export until changed.
+  const [captions, setCaptions] = useState<CaptionTemplate>(() => readCaptionTemplate(deviceStorage()));
+  const changeCaptions = (next: CaptionTemplate) => { setCaptions(next); writeCaptionTemplate(deviceStorage(), next); };
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
@@ -164,7 +172,7 @@ export default function ExportDialog({
     if (!rawMaster) { const store = deviceStorage(); if (store) writeLastExport(store, settings); }
     const request = requestFromSettings(settings, target, rawMaster, rawMasterFormat);
     const kit = !rawMaster && brandKits?.some((item) => item.id === brandKitId) ? brandKitId : '';
-    onExport(kit ? { ...request, brandKitId: kit } : request);
+    onExport({ ...request, ...(kit ? { brandKitId: kit } : {}), ...(!rawMaster && captions.enabled ? { captions } : {}) });
   };
 
   return (
@@ -275,6 +283,7 @@ export default function ExportDialog({
                 })}
               </div>
             </section>
+            <CaptionsSection template={captions} onChange={changeCaptions} />
             {canRequestRaw && (
               <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
                 <div className="flex flex-wrap gap-2">
@@ -454,6 +463,12 @@ export default function ExportDialog({
             {photoIds.length > 1 || selectedGroupIds.length === 1 ? 'group' : 'groups'}
           </span>
           <div className="flex items-center gap-2">
+            {onPrint && (
+              <button type="button" onClick={onPrint}
+                className="h-9 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                {STRINGS.print.menu}
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
