@@ -55,6 +55,13 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
+/**
+ * Freeing a device by hand: at most this many per licence in any rolling year (owner, 26 Nov 2026), so one licence is
+ * not passed round several people. Automatic swaps of a long-unused device (SWAP_IDLE_DAYS) do not count. Support can
+ * reset it (POST /v1/admin/licences/:id/releases/reset).
+ */
+export const DEVICE_RELEASES_PER_YEAR = 3;
+const YEAR_MS = 365 * 86_400_000;
 /** A device unused this long is freed automatically when a new one needs its slot (a phone swap). */
 export const SWAP_IDLE_DAYS = 30;
 const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: number | null }, now: number) =>
@@ -838,6 +845,25 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
+  /** Hand-made device frees for this licence within the last year, oldest first (setting `device-releases:<id>`). */
+  async function recentReleases(licenceId: string, at: number): Promise<number[]> {
+    let list: unknown = [];
+    try { list = JSON.parse((await store.getSetting(`device-releases:${licenceId}`)) ?? '[]'); } catch { /* damaged: treat as none */ }
+    return (Array.isArray(list) ? list : []).filter((t): t is number => Number.isSafeInteger(t) && t > at - YEAR_MS && t <= at).sort((a, b) => a - b);
+  }
+
+  /** Free a device by hand, within the yearly allowance. Kind words when it is used up; support can reset it. */
+  async function releaseWithinAllowance(licenceId: string, activationId: string, at: number): Promise<boolean> {
+    const recent = await recentReleases(licenceId, at);
+    if (recent.length >= DEVICE_RELEASES_PER_YEAR) {
+      const next = new Date(recent[0]! + YEAR_MS).toISOString().slice(0, 10);
+      throw new ApiError(429, 'RELEASE_LIMIT', `You have already moved Pro between devices ${DEVICE_RELEASES_PER_YEAR} times this year, which is the most one licence allows. Another move opens on ${next}. A device you have not used for 30 days is still freed for you when you add a new one, and if you need help sooner, contact support and we will sort it out.`);
+    }
+    if (!(await store.deactivateDevice(activationId))) return false;
+    await store.setSetting(`device-releases:${licenceId}`, JSON.stringify([...recent, at]));
+    return true;
+  }
+
   /**
    * Activate a device, with grace for a swap (a new phone replacing an old one): when every slot is taken, the device
    * that has gone longest unseen is freed, but only if it has not been used for SWAP_IDLE_DAYS. Anything else is the
@@ -1244,7 +1270,7 @@ export function createApp(options: AppOptions) {
         // Never accept a licence/account id from the client or disclose other accounts' devices.
         if (!device) throw new ApiError(404, 'NOT_FOUND', 'That device is not using this account’s current Pro licence.');
         if (device.deviceHash === body.deviceHash) throw new ApiError(400, 'CURRENT_DEVICE', 'Choose another device to free its slot.');
-        if (!(await store.deactivateDevice(device.activationId))) throw new ApiError(404, 'NOT_FOUND', 'That device is no longer using this licence.');
+        if (!(await releaseWithinAllowance(licence.licenceId, device.activationId, now()))) throw new ApiError(404, 'NOT_FOUND', 'That device is no longer using this licence.');
         await audit(claims.sub, 'device.deactivate.account', 'allowed', device.activationId);
         return { status: 200, body: { deactivated: true } };
       },
@@ -1277,7 +1303,7 @@ export function createApp(options: AppOptions) {
         const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const devices = await store.listActivationsForLicence(check.details.id);
-        if (!devices.some((d) => d.activationId === body.activationId) || !(await store.deactivateDevice(body.activationId))) {
+        if (!devices.some((d) => d.activationId === body.activationId) || !(await releaseWithinAllowance(check.details.id, body.activationId, now()))) {
           throw new ApiError(404, 'NOT_FOUND', 'That device is not using this licence.');
         }
         await audit(`licence:${check.details.id}`, 'device.deactivate.self', 'allowed', body.activationId);
@@ -2500,6 +2526,15 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'licence.revoke');
         if (!(await store.setLicenceStatus(params.id, 'revoked', now()))) throw new ApiError(404, 'NOT_FOUND', 'No such licence.');
         return adminDone(claims, 'licence.revoke', params.id, { revoked: true });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/licences/:id/releases/reset', summary: 'Support: give a licence its yearly device moves back (for example after a lost or broken device)', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'licence.releases.reset');
+        if (!(await store.getLicence(params.id))) throw new ApiError(404, 'NOT_FOUND', 'No such licence.');
+        await store.setSetting(`device-releases:${params.id}`, '[]');
+        return adminDone(claims, 'licence.releases.reset', params.id, { reset: true });
       },
     },
     {

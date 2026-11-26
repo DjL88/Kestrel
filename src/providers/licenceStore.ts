@@ -256,6 +256,8 @@ export async function attachDeviceKeyToAccount(idToken: string): Promise<'none' 
   return sync.attachKey(idToken, key);
 }
 export const freeAccountLicenceDevice = (idToken: string, activationId: string) => sync.releaseAccountDevice(idToken, activationId);
+/** Why the last device free was refused, in the server's kind words, when the yearly allowance is used up. */
+export const deviceReleaseRefusal = (): string | null => sync.releaseRefusal;
 
 /** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */
 export const startProCheckout = (idToken: string) => sync.startProCheckout(idToken);

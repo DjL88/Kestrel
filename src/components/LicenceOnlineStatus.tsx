@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { LicenceState } from '../providers/licenceStore';
-import { checkLicenceNow, freeLicenceDevice, licenceDevices, licenceOnlineConfigured } from '../providers/licenceStore';
+import { checkLicenceNow, deviceReleaseRefusal, freeLicenceDevice, licenceDevices, licenceOnlineConfigured } from '../providers/licenceStore';
 import { checkInDaysLeft } from '../core/licenceOnline';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { projectsText as t } from '../i18n/areas/projects';
@@ -70,7 +70,7 @@ export function LicenceOnlineStatus({ licence }: { licence: Extract<LicenceState
                         if (!window.confirm(t.licence.confirmFree)) return;
                         void run(async () => {
                           const ok = await freeLicenceDevice(device.activationId);
-                          setNote(ok ? t.licence.freed : t.licence.couldNotFree);
+                          setNote(ok ? t.licence.freed : deviceReleaseRefusal() ?? t.licence.couldNotFree);
                           if (ok) setDevices((await licenceDevices()) ?? 'unavailable');
                         });
                       }}>{t.licence.free}</button>

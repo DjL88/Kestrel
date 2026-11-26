@@ -24,7 +24,7 @@ export function licenceKeyMail(key: string, majorVersion: number): { subject: st
       'Your licence key:',
       key,
       'Signing in to InFlight adds this key for you. You can also paste it in Settings, Account, Licence key. It works with no internet connection and no account.',
-      `It covers InFlight ${majorVersion} on up to 5 of your devices. To use it on another device, free one in Settings, Account. A device you have not used for 30 days is freed for you when you add a new one.`,
+      `It covers InFlight ${majorVersion} on up to 5 of your devices. To use it on another device, free one in Settings, Account. A device you have not used for 30 days is freed for you when you add a new one. You can free devices yourself up to 3 times a year, and support can help if you need more.`,
       'Keep this email. If you ask for a refund, the key stops working.',
     ].join('\n\n'),
   };
