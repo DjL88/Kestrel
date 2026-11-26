@@ -37,6 +37,8 @@ export const FEATURES = {
   // Settings → Account "Download my data" and "Delete my account". Off for everyone until an admin flag turns it on
   // (the owner checks the wording first). Not a paid feature: once on, it is for every signed-in person.
   accountData: 'flagged',
+  // Focus stacking: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  focusStack: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;
