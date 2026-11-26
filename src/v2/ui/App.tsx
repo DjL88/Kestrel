@@ -51,6 +51,10 @@ import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
+import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
+import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
+import { launchedBefore } from '../../providers/launchMemory';
+const QuickSetup = React.lazy(() => import('./screens/QuickSetup'));
 import type { MenuAction } from './commands/menuMap';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
@@ -187,6 +191,30 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const accountButton = accountPanel && isSignInConfigured()
     ? <AccountButton name={accountName} onOpen={() => actions.setSettingsOpen(true, 'account')} />
     : undefined;
+  // Quick setup (src/core/quickSetup.ts): apply what it chose, open Settings at Pro or Storage when asked, run it again
+  // from Settings (and carry on after its language step restarts the app), and, once signed in, pick up the answers
+  // saved on the account (another device, an earlier sign-in) instead of asking again.
+  const [setupOpen, setSetupOpen] = React.useState(() => launchedBefore() && readSetup()?.status === 'in-progress');
+  const setupActions = React.useRef(actions);
+  setupActions.current = actions;
+  React.useEffect(() => {
+    const consume = () => {
+      const result = takeSetupResult();
+      if (result) {
+        if (Object.keys(result.settings).length > 0) setupActions.current.updateSettings(result.settings);
+        if (result.openTab) setupActions.current.setSettingsOpen(true, result.openTab);
+      }
+      if (takeSetupAgain()) { setupActions.current.setSettingsOpen(false); setSetupOpen(true); }
+    };
+    consume();
+    return onSetupBridge(consume);
+  }, []);
+  const setupSynced = React.useRef(false);
+  React.useEffect(() => {
+    if (!accountName || setupSynced.current) return;
+    setupSynced.current = true;
+    void syncSetupWithAccount().then((answers) => { if (answers) void applyAccountSetup(answers); });
+  }, [accountName]);
   // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
@@ -1535,6 +1563,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onClose={() => actions.setRemovedOpen(false)}
       /></React.Suspense>
 
+      {setupOpen && (
+        <div role="dialog" aria-modal="true" aria-label={STRINGS.setup.title} data-testid="quick-setup-dialog"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)]">
+            <React.Suspense fallback={null}>
+              <QuickSetup online={typeof navigator === 'undefined' || navigator.onLine} signedInName={accountName}
+                onSignIn={() => { setSetupOpen(false); actions.setSettingsOpen(true, 'account'); }} onClose={() => setSetupOpen(false)} />
+            </React.Suspense>
+          </div>
+        </div>
+      )}
       <React.Suspense fallback={null}><SettingsDialog
         open={store.settingsOpen}
         activeTab={store.settingsTab}

@@ -7,6 +7,7 @@ import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, signEnvelope } from './crypto.ts';
 import { mintLicenceKey, ownsLicence } from './licenceKeys.ts';
 import { newLicence } from './store.ts';
+import { accountCopy, parseSetupAnswers } from '../../../src/core/quickSetup.ts';
 import { PADDLE_TRANSACTION_ID } from './commerce/paddle.ts';
 import { caseForUploader } from './contentSafety.ts';
 import { ApiError, parseJson } from './http.ts';
@@ -277,6 +278,27 @@ export function meRoutes(ctx: AppContext): Route[] {
       await store.setAiConsent(claims.sub, body.consent);
       await audit(claims.sub, 'ai.consent.set', 'allowed', body.consent ? 'granted' : 'withdrawn');
       return { status: 200, body: { aiConsent: body.consent } };
+    },
+  },
+
+  // ---- App preferences kept with the account (quick setup's answers), so signing in elsewhere doesn't ask again.
+  {
+    method: 'GET', path: '/v1/me/preferences', summary: 'Signed in: the app preferences kept with this account (quick setup: language, what you shoot, experience, cloud choice, Flight mode, finished)', auth: 'user',
+    handler: async (req) => {
+      const claims = await bearer(req);
+      return { status: 200, body: { preferences: (await store.getPreferences(claims.sub)) ?? {} } };
+    },
+  },
+  {
+    method: 'POST', path: '/v1/me/preferences', summary: 'Signed in: save quick setup\'s answers with this account. Only known answers are kept; nothing about photos', auth: 'user', body: Schemas.PreferencesRequest,
+    handler: async (req) => {
+      const claims = await bearer(req);
+      const body = parseJson(Schemas.PreferencesRequest, req.rawBody);
+      const setup = parseSetupAnswers(body.setup);
+      if (!setup || setup.status === 'in-progress') throw new ApiError(400, 'BAD_PREFERENCES', 'Those setup answers could not be read. Nothing was changed.');
+      const preferences = { ...((await store.getPreferences(claims.sub)) ?? {}), setup: accountCopy(setup) };
+      await store.setPreferences(claims.sub, preferences);
+      return { status: 200, body: { preferences } };
     },
   },
 

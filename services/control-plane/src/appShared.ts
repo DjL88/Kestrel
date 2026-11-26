@@ -342,6 +342,8 @@ export const Schemas = {
   AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
   AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
+  /** Quick setup's answers; the route keeps only the fields it knows (src/core/quickSetup.ts). */
+  PreferencesRequest: z.object({ setup: z.record(z.string(), z.unknown()) }).strict(),
 };
 
 // ---- Small helpers -----------------------------------------------------------

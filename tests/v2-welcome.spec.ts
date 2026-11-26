@@ -27,6 +27,8 @@ test('empty storage shows the first-launch welcome; Continue as guest opens the 
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: WELCOME })).toBeVisible();
   await splash.getByRole('button', { name: 'Continue as guest' }).click();
+  // First launch goes on to quick setup, which is never a gate: Skip setup is always there.
+  await splash.getByRole('button', { name: 'Skip setup' }).click();
   await expect(splash).toHaveCount(0, { timeout: 5000 });
   await expect(page.locator('.inflight-v2')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('inflight.launch.launched'))).toBe('1');
@@ -171,6 +173,8 @@ test('while the welcome shows, the workspace beneath is inert: out of reach of s
   });
   expect(tookFocus).toBe(false);
   await splash.getByRole('button', { name: 'Continue as guest' }).click();
+  // First launch goes on to quick setup, which is never a gate: Skip setup is always there.
+  await splash.getByRole('button', { name: 'Skip setup' }).click();
   await expect(splash).toHaveCount(0, { timeout: 5000 });
   for (const element of await beneath.all()) await expect(element).not.toHaveAttribute('inert');
   await expect(page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();

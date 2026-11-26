@@ -8,6 +8,8 @@ import { aiProviderControl, cacheCapControl } from '../../engineClient/realSetti
 import CloudUsagePanel from '../panels/CloudUsagePanel';
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
+import { restartSetup } from '../../../providers/quickSetupMemory';
+import { requestSetupAgain } from '../../setupBridge';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
 import HomeRegionSetting from './HomeRegionSetting';
@@ -467,6 +469,20 @@ export default function SettingsDialog({
                     </form>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Quick setup can be run again at any time, keeping the earlier answers as the starting point. */}
+            {activeTab === 'account' && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3" data-testid="settings-run-setup">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.setup.title}</h3>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{STRINGS.setup.runAgainDesc}</p>
+                </div>
+                <button type="button" onClick={() => { restartSetup(); requestSetupAgain(); }}
+                  className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)]">
+                  {STRINGS.setup.runAgain}
+                </button>
               </div>
             )}
 

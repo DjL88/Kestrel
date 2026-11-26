@@ -17,6 +17,8 @@ test('?v2 plays the launch animation, grows into the welcome, and Continue as gu
   await expect(splash.getByTestId('splash-animation')).toBeVisible();
   await expect(splash).not.toHaveAttribute('aria-hidden', 'true');
   await splash.getByRole('button', { name: 'Continue as guest' }).click();
+  // First launch goes on to quick setup, which is never a gate: Skip setup is always there.
+  await splash.getByRole('button', { name: 'Skip setup' }).click();
   await expect(splash).toHaveCount(0, { timeout: 2000 });
   await expect(page.locator('.inflight-v2')).toBeVisible();
 });
@@ -32,6 +34,8 @@ test('?v2 a key press shows the welcome at once and does not trigger a shortcut 
   await page.keyboard.press('g');
   await expect(page.getByLabel('All photos grid view')).toHaveCount(0);
   await splash.getByRole('button', { name: 'Continue as guest' }).click();
+  // First launch goes on to quick setup, which is never a gate: Skip setup is always there.
+  await splash.getByRole('button', { name: 'Skip setup' }).click();
   await expect(splash).toHaveCount(0, { timeout: 2000 });
   // The phone studio has no Studio tools side panel to wait for, and no keyboard grid shortcut to prove live.
   if (test.info().project.name === 'phone') return;

@@ -45,6 +45,7 @@ export class SqliteStore implements Store {
     // Databases made before accounts carried a standing "use Gemini" preference.
     const accountColumns = this.all<{ name: string }>('PRAGMA table_info(accounts)').map((c) => c.name);
     if (!accountColumns.includes('ai_consent')) this.db.exec('ALTER TABLE accounts ADD COLUMN ai_consent INTEGER NOT NULL DEFAULT 0');
+    if (!accountColumns.includes('preferences')) this.db.exec('ALTER TABLE accounts ADD COLUMN preferences TEXT');
   }
 
   private get<T>(sql: string, ...params: Value[]): T | undefined { return this.db.prepare(sql).get(...params) as T | undefined; }
@@ -78,6 +79,14 @@ export class SqliteStore implements Store {
   async getAccount(accountId: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE account_id = ?', accountId); return r && account(r); }
   async setAccountRole(accountId: string, role: Role): Promise<void> { this.run('UPDATE accounts SET role = ? WHERE account_id = ?', role, accountId); }
   async setAccountStatus(accountId: string, status: AccountRecord['status']): Promise<void> { this.run('UPDATE accounts SET status = ? WHERE account_id = ?', status, accountId); }
+  async getPreferences(accountId: string): Promise<Record<string, unknown> | undefined> {
+    const row = this.get<{ preferences: string | null }>('SELECT preferences FROM accounts WHERE account_id = ?', accountId);
+    if (!row?.preferences) return undefined;
+    try { const value: unknown = JSON.parse(row.preferences); return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined; } catch { return undefined; }
+  }
+  async setPreferences(accountId: string, preferences: Record<string, unknown>): Promise<void> {
+    this.run('UPDATE accounts SET preferences = ? WHERE account_id = ?', JSON.stringify(preferences), accountId);
+  }
   async setAiConsent(accountId: string, consent: boolean): Promise<void> { this.run('UPDATE accounts SET ai_consent = ? WHERE account_id = ?', consent ? 1 : 0, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 
