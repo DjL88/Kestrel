@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Game controllers through the browser's Gamepad API (Settings > Keyboard > Game controller, off by default).
+// Game controllers through the browser's Gamepad API (Settings > Keyboard > Game controller, on unless switched off).
 // The controller is mocked: navigator.getGamepads returns a standard-layout pad the test presses buttons on.
 // NOT a real controller: real Xbox, PlayStation and Switch Pro pads are not verified by this test.
 
@@ -79,25 +79,34 @@ async function openAdjust(root: ReturnType<Page['locator']>) {
   return exposure;
 }
 
-test('a controller does nothing until switched on, then its stick turns the slider and its buttons can be remapped', async ({ page }, testInfo) => {
+test('a controller is on out of the box, does nothing when switched off, and its stick turns the slider and its buttons can be remapped', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Settings > Keyboard is laid out for desktop; the mapping is the same on every platform.');
   await mockGamepad(page);
   const root = await openPhoto(page);
   const exposure = await openAdjust(root);
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.connect());
 
-  // Off by default: nothing reads the controller, so a pushed stick moves nothing.
+  // Settings > Keyboard > Game controller: on out of the box. Switch it off.
+  await page.keyboard.press('Control+Comma');
+  const settings = page.getByRole('dialog').filter({ hasText: 'Settings' }).first();
+  await settings.getByRole('tab', { name: /Keyboard/ }).click();
+  const toggle = settings.getByRole('switch', { name: 'Use a game controller' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+
+  // Switched off: nothing reads the controller, so a pushed stick moves nothing.
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.axis(0, 0.8));
   await page.waitForTimeout(500);
   await expect(exposure).toHaveValue('0');
   expect(await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.settled())).toBe(false);
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.reset());
 
-  // Settings > Keyboard > Game controller: switch it on. While Settings is open, a press is only reported.
+  // Switch it back on. While Settings is open, a press is only reported.
   await page.keyboard.press('Control+Comma');
-  const settings = page.getByRole('dialog').filter({ hasText: 'Settings' }).first();
   await settings.getByRole('tab', { name: /Keyboard/ }).click();
-  const toggle = settings.getByRole('switch', { name: 'Use a game controller' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');

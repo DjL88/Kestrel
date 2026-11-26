@@ -1644,10 +1644,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return 'Applied the cloud\'s edit settings. Undo takes them back.';
   }, [editFrames]);
 
-  // Personal editing style (x-spec-personal-style, a preview that is off by default): when Auto's edit is applied, the
+  // Personal editing style (x-spec-personal-style, on by default; an admin flag can switch it off): when Auto's edit is applied, the
   // photo is remembered; when the person moves on, what they kept, undid or corrected is learnt on this device only.
   // Auto leans only after enough consistent examples (src/core/editStyle.ts). Nothing is ever sent anywhere.
-  const editStyleOn = workflowPreviewOn('editStyle');
+  const editStyleOn = can('editStyle') || workflowPreviewOn('editStyle');
   const pendingStyle = useRef(new Map<string, { base: PhotoEdit; applied: PhotoEdit; multipliers: Partial<Record<StyleKey, number>> }>());
   const noteAutoApplied = useCallback((frameId: string, run: AutoRun, applied: PhotoEdit) => {
     if (!editStyleOn) return;

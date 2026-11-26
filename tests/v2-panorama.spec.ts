@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Panorama stitching (preview, off by default): three overlapping frames of one synthetic scene become one new linked
 // photo, wider than any frame and cropped to real pixels. The originals stay in the project unchanged, the new photo
-// says what it was made from, and with the preview switch off the photo menu does not offer it at all.
+// says what it was made from, and it is offered by default (an admin flag can switch it off).
 
 test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop filmstrip menu and shift-click selection.'); });
 
@@ -90,7 +90,7 @@ test('three overlapping frames become one new, wider photo cropped to real pixel
   expect(await shownSize(page, root)).toEqual({ width: W, height: H });
 });
 
-test('with the preview off, the photo menu does not offer panorama stitching', async ({ page }) => {
+test('on by default: without the device switch the photo menu still offers panorama stitching', async ({ page }) => {
   const { root, strip } = await openSweep(page, false);
   const options = strip.getByRole('option');
   await options.nth(0).click();
@@ -98,5 +98,5 @@ test('with the preview off, the photo menu does not offer panorama stitching', a
   await options.nth(1).click({ button: 'right' });
   const menu = root.getByRole('menu');
   await expect(menu.getByRole('menuitem').first()).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /panorama/ })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /panorama/ }).first()).toBeVisible();
 });

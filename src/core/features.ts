@@ -37,24 +37,23 @@ export const FEATURES = {
   // Settings → Account "Download my data" and "Delete my account". Off for everyone until an admin flag turns it on
   // (the owner checks the wording first). Not a paid feature: once on, it is for every signed-in person.
   accountData: 'flagged',
-  // Focus stacking: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
-  focusStack: 'flagged',
-  // Panorama stitching: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
-  panorama: 'flagged',
-  // Saved views (named filter sets for the filmstrip and grid) and "next photo to review" keys: previews, off for
-  // everyone until an admin flag (or this device's preview switch) turns them on. Not a paywall.
-  savedViews: 'flagged',
-  nextToReview: 'flagged',
-  // HDR merge of a bracketed burst: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
-  hdrMerge: 'flagged',
-  // Culling read-ahead (the photos either side of the one on screen are prepared in the background): a preview, off
-  // for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
-  cullWarmup: 'flagged',
+  // On for everyone since 26 Nov 2026 (owner: switch finished, tested, on-device features on by default). An admin
+  // flag can still switch any of them off. Focus stacking, panorama stitching and HDR merge make a new photo and never
+  // touch the sources; saved views and next-to-review keys only change what is shown; culling read-ahead only
+  // prepares previews; the style learner stays on this device and only leans Auto after 5 consistent examples.
+  focusStack: 'free',
+  panorama: 'free',
+  savedViews: 'free',
+  nextToReview: 'free',
+  hdrMerge: 'free',
+  cullWarmup: 'free',
+  editStyle: 'free',
   // Cloud edit settings (x-std-cloud-recipe): the 2,560 px smart preview goes up, a few KB of undoable edit settings
   // come back. A preview, off for everyone until an admin flag (or this device's preview switch) turns it on.
   cloudRecipe: 'flagged',
   // Culling from stored observations (x-std-rescore) and the Culling Assistant's live rule sliders (x-std-cull-rules):
   // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  // Stays off until it is checked on a real shoot that it proposes keepers, not only rejects.
   cullRules: 'flagged',
 } as const;
 

@@ -12,8 +12,9 @@ const proKeys = FEATURE_NAMES.filter((name) => FEATURES[name] === 'paid');
 
 test('Basic includes overlays, custom watermarks and all local photographic essentials', () => {
   assert.deepEqual(FEATURE_NAMES.filter((name) => featureAvailable(name, basic)).sort(),
-    ['autoTab', 'basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'macroPad', 'masks',
-      'overlayText', 'smartCulling', 'speciesId', 'splitFrames', 'subjectDetection', 'watermark', 'watermarkCustom', 'zoomVideo']);
+    ['autoTab', 'basicEditing', 'cropAndStraighten', 'cullWarmup', 'editStyle', 'export', 'focusStack', 'hdrMerge', 'import',
+      'localBackup', 'macroPad', 'masks', 'nextToReview', 'overlayText', 'panorama', 'savedViews', 'smartCulling', 'speciesId',
+      'splitFrames', 'subjectDetection', 'watermark', 'watermarkCustom', 'zoomVideo']);
 });
 
 test('Pro-tagged features are disabled by default even for paid and offline-paid accounts', () => {
