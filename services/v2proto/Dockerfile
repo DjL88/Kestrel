@@ -26,6 +26,8 @@ ARG VITE_KESTREL_MODEL_KEYS=kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3T
 # fails closed if it is missing or malformed (scripts/build-provenance.mjs); Cloud Build passes both (.cloudbuild/v2proto.yaml).
 ARG KESTREL_BUILD_REVISION
 ARG KESTREL_RELEASE=0
+# Sign in with Microsoft: '1' once the Microsoft provider is enabled in Firebase Auth (kestrel-photo); empty hides the button.
+ARG VITE_MICROSOFT_SIGN_IN=
 RUN npx vite build --config vite.v2proto.config.ts
 
 FROM node:24-alpine
