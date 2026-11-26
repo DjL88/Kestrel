@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Small offline workflow extras (previews, off by default): saved views of the filmstrip's filters, and N / Shift+N to
-// jump to the next or previous photo still to review. With the previews off, neither is offered and N does nothing.
+// Small offline workflow extras (on by default since 26 Nov 2026): saved views of the filmstrip's filters, and N / Shift+N to
+// jump to the next or previous photo still to review.
 
 test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop filmstrip and keyboard.'); });
 
@@ -92,16 +92,14 @@ test('a saved view puts every filter back with one choice and is still there aft
   expect(JSON.parse(stored ?? '[]')).toEqual([expect.objectContaining({ name: 'Flagged by name', criteria: expect.objectContaining({ filter: 'flagged', sort: 'filename' }) })]);
 });
 
-test('with the previews off, there are no saved views and N moves nothing', async ({ page }) => {
-  const { root, options, selected } = await openProject(page, false);
+test('on by default: without the device switches, saved views and the next-to-review keys are offered', async ({ page }) => {
+  const { root, options } = await openProject(page, false);
   await options.nth(0).click();
   await root.getByTestId('view-options').first().click();
   await expect(root.getByTestId('view-sort')).toBeVisible();
-  await expect(root.getByTestId('saved-views')).toHaveCount(0);
+  await expect(root.getByTestId('saved-views').first()).toBeVisible();
   await page.keyboard.press('Escape');
   await options.nth(0).click();
-  await page.keyboard.press('n');
-  await expect.poll(selected).toBe(0);
   await page.keyboard.press('?');
-  await expect(page.getByText('Next photo to review')).toHaveCount(0);
+  await expect(page.getByText('Next photo to review').first()).toBeVisible();
 });

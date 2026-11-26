@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Focus stacking (preview, off by default): three frames of a synthetic focus bracket, each sharp in one third, become
 // one new linked photo that is sharper than every frame. The originals stay in the project unchanged, the new photo
-// says what it was made from, and with the preview switch off the menu does not offer it at all.
+// says what it was made from, and it is offered by default (an admin flag can switch it off).
 
 test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop filmstrip menu and shift-click selection.'); });
 
@@ -107,7 +107,7 @@ test('three bracketed frames become one new photo that is sharper than every fra
   expect((await sharpness(page, await shownPicture(root))).value).toBeCloseTo(inputs[0], 1);
 });
 
-test('with the preview off, the photo menu does not offer focus stacking', async ({ page }) => {
+test('on by default: without the device switch the photo menu still offers focus stacking', async ({ page }) => {
   const { root, strip } = await openBracket(page, false);
   const options = strip.getByRole('option');
   await options.nth(0).click();
@@ -115,5 +115,5 @@ test('with the preview off, the photo menu does not offer focus stacking', async
   await options.nth(1).click({ button: 'right' });
   const menu = root.getByRole('menu');
   await expect(menu.getByRole('menuitem').first()).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /Focus stack/ })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /Focus stack/ }).first()).toBeVisible();
 });

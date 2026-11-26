@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // HDR merge (preview, off by default): a synthetic three-frame bracket (−2, 0 and +2 stops of one scene that spans far
 // more than one frame can hold) becomes one new linked photo that keeps detail where the middle frame is blown out and
 // where it is nearly black. The originals stay in the project unchanged, the new photo says what it was made from and
-// each frame's measured exposure, and with the preview switch off the menu does not offer it at all.
+// each frame's measured exposure, and it is offered by default (an admin flag can switch it off).
 
 test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop filmstrip menu and shift-click selection.'); });
 
@@ -108,7 +108,7 @@ test('a three-frame bracket becomes one new photo with detail where the middle f
   expect(again.mean).toBeCloseTo(middleHighlights.mean, 1);
 });
 
-test('with the preview off, the photo menu does not offer HDR merge', async ({ page }) => {
+test('on by default: without the device switch the photo menu still offers HDR merge', async ({ page }) => {
   const { root, strip } = await openBracket(page, false);
   const options = strip.getByRole('option');
   await options.nth(0).click();
@@ -116,5 +116,5 @@ test('with the preview off, the photo menu does not offer HDR merge', async ({ p
   await options.nth(1).click({ button: 'right' });
   const menu = root.getByRole('menu');
   await expect(menu.getByRole('menuitem').first()).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /HDR/ })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /HDR/ }).first()).toBeVisible();
 });
