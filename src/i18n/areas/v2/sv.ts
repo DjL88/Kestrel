@@ -1524,6 +1524,7 @@ export const sv: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lär in tangenten för ${slot}`,
     resetPad: 'Återställ plattan till startinställningen',
+    padFunctionKeys: 'Använd F13 till F21, tangenter som inget tangentbord har',
     gamepadHelp: "Välj vad varje knapp och varje spakriktning gör. Spakarna vrider det senast använda reglaget, eller Exponering, i samma steg som när du drar, så Ångra tar tillbaka det. Kontroller gör ingenting medan Inställningar är öppet, så att du kan prova varje knapp här.",
     gamepadNone: "Ingen kontroll hittades. Anslut en och tryck på valfri knapp så att webbläsaren ser den.",
     gamepadConnected: (name: string) => `Ansluten: ${name}`,

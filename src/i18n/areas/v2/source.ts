@@ -1586,6 +1586,7 @@ export const source = {
     nothing: 'Nothing',
     learnLabel: (slot: string) => `Learn the key for ${slot}`,
     resetPad: 'Reset pad to the starting set-up',
+    padFunctionKeys: 'Use F13 to F21, keys no keyboard has',
     gamepadHelp: 'Choose what each button and stick direction does. The sticks turn the slider you used last, or Exposure, by the same steps as a drag, so Undo takes it back. Controllers do nothing while Settings is open, so you can check each button here.',
     gamepadNone: 'No controller found. Connect one, then press any button on it so the browser can see it.',
     gamepadConnected: (name: string) => `Connected: ${name}`,

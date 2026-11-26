@@ -1525,6 +1525,7 @@ export const gd: AreaTranslation<typeof source> = {
     nothing: 'Dad',
     learnLabel: (slot) => `Ionnsaich an iuchair airson: ${slot}`,
     resetPad: 'Ath-shuidhich am pada gu suidheachadh an tòiseachaidh',
+    padFunctionKeys: 'Cleachd F13 gu F21, iuchraichean nach eil air meur-chlàr sam bith',
     gamepadHelp: "Tagh dè nì gach putan is gach comhair maide. Tionndaidh na maidean an sleamhnag a chleachd thu mu dheireadh, no Nochdadh, sna h-aon cheuman ri slaodadh, mar sin bheir Neo-dhèan air ais e. Cha dèan uidheaman-smachd dad fhad ’s a tha Roghainnean fosgailte, airson ’s gun urrainn dhut gach putan a dhearbhadh an seo.",
     gamepadNone: "Cha deach uidheam-smachd a lorg. Ceangail fear, an uairsin brùth putan sam bith air airson ’s gum faic am brabhsair e.",
     gamepadConnected: (name: string) => `Ceangailte: ${name}`,

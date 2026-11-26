@@ -1524,6 +1524,7 @@ export const fr: AreaTranslation<typeof source> = {
     nothing: 'Rien',
     learnLabel: (slot) => `Apprendre la touche de ${slot}`,
     resetPad: 'Rétablir la configuration de départ du pavé',
+    padFunctionKeys: 'Utiliser F13 à F21, des touches qu’aucun clavier n’a',
     gamepadHelp: "Choisissez l’action de chaque bouton et de chaque direction des joysticks. Les joysticks déplacent le dernier curseur utilisé, ou l’exposition, par les mêmes pas qu’un glissement, donc Annuler revient en arrière. Les manettes ne font rien tant que les Réglages sont ouverts, pour que vous puissiez tester chaque bouton ici.",
     gamepadNone: "Aucune manette trouvée. Branchez-en une, puis appuyez sur un bouton pour que le navigateur la voie.",
     gamepadConnected: (name: string) => `Connectée : ${name}`,

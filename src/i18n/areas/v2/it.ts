@@ -1524,6 +1524,7 @@ export const it: AreaTranslation<typeof source> = {
     nothing: 'Niente',
     learnLabel: (slot) => `Apprendi il tasto per ${slot}`,
     resetPad: 'Ripristina la configurazione iniziale del pad',
+    padFunctionKeys: 'Usa da F13 a F21, tasti che nessuna tastiera ha',
     gamepadHelp: "Scegli cosa fa ogni pulsante e ogni direzione delle levette. Le levette muovono l’ultimo cursore usato, o l’esposizione, con gli stessi passi di un trascinamento, quindi Annulla lo riporta indietro. I controller non fanno nulla mentre le Impostazioni sono aperte, così puoi provare ogni pulsante qui.",
     gamepadNone: "Nessun controller trovato. Collegane uno, poi premi un pulsante qualsiasi perché il browser lo veda.",
     gamepadConnected: (name: string) => `Collegato: ${name}`,

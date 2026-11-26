@@ -1524,6 +1524,7 @@ export const da: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lær tasten for ${slot}`,
     resetPad: 'Nulstil pad’en til startopsætningen',
+    padFunctionKeys: 'Brug F13 til F21, taster som intet tastatur har',
     gamepadHelp: "Vælg, hvad hver knap og hver pindretning gør. Pindene drejer den senest brugte skyder, eller Eksponering, i samme trin som et træk, så Fortryd tager det tilbage. Controllere gør intet, mens Indstillinger er åben, så du kan afprøve hver knap her.",
     gamepadNone: "Ingen controller fundet. Tilslut en, og tryk på en knap, så browseren kan se den.",
     gamepadConnected: (name: string) => `Tilsluttet: ${name}`,

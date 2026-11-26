@@ -1524,6 +1524,7 @@ export const de: AreaTranslation<typeof source> = {
     nothing: 'Nichts',
     learnLabel: (slot) => `Taste für ${slot} anlernen`,
     resetPad: 'Pad auf die Starteinrichtung zurücksetzen',
+    padFunctionKeys: 'F13 bis F21 verwenden, Tasten, die keine Tastatur hat',
     gamepadHelp: "Wählen Sie, was jede Taste und jede Stick-Richtung tut. Die Sticks bewegen den zuletzt benutzten Regler oder die Belichtung in denselben Schritten wie beim Ziehen, sodass Rückgängig es zurücknimmt. Solange die Einstellungen offen sind, tun Controller nichts, damit Sie hier jede Taste prüfen können.",
     gamepadNone: "Kein Controller gefunden. Schließen Sie einen an und drücken Sie eine beliebige Taste, damit der Browser ihn erkennt.",
     gamepadConnected: (name: string) => `Verbunden: ${name}`,

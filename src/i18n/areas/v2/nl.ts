@@ -1524,6 +1524,7 @@ export const nl: AreaTranslation<typeof source> = {
     nothing: 'Niets',
     learnLabel: (slot) => `Toets voor ${slot} aanleren`,
     resetPad: 'Pad terugzetten naar de startinstelling',
+    padFunctionKeys: 'F13 tot en met F21 gebruiken, toetsen die geen toetsenbord heeft',
     gamepadHelp: "Kies wat elke knop en elke stickrichting doet. De sticks draaien de laatst gebruikte schuifregelaar, of Belichting, in dezelfde stappen als slepen, dus Ongedaan maken draait het terug. Controllers doen niets zolang Instellingen open is, zodat u hier elke knop kunt testen.",
     gamepadNone: "Geen controller gevonden. Sluit er een aan en druk op een knop zodat de browser hem ziet.",
     gamepadConnected: (name: string) => `Verbonden: ${name}`,

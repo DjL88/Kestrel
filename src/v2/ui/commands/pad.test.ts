@@ -12,7 +12,7 @@ test('the default pad keeps the keys V1 pads already send, and runs registry com
   assert.equal(run(key({ code: 'ArrowRight', key: 'ArrowRight' })), 'photo.next');
   assert.equal(run(key({ code: 'ArrowLeft', key: 'ArrowLeft', repeat: true })), 'photo.prev'); // a dial may repeat
   assert.equal(run(key({ code: 'KeyK', key: 'k', repeat: true })), undefined); // a held decision key does not
-  assert.equal(PAD_SLOTS.length, 8);
+  assert.equal(PAD_SLOTS.length, 9);
 });
 
 test('a slot can be given another command or another key; pad keys never fire while typing', () => {
@@ -69,4 +69,45 @@ test('pad keys turned off do nothing and leave the guide, and the set-up is kept
   // Turning off forgets nothing: every slot still has its key.
   for (const slot of Object.keys(DEFAULT_PAD) as (keyof typeof DEFAULT_PAD)[]) assert.equal(off[slot].chord, DEFAULT_PAD[slot].chord);
   assert.equal(padInForce(DEFAULT_PAD, true), DEFAULT_PAD);
+});
+
+test('the dial press is a slot of its own: unlearnt and idle by default, and it can be learnt like any key', async () => {
+  const { DEFAULT_PAD, padClashes, padGuideRows, withPadChord, withPadCommand } = await import('./pad');
+  assert.deepEqual(DEFAULT_PAD.KNOB_PRESS, { chord: '', command: null });
+  assert.deepEqual(padClashes(DEFAULT_PAD, keymap), []);
+  assert.equal(padGuideRows(DEFAULT_PAD, keymap).some((row) => row.slot === 'KNOB_PRESS'), false);
+  const pad = withPadCommand(withPadChord(DEFAULT_PAD, 'KNOB_PRESS', 'Enter'), 'KNOB_PRESS', 'view.compare');
+  assert.equal(run(key({ code: 'Enter', key: 'Enter' }), pad), 'view.compare');
+  assert.equal(padSlotFor(key({ code: 'Enter', key: 'Enter' }), pad, false), 'KNOB_PRESS');
+});
+
+test('F13 to F21: each slot keeps its action, only the keys change, and none clashes with the keyboard', async () => {
+  const { DEFAULT_PAD, FUNCTION_KEY_CHORDS, PAD_SLOTS, padClashes, usesFunctionKeys, withFunctionKeys } = await import('./pad');
+  const { effectiveKeymap } = await import('./keymap');
+  const fkeys = withFunctionKeys(DEFAULT_PAD);
+  assert.deepEqual(PAD_SLOTS.map((slot) => FUNCTION_KEY_CHORDS[slot]), ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21']);
+  for (const slot of PAD_SLOTS) assert.equal(fkeys[slot].command, DEFAULT_PAD[slot].command);
+  assert.equal(usesFunctionKeys(fkeys), true);
+  assert.equal(usesFunctionKeys(DEFAULT_PAD), false);
+  assert.equal(run(key({ code: 'F13', key: 'F13' }), fkeys), 'photo.flag');
+  assert.equal(run(key({ code: 'F20', key: 'F20' }), fkeys), 'photo.next');
+  // The old pad keys are free again: Z on the keyboard no longer undoes through the pad.
+  assert.equal(run(key({ code: 'KeyZ', key: 'z' }), fkeys), undefined);
+  for (const preset of ['inflight', 'lightroom'] as const) assert.deepEqual(padClashes(fkeys, effectiveKeymap(preset)), [], preset);
+});
+
+test('a pad saved before the dial press existed loads with the dial press idle, and its other slots kept', async () => {
+  const { DEFAULT_PAD, loadPad } = await import('./pad');
+  const store = new Map<string, string>();
+  const previous = (globalThis as { localStorage?: unknown }).localStorage;
+  (globalThis as { localStorage?: unknown }).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } };
+  try {
+    const old = Object.fromEntries(Object.entries(DEFAULT_PAD).filter(([slot]) => slot !== 'KNOB_PRESS'));
+    store.set('inflight-v2-pad', JSON.stringify({ ...old, K1: { chord: 'KeyJ', command: 'photo.rate5' } }));
+    const pad = loadPad();
+    assert.deepEqual(pad.K1, { chord: 'KeyJ', command: 'photo.rate5' });
+    assert.deepEqual(pad.KNOB_PRESS, { chord: '', command: null });
+  } finally {
+    (globalThis as { localStorage?: unknown }).localStorage = previous;
+  }
 });

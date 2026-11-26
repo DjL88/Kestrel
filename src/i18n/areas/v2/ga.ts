@@ -1527,6 +1527,7 @@ export const ga: AreaTranslation<typeof source> = {
     nothing: 'Faic',
     learnLabel: (slot) => `Foghlaim an eochair do: ${slot}`,
     resetPad: 'Athshocraigh an ceap go dtí an socrú tosaigh',
+    padFunctionKeys: 'Úsáid F13 go F21, eochracha nach bhfuil ar aon mhéarchlár',
     gamepadHelp: "Roghnaigh cad a dhéanann gach cnaipe agus gach treo maide. Casann na maidí an sleamhnán is déanaí a úsáideadh, nó Nochtadh, sna céimeanna céanna le tarraingt, mar sin tugann Cealaigh ar ais é. Ní dhéanann rialtáin aon rud fad atá Socruithe oscailte, ionas gur féidir leat gach cnaipe a sheiceáil anseo.",
     gamepadNone: "Níor aimsíodh rialtán. Ceangail ceann, ansin brúigh cnaipe ar bith air ionas go bhfeicfidh an brabhsálaí é.",
     gamepadConnected: (name: string) => `Ceangailte: ${name}`,

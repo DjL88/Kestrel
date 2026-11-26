@@ -1524,6 +1524,7 @@ export const cy: AreaTranslation<typeof source> = {
     nothing: 'Dim',
     learnLabel: (slot) => `Dysgu’r fysell ar gyfer ${slot}`,
     resetPad: 'Ailosod y pad i’r gosodiad cychwynnol',
+    padFunctionKeys: 'Defnyddio F13 i F21, bysellau nad oes gan unrhyw fysellfwrdd',
     gamepadHelp: "Dewiswch beth mae pob botwm a phob cyfeiriad ffon yn ei wneud. Mae’r ffyn yn troi’r llithrydd a ddefnyddiwyd ddiwethaf, neu Amlygiad, yr un camau â llusgo, felly mae Dadwneud yn ei dynnu’n ôl. Nid yw rheolyddion yn gwneud dim tra bod Gosodiadau ar agor, fel y gallwch wirio pob botwm yma.",
     gamepadNone: "Dim rheolydd wedi’i ganfod. Cysylltwch un, yna pwyswch unrhyw fotwm arno fel bod y porwr yn ei weld.",
     gamepadConnected: (name: string) => `Wedi cysylltu: ${name}`,

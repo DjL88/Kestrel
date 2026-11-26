@@ -1524,6 +1524,7 @@ export const is: AreaTranslation<typeof source> = {
     nothing: 'Ekkert',
     learnLabel: (slot) => `Læra lykilinn fyrir ${slot}`,
     resetPad: 'Endurstilla borðið á upphafsuppsetningu',
+    padFunctionKeys: 'Nota F13 til F21, lykla sem ekkert lyklaborð hefur',
     gamepadHelp: "Veldu hvað hver hnappur og hver stefna pinnanna gerir. Pinnarnir snúa síðast notaða sleðanum, eða Lýsingu, í sömu skrefum og þegar dregið er, svo Afturkalla tekur það til baka. Stýripinnar gera ekkert meðan Stillingar eru opnar, svo þú getur prófað hvern hnapp hér.",
     gamepadNone: "Enginn stýripinni fannst. Tengdu einn og ýttu á einhvern hnapp svo vafrinn sjái hann.",
     gamepadConnected: (name: string) => `Tengdur: ${name}`,
