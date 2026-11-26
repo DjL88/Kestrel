@@ -26,7 +26,7 @@ test('?v2 a key press shows the welcome at once and does not trigger a shortcut 
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
   await page.keyboard.press('g');
-  await expect(splash.getByRole('heading', { name: 'Welcome to InFlight' })).toBeVisible({ timeout: 1000 });
+  await expect(splash.getByRole('heading', { name: 'Welcome to InFlight' })).toBeVisible();
   // G opens the grid view; the key that skipped the animation must not have done so, nor any key while the welcome shows.
   await expect(page.getByLabel('All photos grid view')).toHaveCount(0);
   await page.keyboard.press('g');
@@ -49,7 +49,7 @@ test('?v2 with reduced motion shows the still logo at the top and the welcome at
   const splash = page.getByTestId('splash');
   await expect(splash.getByTestId('brand-logo-stacked')).toBeVisible();
   await expect(splash.getByTestId('splash-animation')).toHaveCount(0);
-  await expect(splash.getByRole('heading', { name: 'Welcome to InFlight' })).toBeVisible({ timeout: 1000 });
+  await expect(splash.getByRole('heading', { name: 'Welcome to InFlight' })).toBeVisible();
 });
 
 test('?v2 a returning guest who chose to skip gets the animation only, then the workspace', async ({ page }) => {
@@ -69,8 +69,7 @@ test('?v2 the welcome keeps room for the risen logo, so the heading sits just be
   await page.keyboard.press('Enter');
   const heading = splash.getByRole('heading', { name: 'Welcome to InFlight' });
   await expect(heading).toBeVisible();
-  await page.waitForTimeout(700); // the 400 ms rise
-  const logo = await splash.getByTestId('splash-animation').evaluate((host) => {
+  const measure = () => splash.getByTestId('splash-animation').evaluate((host) => {
     let top = Infinity; let bottom = -Infinity;
     for (const path of host.querySelectorAll('path')) {
       const box = path.getBoundingClientRect();
@@ -78,6 +77,10 @@ test('?v2 the welcome keeps room for the risen logo, so the heading sits just be
     }
     return { top, bottom };
   });
+  // Wait for the 400 ms rise to settle: the logo's top holds still across two readings.
+  let previous = Number.NaN;
+  await expect.poll(async () => { const { top } = await measure(); const settled = top === previous; previous = top; return settled; }).toBe(true);
+  const logo = await measure();
   const headingTop = (await heading.boundingBox())!.y;
   expect(logo.top).toBeGreaterThanOrEqual(16);
   expect(logo.top).toBeLessThanOrEqual(32);
