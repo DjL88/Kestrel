@@ -2164,6 +2164,12 @@ export const fr: AreaTranslation<typeof source> = {
     roomClose: 'Fermer',
     roomCloseHint: 'Arrêter d\'afficher la séance sur d\'autres écrans.',
     roomKeptYours: (n: number) => `Vos choix conservés (${n}) : vous aviez modifié la même photo.`,
+    usb: 'USB appareil',
+    usbHint: 'Connectez votre appareil en USB et ajoutez chaque photo dès la prise de vue. Une copie de chaque nouvelle image est enregistrée dans un dossier de votre choix ; rien n\'est modifié ni supprimé sur l\'appareil.',
+    usbTethered: (camera: string) => `${camera} en USB`,
+    usbFetching: (name: string) => `Récupération de ${name}`,
+    usbNoCamera: 'Aucun appareil trouvé en USB. Allumez l\'appareil, branchez le câble et fermez toute autre app qui l\'utilise (app de connexion du fabricant, Photos ou Transfert d\'images).',
+    usbEnded: (camera: string, reason: string) => `${camera} a arrêté la connexion : ${reason} Les photos déjà ajoutées restent.`,
   },
   activityBar: {
     photoLoading: 'Chargement de la photo',

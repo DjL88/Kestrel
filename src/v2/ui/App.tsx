@@ -1218,6 +1218,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 shootRoom={store.shootRoom}
                 onOpenShootRoom={actions.openShootRoom}
                 onCloseShootRoom={actions.closeShootRoom}
+                onTetherCamera={actions.tetherCamera}
                 liveFolder={store.liveFolder}
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}

@@ -2164,6 +2164,12 @@ export const pt: AreaTranslation<typeof source> = {
     roomClose: 'Fechar',
     roomCloseHint: 'Deixar de mostrar a sessão noutros ecrãs.',
     roomKeptYours: (n: number) => `Mantida a sua escolha (${n}): tinha alterado a mesma foto.`,
+    usb: 'Câmara USB',
+    usbHint: 'Ligue a câmara por USB e adicione cada foto ao fotografar. É guardada uma cópia de cada nova imagem numa pasta à sua escolha; nada é alterado ou apagado na câmara.',
+    usbTethered: (camera: string) => `${camera} por USB`,
+    usbFetching: (name: string) => `A receber ${name}`,
+    usbNoCamera: 'Nenhuma câmara encontrada por USB. Ligue a câmara, ligue o cabo e feche outras apps que a usem (a app de disparo do fabricante, Fotografias ou Captura de Imagem).',
+    usbEnded: (camera: string, reason: string) => `${camera} deixou de estar ligada: ${reason} As fotos já adicionadas ficam.`,
   },
   activityBar: {
     photoLoading: 'A carregar a fotografia',

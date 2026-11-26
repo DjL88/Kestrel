@@ -2167,6 +2167,12 @@ export const ga: AreaTranslation<typeof source> = {
     roomClose: 'Dún',
     roomCloseHint: 'Stop ag taispeáint an tseisiúin ar scáileáin eile.',
     roomKeptYours: (n: number) => `Coinníodh do rogha (${n}): d'athraigh tú an grianghraf céanna.`,
+    usb: 'Ceamara USB',
+    usbHint: 'Ceangail do cheamara trí USB agus cuir gach grianghraf leis agus tú á ghlacadh. Sábháiltear cóip de gach fráma nua i bhfillteán a roghnaíonn tú; ní athraítear ná ní scriostar aon rud ar an gceamara.',
+    usbTethered: (camera: string) => `${camera} trí USB`,
+    usbFetching: (name: string) => `Ag fáil ${name}`,
+    usbNoCamera: 'Níor aimsíodh ceamara ar USB. Cas air an ceamara, ceangail an cábla, agus dún aon aip eile atá á úsáid (aip cheangail an déantóra, Photos nó Image Capture).',
+    usbEnded: (camera: string, reason: string) => `Stop ${camera} den cheangal: ${reason} Fanann na grianghraif atá curtha leis cheana.`,
   },
   activityBar: {
     photoLoading: 'Grianghraf á lódáil',

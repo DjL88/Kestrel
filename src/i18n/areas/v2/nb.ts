@@ -2164,6 +2164,12 @@ export const nb: AreaTranslation<typeof source> = {
     roomClose: 'Lukk',
     roomCloseHint: 'Slutt å vise fotograferingen på andre skjermer.',
     roomKeptYours: (n: number) => `Ditt valg ble beholdt (${n}): du hadde endret det samme bildet.`,
+    usb: 'Kamera-USB',
+    usbHint: 'Koble til kameraet med USB, og legg til hvert bilde når du tar det. En kopi av hvert nytt bilde lagres i en mappe du velger; ingenting på kameraet endres eller slettes.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `Henter ${name}`,
+    usbNoCamera: 'Fant ikke noe kamera via USB. Slå på kameraet, koble til kabelen, og lukk andre apper som bruker det (produsentens tether-app, Bilder eller Digitale bilder).',
+    usbEnded: (camera: string, reason: string) => `${camera} sluttet å tethre: ${reason} Bilder som allerede er lagt til, blir værende.`,
   },
   activityBar: {
     photoLoading: 'Laster inn bilde',

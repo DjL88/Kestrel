@@ -2164,6 +2164,12 @@ export const cy: AreaTranslation<typeof source> = {
     roomClose: 'Cau',
     roomCloseHint: 'Stopio dangos y saethu ar sgriniau eraill.',
     roomKeptYours: (n: number) => `Cadwyd eich un chi (${n}): roeddech wedi newid yr un llun.`,
+    usb: 'Camera USB',
+    usbHint: 'Cysylltwch eich camera drwy USB ac ychwanegu pob llun wrth i chi ei dynnu. Caiff copi o bob ffrâm newydd ei gadw mewn ffolder o\'ch dewis; does dim yn cael ei newid na\'i ddileu ar y camera.',
+    usbTethered: (camera: string) => `${camera} drwy USB`,
+    usbFetching: (name: string) => `Yn nôl ${name}`,
+    usbNoCamera: 'Dim camera i\'w gael ar USB. Trowch y camera ymlaen, cysylltwch y cebl, a chau unrhyw ap arall sy\'n ei ddefnyddio (ap tennyn y gwneuthurwr, Photos neu Image Capture).',
+    usbEnded: (camera: string, reason: string) => `Mae ${camera} wedi stopio: ${reason} Mae'r lluniau a ychwanegwyd eisoes yn aros.`,
   },
   activityBar: {
     photoLoading: 'Wrthi\'n llwytho\'r llun',
