@@ -33,13 +33,12 @@ test('empty storage shows the first-launch welcome; Continue as guest opens the 
 });
 
 test('a signed-in person is welcomed back by name, and the card opens the project they left', async ({ page }) => {
-  test.setTimeout(150_000);
   // Make a real project through the app, so the remembered id is one the catalogue really holds.
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
-  await page.getByLabel(/name/i).first().fill('Dawn at the marsh');
-  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Dawn at the marsh');
+  await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'DSC_0007.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
@@ -48,8 +47,8 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   await page.reload();
   const options = root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
   const card = root.getByText('Dawn at the marsh', { exact: true }).first();
-  await expect(card.or(options.first()).first()).toBeVisible({ timeout: 30_000 });
-  if (!await options.first().isVisible()) await card.click();
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await card.click();
   await expect(options).toHaveCount(1, { timeout: 30_000 });
   await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')), { timeout: 15_000 }).not.toBeNull();
   const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')))!);
@@ -121,7 +120,8 @@ test('someone upgrading, whose only earlier key is their display settings, is we
 });
 
 test('if the welcome cannot load, the splash fades out as it always did and the workspace appears', async ({ page }) => {
-  await page.route(/\/assets\/LaunchWelcome-[^/]*\.js(\?.*)?$/, (route) => route.abort());
+  // The built app serves /assets/LaunchWelcome-<hash>.js; the Vite dev server serves /src/v2/ui/screens/LaunchWelcome.tsx. Both name the module.
+  await page.route((url) => /\/LaunchWelcome[-.][^/]*\.(js|tsx)$/.test(url.pathname), (route) => route.abort());
   await page.goto('/?v2&stub=1&splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
