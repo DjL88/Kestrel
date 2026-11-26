@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCullObservationPool, type CullWorkerLike } from './cullObservationPool';
-import { computeCullObservation, type Context2D } from './cullObservationCompute';
+import { computeCullObservation, subjectMasks, subjectSharpness, type Context2D } from './cullObservationCompute';
 import { cullPoolSize, looksLikePhone } from '../core/cullPoolSize';
 import { scorePreview, scoreWithSubjects } from '../core/autoCull';
 import { OUTPUT_ROWS } from '../core/objectDetection';
@@ -122,4 +122,30 @@ test('worker compute matches the main-thread detail score at 256 px, and a detec
   const empty = await computeCullObservation('p1', picture, fakeContext, async () => new Float32Array(OUTPUT_ROWS * 85));
   assert.equal(empty.detectorFailed, false);
   assert.deepEqual(empty.result, scoreWithSubjects(expected, []));
+});
+
+test('masked sharpness: a failed or missing mask keeps the box value, a usable one is measured inside it', async () => {
+  const picture = { width: 1600, height: 1000 };
+  const box = { x: 400, y: 200, w: 800, h: 600 };
+  const plain = subjectSharpness(fakeContext, picture, box);
+  assert.equal(plain.maskSharpness, undefined);
+  assert.ok(plain.sharpness > 0);
+  assert.deepEqual(subjectSharpness(fakeContext, picture, box, null), plain);
+
+  // A selection model that fails means box sharpness, never a failed observation.
+  assert.deepEqual(await subjectMasks(fakeContext, picture, [box], async () => { throw new Error('mask model gone'); }), [null]);
+  assert.deepEqual(await subjectMasks(fakeContext, picture, [box], null), [null]);
+
+  // Boxes reach the selection model in mask pixels (long edge 1024).
+  let seen: unknown = null;
+  const half = new Uint8Array(1024 * 640);
+  for (let y = 0; y < 640; y += 1) for (let x = 0; x < 512; x += 1) half[y * 1024 + x] = 1;
+  const masks = await subjectMasks(fakeContext, picture, [box], async (_input, boxes, size) => {
+    seen = { boxes, size };
+    return [{ w: size.w, h: size.h, data: half, score: 0.9 }];
+  });
+  assert.deepEqual(seen, { boxes: [{ x: 256, y: 128, w: 512, h: 384 }], size: { w: 1024, h: 640 } });
+  const inside = subjectSharpness(fakeContext, picture, box, masks[0]);
+  assert.equal(typeof inside.maskSharpness, 'number');
+  assert.equal(inside.sharpness, inside.maskSharpness);
 });

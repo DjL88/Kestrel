@@ -5,6 +5,26 @@ import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
 import { findSubjectsSamePass } from './objectDetector';
 import { sharedCullObservationPool } from './cullObservationPool';
+import { subjectMasks, subjectSharpness, type Context2D, type Segment } from './cullObservationCompute';
+import { cullMaskSharpnessOn } from '../core/maskSharpness';
+
+/** EfficientSAM-Ti box masks on this thread's path, only with the masked-sharpness preview on and the pack installed. */
+async function mainThreadSegment(): Promise<Segment | null> {
+  if (!cullMaskSharpnessOn()) return null;
+  try {
+    const { tapSelectStatus, segmentBoxes } = await import('./tapSelect');
+    return await tapSelectStatus() === 'ready' ? segmentBoxes : null;
+  } catch {
+    return null;
+  }
+}
+
+const canvasContext = (width: number, height: number): Context2D | null => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas.getContext('2d', { willReadFrequently: true }) as unknown as Context2D | null;
+};
 
 /** The RF-DETR tandem runs on the main thread only, so with that pack installed the workers are not used. */
 async function tandemInstalled(): Promise<boolean> {
@@ -69,10 +89,23 @@ export async function observeCullImage(
       // Every subject is checked on its own; the frame is only as good as its weakest main subject (decision 6).
       const found = await findSubjectsSamePass(image, signal);
       signal.throwIfAborted();
-      const findings: SubjectFinding[] = found.map((subject) => ({
+      let findings: SubjectFinding[] = found.map((subject) => ({
         label: subject.detection.label, score: subject.detection.score,
         size: Math.max(subject.detection.box.w, subject.detection.box.h), sharpness: subject.sharpness,
       }));
+      // Masked-sharpness preview: the same measurement as the workers make, inside each subject's mask.
+      const segment = found.length ? await mainThreadSegment() : null;
+      if (segment) {
+        const picture = await createImageBitmap(image);
+        try {
+          const boxes = found.map((subject) => subject.detection.box);
+          const masks = await subjectMasks(canvasContext, picture, boxes, segment);
+          signal.throwIfAborted();
+          findings = findings.map((finding, i) => masks[i] ? { ...finding, ...subjectSharpness(canvasContext, picture, boxes[i], masks[i]) } : finding);
+        } finally {
+          picture.close();
+        }
+      }
       return { result: scoreWithSubjects(base, findings), base, detectorFailed: false, source };
     } catch {
       signal.throwIfAborted();

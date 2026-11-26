@@ -8,9 +8,12 @@
  *   in  { type: 'run', id, frameId, blob, tryDetector }
  *                                              out { type: 'result', id, observation, runMs } or { type: 'error', id, message }
  * `model` is the checked file's bytes; without it the worker scores detail only. runMs lists each detector run.
+ * `mask` ({ encoder, decoder }: the EfficientSAM-Ti pack's bytes) is sent only with the masked-sharpness preview on
+ * (x-std-mask-sharpness); each subject's sharpness is then measured inside its box-prompted mask.
  */
-import { computeCullObservation, type Context2D } from './cullObservationCompute';
+import { computeCullObservation, type Context2D, type Segment } from './cullObservationCompute';
 import { DETECTOR_MODEL } from '../core/objectDetection';
+import { SAM_INPUT, bestSamMask, samPoints } from '../core/efficientSam';
 
 type Ort = typeof import('onnxruntime-web/wasm');
 type Session = import('onnxruntime-web/wasm').InferenceSession;
@@ -22,6 +25,31 @@ const scope = self as unknown as {
 
 let ort: Ort | null = null;
 let session: Session | null = null;
+let samEncoder: Session | null = null;
+let samDecoder: Session | null = null;
+
+const segment: Segment = async (input, boxes, size) => {
+  const o = ort!;
+  const encoded = await samEncoder!.run({ batched_images: new o.Tensor('float32', input, [1, 3, SAM_INPUT, SAM_INPUT]) });
+  const embedding = encoded.image_embeddings;
+  if (!embedding) throw new Error('The selection model returned an unexpected result.');
+  const masks = [];
+  for (const box of boxes) {
+    const points = samPoints({ box });
+    if (!points) { masks.push(null); continue; }
+    const out = await samDecoder!.run({
+      image_embeddings: embedding,
+      batched_point_coords: new o.Tensor('float32', points.coords, [1, 1, points.count, 2]),
+      batched_point_labels: new o.Tensor('float32', points.labels, [1, 1, points.count]),
+      orig_im_size: new o.Tensor('int64', BigInt64Array.from([BigInt(size.h), BigInt(size.w)]), [2]),
+    });
+    const data = out.output_masks?.data;
+    const scores = out.iou_predictions?.data;
+    if (!(data instanceof Float32Array) || !(scores instanceof Float32Array)) throw new Error('The selection model returned an unexpected result.');
+    masks.push(bestSamMask(data, scores, size.w, size.h));
+  }
+  return masks;
+};
 
 const makeContext = (width: number, height: number): Context2D | null =>
   new OffscreenCanvas(width, height).getContext('2d', { willReadFrequently: true }) as unknown as Context2D | null;
@@ -39,6 +67,16 @@ scope.onmessage = async (event: MessageEvent) => {
         ort.env.wasm.proxy = false;
         session = await ort.InferenceSession.create(new Uint8Array(message.model as ArrayBuffer), { executionProviders: ['wasm'] });
       }
+      if (message.mask && ort) {
+        // A mask pack that will not load only means box sharpness, as without the preview.
+        try {
+          samEncoder = await ort.InferenceSession.create(new Uint8Array(message.mask.encoder as ArrayBuffer), { executionProviders: ['wasm'] });
+          samDecoder = await ort.InferenceSession.create(new Uint8Array(message.mask.decoder as ArrayBuffer), { executionProviders: ['wasm'] });
+        } catch {
+          samEncoder = null;
+          samDecoder = null;
+        }
+      }
       scope.postMessage({ type: 'ready', loadMs: performance.now() - started });
     } else if (message.type === 'run') {
       const runMs: number[] = [];
@@ -53,7 +91,8 @@ scope.onmessage = async (event: MessageEvent) => {
           if (!(data instanceof Float32Array)) throw new Error('The subject detector returned an unexpected result.');
           return data;
         } : message.tryDetector ? async (): Promise<Float32Array> => { throw new Error('The subject detector is not loaded.'); } : null;
-        const observation = await computeCullObservation(message.frameId, bitmap, makeContext, infer);
+        const observation = await computeCullObservation(message.frameId, bitmap, makeContext, infer,
+          infer && samEncoder && samDecoder ? segment : null);
         scope.postMessage({ type: 'result', id: message.id, observation, runMs });
       } finally {
         bitmap.close();

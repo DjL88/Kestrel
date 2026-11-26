@@ -67,7 +67,12 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
 }
 
 /** What the subject detector found in a photo, or null when it found nothing it trusts. */
-export interface SubjectFinding { label: string; score: number; /** Long side of the subject in the photo's own pixels. */ size: number; sharpness: number }
+export interface SubjectFinding {
+  label: string; score: number; /** Long side of the subject in the photo's own pixels. */ size: number; sharpness: number;
+  /** Sharpness inside the subject's mask (src/core/maskSharpness.ts), when one was made. With the masked-sharpness
+   * preview on it is also `sharpness`; absent means `sharpness` came from the detector box. */
+  maskSharpness?: number;
+}
 
 /** Just the `{ decision, confidence, score, reason }` part of judging a subject on its own evidence -
  * factored out of `scoreWithSubject` so a caller with no whole-frame `CullSuggestion` to merge onto (e.g.
