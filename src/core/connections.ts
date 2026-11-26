@@ -4,7 +4,7 @@
  * noticed and explained instead of failing quietly. Each project then chooses where it loads from, saves to and
  * backs up to, so work on a shared drive and personal photographs can live in different places.
  */
-export type ProviderKind = 'folder' | 's3' | 'webdav' | 'sftp' | 'dropbox' | 'googledrive' | 'onedrive';
+export type ProviderKind = 'folder' | 's3' | 'webdav' | 'sftp' | 'dropbox' | 'googledrive' | 'onedrive' | 'sharepoint';
 
 export const PROVIDERS: { kind: ProviderKind; label: string; short: string; available: boolean; note?: string }[] = [
   { kind: 'folder', label: 'A folder (including iCloud Drive, OneDrive or Dropbox on this computer, a shared drive, or a NAS mounted as a drive)', short: 'Folder', available: true },
@@ -14,6 +14,7 @@ export const PROVIDERS: { kind: ProviderKind; label: string; short: string; avai
   { kind: 'dropbox', label: 'Dropbox', short: 'Dropbox', available: false, note: 'Not set up in this build yet. Until then, use the Dropbox folder on your computer.' },
   { kind: 'googledrive', label: 'Google Drive', short: 'Google Drive', available: false, note: 'Not set up in this build yet. Until then, use the Drive folder on your computer.' },
   { kind: 'onedrive', label: 'Microsoft OneDrive', short: 'OneDrive', available: false, note: 'Not set up in this build yet. Until then, use the OneDrive folder on your computer.' },
+  { kind: 'sharepoint', label: 'SharePoint or a Microsoft Teams library (work or school account)', short: 'SharePoint', available: false, note: 'Not set up in this build yet. Until then, sync the library with the OneDrive app and choose it as a folder.' },
 ];
 
 export interface Connection {

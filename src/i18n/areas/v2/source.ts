@@ -1630,6 +1630,13 @@ export const source = {
     signInFailed: 'That sign-in did not finish.',
     folderHint: 'A NAS or office share works here too once this computer has it connected: on a Mac use Finder, Go, Connect to Server (smb://…); on Windows map it as a network drive. Then choose that folder.',
     awayFromHome: 'Away from home: the simplest safe way to reach your NAS is Tailscale on the NAS and on this computer, then the NAS’s Tailscale name. Over Tailscale, http:// is fine too, because Tailscale already encrypts the connection. Elsewhere on the internet, WebDAV needs https with a proper certificate: turn on Tailscale HTTPS (a .ts.net address), or on a Synology set up DDNS with a Let’s Encrypt certificate. QuickConnect does not carry WebDAV or SFTP.',
+    sharepoint: {
+      linkLabel: 'Link to the SharePoint site or library',
+      linkHint: 'Open the library in your browser and copy the address from the address bar. InFlight keeps its files in an InFlight folder there.',
+      adminNote: 'InFlight can only reach the sites your organisation lets it use. If sign-in works but the site is refused, ask your Microsoft 365 admin to grant InFlight access to that site.',
+      badLink: 'That is not a SharePoint link. Copy the address of the site or library, such as https://contoso.sharepoint.com/sites/Photos.',
+      detail: (site: string, library: string) => `${site} · ${library} · InFlight folder`,
+    },
     sftpDesktopOnly: 'In the InFlight desktop app only: browsers cannot use SFTP.',
     sftp: {
       formLabel: 'Your SFTP server',

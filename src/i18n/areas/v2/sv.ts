@@ -1572,6 +1572,13 @@ export const sv: AreaTranslation<typeof source> = {
     signInFailed: 'Inloggningen slutfördes inte.',
     folderHint: "En NAS eller en delad kontorsmapp fungerar också här när datorn är ansluten till den: på Mac i Finder, Gå, Anslut till server (smb://…); i Windows ansluter du den som nätverksenhet. Välj sedan mappen.",
     awayFromHome: "Hemifrån: det enklaste säkra sättet att nå din NAS är Tailscale på NAS:en och på den här datorn, och sedan NAS:ens Tailscale-namn. Via Tailscale går http:// också bra, eftersom Tailscale redan krypterar anslutningen. På andra ställen på internet kräver WebDAV https med ett riktigt certifikat: slå på Tailscale HTTPS (en .ts.net-adress) eller ställ in DDNS med ett Let’s Encrypt-certifikat på en Synology. QuickConnect bär inte WebDAV eller SFTP.",
+    sharepoint: {
+      linkLabel: "Länk till SharePoint-webbplatsen eller -biblioteket",
+      linkHint: "Öppna biblioteket i webbläsaren och kopiera adressen från adressfältet. InFlight sparar sina filer där i en mapp InFlight.",
+      adminNote: "InFlight når bara de webbplatser som din organisation tillåter. Om inloggningen fungerar men webbplatsen nekas, be din Microsoft 365-administratör ge InFlight åtkomst till webbplatsen.",
+      badLink: "Det är ingen SharePoint-länk. Kopiera adressen till webbplatsen eller biblioteket, till exempel https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · mapp InFlight`,
+    },
     sftpDesktopOnly: "Bara i InFlights skrivbordsapp: webbläsare kan inte använda SFTP.",
     sftp: {
       formLabel: "Din SFTP-server",

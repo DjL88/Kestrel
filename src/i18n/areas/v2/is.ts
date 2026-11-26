@@ -1572,6 +1572,13 @@ export const is: AreaTranslation<typeof source> = {
     signInFailed: 'Innskráningu lauk ekki.',
     folderHint: "NAS eða sameiginleg skrifstofumappa virkar líka hér þegar þessi tölva er tengd henni: á Mac í Finder, Go, Connect to Server (smb://…); í Windows tengirðu hana sem netdrif. Veldu síðan þá möppu.",
     awayFromHome: "Að heiman: einfaldasta örugga leiðin að NAS-inu er Tailscale á NAS-inu og þessari tölvu og síðan Tailscale-nafn NAS-ins. Yfir Tailscale er http:// líka í lagi, því Tailscale dulkóðar tenginguna nú þegar. Annars staðar á netinu þarf WebDAV https með réttu skilríki: kveiktu á Tailscale HTTPS (.ts.net-vistfang) eða settu upp DDNS með Let’s Encrypt-skilríki á Synology. QuickConnect flytur hvorki WebDAV né SFTP.",
+    sharepoint: {
+      linkLabel: "Tengill á SharePoint-vefinn eða -safnið",
+      linkHint: "Opnaðu safnið í vafranum og afritaðu vistfangið úr veffangastikunni. InFlight geymir skrárnar sínar þar í möppu sem heitir InFlight.",
+      adminNote: "InFlight nær aðeins í þá vefi sem fyrirtækið þitt leyfir. Ef innskráning virkar en vefnum er hafnað, biddu Microsoft 365-stjórnandann að veita InFlight aðgang að vefnum.",
+      badLink: "Þetta er ekki SharePoint-tengill. Afritaðu vistfang vefsins eða safnsins, til dæmis https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · mappan InFlight`,
+    },
     sftpDesktopOnly: "Aðeins í InFlight-skjáborðsforritinu: vafrar geta ekki notað SFTP.",
     sftp: {
       formLabel: "SFTP-þjónninn þinn",
