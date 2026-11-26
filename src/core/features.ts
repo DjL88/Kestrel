@@ -41,6 +41,10 @@ export const FEATURES = {
   focusStack: 'flagged',
   // Panorama stitching: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   panorama: 'flagged',
+  // Saved views (named filter sets for the filmstrip and grid) and "next photo to review" keys: previews, off for
+  // everyone until an admin flag (or this device's preview switch) turns them on. Not a paywall.
+  savedViews: 'flagged',
+  nextToReview: 'flagged',
   // HDR merge of a bracketed burst: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   hdrMerge: 'flagged',
 } as const;

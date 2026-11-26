@@ -33,6 +33,8 @@ interface FilmstripProps {
   onSetSort: (sort: PhotoSort) => void;
   tagFilter?: string | null;
   onSetTagFilter?: (tagId: string | null) => void;
+  /** Saved views of these filters (a preview: absent while its flag is off). */
+  savedViews?: import('./PhotoViewControls').SavedViewsControl;
   quietBadges: boolean;
   looks: LookPreset[];
   hasClipboardRecipe: boolean;
@@ -89,6 +91,7 @@ export default function Filmstrip({
   onSetSort,
   tagFilter = null,
   onSetTagFilter,
+  savedViews,
   quietBadges,
   looks,
   hasClipboardRecipe,
@@ -388,7 +391,7 @@ export default function Filmstrip({
           {selectedPhotoIds.length <= 1 && (
             <>
               <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} compact />
-              <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} />
+              <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} savedViews={savedViews} />
               {onSetTagFilter && <TagFilterSelect photos={photos} value={tagFilter} onChange={onSetTagFilter} />}
             </>
           )}

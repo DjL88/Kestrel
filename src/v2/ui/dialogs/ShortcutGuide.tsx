@@ -1,6 +1,6 @@
 import { STRINGS } from '../strings';
 import React, { useEffect, useRef } from 'react';
-import { COMMANDS, COMMAND_GROUP_LABELS, commandById, type CommandGroup } from '../commands/registry';
+import { COMMAND_GROUP_LABELS, availableCommands, commandById, type CommandGroup } from '../commands/registry';
 import { chordLabel, type Keymap } from '../commands/keymap';
 import { PAD_SLOT_LABELS, padGuideRows, type PadProfile } from '../commands/pad';
 
@@ -10,10 +10,13 @@ interface ShortcutGuideProps {
   pad?: PadProfile;
   isMac: boolean;
   onClose: () => void;
+  /** Preview features that are on: their commands are listed only then. */
+  previews?: Partial<Record<'nextToReview', boolean>>;
 }
 
 /** V2 keyboard guide; mounted only when requested and never intercepts typing in a field. */
-export default function ShortcutGuide({ keymap, pad, isMac, onClose }: ShortcutGuideProps) {
+export default function ShortcutGuide({ keymap, pad, isMac, onClose, previews = {} }: ShortcutGuideProps) {
+  const commands = availableCommands(previews);
   const closeButton = useRef<HTMLButtonElement>(null);
   const padRows = pad ? padGuideRows(pad, keymap) : [];
 
@@ -50,7 +53,7 @@ export default function ShortcutGuide({ keymap, pad, isMac, onClose }: ShortcutG
             <section key={group} aria-labelledby={`v2-shortcut-${group}`}>
               <h3 id={`v2-shortcut-${group}`} className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{COMMAND_GROUP_LABELS[group]}</h3>
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">
-                {COMMANDS.filter((command) => command.group === group).map((command) => (
+                {commands.filter((command) => command.group === group).map((command) => (
                   <React.Fragment key={command.id}>
                     <dt className="text-[var(--text-secondary)]">{command.label}</dt>
                     <dd className="text-right font-medium">{chordLabel(keymap[command.id], isMac)}</dd>

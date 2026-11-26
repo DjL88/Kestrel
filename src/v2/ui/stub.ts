@@ -624,6 +624,8 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   splitFrames: 'basic',
   focusStack: 'basic',
   panorama: 'basic',
+  savedViews: 'basic',
+  nextToReview: 'basic',
   hdrMerge: 'basic',
 };
 
@@ -639,6 +641,8 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   splitFrames: true,
   focusStack: false,
   panorama: false,
+  savedViews: false,
+  nextToReview: false,
   hdrMerge: false,
 };
 
@@ -2268,6 +2272,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     clearNotice: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: null }));
     },
+
+    showNotice: (message) => showNotice(message),
   }), [showNotice, updatePhotoById]);
 
   return { store, actions };
