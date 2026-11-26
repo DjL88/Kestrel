@@ -25,7 +25,9 @@ jobs:
   check:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 2-core runners since the repository went private (26 Nov 2026): set-up, lint, unit tests and build take about
+    # 5 minutes, browser tests about 20 and dev-server tests about 6, so 30 minutes cut the job short.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
