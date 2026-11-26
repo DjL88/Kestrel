@@ -15,6 +15,13 @@ import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicatePr
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
+import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
+import { panoramaRecipe, type PanoramaRecipe } from '../../core/panoramaRecipe';
+import { focalPxFrom35mm } from '../../core/panorama';
+import { encodePng16, provePng } from '../../core/png16';
+import { maxCanvasPixels } from '../../core/exportLimits';
+import { panoText } from '../../i18n/areas/pano';
+import { imagePanoSource, panoDoneNotice, panoFilename, panoRefusalText, panoramaPreviewOn, panoSelection } from './panoramaOps';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -1620,7 +1627,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
-  const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
+  const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
+    /** Fields to add to a photo as it is read (a panorama's recipe), by its picked key. */
+    attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
     const target = stateRef.current;
     if (!target) return;
     if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
@@ -1688,6 +1697,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             sequenceIndex: item.index + 1,
             ...(cloudPhoto ? { cloudPhoto } : {}),
             ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
+            ...(attach?.(pickedKey(item.file)) ?? {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
@@ -2008,6 +2018,91 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         } finally {
           fullDevelopRunning.current.delete(key);
           setFullDeveloping((current) => { const { [key]: _done, ...rest } = current; return rest; });
+        }
+      })();
+    },
+    stitchPanorama: (photoIds) => {
+      const source = stateRef.current;
+      if (!source) return;
+      if (!can('panorama') && !panoramaPreviewOn()) return;
+      const selection = panoSelection(source.frames, photoIds);
+      if (!selection.ok) { setNotice(selection.message); return; }
+      const frames = selection.frames.map((frame) => structuredClone(frame));
+      const sourceProvider = provider.current!;
+      const projectKey = source.shoot.id;
+      const taken = new Set(source.frames.map((frame) => frame.filename.toLowerCase()));
+      const name = panoFilename(frames[0].filename, frames.length, taken);
+      void (async () => {
+        let made: { file: File; recipe: PanoramaRecipe; notice: string } | null = null;
+        let refusal: string | null = null;
+        try {
+          const ticket = await engineScheduler.submit({
+            title: panoText.task(frames.length), kind: 'other', resource: 'cpu', priority: 12,
+            pauseable: false, items: [{ id: `pano-${frames.map((frame) => frame.id).join('+')}`, name }],
+            snapshot: { projectKey, frameIds: frames.map((frame) => frame.id) },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage(panoText.reading);
+              // Full-size pixels only: a verified original, or a RAW's full-size develop from its sensor data. Never a
+              // review preview or the camera's small embedded JPEG, and never silently smaller.
+              const images: HTMLImageElement[] = [];
+              let picture: PanoramaRecipe['sourcePicture'] = 'original';
+              for (const frame of frames) {
+                ctx.checkCancelled();
+                if (fullResolutionRasterFormat(frame.filename)) {
+                  images.push(await loadVerifiedRasterOriginalForExport(frame, sourceProvider, ctx.signal));
+                } else if (isRawPreviewFile(frame.filename)) {
+                  const loaded = await loadExportSource(frame, sourceProvider);
+                  if (!sourceProvider.isDeveloped(frame.stableKey) || sourceProvider.isOfflineFallback(frame.stableKey)) {
+                    refusal = panoText.rawNotDeveloped(frame.filename);
+                    throw new Error(refusal);
+                  }
+                  images.push(loaded);
+                  picture = 'raw-develop';
+                } else {
+                  refusal = panoText.unsupported(frame.filename);
+                  throw new Error(refusal);
+                }
+              }
+              const { naturalWidth: width, naturalHeight: height } = images[0];
+              const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
+              // Every frame is held at full size while it stitches: refuse rather than shrink when that is too much.
+              if (width * height * images.length > Math.max(limit, 120_000_000) * 3) { refusal = panoText.tooLarge; throw new Error(refusal); }
+              // The camera's 35 mm equivalent focal length when every frame records the same one; otherwise it is worked out.
+              const focals = frames.map((frame) => frame.exif?.focalLength35mm);
+              const sameFocal = focals.every((value) => value && focals[0] && Math.abs(value - focals[0]) <= focals[0] * 0.02);
+              const focalPx = sameFocal ? focalPxFrom35mm(focals[0], width, height) : null;
+              // In a worker, so the editor keeps responding; on this thread only where a worker cannot run.
+              const { result, onMainThread } = await stitchPanoramaOffThread(images, {
+                signal: ctx.signal, focalPx, maxOutputPixels: limit,
+                hereSources: () => images.map((image) => imagePanoSource(image)),
+                onProgress: (done, total, stage) => { ctx.stage(panoText[stage]); ctx.reportProgress(done, total); },
+              });
+              if (!result.ok) { refusal = panoRefusalText(result); throw new Error(refusal); }
+              ctx.stage(panoText.saving);
+              const blob = await encodePng16({ width: result.width, height: result.height, data: result.data });
+              ctx.checkCancelled();
+              // Read the written header back: a 16-bit RGB PNG of exactly the panorama's size, or nothing is added.
+              const proof = provePng(new Uint8Array(await blob.arrayBuffer()));
+              if (proof.bitDepth !== 16 || proof.colourType !== 2 || proof.width !== result.width || proof.height !== result.height) throw new Error(panoText.failed);
+              const file = new File([blob], name, { type: 'image/png', lastModified: Date.now() });
+              const recipe = panoramaRecipe(result, frames.map((frame) => ({ frameId: frame.id, stableKey: frame.stableKey, filename: frame.filename, ...(frame.originalSha256 ? { originalSha256: frame.originalSha256 } : {}) })), picture, Date.now());
+              ctx.commitIfCurrent(() => { made = { file, recipe, notice: panoDoneNotice(name, result, frames.length) + (onMainThread ? ` ${panoText.mainThread}` : '') }; });
+            },
+          });
+          const outcome = await ticket.finished;
+          if (outcome === 'cancelled') { setNotice(panoText.cancelled); return; }
+          if (outcome === 'failed' || !made) { setNotice(refusal ?? panoText.failed); return; }
+          const done = made as { file: File; recipe: PanoramaRecipe; notice: string };
+          const key = pickedKey(pickedFromFile(done.file));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(panoText.failed); return; }
+          // One import at a time: wait for one already running rather than lose the panorama.
+          while (importController.current) await new Promise((resolve) => setTimeout(resolve, 500));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(panoText.failed); return; }
+          await importPhotos([done.file], (picked) => (picked === key ? { panorama: done.recipe } : undefined));
+          setNotice(done.notice);
+        } catch (reason) {
+          setNotice(refusal ?? (reason instanceof Error ? reason.message : panoText.failed));
         }
       })();
     },
@@ -2941,7 +3036,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
-    features: featureAccess(can),
+    features: { ...featureAccess(can), panorama: can('panorama') || panoramaPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,

@@ -1055,6 +1055,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
+                onStitchPanorama={store.features.panorama && !store.collage ? actions.stitchPanorama : undefined}
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
