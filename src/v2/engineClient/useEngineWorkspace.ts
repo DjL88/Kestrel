@@ -683,10 +683,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
         ctx.checkCancelled();
         if (generation !== thumbs.current.generation) return;
-        if (!thumb) {
+        // A DNG shown only by its camera preview (or not at all) may be one whose compression can't be read yet (JPEG
+        // XL): then say that, never "original unavailable", which would be untrue.
+        const unsupported = !thumb || sourceProvider.pictureSourceOf(thumb) === 'camera-preview'
+          ? await sourceProvider.unsupportedCompression(frame) : null;
+        if (unsupported) {
           ctx.commitIfCurrent(() => setUrls(current =>
-            ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
-          throw new Error(engineText.workspace.thumbnailFailed(frame.filename));
+            ({ ...current, [frame.id]: { ...current[frame.id], unsupported } })));
+        }
+        if (!thumb) {
+          if (!unsupported) {
+            ctx.commitIfCurrent(() => setUrls(current =>
+              ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+          }
+          throw new Error(unsupported ? engineText.workspace.rawJpegXl : engineText.workspace.thumbnailFailed(frame.filename));
         }
         ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
           : { ...current, [frame.id]: { ...current[frame.id], thumb } }));

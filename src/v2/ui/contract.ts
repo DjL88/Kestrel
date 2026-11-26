@@ -33,7 +33,8 @@ export interface PhotoHistogram {
   /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
   precision?: 'rgb16';
 }
-export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
+/** 'unsupported': the original is there, but its compression can't be read yet (a JPEG XL DNG); not 'unavailable'. */
+export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable' | 'unsupported';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
 export type ThemeMode = 'dark' | 'light' | 'auto';
 export type PanelId =
