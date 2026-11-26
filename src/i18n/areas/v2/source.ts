@@ -298,6 +298,8 @@ export const source = {
     kindPhotoShootBody: 'Edit some photos: cull, develop and export a set of pictures',
     kindCollageTitle: 'Collage or album',
     kindCollageBody: 'Lay several photos out on pages, posters or posts',
+    kindTetheredTitle: 'Tethered shoot',
+    kindTetheredBody: 'Photos arrive as you take them: from a camera on USB or Wi-Fi, or a watched folder',
     kindSelected: 'Selected',
     modeQuestion: 'How much should InFlight help?',
     modeChangeLater: 'You can change this later in the project.',
@@ -2318,6 +2320,8 @@ export const source = {
 
   // Live shoot: a watched (hot) folder
   liveShoot: {
+    start: 'Live shoot',
+    startHint: 'Use this project for a live shoot: add photos from a camera on USB or Wi-Fi, or a watched folder, as you take them.',
     watch: 'Shoot live',
     watchHint: 'Watch a folder your tether app or camera writes into, and add each new photo as it lands. Nothing in the folder is moved or changed.',
     watching: (name: string, added: number) => `Watching ${name} · ${added} added`,

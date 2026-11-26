@@ -232,6 +232,8 @@ export interface ShootDescriptor {
   /** The Flight mode chosen for this project. Absent on older projects, which follow Settings' default. */
   assistMode?: 'solo' | 'copilot' | 'autopilot';
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
+  /** A tethered (live) shoot: photos arrive from a camera as they are taken, and the live-shoot tools show in the filmstrip. */
+  tethered?: boolean;
   collage?: import('./collage').CollageDocument;
 }
 

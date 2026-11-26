@@ -517,7 +517,7 @@ export interface Photo {
 }
 
 export interface Project {
-  kind?: 'photography' | 'collage';
+  kind?: 'photography' | 'collage' | 'tethered';
   id: string;
   name: string;
   updatedAt: string;
@@ -755,6 +755,8 @@ export interface WorkspaceStore {
   } | null;
   /** Present only when the active project is a collage; normal Photography workspaces remain unchanged. */
   collage?: import('../../core/collage').CollageDocument | null;
+  /** The open project is a tethered (live) shoot. */
+  liveShoot?: boolean;
   photos: Photo[];
   activePhotoId: string | null;
   selectedPhotoIds: string[];
@@ -843,7 +845,9 @@ export interface WorkspaceActions {
   openProject: (projectId: string) => void;
   backToProjects: () => void;
   /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
-  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
+  createProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
+  /** Turn the open project into a tethered (live) shoot, or back: the live-shoot tools show in its filmstrip only then. */
+  setLiveShoot?: (on: boolean) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;

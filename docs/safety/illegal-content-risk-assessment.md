@@ -146,7 +146,7 @@ Each line says what the code does and where. "Live?" says whether it is switched
 | **Gallery limits** | Link is unguessable, only its hash is stored; optional password; expires in at most 90 days; previews deleted on revoke or expiry; bucket deletes gallery files older than 90 days. | `gallery.ts` header and constants; `infra/gcp/gallery.tf` | Yes, with galleries. |
 | **Originals stored only behind a checked preview** | RAW originals cannot be hashed; an original is accepted only after its preview passed. | `app.ts` cloud commit route (`PREVIEW_FIRST`) | Yes, once a hash checker is live. |
 | **Terms and acceptable use policy** | Prohibit CSAM, intimate image abuse, terrorist content, harassment, impersonation, spam and phishing. Explain checks, reporting and suspension. | `site/acceptable-use.html`, `site/terms.html` §10–11 | Published as pre-release drafts. |
-| **Point of contact** | david@djleitch.co.uk for users and authorities. | `site/acceptable-use.html` | Yes. **Suggest** a dedicated safety address. |
+| **Point of contact** | hello@inflight.studio for users and authorities. | `site/acceptable-use.html` | Yes. **Suggest** a dedicated safety address. |
 | **Rate limits** | On gallery open, feedback, report and report status. | `app.ts` `galleryLimiter`, `reportLimiter` | Yes. |
 
 ### 3.1 Ofcom codes of practice: how the measures map

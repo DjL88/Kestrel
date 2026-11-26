@@ -73,6 +73,9 @@ interface FilmstripProps {
   onCloseShootRoom?: () => void;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
   onTetherCamera?: () => void;
+  /** This project is a tethered (live) shoot: its live-shoot tools sit in this row. Otherwise one "Live shoot" button. */
+  liveShoot?: boolean;
+  onStartLiveShoot?: () => void;
   /** Import and sorting work under way, shown as a thin line along the top edge (absent or null: nothing running). */
   activity?: import('../utils/edgeActivity').EdgeActivity | null;
   onRunAutoCull: () => void;
@@ -149,6 +152,8 @@ export default function Filmstrip({
   onOpenShootRoom,
   onCloseShootRoom,
   onTetherCamera,
+  liveShoot = true,
+  onStartLiveShoot,
   liveFolder,
   activity = null,
   onRunAutoCull,
@@ -178,6 +183,8 @@ export default function Filmstrip({
     return () => desktop.removeEventListener('change', reset);
   }, []);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
+  // A live session already running always shows, whatever kind of project this is.
+  const showLiveTools = liveShoot || Boolean(liveFolder) || Boolean(shootRoom);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
   const [moving, setMoving] = useState<string[] | null>(null);
@@ -413,7 +420,7 @@ export default function Filmstrip({
                 {STRINGS.liveShoot.stop}
               </button>
             </span>
-          ) : onWatchFolder && (
+          ) : showLiveTools && onWatchFolder && (
             <button type="button" onClick={onWatchFolder} data-testid="filmstrip-watch-folder"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.watchHint}>
@@ -442,7 +449,7 @@ export default function Filmstrip({
                 {STRINGS.liveShoot.roomClose}
               </button>
             </span>
-          ) : onOpenShootRoom && (
+          ) : showLiveTools && onOpenShootRoom && (
             <button type="button" onClick={onOpenShootRoom} data-testid="filmstrip-open-room"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.roomHint}>
@@ -450,7 +457,7 @@ export default function Filmstrip({
               <span className="v2-compact-label">{STRINGS.liveShoot.room}</span>
             </button>
           )}
-          {!liveFolder && onTetherCamera && (
+          {showLiveTools && !liveFolder && onTetherCamera && (
             <button type="button" onClick={onTetherCamera} data-testid="filmstrip-tether-usb"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.usbHint}>
@@ -458,12 +465,22 @@ export default function Filmstrip({
               <span className="v2-compact-label">{STRINGS.liveShoot.usb}</span>
             </button>
           )}
-          {!liveFolder && onReceiveFromCamera && (
+          {showLiveTools && !liveFolder && onReceiveFromCamera && (
             <button type="button" onClick={onReceiveFromCamera} data-testid="filmstrip-receive-camera"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.receiveHint}>
               <BrandIcon name="camera-settings" size={13} />
               <span className="v2-compact-label">{STRINGS.liveShoot.receive}</span>
+            </button>
+          )}
+          {/* Tethering lives in tethered-shoot projects (Windows beta: it crowded every project's filmstrip). Elsewhere one
+              button turns this project into a live shoot and the tools appear. */}
+          {!showLiveTools && onStartLiveShoot && (onWatchFolder || onOpenShootRoom || onTetherCamera || onReceiveFromCamera) && (
+            <button type="button" onClick={onStartLiveShoot} data-testid="filmstrip-start-live-shoot"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.startHint}>
+              <BrandIcon name="camera-settings" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.start}</span>
             </button>
           )}
 

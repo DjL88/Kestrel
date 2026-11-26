@@ -2827,7 +2827,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
-      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } }
+        : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, tethered: true } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -2889,6 +2890,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!added.length) return current;
         const combined = [...current.frames, ...added];
         return { ...current, frames: combined, shoot: { ...current.shoot, totalFrames: combined.length, lastUpdatedAt: Date.now() } };
+      });
+    },
+    setLiveShoot: (on) => {
+      mutate((current) => (current.shoot.tethered === true) === on ? current : {
+        ...current, shoot: { ...current.shoot, tethered: on || undefined, lastUpdatedAt: Date.now() },
       });
     },
     updateCollage: (document) => {
@@ -3867,6 +3873,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     speciesPlace,
     externalEditor: externalEdits.store,
     collage: readCollage(state?.shoot.collage),
+    liveShoot: state?.shoot.tethered === true,
     photos,
     removedPhotos,
     removedOpen,

@@ -15,7 +15,7 @@ interface ProjectsHubProps {
   hubState: HubViewState;
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
-  onCreateProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
+  onCreateProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
   /** The Flight mode a new project starts in (Settings → Assistance); the person can pick another when creating it. */
   defaultAssistMode?: AssistMode;
   onCreateFromFolder: () => void;
@@ -72,7 +72,7 @@ export default function ProjectsHub({
   const createPanel = useRef<HTMLFormElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
-  const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
+  const [projectKind, setProjectKind] = useState<'photography' | 'collage' | 'tethered'>('photography');
   const [projectMode, setProjectMode] = useState<AssistMode>(defaultAssistMode);
   const openCreate = () => { setProjectMode(defaultAssistMode); setModalOpen(true); };
 
@@ -344,9 +344,10 @@ export default function ProjectsHub({
             <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
               <fieldset className="space-y-2">
                 <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
-                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                   {([
                     ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
+                    ['tethered', STRINGS.hub.kindTetheredTitle, STRINGS.hub.kindTetheredBody],
                     ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
                   ] as const).map(([kind, title, description]) => {
                     const selected = projectKind === kind;
@@ -461,12 +462,24 @@ export default function ProjectsHub({
  * a row of separate frames for a photo shoot, one page laid out with several photos for a collage or album.
  * Drawn in the theme's own colours, so it suits light and dark.
  */
-function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage'; selected: boolean }) {
+function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage' | 'tethered'; selected: boolean }) {
   const stroke = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
   const fill = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
   return (
     <svg viewBox="0 0 120 56" aria-hidden="true" className="h-14 w-full rounded-[var(--radius-md)] bg-[var(--bg-input)]" preserveAspectRatio="xMidYMid meet">
-      {kind === 'photography' ? (
+      {kind === 'tethered' ? (
+        // A camera linked to a frame that is arriving: photos come in as they are taken.
+        <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
+          <rect x="10" y="16" width="30" height="22" rx="3" />
+          <rect x="18" y="12" width="12" height="5" rx="1" />
+          <circle cx="25" cy="27" r="6" />
+          <path d="M44 27 h22" strokeDasharray="3 3" />
+          <path d="M62 23 l5 4 -5 4" />
+          <rect x="72" y="14" width="38" height="26" rx="2" />
+          <path d={`M75 37 l9 -10 7 7 5 -5 11 8`} />
+          <circle cx="100" cy="20" r="2" fill={fill} stroke="none" />
+        </g>
+      ) : kind === 'photography' ? (
         <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
           {[10, 44, 78].map((x, i) => (
             <g key={x} opacity={i === 1 ? 1 : 0.6}>

@@ -811,6 +811,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       setStore((prev) => ({
         ...prev,
         activeProjectId: projectId,
+        liveShoot: prev.projects.find((project) => project.id === projectId)?.kind === 'tethered',
         screen: 'editor',
         gridViewOpen: false,
       }));
@@ -825,7 +826,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    createProject: (name, _kind, mode) => {
+    setLiveShoot: (on) => { logAction('setLiveShoot', { on }); setStore((prev) => ({ ...prev, liveShoot: on })); },
+    createProject: (name, kind, mode) => {
       const clean = name.trim();
       if (!clean) return;
       logAction('createProject', { name: clean, mode });
@@ -838,12 +840,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         flaggedCount: 6,
         localCopyStatus: 'offline-ready',
         folderPath: `/Volumes/FieldSSD/${clean.replace(/\s+/g, '_')}`,
+        ...(kind === 'tethered' ? { kind } : {}),
       };
       setStore((prev) => ({
         ...prev,
         hubState: 'ready',
         projects: [newProject, ...prev.projects],
         activeProjectId: newProject.id,
+        liveShoot: kind === 'tethered',
         assistMode: mode ?? prev.settings.defaultAssistMode,
         screen: 'editor',
         lastActionNotice: `Created project "${clean}"`,
