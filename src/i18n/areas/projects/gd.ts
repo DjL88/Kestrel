@@ -461,7 +461,7 @@ export const gd: AreaTranslation<typeof source> = {
     licences: (n: number) => `Ceadachasan Pro a thèid a thoirt far a’ chunntais: ${n}. Cumaidh Paddle na cuidhteasan agad.`,
     owned: (n: number, people: number) => `Pròiseactan co-roinnte leatsa a thèid a sguabadh às leis na dealbhan neòil aca: ${n}.` + (people ? ` Daoine a chailleas cothrom orra: ${people}.` : ''),
     others: (n: number) => `Pròiseactan co-roinnte dhaoine eile a dh’fhàgas tu: ${n}. Fanaidh na beachdan agad annta, gun ainm agad.`,
-    balance: (amount: string) => `Thèid am balans neòil agad nach deach a chleachdadh, ${amount}, air chall.`,
+    balance: (amount: string) => `Thèid am balans neòil agad nach deach a chleachdadh, ${amount}, a phàigheadh air ais dhut tro Paddle.`,
     localStays: 'Chan atharraich dad air an uidheam seo: fanaidh na pròiseactan, na deasachaidhean is na dealbhan tùsail agad far a bheil iad.',
     grace: 'Cha tèid dad a sguabadh às fad 30 latha. Clàraich a-steach rè na h-ùine sin airson an cunntas a chumail.',
     typeToConfirm: (word: string) => `Sgrìobh ${word} airson dearbhadh`,

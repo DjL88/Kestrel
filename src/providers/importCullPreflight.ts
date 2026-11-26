@@ -4,8 +4,11 @@ import { DETECTOR_MODEL } from '../core/objectDetection';
 import { bundledModelUrl } from './bundledModelAssets';
 import { observeCullImage } from './cullPreviewObservation';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
+import { sharedCullObservationPool } from './cullObservationPool';
+import { deviceMemoryBudget } from './deviceBudget';
 
-const MAX_QUEUED = 8; // one ONNX inference at a time, never a 500-photo resource backlog
+/** Photos waiting per lane: enough to keep every worker busy, never a 500-photo resource backlog. */
+const QUEUED_PER_LANE = 8;
 
 export interface ImportCullPreflight {
   offer(frame: PhotoFrame): void;
@@ -30,7 +33,11 @@ export function createImportCullPreflight(
   const queued: PhotoFrame[] = [];
   const seen = new Set<string>();
   let closed = false;
-  let worker: Promise<void> | null = null;
+  /** One lane per culling worker (every core but one, at most 4 on phones); one lane on the main thread without them. */
+  let laneLimit = 1;
+  const lanes = new Set<Promise<void>>();
+  let sized: Promise<void> | null = null;
+  const maxQueued = QUEUED_PER_LANE * deviceMemoryBudget().cullWorkers;
 
   function abort() {
     closed = true;
@@ -40,7 +47,7 @@ export function createImportCullPreflight(
   if (importSignal.aborted) abort();
   else importSignal.addEventListener('abort', abort, { once: true });
 
-  async function run(): Promise<void> {
+  async function lane(): Promise<void> {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) { cache.failDetector(); return; }
@@ -73,24 +80,29 @@ export function createImportCullPreflight(
     }
   }
 
-  function startWorker() {
-    if (worker || closed || controller.signal.aborted || !queued.length) return;
-    worker = run().catch(() => {
-      // Preflight is optional. Unexpected browser/model failures must never
-      // fail an otherwise successful photo import.
-      cache.failDetector();
-      queued.length = 0;
-    }).finally(() => {
-      worker = null;
-      // An arrival in the final microtask of the previous run must not be
-      // stranded forever waiting for a new file to arrive.
-      if (!closed && queued.length) startWorker();
-    });
+  function startLanes() {
+    if (closed || controller.signal.aborted || !queued.length) return;
+    // The pool is asked once; until it answers, one lane starts so the first photo is not kept waiting.
+    sized ??= sharedCullObservationPool().then((pool) => { laneLimit = pool?.size ?? 1; startLanes(); }, () => undefined);
+    while (lanes.size < laneLimit && queued.length) { // each new lane takes its first photo straight away
+      const running: Promise<void> = lane().catch(() => {
+        // Preflight is optional. Unexpected browser/model failures must never
+        // fail an otherwise successful photo import.
+        cache.failDetector();
+        queued.length = 0;
+      }).finally(() => {
+        lanes.delete(running);
+        // An arrival in the final microtask of the previous run must not be
+        // stranded forever waiting for a new file to arrive.
+        if (!closed && queued.length) startLanes();
+      });
+      lanes.add(running);
+    }
   }
 
   function offer(frame: PhotoFrame) {
     if (closed || controller.signal.aborted || !cache.usable ||
-        queued.length >= MAX_QUEUED || seen.has(frame.id) ||
+        queued.length >= maxQueued || seen.has(frame.id) ||
         frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy || frame.removedAt != null ||
         !provider.originalInfo(frame.stableKey)) return;
     const info = provider.originalInfo(frame.stableKey);
@@ -98,7 +110,7 @@ export function createImportCullPreflight(
         !Number.isFinite(info.lastModified)) return;
     seen.add(frame.id);
     queued.push(frame);
-    startWorker();
+    startLanes();
   }
 
   return {
@@ -107,9 +119,10 @@ export function createImportCullPreflight(
     async finish() {
       closed = true;
       queued.length = 0;
-      // A started worker must settle before the final scan resets detector
+      // Started lanes must settle before the final scan resets detector
       // health; otherwise both scans could race over the model singleton.
-      await worker;
+      await sized;
+      while (lanes.size) await Promise.all([...lanes]);
       importSignal.removeEventListener('abort', abort);
       return !importSignal.aborted && !controller.signal.aborted && cache.usable && cache.size > 0 ? cache : undefined;
     },

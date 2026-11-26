@@ -3,7 +3,7 @@ import type { CaptureStamp, ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
 import { rawSensorSize } from './rawSensorSize';
-import { c2paActionsIn, readEditStatus } from './editStatus';
+import { c2paActionsIn, MAX_SIDECAR_STATUS_BYTES, readEditStatus, withSidecar, type EditStatus } from './editStatus';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -351,4 +351,14 @@ export async function parseImageExif(
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   }
+}
+
+/** Add what an XMP sidecar says to an edit status. exifr's XMP reader is a plain text parser (no entities, no DTDs). */
+export async function addSidecarEditStatus(status: EditStatus | undefined, sidecar: Blob | Uint8Array | null | undefined): Promise<EditStatus | undefined> {
+  const size = sidecar ? (sidecar instanceof Uint8Array ? sidecar.length : sidecar.size) : 0;
+  if (!status || !sidecar || size === 0 || size > MAX_SIDECAR_STATUS_BYTES) return status;
+  const segments = await exifr.sidecar(sidecar, { mergeOutput: false }, 'xmp').catch(() => undefined) as
+    { crs?: unknown; xmpMM?: unknown; xmp?: { CreatorTool?: unknown } } | undefined;
+  if (!segments) return status;
+  return withSidecar(status, { crs: segments.crs, xmpMM: segments.xmpMM, creatorTool: segments.xmp?.CreatorTool });
 }

@@ -1333,8 +1333,10 @@ export default function Canvas({
   /** The artboard on screen, in pixels, at Fit. */
   const artboardFrame = (size: SizePreset) => {
     const aspect = frameAspectOf(size);
-    const maxW = aspect >= 1 ? 660 : 420;
-    const maxH = 470;
+    // The artboard's largest size at Fit follows the screen (owner, 26 Nov): at least the long-standing 660×470 (420 wide
+    // for an upright frame), growing to 85% of the stage on larger screens so a big monitor shows a big photo.
+    const maxW = Math.max(aspect >= 1 ? 660 : 420, Math.round(stageSize.width * 0.85));
+    const maxH = Math.max(470, Math.round(stageSize.height * 0.85));
     const availableWidth = Math.max(80, stageSize.width - 32);
     // 105px keeps room for the size caption above the frame and the hint line below it. A short landscape phone hides
     // both (v2.css), and there that reserve took over half of a ~240px stage, so Fit showed the photo about 80px tall.

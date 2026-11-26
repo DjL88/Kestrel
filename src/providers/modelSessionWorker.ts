@@ -2,10 +2,12 @@
  * Runs one onnxruntime model session off the interface thread (src/providers/offThreadSession.ts starts it). The
  * subject outline and photo similarity models each took 1-4 s per photo on the page's own thread, so a swipe or tap
  * made meanwhile waited for them. Messages:
- *   in  { type: 'init', model }                       out { type: 'ready', loadMs, inputNames, outputNames } or { type: 'error', message }
+ *   in  { type: 'init', model, ort? }                       out { type: 'ready', loadMs, inputNames, outputNames } or { type: 'error', message }
  *   in  { type: 'run', id, feeds: { name: { data, dims } } }  out { type: 'result', id, outputs: { name: { data, dims } }, runMs } or { type: 'error', id, message }
  * The model bytes arrive already checked against their pinned SHA-256; this worker never fetches anything.
  */
+import { createOrtSession, loadOrt, ortOptions, readOrtPlan } from './ortRuntime';
+
 type Ort = typeof import('onnxruntime-web/wasm');
 type Session = import('onnxruntime-web/wasm').InferenceSession;
 
@@ -21,11 +23,11 @@ scope.onmessage = async (event: MessageEvent) => {
   const message = event.data;
   try {
     if (message.type === 'init') {
-      ort = await import('onnxruntime-web/wasm');
-      ort.env.wasm.numThreads = 1; // one thread: no cross-origin isolation needed, on any host and offline
-      ort.env.wasm.proxy = false;
+      // The page sends the plan (src/core/ortThreads.ts): one thread on the web and phones, a share of the cores on the isolated desktop app.
+      const plan = readOrtPlan(message.ort);
+      ort = await loadOrt(plan);
       const started = performance.now();
-      session = await ort.InferenceSession.create(new Uint8Array(message.model as ArrayBuffer), { executionProviders: ['wasm'] });
+      session = await createOrtSession(ort, new Uint8Array(message.model as ArrayBuffer), ortOptions(plan));
       scope.postMessage({ type: 'ready', loadMs: performance.now() - started, inputNames: [...session.inputNames], outputNames: [...session.outputNames] });
     } else if (message.type === 'run') {
       if (!ort || !session) throw new Error('The model is not ready.');

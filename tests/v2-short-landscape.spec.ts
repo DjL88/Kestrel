@@ -48,10 +48,13 @@ test('on a landscape phone every rail tool can be reached and opened', async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(844);
 });
 
-test('a portrait tablet docks a narrower panel', async ({ page }) => {
+test('a portrait tablet opens with the photo full width and docks a narrower panel', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1180 });
   const studio = await openPhoto(page);
+  // Owner, 26 Nov: an upright tablet keeps the desktop layout but starts with no panel docked.
   const panel = studio.getByRole('heading', { name: 'Adjust', exact: true }).first();
+  await expect(panel).toBeHidden();
+  await studio.locator('.v2-rail').getByRole('button', { name: /^Adjust/ }).first().click();
   await expect(panel).toBeVisible();
   expect(await studio.evaluate((el) => getComputedStyle(el).getPropertyValue('--dock-width').trim())).toBe('16rem');
   // The wide desktop keeps its usual width.

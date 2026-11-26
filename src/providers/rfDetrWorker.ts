@@ -4,6 +4,8 @@
  * messages are described in src/core/rfDetrWorkerProtocol.ts. The model bytes arrive already checked against their
  * pinned SHA-256; this worker never fetches anything.
  */
+import { createOrtSession, loadOrt, ortOptions, readOrtPlan } from './ortRuntime';
+
 type Ort = typeof import('onnxruntime-web/wasm');
 type Session = import('onnxruntime-web/wasm').InferenceSession;
 
@@ -21,11 +23,11 @@ scope.onmessage = async (event: MessageEvent) => {
   const message = event.data;
   try {
     if (message.type === 'init') {
-      ort = await import('onnxruntime-web/wasm');
-      ort.env.wasm.numThreads = 1;
-      ort.env.wasm.proxy = false;
+      // The page sends the plan (src/core/ortThreads.ts): one thread on the web and phones, a share of the cores on the isolated desktop app.
+      const plan = readOrtPlan(message.ort);
+      ort = await loadOrt(plan);
       const started = performance.now();
-      session = await ort.InferenceSession.create(new Uint8Array(message.model as ArrayBuffer), { executionProviders: ['wasm'] });
+      session = await createOrtSession(ort, new Uint8Array(message.model as ArrayBuffer), ortOptions(plan));
       scope.postMessage({ type: 'ready', loadMs: performance.now() - started });
     } else if (message.type === 'run') {
       if (!ort || !session) throw new Error('The second subject finder is not ready.');

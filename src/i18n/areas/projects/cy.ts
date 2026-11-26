@@ -461,7 +461,7 @@ export const cy: AreaTranslation<typeof source> = {
     licences: (n: number) => `Trwyddedau Pro a dynnir o’r cyfrif hwn: ${n}. Mae Paddle yn cadw eich derbynebau.`,
     owned: (n: number, people: number) => `Prosiectau a rennir sy’n eiddo i chi, a ddilëir gyda’u lluniau cwmwl: ${n}.` + (people ? ` Pobl sy’n colli mynediad: ${people}.` : ''),
     others: (n: number) => `Prosiectau a rennir pobl eraill rydych yn eu gadael: ${n}. Mae eich sylwadau yno’n aros, heb eich enw.`,
-    balance: (amount: string) => `Mae eich balans cwmwl heb ei ddefnyddio, ${amount}, yn cael ei golli.`,
+    balance: (amount: string) => `Caiff eich balans cwmwl heb ei ddefnyddio, ${amount}, ei ad-dalu i chi drwy Paddle.`,
     localStays: 'Does dim yn newid ar y ddyfais hon: mae eich prosiectau, golygiadau a lluniau gwreiddiol yn aros lle maen nhw.',
     grace: 'Does dim yn cael ei ddileu am 30 diwrnod. Mewngofnodwch yn ystod yr amser hwnnw i gadw eich cyfrif.',
     typeToConfirm: (word: string) => `Teipiwch ${word} i gadarnhau`,

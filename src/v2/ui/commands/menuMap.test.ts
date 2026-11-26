@@ -39,3 +39,7 @@ test('ids that belong only to the current app are ignored, not guessed at', () =
 test('Photo > Set aside runs the same command as the X key', () => {
   assert.deepEqual(menuActionForV2('photo-reject'), { kind: 'command', id: 'photo.reject' });
 });
+
+test('View > Single photo closes the grid, as E does', () => {
+  assert.deepEqual(menuActionForV2('view-loupe'), { kind: 'command', id: 'view.loupe' });
+});

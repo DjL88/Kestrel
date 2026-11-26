@@ -1,3 +1,4 @@
+import { deviceMemoryBudget } from './deviceBudget';
 import {
   loadOfflinePreview,
   loadOfflinePreviewPair,
@@ -19,15 +20,17 @@ import {
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
 import type { PictureSource } from '../core/pictureSource';
-import { materialize, type RangeBlob } from './rangeBlob';
+import { EXIF_HEAD_BYTES, headBlob, materialize, type RangeBlob } from './rangeBlob';
 import type { LinkedRange } from './linkedOriginals';
 
 /** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
 export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
 
-const MAX_FULL_PREVIEW_CACHE = 24;
+// How many of each stay in memory comes from the device's memory budget (src/core/memoryBudget.ts): 24 and 8 on a
+// standard device, fewer on a phone with little memory, more on a big desktop.
+const MAX_FULL_PREVIEW_CACHE = deviceMemoryBudget().fullPreviews;
 // Full-sensor JPEGs can be tens of MB each; a 500-photo session must not pin them all.
-const MAX_DEVELOPED_FULL_CACHE = 8;
+const MAX_DEVELOPED_FULL_CACHE = deviceMemoryBudget().developedRaws;
 /** Preview addresses whose picture source is remembered (a few bytes each). */
 const MAX_TAGGED_URLS = 4096;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
@@ -148,6 +151,23 @@ export class BrowserPreviewProvider implements PreviewProvider {
         return isCurrent() ? original : undefined;
       },
     };
+  }
+
+  /**
+   * The first bytes of the original, for reading its metadata later. A held original is sliced; a linked one is read by
+   * range, never whole, so a 50 MB RAW costs one megabyte. undefined when the original is not reachable now.
+   */
+  async readOriginalHead(stableKey: string, bytes = EXIF_HEAD_BYTES): Promise<Blob | undefined> {
+    const held = this.localBlobs.get(stableKey);
+    if (held) return held.slice(0, Math.min(held.size, bytes));
+    const link = this.linked.get(stableKey);
+    if (!link?.openRange) return undefined;
+    const range = await link.openRange();
+    try {
+      return await headBlob(range.blob, bytes);
+    } finally {
+      await range.close().catch(() => undefined);
+    }
   }
 
   /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */

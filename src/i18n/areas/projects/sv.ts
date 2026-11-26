@@ -461,7 +461,7 @@ export const sv: AreaTranslation<typeof source> = {
     licences: (n: number) => `Pro-licenser som tas bort från kontot: ${n}. Paddle behåller dina kvitton.`,
     owned: (n: number, people: number) => `Dina delade projekt som raderas med sina molnfoton: ${n}.` + (people ? ` Personer som förlorar åtkomst: ${people}.` : ''),
     others: (n: number) => `Andras delade projekt som du lämnar: ${n}. Dina kommentarer där finns kvar, utan ditt namn.`,
-    balance: (amount: string) => `Ditt oanvända molnsaldo på ${amount} går förlorat.`,
+    balance: (amount: string) => `Ditt oanvända molnsaldo på ${amount} återbetalas till dig via Paddle.`,
     localStays: 'Inget ändras på den här enheten: dina projekt, redigeringar och originalfoton stannar där de är.',
     grace: 'Inget raderas på 30 dagar. Logga in under tiden för att behålla ditt konto.',
     typeToConfirm: (word: string) => `Skriv ${word} för att bekräfta`,

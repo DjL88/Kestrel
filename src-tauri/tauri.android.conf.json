@@ -1,4 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "identifier": "app.kestrel.photo"
+  "identifier": "app.kestrel.photo",
+  "app": {
+    "security": {
+      "headers": null
+    }
+  }
 }

@@ -32,12 +32,17 @@ export interface CloudRunner {
 }
 
 export interface CloudLedger {
-  /** Atomically takes one job from the account's allowance for the period. False when exhausted. */
+  /**
+   * Atomically takes one job from the account's allowance for the period. False when exhausted. The unused part of the
+   * period before carries into the new one (owner, 26 Nov 2026), so a period holds at most twice `limit`.
+   */
   reserve(accountId: string, nowMs: number, limit: number, periodMs: number): Promise<boolean>;
   /** Refund the period that held the reservation, if it is still tracked. */
   refund(accountId: string, reservedAtMs: number): Promise<void>;
   /** Jobs counted in the account's current period (for the usage screen). */
   periodUsed?(accountId: string, nowMs: number, periodMs: number): Promise<number>;
+  /** Photos carried over from the period before into the current one. */
+  periodCarried?(accountId: string, nowMs: number, periodMs: number): Promise<number>;
   put(record: CloudJobRecord): Promise<void>;
   get(jobId: string): Promise<CloudJobRecord | undefined>;
   /** Atomically update the status only if it still matches the caller's expected status. */
@@ -88,18 +93,37 @@ export class MemoryCloudRunner implements CloudRunner {
   async deleteResult(jobId: string) { this.results.delete(jobId); }
 }
 
+/**
+ * Photos a new period starting at `nowMs` carries from the old one (its start, and the photos it used beyond what it
+ * had carried in). Only the period just before counts:
+ * after a whole idle period, that one was wholly unused, so the full allowance carries. A paid top-up reservation
+ * (limit = MAX_SAFE_INTEGER) never carries anything.
+ */
+export function carriedPhotos(start: number, used: number, nowMs: number, limit: number, periodMs: number): number {
+  if (!Number.isSafeInteger(limit) || limit >= Number.MAX_SAFE_INTEGER || limit <= 0) return 0;
+  // Carried photos are spent first, so `used` here is what the period took beyond its own carry.
+  return nowMs - start >= 2 * periodMs ? limit : Math.min(limit, Math.max(0, limit - Math.max(0, used)));
+}
+
 export class MemoryCloudLedger implements CloudLedger {
-  private counts = new Map<string, { start: number; used: number }>();
+  private counts = new Map<string, { start: number; used: number; carried: number }>();
   private jobs = new Map<string, CloudJobRecord>();
   async reserve(accountId: string, nowMs: number, limit: number, periodMs: number) {
     let c = this.counts.get(accountId);
-    if (!c || nowMs >= c.start + periodMs) { c = { start: nowMs, used: 0 }; this.counts.set(accountId, c); }
-    if (c.used >= limit) return false;
+    if (!c || nowMs >= c.start + periodMs) {
+      c = { start: nowMs, used: 0, carried: c ? carriedPhotos(c.start, c.used - c.carried, nowMs, limit, periodMs) : 0 };
+      this.counts.set(accountId, c);
+    }
+    if (c.used >= limit + c.carried) return false;
     c.used++; return true;
   }
   async periodUsed(accountId: string, nowMs: number, periodMs: number) {
     const c = this.counts.get(accountId);
     return c && nowMs < c.start + periodMs ? c.used : 0;
+  }
+  async periodCarried(accountId: string, nowMs: number, periodMs: number) {
+    const c = this.counts.get(accountId);
+    return c && nowMs < c.start + periodMs ? c.carried : 0;
   }
   async refund(accountId: string, reservedAtMs: number) {
     const c = this.counts.get(accountId);

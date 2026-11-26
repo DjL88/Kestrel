@@ -1278,6 +1278,8 @@ export const gd: AreaTranslation<typeof source> = {
     evidenceRaw: "Faidhle RAW gun deasachadh sam bith air a chlàradh ann.",
     evidenceMakerNotes: "Tha notaichean dèanadair a’ chamara slàn agus chan eil aplacaid deasachaidh air ainmeachadh.",
     evidenceUnrecognised: (app: string) => `Air a sh\u00e0bhaladh le ${app}, nach aithnich InFlight.`,
+    evidenceSidecar: "Tha faidhle XMP ri thaobh a chumas roghainnean deasachaidh.",
+    evidenceSidecarApp: (app: string) => `Tha faidhle XMP o ${app} ri thaobh a chumas roghainnean deasachaidh.`,
     evidenceNone: "Chan eil am faidhle ag ràdh.",
     rawColourSource: "Matrix dhathan a’ chamara fhèin on fhaidhle RAW, coltas àbhaisteach InFlight (chan e stoidhle deilbh an dèanadair)",
     heading: 'Fiosrachadh an deilbh',

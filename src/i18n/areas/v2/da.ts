@@ -1277,6 +1277,8 @@ export const da: AreaTranslation<typeof source> = {
     evidenceRaw: "En RAW-fil uden nogen redigering gemt i den.",
     evidenceMakerNotes: "Kameraets producentdata er intakte, og der nævnes intet redigeringsprogram.",
     evidenceUnrecognised: (app: string) => `Gemt af ${app}, som InFlight ikke kender.`,
+    evidenceSidecar: "En XMP-sidefil ved siden af indeholder redigeringsindstillinger.",
+    evidenceSidecarApp: (app: string) => `En XMP-sidefil fra ${app} ved siden af indeholder redigeringsindstillinger.`,
     evidenceNone: "Filen siger det ikke.",
     rawColourSource: "Kameraets egen farvematrix fra RAW-filen, InFlights standardlook (ikke producentens billedstil)",
     heading: 'Fotoinfo',

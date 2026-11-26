@@ -6,6 +6,7 @@ import type { PhotoFrame } from '../core/types';
 import { friendlyToolError } from '../core/toolErrors';
 import { createTimedSession } from './modelTiming';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * Search by description, on this device. The typed words go through the CLIP text model (the opt-in `CLIP_TEXT` pack)
@@ -26,10 +27,8 @@ function load(): Promise<Loaded> {
   loading ??= (async () => {
     const bytes = await readOptionalModelFile(CLIP_TEXT, 'model');
     const tokenizerFile = (await import('../../models/clip-tokenizer.json')).default as unknown as ClipTokenizerFile;
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, CLIP_TEXT.id, bytes, { executionProviders: ['wasm'] });
+    const ort = await loadOrt();
+    const session = await createTimedSession(ort, CLIP_TEXT.id, bytes, ortOptions());
     return { ort, session, tokenizer: createClipTokenizer(tokenizerFile) };
   })().catch((error) => {
     loading = null;

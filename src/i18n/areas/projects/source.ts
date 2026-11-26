@@ -463,7 +463,7 @@ export const source = {
     licences: (n: number) => n === 1 ? 'Your Pro licence is removed from this account. Paddle keeps your receipt.' : `Your ${n} Pro licences are removed from this account. Paddle keeps your receipts.`,
     owned: (n: number, people: number) => `${n === 1 ? 'The shared project you own is deleted, with its' : `The ${n} shared projects you own are deleted, with their`} cloud photos${people ? `. ${people === 1 ? '1 other person loses' : `${people} other people lose`} access` : ''}.`,
     others: (n: number) => `You leave ${n === 1 ? '1 shared project' : `${n} shared projects`} that others own. Your comments there stay, without your name.`,
-    balance: (amount: string) => `Your unused cloud balance of ${amount} is lost.`,
+    balance: (amount: string) => `Your unused cloud balance of ${amount} is refunded to you through Paddle.`,
     localStays: 'Nothing on this device changes: your projects, edits and original photos stay where they are.',
     grace: 'Nothing is deleted for 30 days. Sign in during that time to keep your account.',
     typeToConfirm: (word: string) => `Type ${word} to confirm`,

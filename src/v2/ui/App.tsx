@@ -269,6 +269,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => mq.removeEventListener('change', onChange);
   }, [setActivePanel]);
 
+  // An upright tablet or unfolded foldable keeps the desktop layout (rail, panels docked left or right, or floating) but
+  // opens with no panel docked, so the photo has the full width until a tool is chosen (owner, 26 Nov). Only at start:
+  // turning the device keeps whatever panel is open.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    if (window.matchMedia('(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)').matches) setActivePanel(null);
+  }, [setActivePanel]);
+
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
   const activePhoto =
@@ -421,6 +429,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         break;
       }
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
+      case 'view.loupe': if (store.gridViewOpen) actions.setGridViewOpen(false); break;
+      case 'view.filmstrip': actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
@@ -436,10 +446,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
       case 'edit.selectAll': selectAllShown(); break;
+      case 'edit.selectNone': actions.clearSelection(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.filmstripCollapsed, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
 
   // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
   // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.

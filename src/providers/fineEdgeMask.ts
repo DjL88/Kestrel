@@ -7,6 +7,7 @@ import { samMaskSize } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * Fine-edge subject masks with BiRefNet-lite: a desktop "fine detail" pack (it needs several GB of memory at
@@ -31,10 +32,8 @@ export async function removeFineEdge(): Promise<void> { loading = null; await re
 function load(): Promise<Loaded> {
   loading ??= (async () => {
     const bytes = await readOptionalModelFile(BIREFNET_LITE, 'model');
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, BIREFNET_LITE.id, bytes, { executionProviders: ['wasm'] });
+    const ort = await loadOrt();
+    const session = await createTimedSession(ort, BIREFNET_LITE.id, bytes, ortOptions());
     return { ort, session };
   })().catch((error) => {
     loading = null;

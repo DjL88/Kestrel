@@ -67,7 +67,8 @@ export function editStatusWords(status: EditStatus): NonNullable<Photo['editStat
       : first.kind === 'edit-history' ? (first.app ? words.evidenceApp(first.app) : words.evidenceHistory)
         : first.kind === 'editing-app' ? words.evidenceApp(first.app)
           : first.kind === 'content-credentials' ? words.evidenceCredentials
-            : first.kind === 'raw-file' ? words.evidenceRaw
+            : first.kind === 'sidecar' ? (first.app ? words.evidenceSidecarApp(first.app) : words.evidenceSidecar)
+              : first.kind === 'raw-file' ? words.evidenceRaw
               : first.kind === 'maker-notes' ? words.evidenceMakerNotes
                 : words.evidenceUnrecognised(first.app);
   return { kind: status.kind, label, detail };

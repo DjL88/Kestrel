@@ -1317,6 +1317,8 @@ export const source = {
     evidenceRaw: "A RAW file with no edit recorded inside it.",
     evidenceMakerNotes: "The camera’s maker notes are intact and no editing app is named.",
     evidenceUnrecognised: (app: string) => `Saved by ${app}, which InFlight does not recognise.`,
+    evidenceSidecar: "An XMP sidecar file beside it holds edit settings.",
+    evidenceSidecarApp: (app: string) => `An XMP sidecar file from ${app} beside it holds edit settings.`,
     evidenceNone: "The file does not say.",
     rawColourSource: "Camera's own colour matrix from the RAW file, InFlight standard look (not the maker's picture style)",
     heading: 'Photo Info',
