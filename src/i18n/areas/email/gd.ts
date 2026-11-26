@@ -20,6 +20,12 @@ export const gd: AreaTranslation<typeof source> = {
     done: "Deiseil. Cha chuir InFlight post-d dhan t-seòladh seo tuilleadh.",
     invalid: "Chan eil an ceangal seo dligheach.",
     invalidHint: "Freagair am post-d agus cuiridh sinn stad orra.",
+    stopNews: "Cuir stad air naidheachdan InFlight air post-d",
+    stopNotices: "Cuir stad air post-d mu na pròiseactan co-roinnte agad",
+    confirmNews: "Brùth am putan gus stad a chur air naidheachdan InFlight air post-d. Thig post-d mun chunntas agad, mar iuchair cead, fhathast.",
+    confirmNotices: "Brùth am putan gus stad a chur air post-d mu na pròiseactan co-roinnte agad. Chì thu fhathast iad san aplacaid.",
+    doneNews: "Deiseil. Gus naidheachdan air post-d a chur air a-rithist, fosgail Roghainnean → Cunntas ann an InFlight.",
+    doneNotices: "Deiseil. Gus am post-d seo a chur air a-rithist, fosgail Roghainnean → Cunntas ann an InFlight.",
   },
   news: {
     why: "Tha seo a’ tighinn thugad air sgàth ’s gun do dh’iarr thu naidheachdan InFlight air post-d. Airson stad a chur air, cuir dheth e ann an Roghainnean → Cunntas, no cleachd an ceangal gu h-ìosal.",

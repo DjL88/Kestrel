@@ -143,7 +143,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
-import { BRAND_KITS_KEY, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, readBrandKits, type BrandKit, type KitProblem } from './brandKits';
+import { BRAND_KITS_KEY, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, overlayForKit, readBrandKits, shownLogoId, type BrandKit, type KitProblem } from './brandKits';
 import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
@@ -203,6 +203,7 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -259,88 +260,6 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
 }
 
 const THUMBNAIL_WORKERS = 4;
-
-async function pickImageFile(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp'; input.hidden = true;
-    input.setAttribute('data-testid', 'v2-watermark-input');
-    document.body.appendChild(input);
-    const done = (file: File | null) => { input.remove(); resolve(file); };
-    input.addEventListener('change', () => done(input.files?.[0] ?? null));
-    input.addEventListener('cancel', () => done(null));
-    input.click();
-  });
-}
-
-/** Pick a local folder through the webview's directory input. Import uses the same verified catalogue loader. */
-async function pickFolderFiles(): Promise<File[] | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.multiple = true; input.accept = PHOTO_ACCEPT;
-    input.setAttribute('webkitdirectory', '');
-    input.hidden = true;
-    input.setAttribute('data-testid', 'v2-folder-input');
-    document.body.appendChild(input);
-    const done = (files: File[] | null) => { input.remove(); resolve(files); };
-    input.addEventListener('change', () => done(input.files?.length ? Array.from(input.files) : null));
-    input.addEventListener('cancel', () => done(null));
-    input.click();
-  });
-}
-
-/**
- * Pick a folder of photos. On the desktop app the system folder dialog links every photo by its path, so originals stay
- * where they are and are never copied; the browser reads them through the directory input. `name` is the folder's name.
- */
-async function pickFolderPhotos(onProblem: (message: string) => void): Promise<{ picks: Array<File | PickedPhoto>; name?: string } | null> {
-  if (isDesktopApp()) {
-    let name: string | undefined;
-    try {
-      const chosen = await pickFolderNatively({ onChosen: (folder) => { name = folderNameOf(folder); } });
-      return chosen === 'cancelled' || !chosen.length ? null : { picks: chosen, name };
-    } catch (error) {
-      // An incomplete scan is refused rather than importing part of a shoot.
-      onProblem(error instanceof Error ? error.message : String(error));
-      return null;
-    }
-  }
-  const files = await pickFolderFiles();
-  if (!files?.length) return null;
-  return { picks: files, name: (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0] };
-}
-
-async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
-  if (isDesktopApp()) {
-    const chosen = await pickPhotosNatively();
-    return chosen === 'cancelled' ? null : chosen;
-  }
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.multiple = true; input.accept = PHOTO_ACCEPT; input.hidden = true;
-    input.setAttribute('data-testid', 'v2-file-input');
-    document.body.appendChild(input);
-    const done = (files: File[] | null) => { input.remove(); resolve(files); };
-    input.addEventListener('change', () => done(input.files?.length ? Array.from(input.files) : null));
-    input.addEventListener('cancel', () => done(null));
-    input.click();
-  });
-}
-
-/** Pick replacement files for originals the catalogue can no longer read (moved, renamed, or the browser session
- * lost its blob). Browser-only: the desktop app picks a folder instead (see reconnectOriginal). */
-async function pickReselectFiles(): Promise<File[] | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.multiple = true; input.accept = PHOTO_ACCEPT; input.hidden = true;
-    input.setAttribute('data-testid', 'v2-relink-input');
-    document.body.appendChild(input);
-    const done = (files: File[] | null) => { input.remove(); resolve(files); };
-    input.addEventListener('change', () => done(input.files?.length ? Array.from(input.files) : null));
-    input.addEventListener('cancel', () => done(null));
-    input.click();
-  });
-}
 
 /** A phone, or a device that says it has little memory: the world comparison is skipped there. */
 function lowMemoryDevice(): boolean {
@@ -970,8 +889,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // photo per session, from the first megabyte of the original (and its XMP sidecar on the desktop). Only the status is
   // recorded; nothing else in the photo's metadata changes, and an original that cannot be reached now is tried next time.
   const editStatusTried = useRef(new Set<string>());
-  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet.
-  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || frame.exif.cameraFocus === undefined) && !editStatusTried.current.has(frame.id);
+  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet, and a
+  // box read before the upright box existed is read again so it can be drawn on the picture.
+  const focusUnread = (focus: PhotoFrame['exif']['cameraFocus']) => focus === undefined || (!!focus?.area && !focus.uprightArea);
+  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || focusUnread(frame.exif.cameraFocus)) && !editStatusTried.current.has(frame.id);
   // Only whether any photo is waiting: the fill's own writes must not restart it.
   const editStatusWaiting = (state?.frames ?? []).some(needsEditStatus);
   const editStatusProject = state?.shoot.id;
@@ -989,7 +910,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (!read) return item;
           const exif = { ...item.exif };
           if (read.status && !exif.editStatus) exif.editStatus = read.status;
-          if (exif.cameraFocus === undefined && read.focus !== undefined) exif.cameraFocus = read.focus;
+          if (focusUnread(exif.cameraFocus) && read.focus !== undefined) exif.cameraFocus = read.focus;
           return { ...item, exif };
         }) }));
       };
@@ -997,7 +918,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!live) return;
         editStatusTried.current.add(id);
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
-        if (!frame || (frame.exif.editStatus && frame.exif.cameraFocus !== undefined)) continue;
+        if (!frame || (frame.exif.editStatus && !focusUnread(frame.exif.cameraFocus))) continue;
         const head = await provider.current?.readOriginalHead(frame.stableKey).catch(() => undefined);
         if (!head || !live) continue;
         const exif = await parseImageExif(head, frame.filename).catch(() => null);
@@ -3499,13 +3420,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       saveBrandKit: (photoId: string, name: string) => {
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
         if (!frame) return false;
-        const next = addBrandKit(brandKits, name, readOverlay(frame.overlay), `kit-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
+        const next = addBrandKit(brandKits, name, overlayForKit(readOverlay(frame.overlay), watermarkLibrary.map((preset) => preset.id)), `kit-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
         return updateBrandKits(next, typeof next === 'string' ? '' : `Saved the brand kit "${next[next.length - 1].name}" on this device.`);
       },
       editBrandKit: (kitId: string, change: { name?: string; fromPhotoId?: string }) => {
         const frame = change.fromPhotoId ? stateRef.current?.frames.find((candidate) => candidate.id === change.fromPhotoId) : undefined;
         if (change.fromPhotoId && !frame) return false;
-        const next = editBrandKit(brandKits, kitId, { name: change.name, overlay: frame ? readOverlay(frame.overlay) : undefined }, Date.now());
+        const next = editBrandKit(brandKits, kitId, { name: change.name, overlay: frame ? overlayForKit(readOverlay(frame.overlay), watermarkLibrary.map((preset) => preset.id)) : undefined }, Date.now());
         return updateBrandKits(next, frame ? 'The brand kit now has this photo\'s logo, colours and text style.' : 'Renamed the brand kit.');
       },
       deleteBrandKit: (kitId: string) => { updateBrandKits(deleteBrandKit(brandKits, kitId), 'Deleted the brand kit. Photos it was put on keep their look.'); },
@@ -3854,7 +3775,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, watermarkLibrary, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3899,7 +3820,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
-    ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => ({ id, name, logoLabel: watermarkLibrary.find((preset) => preset.id === watermarkPresetId)?.label ?? 'Logo not on this device' })) } : {}),
+    ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => { const shown = shownLogoId({ ...readOverlay(undefined), watermarkPresetId }, watermarkLibrary.map((preset) => preset.id)); const logo = watermarkLibrary.find((preset) => preset.id === shown); return { id, name, logoLabel: logo?.label ?? 'Logo not on this device', logoMissing: !logo }; }) } : {}),
     features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,

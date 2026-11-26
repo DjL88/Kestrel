@@ -39,12 +39,13 @@ The macOS build is run by the owner. Windows builds are now made locally with th
 ## Updates
 **On only in releases that ship signed update files.** `release.yml` builds the app with `VITE_KESTREL_UPDATER=1` when the `TAURI_SIGNING_PRIVATE_KEY` secret exists, and `UPDATER_ENABLED` in `src/components/DesktopUpdate.tsx` reads it. Local, PR and unsigned builds never check. Update files are made only by `release.yml`, never by ordinary CI. The plugin refuses any update whose signature does not match the public key in `tauri.conf.json`. On Windows the update is the NSIS installer (`updaterJsonPreferNsis`), the same kind people install, so an update never leaves a second MSI copy.
 
-The app checks `https://github.com/DjL88/Kestrel/releases/latest/download/latest.json` when it opens. If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
+The app checks `https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/updater/latest.json` when it opens (the repository is private, so GitHub's release files are not public). If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
 
 To publish one:
 1. One-off: add the **private** update key as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (step 1 of the checklist below). It was generated at `~/.kestrel-signing/kestrel.key` (no password) on the development Mac and is not in the repository. Back it up: without it, installed apps cannot be updated. The matching public key is in `src-tauri/tauri.conf.json`. With the secret present, `release.yml` makes signed update files and `latest.json` by itself.
 2. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, merge, then `git tag v0.1.1 && git push origin v0.1.1`.
-3. `release.yml` builds Mac (universal), Windows and Linux, and creates a **draft** release. Publish the draft and apps pick it up.
+3. `release.yml` builds Mac (universal), Windows and Linux, and creates a **draft** release.
+4. `node scripts/release/publish-updater.mjs --tag v0.1.1` (signed in to `gh` and `gcloud`) copies the release files to the downloads bucket and publishes `updater/latest.json` last. Apps pick it up from there. `--dry-run` shows the uploads first.
 
 Apple notarisation and Windows signing are separate secrets (checklist below); until they are added, first installs show an "unidentified developer" or SmartScreen warning.
 

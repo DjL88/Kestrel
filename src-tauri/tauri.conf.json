@@ -106,7 +106,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2ODc1ODA5QjlFQjVDODcKUldTSFhPdTVDVmlIaHA4YTdUK1VUZ25GSVVmYklPZDZUTC9wdkM2ZmQvUVFCSjVYVE85Y3J5cmMK",
       "endpoints": [
-        "https://github.com/DjL88/Kestrel/releases/latest/download/latest.json"
+        "https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/updater/latest.json"
       ]
     }
   }

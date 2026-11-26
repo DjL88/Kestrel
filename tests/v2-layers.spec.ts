@@ -120,7 +120,8 @@ test('?v2 layer mask: a layer can show only inside one of the photo\'s masks, or
   // Outside: the opposite.
   await mask.getByRole('radio', { name: 'Outside the mask' }).click();
   await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeLessThan(10);
-  expect(await redness(0.5, 0.2)).toBeGreaterThan(150);
+  // Polled too: the centre can read as the photo for a frame (between two renders) before the outside has its layer.
+  await expect.poll(() => redness(0.5, 0.2), { timeout: 15000 }).toBeGreaterThan(150);
   // Back to the whole layer.
   await mask.getByRole('combobox', { name: 'Mask' }).selectOption({ index: 0 });
   await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeGreaterThan(150);

@@ -5,6 +5,7 @@ import { directoryHandleConnector } from './folderConnector';
 import { isDesktopApp } from './desktopShell';
 import { s3Connector } from './s3Connector';
 import { webdavConnector } from './webdavConnector';
+import { sftpConnector, type SftpSettings } from './sftpConnector';
 import { isCloudDrive } from '../core/cloudDrive';
 import { dropboxConnector, googleDriveConnector, oneDriveConnector } from './cloudDriveConnectors';
 import { accessTokenFor, forgetTokens, hasTokens, rememberTokens } from './oauthSession';
@@ -18,6 +19,9 @@ const SECRET_PREFIX = 'kestrel.connection-keys.v1.';
 const sessionKeys = new Map<string, S3Settings>();
 const sessionDav = new Map<string, WebDavSettings>();
 const DAV_PREFIX = 'kestrel.connection-dav.v1.';
+/** An SFTP place's address, user, folder and accepted fingerprint: none of them secret. The password or key is session-only. */
+const SFTP_PREFIX = 'kestrel.connection-sftp.v1.';
+const sessionSftp = new Map<string, SftpSettings>();
 // Legacy versions persisted credentials in plaintext. Purge every matching key,
 // including orphaned entries for connections already removed from the list.
 function purgeLegacyCredentials(): void {
@@ -40,7 +44,7 @@ let snapshot = { list, reports: { ...reports } };
 function read(): Connection[] {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'webdav', 'dropbox', 'googledrive', 'onedrive'].includes(c.kind))) : [];
+    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'webdav', 'sftp', 'dropbox', 'googledrive', 'onedrive'].includes(c.kind))) : [];
   } catch { return []; }
 }
 const publish = () => {
@@ -52,12 +56,13 @@ const publish = () => {
 export const connections = () => list;
 export const healthOf = (id: string) => reports[id];
 
-export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { tokens?: import('../core/cloudDrive').Tokens; s3?: S3Settings; dav?: WebDavSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
+export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { tokens?: import('../core/cloudDrive').Tokens; s3?: S3Settings; dav?: WebDavSettings; sftp?: SftpSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
   const connection: Connection = { id: newConnectionId(), kind, label: label.trim() || detail, detail };
   list = [...list, connection];
   if (secret?.tokens) rememberTokens(connection.id, secret.tokens);
   if (secret?.s3) setS3Keys(connection.id, secret.s3, Boolean(secret.remember));
   if (secret?.dav) setDavLogin(connection.id, secret.dav, Boolean(secret.remember));
+  if (secret?.sftp) setSftpLogin(connection.id, secret.sftp);
   if (secret?.handle) sessionHandles.set(connection.id, secret.handle);
   if (secret?.path) { try { localStorage.setItem(`kestrel.connection-path.v1.${connection.id}`, secret.path); } catch { /* session only */ } }
   publish();
@@ -66,8 +71,8 @@ export function addConnection(kind: ProviderKind, label: string, detail: string,
 
 export function removeConnection(id: string): void {
   list = list.filter((c) => c.id !== id);
-  sessionKeys.delete(id); sessionDav.delete(id); sessionHandles.delete(id); delete reports[id]; forgetTokens(id);
-  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
+  sessionKeys.delete(id); sessionDav.delete(id); sessionSftp.delete(id); sessionHandles.delete(id); delete reports[id]; forgetTokens(id);
+  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
   publish();
 }
 
@@ -80,7 +85,27 @@ export function setS3Keys(id: string, settings: S3Settings, remember: boolean): 
 export function setDavLogin(id: string, settings: WebDavSettings, remember: boolean): void {
   sessionDav.set(id, settings);
   void remember;
-  try { localStorage.removeItem(DAV_PREFIX + id); } catch { /* session only */ }
+  try { localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); } catch { /* session only */ }
+}
+
+/** Keep the SFTP sign-in for this session, and its address, folder and accepted fingerprint on this device. */
+export function setSftpLogin(id: string, settings: SftpSettings): void {
+  sessionSftp.set(id, settings);
+  const { host, port, user, root, pinned } = settings;
+  try { localStorage.setItem(SFTP_PREFIX + id, JSON.stringify({ host, port, user, root, pinned })); } catch { /* session only */ }
+}
+
+/** The saved address, user, folder and fingerprint of an SFTP place, to fill in when signing in again. */
+export function sftpPlaceFor(id: string): Omit<SftpSettings, 'password' | 'privateKey' | 'passphrase'> | null {
+  const held = sessionSftp.get(id);
+  if (held) return { host: held.host, port: held.port, user: held.user, root: held.root, pinned: held.pinned };
+  try {
+    const stored = JSON.parse(localStorage.getItem(SFTP_PREFIX + id) ?? 'null') as Record<string, unknown> | null;
+    if (stored && typeof stored.host === 'string' && typeof stored.port === 'number' && typeof stored.user === 'string') {
+      return { host: stored.host, port: stored.port, user: stored.user, root: typeof stored.root === 'string' ? stored.root : '', pinned: typeof stored.pinned === 'string' ? stored.pinned : undefined };
+    }
+  } catch { /* nothing saved */ }
+  return null;
 }
 
 function davLoginFor(id: string): WebDavSettings | null {
@@ -110,6 +135,12 @@ export async function openConnection(id: string): Promise<Opened> {
     const login = davLoginFor(id);
     if (!login) return { problem: 'needs-signin', message: 'The password was not remembered. Enter it again to reconnect.' };
     return { connector: webdavConnector(login) };
+  }
+  if (connection.kind === 'sftp') {
+    if (!isDesktopApp()) return { problem: 'error', message: 'SFTP works in the InFlight desktop app only.' };
+    const login = sessionSftp.get(id);
+    if (!login) return { problem: 'needs-signin', message: 'The password or key was not remembered. Enter it again to reconnect.' };
+    return { connector: sftpConnector(login) };
   }
   if (isCloudDrive(connection.kind)) {
     const kind = connection.kind;

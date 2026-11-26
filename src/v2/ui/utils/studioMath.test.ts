@@ -389,3 +389,14 @@ test('viewPhotos applies decision, search and minimum rating before sorting', ()
   assert.deepEqual(viewPhotos([a, b, c], { filter: 'to-review', search: '', minRating: 3, sort: 'shoot' }).map((p) => p.id), ['a']);
   assert.deepEqual(viewPhotos([a, b, c], { filter: 'all', search: '', minRating: 0, sort: 'captured-oldest' }).map((p) => p.id), ['c', 'b', 'a']);
 });
+
+test('cropPanLimits for a split format uses the whole composition, so the picture can move the way it overhangs', () => {
+  // A 3:2 picture across two square panes (a 2:1 composition) overhangs top and bottom, not the sides.
+  const split = cropPanLimits({ width: 3, height: 2 }, { width: 2, height: 1 }, 1);
+  assert.equal(split.x, 0);
+  assert.ok(Math.abs(split.y - (100 / 6)) < 1e-9);
+  // One pane's shape alone gave the opposite: sideways room only, so the picture could not be moved up or down.
+  const onePane = cropPanLimits({ width: 3, height: 2 }, { width: 1, height: 1 }, 1);
+  assert.ok(onePane.x > 0);
+  assert.equal(onePane.y, 0);
+});

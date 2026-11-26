@@ -355,7 +355,7 @@ export function createEngineScheduler(options: {
     let job!: WorkBatch;
     let retryInFlight = false;
     const handle = store.enqueue(definition.title, {
-      total: items.length, location: definition.location ?? 'local', priority: definition.priority ?? 0,
+      total: items.length, kind: definition.kind, location: definition.location ?? 'local', priority: definition.priority ?? 0,
       pauseable: definition.pauseable !== false && items.length > 1,
       cancel: () => {
         job.cancelled = true;
