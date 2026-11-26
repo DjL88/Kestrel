@@ -4,6 +4,11 @@
  * A signal is numbers and fixed words only: no photo, no file name, no free text, no account id (a pseudonym is stored so
  * deletion works), no timestamp finer than a day. In-memory sink here; Firestore sink beside it, not wired until approved.
  */
+import { sha256Hex } from './crypto.ts';
+
+/** The pseudonym learning records are kept under (opting out and account deletion both delete by it). */
+export const learningSubjectFor = (accountId: string) => sha256Hex(`learning:${accountId}`);
+
 export const LEARNING_SOURCES = ['gemini', 'byo', 'on-device'] as const;
 export const LEARNING_CAPABILITIES = ['colour', 'exposure', 'subject', 'species', 'crop'] as const;
 export const LEARNING_ACTIONS = ['accepted', 'edited', 'rejected'] as const;
