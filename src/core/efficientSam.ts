@@ -73,11 +73,19 @@ export interface SamMask {
 /**
  * A first tap with nothing else to go on means "this subject", not "this patch of it". The model offers several
  * candidates, from a small part to the whole object; it often rates the part highest (the white chest of a puffin). So
- * for that prompt the largest candidate the model rates nearly as well as its best is chosen, as long as it holds the
- * tapped point and is still an object (not most of the frame). Parts then come from more taps, and any other prompt keeps
+ * for that prompt the largest object the model rates nearly as well as its best is chosen, as long as it holds the
+ * tapped point and is still an object (not most of the frame). Two candidates of nearly the same size are the same object,
+ * and what the larger adds decides between them. Added area that lies within the tighter one's own outline (its convex
+ * hull) bridges a gap, such as the notch under a puffin's beak and chin, so the tighter one is kept and the outline follows
+ * the subject into its concave corners. Added area that reaches out of it is a part, such as a thin leg and foot on the
+ * soil, so the larger one is taken (owner's reports, 27 Nov). Parts then come from more taps, and any other prompt keeps
  * the model's best.
  */
 export const WHOLE_SUBJECT_SCORE_MARGIN = 0.12;
+/** A candidate this much larger (by area) than another is a bigger object (part to whole), not the same one filled in. */
+export const WHOLE_SUBJECT_GROWTH = 1.3;
+/** Share of a slightly larger candidate's added area that must lie outside the tighter one's hull for it to be a part. */
+export const WHOLE_SUBJECT_PART_SHARE = 0.5;
 export const WHOLE_SUBJECT_MIN_SCORE = 0.5;
 export const WHOLE_SUBJECT_MAX_COVERAGE = 0.85;
 
@@ -108,14 +116,17 @@ export function chooseSamMask(masks: Float32Array, scores: Float32Array, w: numb
     const tapped = Math.min(h - 1, Math.max(0, Math.floor(wholeSubjectAt.y))) * w + Math.min(w - 1, Math.max(0, Math.floor(wholeSubjectAt.x)));
     const holdsTap = (c: number) => masks[c * plane + tapped] >= 0;
     const object = (c: number) => holdsTap(c) && areas[c] / plane <= WHOLE_SUBJECT_MAX_COVERAGE;
-    // The best-rated candidate that is an object at the tap; then the largest one rated nearly as well.
+    // The best-rated candidate that is an object at the tap, and every object rated nearly as well, smallest first.
     let reference = -1;
     for (let c = 0; c < candidates; c += 1) if (object(c) && (reference < 0 || scores[c] > scores[reference])) reference = c;
     if (reference >= 0) {
-      chosen = reference;
-      for (let c = 0; c < candidates; c += 1) {
-        const close = scores[c] >= scores[reference] - WHOLE_SUBJECT_SCORE_MARGIN && scores[c] >= WHOLE_SUBJECT_MIN_SCORE;
-        if (object(c) && close && areas[c] > areas[chosen]) chosen = c;
+      const close = [...Array(candidates).keys()].filter((c) => c === reference || (object(c)
+        && scores[c] >= scores[reference] - WHOLE_SUBJECT_SCORE_MARGIN && scores[c] >= WHOLE_SUBJECT_MIN_SCORE))
+        .sort((a, b) => areas[a] - areas[b]);
+      // Step up to a bigger object, or to the same object with a part added; never to one that only bridges a gap.
+      chosen = close[0];
+      for (const c of close.slice(1)) {
+        if (areas[c] >= areas[chosen] * WHOLE_SUBJECT_GROWTH || addsPart(masks, chosen, c, w, h)) chosen = c;
       }
     }
   }
@@ -156,4 +167,45 @@ export function unionSamMasks(masks: readonly SamMask[]): SamMask | null {
   let inside = 0;
   for (let i = 0; i < data.length; i += 1) if (masks.some((m) => m.data[i])) { data[i] = 1; inside += 1; }
   return { w, h, data, score: Math.min(...masks.map((m) => m.score)), coverage: inside / data.length };
+}
+
+/** Does candidate `larger` add a part to `tighter` (most of its added area outside tighter's convex hull)? */
+function addsPart(masks: Float32Array, tighter: number, larger: number, w: number, h: number): boolean {
+  const plane = w * h;
+  const hull = convexHull(masks.subarray(tighter * plane, (tighter + 1) * plane), w, h);
+  if (hull.length < 3) return true;
+  let added = 0, outside = 0;
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const i = y * w + x;
+    if (masks[larger * plane + i] < 0 || masks[tighter * plane + i] >= 0) continue;
+    added += 1;
+    if (!insideConvex(hull, x + 0.5, y + 0.5)) outside += 1;
+  }
+  return added > 0 && outside / added >= WHOLE_SUBJECT_PART_SHARE;
+}
+
+/** The convex hull (anticlockwise in image coordinates) of a mask's inside pixels, from each row's outer pixel corners. */
+function convexHull(mask: Float32Array, w: number, h: number): Array<[number, number]> {
+  const points: Array<[number, number]> = [];
+  for (let y = 0; y < h; y += 1) {
+    let left = -1, right = -1;
+    for (let x = 0; x < w; x += 1) if (mask[y * w + x] >= 0) { if (left < 0) left = x; right = x; }
+    if (left < 0) continue;
+    points.push([left, y], [left, y + 1], [right + 1, y], [right + 1, y + 1]);
+  }
+  points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: [number, number], a: [number, number], b: [number, number]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: Array<[number, number]> = [];
+  for (const p of points) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+  const upper: Array<[number, number]> = [];
+  for (let i = points.length - 1; i >= 0; i -= 1) { const p = points[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+function insideConvex(hull: ReadonlyArray<[number, number]>, x: number, y: number): boolean {
+  for (let i = 0; i < hull.length; i += 1) {
+    const [ax, ay] = hull[i], [bx, by] = hull[(i + 1) % hull.length];
+    if ((bx - ax) * (y - ay) - (by - ay) * (x - ax) < 0) return false;
+  }
+  return true;
 }

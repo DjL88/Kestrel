@@ -49,6 +49,7 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { SPECIES_REGIONS_EVENT, readSpeciesRegions } from '../../core/speciesRegions';
 import { regionIdsForArea, reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
+import { SPECIES_SCAN_VERSION, speciesScanDue } from '../../core/autoTags';
 import { LEGACY_SETTINGS } from '../../core/projectSettings';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { displaySpeciesName } from '../../core/speciesNames';
@@ -1052,8 +1053,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       ? { ...current, settings: { ...(current.settings ?? LEGACY_SETTINGS), speciesAreaPrompt: { example: label.common } } } : current)),
     // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
     onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
-      frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS), VEHICLE_LABELS) } : current)),
+      frame.id === frameId && !frame.removedAt && speciesScanDue(frame) && !frame.tags?.length && !frame.subjectNames?.length
+        ? { ...frame, ...patch, speciesScanVersion: SPECIES_SCAN_VERSION, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
