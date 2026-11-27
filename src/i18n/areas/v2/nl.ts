@@ -1827,6 +1827,8 @@ export const nl: AreaTranslation<typeof source> = {
     rateStars: (n) => n === 1 ? '1 ster geven' : `${n} sterren geven`,
     subject: 'Onderwerp',
     correctSpecies: 'Soortnaam corrigeren',
+    lookAgain: "Klopt niet? Opnieuw bekijken",
+    lookAgainHelp: "Haalt deze voorgestelde naam voorgoed weg en bekijkt de foto opnieuw. Er wordt niets getoond tot het nieuwe resultaat er is.",
     save: 'Opslaan',
     cancel: 'Annuleren',
     edit: 'Bewerken',

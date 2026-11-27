@@ -367,3 +367,12 @@ test('Info: beside the histogram, the as-shot white when known, otherwise nothin
   assert.equal(asShotWords({}), '');
   assert.equal(asShotWords({ asShotWhite: { kelvin: Number.NaN, duv: 0 } } as never), '');
 });
+
+test('the Look again action is offered only on an automatic species name, never on the person\'s own or a kind word', async () => {
+  const { speciesAutoOf } = await import('./frameToPhoto');
+  assert.equal(speciesAutoOf({ tags: ['Bird', 'Atlantic Puffin'], autoTags: ['Atlantic Puffin'] }), true);
+  assert.equal(speciesAutoOf({ tags: ['Atlantic Puffin'], autoTags: ['Atlantic Puffin'], subjectNames: ['Atlantic Puffin'] }), false);
+  assert.equal(speciesAutoOf({ tags: ['Atlantic Puffin'], autoTags: [] }), false);
+  assert.equal(speciesAutoOf({ tags: ['Bird'], autoTags: ['Bird'] }), false);
+  assert.equal(speciesAutoOf({ tags: [] }), false);
+});

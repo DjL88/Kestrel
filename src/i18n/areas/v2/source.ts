@@ -1910,6 +1910,8 @@ export const source = {
     rateStars: (n: number) => n === 1 ? 'Rate 1 star' : `Rate ${n} stars`,
     subject: 'Subject',
     correctSpecies: 'Correct species name',
+    lookAgain: "Not right? Look again",
+    lookAgainHelp: "Takes this suggested name off for good and checks the photo again. Nothing is shown until the new result arrives.",
     save: 'Save',
     cancel: 'Cancel',
     edit: 'Edit',

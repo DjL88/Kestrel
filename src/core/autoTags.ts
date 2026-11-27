@@ -42,6 +42,27 @@ export function reconcileAuto(previous: AutoState, nextTags: readonly string[]):
   return { autoTags: kept, declinedTags: addTags(previous.declinedTags ?? [], removed) };
 }
 
+/**
+ * "Not right? Look again" on an automatic species name (Dave, 27 Nov): that name is taken off the photo and remembered
+ * as declined, so it never comes back; the photo's species check is cleared so the scan looks at it again; and until
+ * the new result arrives nothing is shown (unknown stays unknown). Kind words such as "Bird" stay. Null when there is
+ * no automatic species name (a name of the person's own is theirs to edit).
+ */
+export function lookAgain(frame: { tags?: readonly string[]; subjectNames?: readonly string[] } & AutoState): {
+  tags: string[]; autoTags: string[]; declinedTags: string[];
+  speciesChecked: false; speciesGuess: undefined; speciesNearby: undefined; speciesArea: undefined;
+} | null {
+  if (frame.subjectNames?.length) return null;
+  const automatic = (frame.autoTags ?? []).filter((tag) => !has(STARTER_TAGS.wildlife, tag));
+  if (!automatic.length) return null;
+  return {
+    tags: (frame.tags ?? []).filter((tag) => !has(automatic, tag)),
+    autoTags: (frame.autoTags ?? []).filter((tag) => !has(automatic, tag)),
+    declinedTags: addTags(frame.declinedTags ?? [], automatic),
+    speciesChecked: false, speciesGuess: undefined, speciesNearby: undefined, speciesArea: undefined,
+  };
+}
+
 /** The user keeps an automatic tag: it becomes an ordinary tag. */
 export function keepAuto(previous: AutoState, name: string): string[] {
   return (previous.autoTags ?? []).filter((tag) => !sameName(tag, name));

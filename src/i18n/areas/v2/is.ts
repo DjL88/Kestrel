@@ -1827,6 +1827,8 @@ export const is: AreaTranslation<typeof source> = {
     rateStars: (n) => `Stjörnur: ${n}`,
     subject: 'Myndefni',
     correctSpecies: 'Leiðrétta tegundarheiti',
+    lookAgain: "Ekki rétt? Skoða aftur",
+    lookAgainHelp: "Fjarlægir þetta tillöguheiti varanlega og skoðar myndina aftur. Ekkert birtist fyrr en ný niðurstaða kemur.",
     save: 'Vista',
     cancel: 'Hætta við',
     edit: 'Breyta',

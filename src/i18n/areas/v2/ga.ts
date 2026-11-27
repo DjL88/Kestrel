@@ -1830,6 +1830,8 @@ export const ga: AreaTranslation<typeof source> = {
     rateStars: (n) => `Rátáil: ${n} réalta`,
     subject: 'Ábhar',
     correctSpecies: 'Ceartaigh ainm an speicis',
+    lookAgain: "Mícheart? Féach arís",
+    lookAgainHelp: "Baineann sé an t-ainm molta seo go buan agus seiceálann sé an grianghraf arís. Ní thaispeántar aon rud go dtí go dtagann an toradh nua.",
     save: 'Sábháil',
     cancel: 'Cealaigh',
     edit: 'Cuir in eagar',

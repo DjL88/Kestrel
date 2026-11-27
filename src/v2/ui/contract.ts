@@ -425,6 +425,8 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** The species name shown is InFlight's own suggestion, so 'Not right? Look again' is offered. */
+  speciesAuto?: boolean;
   /** The place an automatic species name was matched against, in the person's words ("Species list used: Worldwide"). */
   speciesAreaLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
@@ -893,6 +895,8 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** 'Not right? Look again': drop the automatic species name for good and let the species scan look at the photo again. */
+  lookAgainAtSpecies?: (photoId: string) => void;
   /** "Where were these taken?" for the open project; species names are matched against that place from now on. */
   setSpeciesArea?: (area: import('../../core/speciesArea').SpeciesArea) => void;
   /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
