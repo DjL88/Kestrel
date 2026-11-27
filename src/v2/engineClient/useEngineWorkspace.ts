@@ -39,7 +39,7 @@ import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
 import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
-import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
+import { pickResumePhotos, pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -296,7 +296,10 @@ function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): v
     photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
     lastUpdatedAt: project.shoot.lastUpdatedAt,
   });
-  if (last) writeLastProject(last);
+  if (!last) return;
+  // The card shows a few of the project's own photos (owner, 26 Nov: it showed a folder icon), as references only.
+  const keys = pickResumePhotos(project.frames).map(hubPreviewKey);
+  writeLastProject(keys.length ? { ...last, thumbs: { keys, developVersion: DEVELOP_VERSION } } : last);
 }
 
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */

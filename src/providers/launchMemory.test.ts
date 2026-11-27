@@ -190,3 +190,13 @@ test('never throws with no storage at all', () => {
   assert.equal(priorUseDetected(), false);
   markLaunched();
 });
+
+test('the last project keeps up to three photo references for its card, and drops unusable ones', () => {
+  const { s, local } = setup();
+  writeLastProject({ ...project, thumbs: { keys: ['k1', 'k2'], developVersion: 4 } }, s);
+  assert.deepEqual(readLastProject(s)?.thumbs, { keys: ['k1', 'k2'], developVersion: 4 });
+  local.setItem('inflight.launch.lastProject', JSON.stringify({ ...project, thumbs: { keys: [1, '', 'a', 'b', 'c', 'd'], developVersion: 4 } }));
+  assert.deepEqual(readLastProject(s)?.thumbs, { keys: ['a', 'b', 'c'], developVersion: 4 });
+  local.setItem('inflight.launch.lastProject', JSON.stringify({ ...project, thumbs: { keys: ['a'] } }));
+  assert.equal(readLastProject(s)?.thumbs, undefined);
+});
