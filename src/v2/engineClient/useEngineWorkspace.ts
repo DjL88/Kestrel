@@ -428,6 +428,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const [autoUnavailable, setAutoUnavailable] = useState<Record<string, AutoUnavailable>>({});
   const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
+  // What Auto last did, per photo, so the Auto button and Auto-pilot never end in silence (Dave, 27 Nov: on his own
+  // RAW, Auto-pilot applied nothing and said nothing). The last dozen photos are kept.
+  const [autoStatus, setAutoStatus] = useState<Record<string, { state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string }>>({});
+  const sayAuto = useCallback((photoId: string, state: 'working' | 'applied' | 'unchanged' | 'unavailable', text: string) => {
+    setAutoStatus((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([id]) => id !== photoId).slice(-11)), [photoId]: { state, text } }));
+  }, []);
+  /** Photos whose Auto button was pressed: the checked edit is applied when the check finishes. */
+  const autoApplyWanted = useRef(new Set<string>());
   const lastAutoRequest = useRef(0);
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
@@ -2038,10 +2046,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.checkCancelled();
           if (!isCurrent()) return;
           if (!run) return;
+          const applyNow = manual && autoApplyWanted.current.delete(frame.id);
           if (isAutoUnavailable(run)) {
             // Say why in Co-pilot (and, for a press of the button, as a notice) instead of finishing silently.
             ctx.commitIfCurrent(() => {
               setAutoUnavailable(current => ({ ...current, [frame.id]: run }));
+              sayAuto(frame.id, 'unavailable', autoUnavailableSentence(run.unavailable, frame.filename));
               if (manual) setNotice(autoUnavailableSentence(run.unavailable, frame.filename));
             });
             return;
@@ -2065,17 +2075,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             editedElsewhereNoticed.current.add(frame.id);
             ctx.commitIfCurrent(() => setNotice(autopilotSkippedEdited()));
           }
-          const autopilot = !manual && assistMode === 'autopilot' && run.improved && !skipEdited;
+          // Applying is wanted by the Auto button, or by Auto-pilot for a photo opened unedited.
+          const wantsApply = applyNow || (!manual && assistMode === 'autopilot');
+          if (skipEdited) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited()));
+          // Never silently nothing: when the checks leave the photo alone, the one-line reason is said.
+          else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.headline));
+          const autopilot = wantsApply && run.improved && !skipEdited;
           let piloted = false;
           const pilot = (held: boolean) => {
             piloted = true;
-            if (held) { ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview())); return; }
+            if (held) { ctx.commitIfCurrent(() => { setNotice(autopilotHeldForReview()); sayAuto(frame.id, 'unchanged', autopilotHeldForReview()); }); return; }
             const at = Date.now();
+            const what = run.candidates.find((candidate) => candidate.edit === run.plan.proposal)?.summary;
+            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) sayAuto(frame.id, 'applied', what || run.headline); });
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
                 ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
             ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) noteAutoApplied(frame.id, run, run.plan.proposal); });
           };
+          // The Auto button is the person's own decision: it applies at once, without waiting for the second opinion.
+          if (applyNow && autopilot) pilot(false);
           for (const candidate of hasLocalVision() ? order : []) {
             ctx.stage(engineText.workspace.secondOpinionStage);
             const opinion = await askOnDeviceGuardian(candidate.after, 'editNatural');
@@ -2100,6 +2119,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // A thrown RAW or decode error used to end here unseen (and its text talked about exporting).
         if (result !== 'failed' || !isCurrent()) return;
         setAutoUnavailable(current => ({ ...current, [frame.id]: { unavailable: 'failed', source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing } } }));
+        sayAuto(frame.id, 'unavailable', autoUnavailableSentence('failed', frame.filename));
         if (manual) setNotice(autoUnavailableSentence('failed', frame.filename));
       }).catch(() => {
         if (isCurrent()) setNotice(engineText.workspace.checkFailed);
@@ -3579,6 +3599,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     ...(editStyleOn ? { resetEditStyle: forgetEditStyle } : {}),
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
+    autoEdit: (photoId) => {
+      // Answered at once: the status line says it is looking, then what it did.
+      autoApplyWanted.current.add(photoId);
+      sayAuto(photoId, 'working', engineText.workspace.checkStage);
+      setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 }));
+    },
     ...(cullRulesOn ? { rankCulling, applyCullRules: applyCullRulesFor } : {}),
     ...(cloudRecipeOn ? {
       prepareCloudRecipe: prepareCloudRecipeFor,
@@ -4162,6 +4188,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
+    ...(activeFrame && autoStatus[activeFrame.id] ? { autoStatus: { photoId: activeFrame.id, ...autoStatus[activeFrame.id] } } : {}),
     ...(cloudRecipeOn && state ? { cloudEdits: { choice: cloudEditsChoice, covered: cloudEditsPlan.covered.length, toDo: cloudEditsPlan.toDo.length, running: cloudEditsRunning } } : {}),
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
@@ -4205,7 +4232,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, autoStatus, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
 
   return { store, actions };
 }

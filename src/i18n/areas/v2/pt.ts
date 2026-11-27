@@ -1331,6 +1331,14 @@ export const pt: AreaTranslation<typeof source> = {
     holdCompare: "Manter premido para comparar",
     holdCompareHint: "Mostra a foto como estava enquanto mantém premido.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Verifica esta foto neste dispositivo e aplica uma edição natural num só passo. Anular retira-a.",
+    working: "A ver esta foto…",
+    states: { working: "A ver esta foto…", applied: "Auto aplicado.", unchanged: "Nada mudou.", unavailable: "O Auto não pôde ser executado." },
+    beforeAfter: "Antes / Depois",
+    undo: "Anular",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Trazido do Lightroom",

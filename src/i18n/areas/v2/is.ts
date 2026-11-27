@@ -1331,6 +1331,14 @@ export const is: AreaTranslation<typeof source> = {
     holdCompare: "Haltu inni til að bera saman",
     holdCompareHint: "Sýnir myndina eins og hún var meðan þú heldur inni.",
   },
+  autoEdit: {
+    label: "Sjálfvirkt",
+    hint: "Athugar þessa mynd á þessu tæki og gerir náttúrulega breytingu í einu skrefi. Afturkalla tekur hana til baka.",
+    working: "Skoða þessa mynd…",
+    states: { working: "Skoða þessa mynd…", applied: "Sjálfvirkt notað.", unchanged: "Ekkert breyttist.", unavailable: "Sjálfvirkt gat ekki keyrt." },
+    beforeAfter: "Fyrir / Eftir",
+    undo: "Afturkalla",
+  },
   history: {
     byAuto: "Sjálfvirkt",
     byLightroom: "Sótt úr Lightroom",

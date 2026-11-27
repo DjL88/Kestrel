@@ -1331,6 +1331,14 @@ export const nl: AreaTranslation<typeof source> = {
     holdCompare: "Ingedrukt houden om te vergelijken",
     holdCompareHint: "Toont de foto zoals hij was zolang je ingedrukt houdt.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Controleert deze foto op dit apparaat en past in één stap een natuurlijke bewerking toe. Ongedaan maken haalt die weg.",
+    working: "Deze foto bekijken…",
+    states: { working: "Deze foto bekijken…", applied: "Auto toegepast.", unchanged: "Niets gewijzigd.", unavailable: "Auto kon niet draaien." },
+    beforeAfter: "Voor / Na",
+    undo: "Ongedaan maken",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Uit Lightroom binnengehaald",

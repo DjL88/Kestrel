@@ -1334,6 +1334,14 @@ export const ga: AreaTranslation<typeof source> = {
     holdCompare: "Coinnigh síos chun comparáid a dhéanamh",
     holdCompareHint: "Taispeántar an grianghraf mar a bhí fad a choinníonn tú síos é.",
   },
+  autoEdit: {
+    label: "Uath",
+    hint: "Seiceálann sé an grianghraf seo ar an ngléas seo agus cuireann sé eagarthóireacht nádúrtha i bhfeidhm in aon chéim. Baineann Cealaigh é.",
+    working: "Ag féachaint ar an ngrianghraf seo…",
+    states: { working: "Ag féachaint ar an ngrianghraf seo…", applied: "Uath curtha i bhfeidhm.", unchanged: "Níor athraigh aon rud.", unavailable: "Níorbh fhéidir Uath a rith." },
+    beforeAfter: "Roimh / Tar éis",
+    undo: "Cealaigh",
+  },
   history: {
     byAuto: "Uathoibríoch",
     byLightroom: "Tugtha isteach ó Lightroom",

@@ -1331,6 +1331,14 @@ export const nb: AreaTranslation<typeof source> = {
     holdCompare: "Hold for å sammenligne",
     holdCompareHint: "Viser bildet slik det var mens du holder.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Sjekker dette bildet på denne enheten og bruker en naturlig redigering i ett trinn. Angre tar den tilbake.",
+    working: "Ser på dette bildet…",
+    states: { working: "Ser på dette bildet…", applied: "Auto brukt.", unchanged: "Ingenting endret.", unavailable: "Auto kunne ikke kjøre." },
+    beforeAfter: "Før / Etter",
+    undo: "Angre",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Hentet fra Lightroom",

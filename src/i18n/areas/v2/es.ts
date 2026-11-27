@@ -1331,6 +1331,14 @@ export const es: AreaTranslation<typeof source> = {
     holdCompare: "Mantén pulsado para comparar",
     holdCompareHint: "Muestra la foto como estaba mientras lo mantienes pulsado.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Comprueba esta foto en este dispositivo y aplica una edición natural en un paso. Deshacer la quita.",
+    working: "Mirando esta foto…",
+    states: { working: "Mirando esta foto…", applied: "Auto aplicado.", unchanged: "No cambió nada.", unavailable: "Auto no pudo ejecutarse." },
+    beforeAfter: "Antes / Después",
+    undo: "Deshacer",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Traído de Lightroom",
