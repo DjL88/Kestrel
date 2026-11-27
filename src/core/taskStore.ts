@@ -115,7 +115,7 @@ export function createTaskStore(now: () => number = Date.now) {
     };
   };
   return {
-    start(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
+    start(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number; kind?: string } = {}): TaskHandle {
       return register(title, 'running', options);
     },
     enqueue(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number; kind?: string } = {}): SchedulerTaskHandle {

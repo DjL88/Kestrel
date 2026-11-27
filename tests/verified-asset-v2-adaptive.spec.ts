@@ -46,8 +46,17 @@ test('adaptive form factor retains the same selected photograph when a phone fol
   for (const viewport of sequence) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const mobile = viewport.width <= 767;
+    // A touch tablet held upright has the tools along the bottom too (decided 26 Nov: Import in the top bar, the panel
+    // as a bottom sheet). The same media query the app uses, so a mouse at the same size keeps the desktop layout.
+    const tabletPortrait = await page.evaluate(() => matchMedia('(min-width: 768px) and (max-width: 1023px) and (orientation: portrait) and (pointer: coarse)').matches);
     const mobileNav = root.getByRole('navigation', { name: 'Mobile studio tools' });
-    if (mobile) {
+    if (tabletPortrait) {
+      await expect(mobileNav, viewport.name).toBeVisible();
+      for (const name of ['Flight', 'Adjust', 'Formats', 'Masks', 'Enhance', 'More']) {
+        await expect(mobileNav.getByRole('button', { name, exact: true }), viewport.name + ': ' + name + ' along the bottom').toBeVisible();
+      }
+      await expect(root.getByTestId('topbar-import'), viewport.name + ': Import in the top bar').toBeVisible();
+    } else if (mobile) {
       await expect(mobileNav, viewport.name).toBeVisible();
       const buttons = await mobileNav.locator('button').count();
       expect(buttons, viewport.name + ': mobile tools should remain reachable').toBeGreaterThanOrEqual(4);
@@ -97,7 +106,18 @@ test('adaptive form factor keeps phone More actions reachable at 320/390 and res
     await more.click();
     await expect(root.getByRole('dialog', { name: 'More tools' })).toHaveCount(0);
   }
+  // An upright touch tablet keeps the tools along the bottom (six, with Import in the top bar); with a mouse it is the
+  // desktop layout. Turned on its side, the tablet layout comes back with no bottom row either way.
   await page.setViewportSize({ width: 820, height: 1180 });
+  const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+  if (coarse) {
+    await expect(nav).toBeVisible();
+    for (const name of ['Flight', 'Adjust', 'Formats', 'Masks', 'Enhance', 'More']) await expect(nav.getByRole('button', { name, exact: true })).toBeVisible();
+  } else {
+    await expect(nav).toHaveCount(0);
+  }
+  await expect(root.getByRole('dialog', { name: 'More tools' })).toHaveCount(0);
+  await page.setViewportSize({ width: 1180, height: 820 });
   await expect(nav).toHaveCount(0);
   await expect(root.getByRole('dialog', { name: 'More tools' })).toHaveCount(0);
 });

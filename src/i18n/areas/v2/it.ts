@@ -2291,7 +2291,7 @@ export const it: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Caricamento della foto',
-    minutesLeft: (n: number) => `Circa ${n} min rimanenti`,
+    minutesLeft: (n: number) => (n < 60 ? `Circa ${n} min rimanenti` : `Circa ${Math.floor(n / 60)} h ${n % 60} min rimanenti`),
     teaTime: 'È il momento di una tazza di tè',
   },
 };
