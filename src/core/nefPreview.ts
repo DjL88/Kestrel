@@ -11,7 +11,7 @@ const MAX_SUB_DIRECTORIES = 16;
 const PREVIEW_LONG_EDGE = 640;
 const SMALL_PREVIEW_LONG_EDGE = 160;
 
-async function locatePreview(file: Blob, minEdge: number): Promise<Blob | null> {
+async function locatePreview(file: Blob, minEdge: number, prefer: 'largest' | 'smallest' = 'largest'): Promise<Blob | null> {
   if (file.size < 8) return null;
   const read = async (offset: number, length: number) =>
     offset >= 0 && offset + length <= file.size
@@ -25,7 +25,7 @@ async function locatePreview(file: Blob, minEdge: number): Promise<Blob | null> 
   if (rafMagic && new TextDecoder().decode(new Uint8Array(rafMagic.buffer)) === 'FUJIFILMCCD-RAW ') {
     const place = await read(84, 8);
     if (place) candidates.push({ offset: place.getUint32(0), length: place.getUint32(4) });
-    return pickBest(file, candidates, read, minEdge);
+    return pickBest(file, candidates, read, minEdge, prefer);
   }
   const order = header.getUint16(0);
   if (order !== 0x4949 && order !== 0x4d4d) return null;
@@ -85,10 +85,10 @@ async function locatePreview(file: Blob, minEdge: number): Promise<Blob | null> 
       candidates.push({ offset: stripStart, length: stripLength });
     }
   }
-  return pickBest(file, candidates, read, minEdge);
+  return pickBest(file, candidates, read, minEdge, prefer);
 }
 
-async function pickBest(file: Blob, candidates: { offset: number; length: number }[], read: (offset: number, length: number) => Promise<DataView | null>, minEdge: number): Promise<Blob | null> {
+async function pickBest(file: Blob, candidates: { offset: number; length: number }[], read: (offset: number, length: number) => Promise<DataView | null>, minEdge: number, prefer: 'largest' | 'smallest' = 'largest'): Promise<Blob | null> {
   // JPEG byte size depends on compression and detail. Prefer actual pixel area.
   let best: { preview: Blob; pixels: number } | null = null;
   for (const { offset, length } of candidates) {
@@ -97,7 +97,8 @@ async function pickBest(file: Blob, candidates: { offset: number; length: number
     if (first?.getUint16(0) === 0xffd8 && first.getUint8(2) === 0xff && last?.getUint16(0) === 0xffd9) {
       const preview = file.slice(offset, offset + length, 'image/jpeg');
       const pixels = await usefulPixelCount(preview, minEdge);
-      if (pixels && (!best || pixels > best.pixels || (pixels === best.pixels && length > best.preview.size))) {
+      const better = prefer === 'smallest' ? !best || pixels < best.pixels : !best || pixels > best.pixels || (pixels === best.pixels && length > best.preview.size);
+      if (pixels && better) {
         best = { preview, pixels };
       }
     }
@@ -288,3 +289,52 @@ export async function shownJpegSize(picture: Blob): Promise<{ width: number; hei
 
 /** The old name, kept so existing callers keep working. */
 export const extractNefPreview = extractRawPreview;
+
+/** The long edge a tile thumbnail needs from the camera's embedded JPEG (tiles are drawn at up to 400 px). */
+export const THUMB_PREVIEW_LONG_EDGE = 320;
+
+/**
+ * The camera's smallest embedded JPEG that still fills a tile (at least 320 px on its long side): on a Nikon Z8 or Z5II
+ * the 640 x 424 one in the first quarter megabyte, so a thumbnail reads that and a few directory entries, never the
+ * large preview or the sensor data. Found only through the file's own directory; null when there is none, and the
+ * caller then uses the normal preview.
+ */
+export async function extractThumbRawPreview(file: Blob): Promise<Blob | null> {
+  const head = new Uint8Array(await file.slice(0, Math.min(file.size, THUMB_HEAD_BYTES)).arrayBuffer());
+  let preview: Blob | null = null;
+  let fewest = Infinity;
+  for (const jpeg of completeJpegsIn(head)) {
+    const candidate = new Blob([jpeg.slice()], { type: 'image/jpeg' });
+    const pixels = await usefulPixelCount(candidate, THUMB_PREVIEW_LONG_EDGE);
+    if (pixels && pixels < fewest) { preview = candidate; fewest = pixels; }
+  }
+  preview ??= await locatePreview(file, THUMB_PREVIEW_LONG_EDGE, 'smallest');
+  return preview && orientPreview(preview, await rawOrientation(file));
+}
+
+/** How much of the front of a RAW a thumbnail reads first: a Nikon Z8 or Z5II keeps its 640 x 424 JPEG at 98-243 KB. */
+export const THUMB_HEAD_BYTES = 256 * 1024;
+
+/** The complete JPEGs (start marker, frame headers, scan, end marker) that lie wholly inside these bytes. Bounded. */
+export function completeJpegsIn(bytes: Uint8Array, limit = 8): Uint8Array[] {
+  const found: Uint8Array[] = [];
+  for (let start = 0; start + 4 < bytes.length && found.length < limit; start += 1) {
+    if (bytes[start] !== 0xff || bytes[start + 1] !== 0xd8 || bytes[start + 2] !== 0xff) continue;
+    // Walk the segments up to the scan; anything malformed is not a JPEG here.
+    let at = start + 2;
+    let scan = -1;
+    for (let segments = 0; segments < 64 && at + 4 <= bytes.length && bytes[at] === 0xff; segments += 1) {
+      if (bytes[at + 1] === 0xda) { scan = at; break; }
+      const length = (bytes[at + 2] << 8) | bytes[at + 3];
+      if (length < 2) break;
+      at += 2 + length;
+    }
+    if (scan < 0) continue;
+    let end = scan + 2;
+    while (end + 1 < bytes.length && !(bytes[end] === 0xff && bytes[end + 1] === 0xd9)) end += 1;
+    if (end + 1 >= bytes.length) continue; // runs past what was read: not wholly here
+    found.push(bytes.subarray(start, end + 2));
+    start = end + 1;
+  }
+  return found;
+}

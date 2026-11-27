@@ -900,6 +900,8 @@ export interface WorkspaceActions {
   /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
   removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
+  /** The photos whose tiles are on screen now (filmstrip, grid): their thumbnails come first. Optional for older stubs. */
+  thumbnailsOnScreen?: (photoIds: readonly string[]) => void;
   importFolder: () => void;
   /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
   watchFolder?: () => void;

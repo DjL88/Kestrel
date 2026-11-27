@@ -118,14 +118,15 @@ export interface LinkedRange {
  * Ranged reader for a linked original: only the bytes asked for are read (a RAW's embedded preview is a few MB of a
  * 30-60 MB file, which matters on external drives and network shares). Same identity rule as linkedReader.
  */
-export function linkedRangeOpener(path: string, expectedSize: number | undefined, expectedOriginalSha256: string): () => Promise<LinkedRange> {
-  return async () => {
+/** headBytes: how much of the start one read brings in (a thumbnail needs only the first 256 KB; see rangeBlob.ts). */
+export function linkedRangeOpener(path: string, expectedSize: number | undefined, expectedOriginalSha256: string): (options?: { headBytes?: number }) => Promise<LinkedRange> {
+  return async (options) => {
     const fs = await import('@tauri-apps/plugin-fs');
     const before = await fs.stat(path);
     if (!linkedSourceMatches(expectedSize, before.size)) {
       throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
     }
-    const range = await openLinkedRange(path, before.size);
+    const range = await openLinkedRange(path, before.size, '', options?.headBytes);
     const unchanged = (after: { size: number; mtime: Date | null }) => after.size === before.size &&
       !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
     return {
