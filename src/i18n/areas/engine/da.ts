@@ -104,6 +104,8 @@ export const da: AreaTranslation<typeof source> = {
     exportStopped: 'Eksporten stoppede. Filer, der allerede er gemt, bliver liggende.',
     enlargementTask: 'Laver forhåndsvisning af forstørrelsen',
     exportNotQueued: 'Kunne ikke starte denne eksport.',
+    pickerTimingTitle: 'Tid for mappevælgeren (kun denne enhed)',
+    pickerTiming: (app, picker) => `InFlight bad om mappevælgeren ${app} s efter Gem filer; vælgeren svarede ${picker} s senere (inklusive tiden til at vælge).`,
     exportFolderUnwritable: (folder, reason) => `InFlight kunne ikke oprette eksportmappen i ${folder}${reason ? ` (${reason})` : ''}. Vælg en anden mappe, eller kontrollér, at drevet er tilsluttet og ikke skrivebeskyttet. Intet blev eksporteret.`,
     destinationUnavailable: 'Den eksportdestination er ikke tilgængelig. Vælg en lokal ZIP, separate filer eller en mappe på computeren.',
     cullPro: 'Automatisk udvalg er en del af InFlight Pro.',

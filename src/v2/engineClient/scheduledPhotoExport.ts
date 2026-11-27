@@ -62,12 +62,14 @@ export async function scheduleV2PhotoExports(input: {
   frames: readonly PhotoFrame[];
   provider: BrowserPreviewProvider;
   buildOverlay: (frame: PhotoFrame, request: ExportRequest) => Promise<OverlayDraw | null>;
+  /** When the person pressed Save files, for the folder picker's local timing record. */
+  clickedAt?: number;
 }): Promise<SchedulerTicket | null> {
   if (!['local-zip', 'local-individual', 'local-folder'].includes(input.request.destination))
     throw new Error('Choose a supported local export destination.');
   // Ask once, before queuing hundreds of photographs. The exclusive-write
   // destination creates a separate run folder and removes incomplete files.
-  const folder = input.request.destination === 'local-folder' ? await chooseDesktopExportFolder() : null;
+  const folder = input.request.destination === 'local-folder' ? await chooseDesktopExportFolder(input.clickedAt) : null;
   if (input.request.destination === 'local-folder' && !folder) return null;
   const snapshot: ExportSnapshot = {
     request: structuredClone(input.request),

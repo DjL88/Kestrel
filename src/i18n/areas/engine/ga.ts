@@ -104,6 +104,8 @@ export const ga: AreaTranslation<typeof source> = {
     exportStopped: 'Stopadh an easpórtáil. Fanann na comhaid atá sábháilte cheana mar a bhfuil siad.',
     enlargementTask: 'Réamhamharc an mhéadaithe á dhéanamh',
     exportNotQueued: 'Níorbh fhéidir an easpórtáil seo a thosú.',
+    pickerTimingTitle: 'Uainiú an roghnóra fillteán (an gléas seo amháin)',
+    pickerTiming: (app, picker) => `D’iarr InFlight an roghnóir fillteán ${app} s tar éis Sábháil comhaid; d’fhreagair an roghnóir ${picker} s níos déanaí (an t-am roghnaithe san áireamh).`,
     exportFolderUnwritable: (folder, reason) => `Níorbh fhéidir le InFlight an fillteán easpórtála a dhéanamh in ${folder}${reason ? ` (${reason})` : ''}. Roghnaigh fillteán eile, nó seiceáil go bhfuil an tiomántán ceangailte agus nach bhfuil sé inléite amháin. Níor easpórtáladh aon rud.`,
     destinationUnavailable: 'Níl an ceann scríbe easpórtála sin ar fáil. Roghnaigh ZIP áitiúil, comhaid ar leith nó fillteán ar an ríomhaire.',
     cullPro: 'Is cuid de InFlight Pro é an roghnú uathoibríoch.',

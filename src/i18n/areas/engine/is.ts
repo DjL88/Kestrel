@@ -104,6 +104,8 @@ export const is: AreaTranslation<typeof source> = {
     exportStopped: 'Útflutningur stöðvaður. Skrár sem þegar eru vistaðar haldast á sínum stað.',
     enlargementTask: 'Bý til forskoðun stækkunar',
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
+    pickerTimingTitle: 'Tímasetning möppuvals (aðeins þetta tæki)',
+    pickerTiming: (app, picker) => `InFlight bað um möppuvalið ${app} s eftir Vista skrár; valið svaraði ${picker} s síðar (með tímanum sem fór í að velja).`,
     exportFolderUnwritable: (folder, reason) => `InFlight gat ekki búið til útflutningsmöppuna í ${folder}${reason ? ` (${reason})` : ''}. Veldu aðra möppu eða athugaðu að drifið sé tengt og ekki skrifvarið. Ekkert var flutt út.`,
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',
     cullPro: 'Sjálfvirkt val er hluti af InFlight Pro.',
