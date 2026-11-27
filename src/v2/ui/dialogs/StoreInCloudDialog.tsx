@@ -57,6 +57,12 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
     try { setStored(new Set((await client.cloudPhotos(linked)).map((photo) => photo.photoKey))); }
     catch { setStored(null); setListFailed(true); }
   }, [client, localProjectId]);
+  // Declared first so it runs before the dialog takes focus: the opener is what focus returns to on close.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => { previous?.focus(); };
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     setMessage(''); setFull(false); setConfirmRemove(false); setStored(null);
@@ -65,7 +71,6 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
   }, [open, load]);
   useEffect(() => {
     if (!open) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !busy) { event.preventDefault(); event.stopPropagation(); onClose(); return; }
       if (event.key !== 'Tab') return;
@@ -79,7 +84,7 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
       else if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey, true);
-    return () => { document.removeEventListener('keydown', onKey, true); previous?.focus(); };
+    return () => document.removeEventListener('keydown', onKey, true);
   }, [open, busy, onClose]);
   if (!open) return null;
 
