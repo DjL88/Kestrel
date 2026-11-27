@@ -388,6 +388,21 @@ async function signInWithMicrosoftOnDesktop(client: NonNullable<typeof microsoft
   }
 }
 
+/**
+ * Calls back whenever this device signs in or out, however it happened (Settings, the welcome, the browser hand-back on
+ * desktop), so the corner's account button never keeps saying "Sign in" after a sign-in. Returns the unsubscribe.
+ */
+export function onSignedInChange(listener: () => void): () => void {
+  if (!isSignInConfigured()) return () => undefined;
+  let stop: (() => void) | null = null;
+  let stopped = false;
+  void firebase().then(({ auth, instance }) => {
+    if (stopped) return;
+    stop = auth.onAuthStateChanged(instance, () => listener());
+  }, () => undefined);
+  return () => { stopped = true; stop?.(); };
+}
+
 export const firebaseAuth: AuthProvider & { setKeepSignedIn(keep: boolean): Promise<void> } = {
   setKeepSignedIn,
   signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => {

@@ -37,7 +37,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `kestrel-keymap-${PRESETS[saved.preset].label.toLowerCase()}.json`;
+    link.download = `inflight-keymap-${PRESETS[saved.preset].label.toLowerCase()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };

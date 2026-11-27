@@ -137,7 +137,7 @@ test('same-title projects keep independent, restorable backups through renames a
   assert.equal((await readdir(folderA)).length, 2, 'same-millisecond snapshots remain separate');
   const otherName = (await readdir(folderB))[0];
   const otherBytes = await readFile(join(folderB, otherName));
-  const legacyFolder = join(root, 'kestrel/v1/backups/kite-day');
+  const legacyFolder = join(root, 'InFlight/v1/backups/kite-day');
   await mkdir(legacyFolder, { recursive: true });
   const legacy = join(legacyFolder, '2026-11-15T09-00-00-000Z.kestrel.json');
   await writeFile(legacy, encodeProjectBackup(second));

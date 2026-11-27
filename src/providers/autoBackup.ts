@@ -1,5 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { afterAttempt, afterChange, backupFolder, backupName, backupsToDelete, dueForBackup, type BackupClock } from '../core/autoBackup';
+import { afterAttempt, afterChange, backupFolder, backupName, backupsToDelete, dueForBackup, legacyBackupFolder, type BackupClock } from '../core/autoBackup';
 import type { Health } from '../core/connections';
 import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
@@ -61,7 +61,8 @@ export async function writeSnapshot(connector: import('../core/storageConnectors
   // Retention is best effort; never report a valid backup as failed because
   // an old copy could not be removed from a disconnected drive.
   try {
-    for (const expired of backupsToDelete(await connector.list(backupFolder(projectId)), projectId))
+    const listed = [...await connector.list(backupFolder(projectId)), ...await connector.list(legacyBackupFolder(projectId)).catch(() => [])];
+    for (const expired of backupsToDelete(listed, projectId))
       await connector.remove(expired);
   } catch { /* Older snapshots may remain. */ }
 }

@@ -2026,18 +2026,18 @@ export default function Canvas({
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
-              { icon: 'image-plus', label: 'Add format', run: () => onOpenFormats?.(), disabled: !onOpenFormats, pressed: false },
-              { icon: 'copy', label: 'Duplicate format', run: () => onDuplicateSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onDuplicateSize, pressed: false },
-              { icon: 'crop', label: 'Crop / reposition', run: () => {
+              { icon: 'image-plus', label: 'Add format', short: 'Add', run: () => onOpenFormats?.(), disabled: !onOpenFormats, pressed: false },
+              { icon: 'copy', label: 'Duplicate format', short: 'Duplicate', run: () => onDuplicateSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onDuplicateSize, pressed: false },
+              { icon: 'crop', label: 'Crop / reposition', short: 'Crop', run: () => {
                 const id = selectedSizeIds[0];
                 onSelectSize(id);
                 onSetLayoutMode('single');
                 setRevealSizeId((current) => current === id ? null : id);
               }, disabled: selectedSizeIds.length !== 1 || activeSize.kind !== 'photo' || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
-              { icon: 'arrows-horizontal', label: 'Flip selected formats', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
-              { icon: 'rotate', label: 'Rotate selected formats', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
-              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
-              { icon: 'trash', label: 'Delete selected format', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
+              { icon: 'arrows-horizontal', label: 'Flip selected formats', short: 'Flip', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
+              { icon: 'rotate', label: 'Rotate selected formats', short: 'Rotate', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
+              { icon: 'compare', label: 'Compare', short: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
+              { icon: 'trash', label: 'Delete selected format', short: 'Delete', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
             ] as const).map((action) => (
               <button
                 key={action.label}
@@ -2047,9 +2047,11 @@ export default function Canvas({
                 aria-pressed={action.pressed}
                 disabled={action.disabled}
                 onClick={action.run}
-                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] max-md:h-11 max-md:min-w-11"
+                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11"
               >
                 <BrandIcon name={action.icon} size={16} />
+                {/* Words beside the icons where there is room (Windows beta: the icons alone were unclear). */}
+                <span aria-hidden="true" className="hidden text-xs lg:inline">{action.short}</span>
               </button>
             ))}
           </div>

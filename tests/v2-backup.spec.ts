@@ -33,12 +33,12 @@ test('?v2 back up now, save a backup file, and restore it on the hub as a new pr
   const download = page.waitForEvent('download');
   await root.getByRole('menuitem', { name: 'Save backup file…' }).click();
   const file = await download;
-  expect(file.suggestedFilename()).toBe('Backup check.kestrel.json');
+  expect(file.suggestedFilename()).toBe('Backup check.inflight.json');
   const contents = readFileSync(await file.path());
 
   // Restore it on the hub: a new project opens with the photo and its flag; the first project is untouched.
   await root.getByRole('button', { name: 'Back to projects' }).click();
-  await root.getByTestId('restore-backup-input').setInputFiles([{ name: 'Backup check.kestrel.json', mimeType: 'application/json', buffer: contents }]);
+  await root.getByTestId('restore-backup-input').setInputFiles([{ name: 'Backup check.kestrel.json' /* an older, Kestrel-named backup still restores */, mimeType: 'application/json', buffer: contents }]);
   await expect(root.getByText(/Restored “Backup check \(restored\)” as a new project/)).toBeVisible({ timeout: 20000 });
   await expect(options).toHaveCount(1, { timeout: 20000 });
   await expect(root.getByTestId('decision-filter-flagged')).toHaveText(/Flagged \(1\)/);

@@ -111,6 +111,6 @@ export interface PriceDisplay {
 
 /** UK price proposals, NOT payment/checkout authority. */
 export const PROPOSED_UK_PRICES: Readonly<PriceDisplay> = Object.freeze({
-  localPence: 2900,
+  localPence: 2999,
   currency: 'GBP',
 });

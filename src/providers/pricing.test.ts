@@ -26,5 +26,5 @@ test('the app shows the served matrix, keeps it offline, and falls back to the s
   assert.equal(source.current().regions.FR, 'EUR');
 
   const none = pricingSource({ baseUrl: null, storage: { getItem: () => null, setItem: () => {} }, now: () => 0, fetch: (async () => { throw new Error('must not fetch'); }) as typeof fetch });
-  assert.equal((await none.refresh()).currencies.GBP['pro.annual'], 2900);
+  assert.equal((await none.refresh()).currencies.GBP['pro.annual'], 2999);
 });

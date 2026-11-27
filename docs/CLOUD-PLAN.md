@@ -18,7 +18,7 @@ Connector order (each a small PR, all behind the same `StorageConnector` contrac
 4. **Google Drive and Dropbox sign-in** (OAuth, narrow per-app-folder access). Most work, and Google may need to review the app; needed for phones. Later.
 5. **Kestrel managed storage** (this plan's London bucket) for people who want it with no setup.
 
-What is synced is the same at every connector: recipes and ratings (tiny), then previews, then optional originals, each turned on separately. One shared, versioned layout (`kestrel/v1/...`) so a project can move between connectors. Files are checksummed; the app never overwrites a newer remote copy silently (conflicts are shown); the local catalogue stays the record.
+What is synced is the same at every connector: recipes and ratings (tiny), then previews, then optional originals, each turned on separately. One shared, versioned layout (`InFlight/v1/...`) so a project can move between connectors. Files are checksummed; the app never overwrites a newer remote copy silently (conflicts are shown); the local catalogue stays the record.
 
 "Free AWS" is not free: AWS's free tier is small and expires, and customers pay their own provider. The app says "your storage", not "free storage".
 

@@ -284,17 +284,30 @@ export function AccountAndLicenceSettings() {
       <section aria-labelledby="account-h" className="space-y-3">
         <h3 id="account-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">Account (optional)</h3>
         {offline && <p role="status">{t.connections.health.offline} · {t.connections.advice.offline}</p>}
+        {/* One summary: the plan and who is signed in, so the page never says two different things about Pro. */}
         <div data-testid="licence-plan" data-plan={plan.kind} className="space-y-1 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">
           <h4 className="font-medium text-[var(--account-foreground,#f4f4f5)]">{t.licence.planHeading}</h4>
           <p>{planText}</p>
+          <p data-testid="account-signed-in" className="text-sm text-[var(--account-muted,#a1a1aa)]">{account
+            ? <>Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'microsoft' ? 'Microsoft' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</>
+            : 'Not signed in. Importing, culling, editing and exporting never need an account.'}</p>
         </div>
         {account ? (
           <>
-            <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'microsoft' ? 'Microsoft' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
               {(account.provider === 'password' || account.emailVerified === false) && <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
+            </div>
+            {licenceOnlineConfigured() && !((licence.status === 'valid' || licence.status === 'account') && licence.access.pro) && !isMobileShell() && (
+              <BuyProPanel offline={offline} onPaid={buyProPaid} />
+            )}
+            {licenceOnlineConfigured() && (licence.status === 'valid' || licence.status === 'account') && licence.access.pro && !isMobileShell() && (
+              <ManageProPanel offline={offline} />
+            )}
+            <details className="space-y-3" data-testid="account-more">
+            <summary className="cursor-pointer text-sm underline">Devices, sign-in methods and account data</summary>
+            <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void showAccountDevices()}>Show account devices</button>
             </div>
             <SignInMethodsPanel key={account.accountId} disabled={offline || accountBusy} hasEmail={Boolean(account.email)} className={action} onNote={setAccountNote} />
@@ -317,16 +330,10 @@ export function AccountAndLicenceSettings() {
                 </>}
               </section>
             )}
-            {licenceOnlineConfigured() && !((licence.status === 'valid' || licence.status === 'account') && licence.access.pro) && !isMobileShell() && (
-              <BuyProPanel offline={offline} onPaid={buyProPaid} />
-            )}
-            {licenceOnlineConfigured() && (licence.status === 'valid' || licence.status === 'account') && licence.access.pro && !isMobileShell() && (
-              <ManageProPanel offline={offline} />
-            )}
+            </details>
           </>
         ) : (
           <>
-            <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
             <p data-testid="account-local-stay">{t.accountLinks.localStay}</p>
             {suggested && <div className="flex flex-wrap gap-2" data-testid="sign-in-suggested">{signInButton(suggested)}</div>}
             <details className="space-y-2" data-testid="sign-in-other" open={!suggested || undefined}>
@@ -400,13 +407,8 @@ export function AccountAndLicenceSettings() {
       </section>
       <section aria-labelledby="licence-h" className="space-y-3">
         <h3 id="licence-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">{t.licence.licenceKey}</h3>
-        {licence.status === 'account' && licence.standing.kind === 'active' && licence.access.pro && (
-          <p role="status">{plan.kind === 'pro-account' && plan.owned
-            ? 'InFlight Pro is yours on this device. It keeps working with or without a connection.'
-            : <>InFlight Pro is active on this device. Offline until {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(licence.standing.grant.offlineUntilMs)}.</>}</p>
-        )}
         {licence.status === 'valid'
-          ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /><KeptKey /></>
+          ? <><LicenceOnlineStatus licence={licence} /><KeptKey /></>
           : (licence.status !== 'account' || !licence.access.pro) && <p>{t.licence.notUnlocked(DEV_PRO_PREVIEW_MODE)}</p>}
         {licence.status === 'invalid' && <p role="alert" className="text-[var(--account-warning,#fde68a)]">{licence.message}</p>}
         {licence.status !== 'valid' ? (

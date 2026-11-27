@@ -59,7 +59,11 @@ export function languageIsChosen(): boolean {
 /** The device's own language, if InFlight has it: offered at first run, never applied without asking. */
 export const deviceLanguage: LanguageCode | undefined = typeof navigator === 'undefined'
   ? undefined
-  : matchDeviceLanguage(navigator.languages?.length ? navigator.languages : [navigator.language]);
+  : matchDeviceLanguage(navigator.languages?.length ? navigator.languages : [navigator.language], deviceTimeZone());
+
+function deviceTimeZone(): string | undefined {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
+}
 
 /** The language in use for this session. It changes only when the person chooses one (and the app reloads). */
 export const language: LanguageCode = resolveLanguage(savedLanguage());

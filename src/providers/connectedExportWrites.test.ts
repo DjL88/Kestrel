@@ -5,7 +5,7 @@ import { webdavConnector } from './webdavConnector.ts';
 
 const bytes = new Uint8Array([1, 2, 3]);
 const exportPath = 'export/run/photo.jpg';
-const backupPath = 'kestrel/v1/backups/project/backup.json';
+const backupPath = 'InFlight/v1/backups/project/backup.json';
 
 for (const kind of ['s3', 'webdav'] as const) {
   test(`${kind} uses create-only semantics for exports and leaves backup writes replaceable`, async () => {

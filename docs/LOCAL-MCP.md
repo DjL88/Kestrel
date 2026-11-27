@@ -4,7 +4,7 @@ This is a **working local integration**, not the planned cloud/hosted AI subscri
 
 ## Get started (macOS and Windows)
 
-1. In Kestrel choose a project, then **Back up project**. Save its `.kestrel.json` file in a private folder you control. This contains photo filenames, camera metadata, flags, tags and edit recipes—but **not the original pixels**. The file is a snapshot: to share later edits, export a fresh backup.
+1. In Kestrel choose a project, then **Back up project**. Save its `.inflight.json` file (older backups end `.kestrel.json` and still work) in a private folder you control. This contains photo filenames, camera metadata, flags, tags and edit recipes—but **not the original pixels**. The file is a snapshot: to share later edits, export a fresh backup.
 2. Install Node.js 22+ if it is not already available. Clone or download the Kestrel source and find `scripts/kestrel-backup-mcp.mjs`.
 3. Add a local MCP server to Claude Desktop's MCP configuration, adapting the full paths:
 
@@ -15,14 +15,14 @@ This is a **working local integration**, not the planned cloud/hosted AI subscri
       "command": "/absolute/path/to/node",
       "args": [
         "/absolute/path/to/Kestrel/scripts/kestrel-backup-mcp.mjs",
-        "/absolute/path/to/My Project.kestrel.json"
+        "/absolute/path/to/My Project.inflight.json"
       ]
     }
   }
 }
 ```
 
-On Windows use Windows paths (escaped backslashes in JSON), such as `C:\\Users\\you\\Pictures\\My Project.kestrel.json`. Follow Claude Desktop's current MCP setup documentation to find its configuration screen or file; Kestrel does not automatically change Claude's settings.
+On Windows use Windows paths (escaped backslashes in JSON), such as `C:\\Users\\you\\Pictures\\My Project.inflight.json`. Follow Claude Desktop's current MCP setup documentation to find its configuration screen or file; Kestrel does not automatically change Claude's settings.
 
 4. Restart/reconnect Claude Desktop and ask: **"Using Kestrel, summarise my keepers and camera settings."** The MCP server reads only the *one selected backup file*. Claude may receive the metadata returned by tools; don't use this bridge for private camera details you do not wish to share with the assistant provider.
 

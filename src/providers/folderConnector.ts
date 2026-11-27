@@ -1,4 +1,4 @@
-import { isInsideSyncRoot, isWritablePath, type StorageConnector } from '../core/storageConnectors';
+import { isInsideSyncRoot, isWritablePath, SYNC_ROOT, type StorageConnector } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
 
 export interface PickedFolder { connector: StorageConnector; name: string; /** The folder's path, in the desktop app. */ path?: string; /** The folder's handle, in a browser. */ handle?: FileSystemDirectoryHandle }
@@ -64,7 +64,7 @@ export async function desktopFolderConnector(root: string): Promise<StorageConne
   const join = (path: string) => `${root.replace(/[\\/]+$/, '')}/${path}`;
   return {
     kind: 'folder',
-    async test() { try { await fs.mkdir(join('kestrel/v1'), { recursive: true }); return { ok: true as const }; } catch { return { ok: false as const, reason: 'InFlight cannot write to that folder. Choose another.' }; } },
+    async test() { try { await fs.mkdir(join(SYNC_ROOT), { recursive: true }); return { ok: true as const }; } catch { return { ok: false as const, reason: 'InFlight cannot write to that folder. Choose another.' }; } },
     async put(path, bytes) {
       guardWrite(path);
       await fs.mkdir(join(parts(path).slice(0, -1).join('/')), { recursive: true });

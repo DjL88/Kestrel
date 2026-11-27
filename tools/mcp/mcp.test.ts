@@ -14,7 +14,7 @@ import { findPhotos, getEdit, getProject, listProjects, McpInputError, writeProp
 // A real project backup, exactly as InFlight writes it (the MCP tool reads nothing else).
 const ID = projectIdentity('p1');
 const KITE = ID;
-const BACKUPS = (folder: string) => join(folder, 'kestrel', 'v1', 'project-backups', ID);
+const BACKUPS = (folder: string) => join(folder, 'InFlight', 'v1', 'project-backups', ID);
 
 async function folderWithProject() {
   const folder = await mkdtemp(join(tmpdir(), 'kestrel-mcp-'));
@@ -32,9 +32,9 @@ async function folderWithProject() {
   // An older backup that a newer one replaces, and a damaged newest-but-one is skipped.
   const older = { ...state, frames: state.frames.map((frame) => ({ ...frame, rating: 0 })) };
   await writeFile(join(BACKUPS(folder), `2026-11-15T09-00-00-000Z_${'1'.repeat(32)}.kestrel.json`), encodeProjectBackup(older));
-  await writeFile(join(BACKUPS(folder), `2026-11-16T09-00-00-000Z_${'2'.repeat(32)}.kestrel.json`), encodeProjectBackup(state));
+  await writeFile(join(BACKUPS(folder), `2026-11-16T09-00-00-000Z_${'2'.repeat(32)}.inflight.json`), encodeProjectBackup(state));
   // A folder that is not a project, and a file outside InFlight's folder: both must be ignored.
-  await mkdir(join(folder, 'kestrel', 'v1', 'project-backups', 'Not A Project'), { recursive: true });
+  await mkdir(join(folder, 'InFlight', 'v1', 'project-backups', 'Not A Project'), { recursive: true });
   await writeFile(join(folder, 'secret.txt'), 'nothing to see');
   return folder;
 }
@@ -78,11 +78,11 @@ test('a proposal is saved as its own file, validated, and never changes the proj
     const backups = await readdir(BACKUPS(folder));
     const before = await Promise.all(backups.map((name) => readFile(join(BACKUPS(folder), name), 'utf8')));
     const saved = await writeProposal(folder, KITE, [{ photo: 'd', decision: 'keep', rating: 4, addTags: ['Red Kite'], reason: 'Sharpest frame of the burst.' }], new Date('2026-11-16T10:00:00Z'));
-    assert.equal(saved.saved, `kestrel/v1/proposals/${KITE}/2026-11-16T10-00-00-000Z.json`);
+    assert.equal(saved.saved, `InFlight/v1/proposals/${KITE}/2026-11-16T10-00-00-000Z.json`);
     assert.deepEqual(await Promise.all(backups.map((name) => readFile(join(BACKUPS(folder), name), 'utf8'))), before, 'the project is untouched');
-    const files = await readdir(join(folder, 'kestrel', 'v1', 'proposals', KITE));
+    const files = await readdir(join(folder, 'InFlight', 'v1', 'proposals', KITE));
     assert.equal(files.length, 1);
-    const written = await readFile(join(folder, 'kestrel', 'v1', 'proposals', KITE, files[0]), 'utf8');
+    const written = await readFile(join(folder, 'InFlight', 'v1', 'proposals', KITE, files[0]), 'utf8');
     assert.equal(JSON.parse(written).items[0].reason, 'Sharpest frame of the burst.');
     // InFlight reads exactly what the tool writes.
     assert.equal(parseProposal(files[0], written)?.items[0].photo, 'd');

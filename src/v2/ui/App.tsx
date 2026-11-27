@@ -33,7 +33,7 @@ import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
-import { firebaseAuth, isSignInConfigured } from '../../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured, onSignedInChange } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { nextToReview } from '../../core/savedViews';
@@ -187,13 +187,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
-  // Top right of the home page and editor: who is signed in. Read again when Settings closes (where sign-in happens).
+  // Top right of the home page and editor: who is signed in. Read again whenever sign-in changes (Windows beta: the
+  // corner kept saying "Sign in" after signing in from the welcome).
   const [accountName, setAccountName] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (!accountPanel || !isSignInConfigured() || store.settingsOpen) return;
+    if (!accountPanel || !isSignInConfigured()) return;
     let live = true;
-    void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
-    return () => { live = false; };
+    const read = () => { void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined); };
+    read();
+    const stop = onSignedInChange(read);
+    return () => { live = false; stop(); };
   }, [accountPanel, signedInName, store.settingsOpen]);
   // Contributors (owner, 26 Nov 2026): an admin-granted free Pro whose holders get "Feedback on this" on right-click.
   // Asked of the server once signed in, and again when Settings closes (where sign-in happens). Offline: not offered.

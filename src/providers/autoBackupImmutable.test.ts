@@ -28,7 +28,7 @@ test('caller changes during an asynchronous put do not cause false corruption or
   release();
   await pending;
   assert.deepEqual(await backing.get(name), new Uint8Array([1, 2, 3, 4]));
-  assert.equal(retention, 1);
+  assert.equal(retention, 2, 'retention lists the InFlight folder and the older kestrel one');
 });
 
 test('wrong stored bytes fail closed even if caller mutates to match them', async () => {
