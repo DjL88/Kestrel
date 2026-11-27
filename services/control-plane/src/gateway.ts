@@ -87,8 +87,8 @@ export function geminiProvider(apiKey: string, model: string, fetcher: typeof fe
         generationConfig: { responseMimeType: 'application/json', temperature: 0 },
       }, signal);
       if (status < 200 || status >= 300) throw new Error(`gemini ${status}`);
-      const text = (body as { candidates?: { content?: { parts?: { text?: string }[] } }[] })?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (typeof text !== 'string') throw new Error('gemini empty');
+      const text = (body as { candidates?: { content?: { parts?: { text?: string }[] } }[] })?.candidates?.[0]?.content?.parts?.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('');
+      if (typeof text !== 'string' || !text) throw new Error('gemini empty');
       return text;
     },
     async verifyColour(jpegBase64, signal) {
@@ -97,8 +97,8 @@ export function geminiProvider(apiKey: string, model: string, fetcher: typeof fe
         generationConfig: { responseMimeType: 'application/json', responseSchema: VERIFY_COLOUR_SCHEMA, temperature: 0 },
       }, signal);
       if (status < 200 || status >= 300) throw new Error(`gemini ${status}`);
-      const text = (body as { candidates?: { content?: { parts?: { text?: string }[] } }[] })?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (typeof text !== 'string') throw new Error('gemini empty');
+      const text = (body as { candidates?: { content?: { parts?: { text?: string }[] } }[] })?.candidates?.[0]?.content?.parts?.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('');
+      if (typeof text !== 'string' || !text) throw new Error('gemini empty');
       return text;
     },
   };

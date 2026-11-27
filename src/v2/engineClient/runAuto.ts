@@ -236,7 +236,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
   const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...(rendered.rejected.length ? [engineText.auto.withheld] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    ...rendered, plan, improved, detail: [...described.detail, ...(rendered.rejected.length ? [engineText.auto.withheld, ...rendered.rejected.slice(0, 3)] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
     headline: rendered.candidates.length ? engineText.auto.ready
       : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
