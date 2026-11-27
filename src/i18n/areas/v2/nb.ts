@@ -632,7 +632,7 @@ export const nb: AreaTranslation<typeof source> = {
     noGenAiNote: "Ingenting genereres. Bruker bare masker, støyreduksjon, tone og fargekorrigering.",
     aboutLabel: "Om disse forslagene",
     reviewRunning: "Gjennomgang pågår. Ingenting tas i bruk før du velger det.",
-    reviewUnavailable: "Ikke tilgjengelig med dette abonnementet eller uten nett.",
+    reviewRunningShort: "Sjekker…",
     applyAllSuggestions: 'Bruk foreslått oppskrift',
     applySingle: 'Bruk',
     applied: 'Brukt',

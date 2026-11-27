@@ -635,7 +635,7 @@ export const ga: AreaTranslation<typeof source> = {
     noGenAiNote: "Ní chruthaítear dada. Ní úsáideann sé ach maisc, laghdú torainn, ton agus grádú datha.",
     aboutLabel: "Faoi na moltaí seo",
     reviewRunning: "Athbhreithniú ar siúl. Ní chuirtear aon rud i bhfeidhm go roghnaíonn tú.",
-    reviewUnavailable: "Níl sé ar fáil ar an bplean seo ná as líne.",
+    reviewRunningShort: "Á sheiceáil…",
     applyAllSuggestions: 'Cuir an t-oideas molta i bhfeidhm',
     applySingle: 'Cuir i bhfeidhm',
     applied: 'Curtha i bhfeidhm',
