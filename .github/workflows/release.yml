@@ -152,8 +152,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # The action picks bun when it sees bun.lock, and bun is not installed on the runners; build with npm like CI.
+          tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
-          releaseName: Kestrel ${{ github.ref_name }}
+          releaseName: InFlight ${{ github.ref_name }}
           releaseBody: ${{ steps.signing.outputs.release_note }}
           releaseDraft: true
           # Windows updates use the NSIS installer, the same one people install, so an update never adds a second MSI copy.
