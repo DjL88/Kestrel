@@ -16,7 +16,7 @@ import { renderRaw16Screen } from '../providers/raw16Render';
 import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
-import { workerRendersLikePage } from '../providers/workerRenderCheck';
+import { recordWorkerVerdict, renderSignature, samePixels, workerRendersLikePage, workerVerdict } from '../providers/workerRenderCheck';
 import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
@@ -339,7 +339,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       && layersKey === '[]' && !frame.edit?.trueDetailAi && hasImage.current;
     const renderFinalInWorker = async (): Promise<HTMLCanvasElement | 'cancelled' | null> => {
       if (!workerCanDrawFinal()) return null;
-      // Only where the worker draws exactly as the page does on this device (checked once, workerRenderCheck.ts).
+      // Only for a kind of edit the worker has already drawn exactly as the page did, on this device (verifyWorker below).
+      if (workerVerdict(renderSignature(frame.edit ?? DEFAULT_EDIT)) !== true) return null;
       if (!await workerRendersLikePage()) return null;
       if (cancelled) return 'cancelled';
       const draft = liveDraft();
@@ -406,7 +407,30 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       showLive(canvas);
       if (dragging) return;
+      // The first time this kind of edit is drawn: the worker draws it too, from the same framed picture, and only if
+      // every byte matches is it trusted with this kind of edit from then on. The page's picture is the one shown.
+      if (baseSent && workerCanDrawFinal() && workerVerdict(renderSignature(frame.edit ?? DEFAULT_EDIT)) === undefined) {
+        void verifyWorker(canvas, baseSent);
+      }
       await finishFull(canvas, Math.max(size.width, size.height) * scale);
+    };
+
+    const verifyWorker = async (canvas: HTMLCanvasElement, baseSent: Promise<boolean>) => {
+      const edit = frame.edit ?? DEFAULT_EDIT;
+      const signature = renderSignature(edit);
+      const started = performance.now();
+      const onPage = canvas.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, canvas.width, canvas.height).data ?? null;
+      if (!onPage || !await baseSent || !await workerRendersLikePage()) { recordWorkerVerdict(signature, false); return; }
+      const bitmap = await liveDraft().draw(slot.current, draftKey, FULL_EDGE, edit);
+      if (!bitmap) return; // overtaken by a newer drawing: asked again next time
+      const check = document.createElement('canvas');
+      check.width = bitmap.width; check.height = bitmap.height;
+      const context = check.getContext('2d', { willReadFrequently: true })!;
+      context.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const same = check.width === canvas.width && check.height === canvas.height && samePixels(onPage, context.getImageData(0, 0, check.width, check.height).data);
+      recordWorkerVerdict(signature, same);
+      measureStep('preview:worker-verify', started, { same, signature });
     };
 
     /** The 16-bit pass and the one PNG, for a full-quality picture drawn here or in the worker. */

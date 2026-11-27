@@ -25,8 +25,8 @@ async function settled(page: Page) {
 
 /**
  * The full-quality picture is drawn in a background worker (its tone on the graphics card there, as on the page) so a
- * slider let go never holds the page, but only where a check at start shows the worker draws exactly as the page does
- * (graphics differ between machines). Quality must not change: whichever drew it, the picture is the page's, pixel for
+ * slider let go never holds the page, but only for a kind of edit the worker has already drawn byte for byte as the
+ * page did on this machine (graphics differ between machines). Quality must not change: whichever drew it, the picture is the page's, pixel for
  * pixel.
  */
 test('?v2 the full-quality picture drawn in the worker is pixel-identical to the one drawn on the page', async ({ page }) => {
@@ -74,14 +74,25 @@ test('?v2 the full-quality picture drawn in the worker is pixel-identical to the
   await settled(page);
   await root.locator('#slider-dehaze').fill('20');
   await settled(page);
-  // Whether the worker draws exactly as the page does on this machine (its graphics may differ): only then is it used.
-  const { usedWorker, workerMatches } = await page.evaluate(() => ({
-    usedWorker: performance.getEntriesByName('inflight:preview:edit-worker').length,
-    workerMatches: (performance.getEntriesByName('inflight:preview:worker-check')[0] as PerformanceMeasure | undefined)?.detail?.same as boolean | undefined,
-  }));
-  test.info().annotations.push({ type: 'worker render', description: workerMatches ? 'matches the page here: used' : 'differs from the page here: not used' });
+  // That edit was drawn on the page and, once, in the worker too; only if every byte matched is the worker trusted with
+  // this kind of edit. A step away and back (the same kind of edit) is then drawn by whichever is trusted.
+  await expect.poll(() => page.evaluate(() => performance.getEntriesByName('inflight:preview:worker-verify').length), { timeout: 30_000 }).toBeGreaterThan(0);
+  const contrastStep = root.getByRole('slider', { name: 'Contrast' });
+  const before = await page.evaluate(() => performance.getEntriesByName('inflight:preview:edit-worker').length);
+  await contrastStep.fill('19');
+  await settled(page);
+  await contrastStep.fill('18');
+  await settled(page);
+  const { usedWorker, workerMatches } = await page.evaluate((count) => {
+    const verifies = performance.getEntriesByName('inflight:preview:worker-verify') as PerformanceMeasure[];
+    return {
+      usedWorker: performance.getEntriesByName('inflight:preview:edit-worker').length - count,
+      workerMatches: verifies.at(-1)?.detail?.same as boolean | undefined,
+    };
+  }, before);
+  test.info().annotations.push({ type: 'worker render', description: workerMatches ? 'matched the page here: used' : 'differed from the page here: not used' });
   if (workerMatches) expect(usedWorker, 'the full-quality picture was drawn in the worker').toBeGreaterThan(0);
-  else expect(usedWorker, 'where the worker draws differently, the page draws every full-quality picture').toBe(0);
+  else expect(usedWorker, 'where the worker drew differently, the page draws every full-quality picture').toBe(0);
   const fromWorker = await shown(page);
 
   // The same edit drawn on the page: switch to the page renderer and step one slider away and back.
