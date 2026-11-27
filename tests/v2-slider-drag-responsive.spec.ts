@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+// The offline service worker would answer the model requests itself, out of reach of page.route below.
+test.use({ serviceWorkers: 'block' });
+
 test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Drags the desktop Adjust and Enhance sliders with a mouse.');
 });
