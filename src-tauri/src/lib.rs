@@ -19,6 +19,8 @@ mod external_edit;
 #[cfg(desktop)]
 mod preview_cache;
 #[cfg(desktop)]
+mod import_io;
+#[cfg(desktop)]
 mod sftp;
 #[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
@@ -408,6 +410,26 @@ async fn preview_cache_build(app: tauri::AppHandle, requests: Vec<preview_cache:
     }).await.map_err(|_| "The previews could not be made.".to_string())
 }
 
+/// The size and modified time of many photos in one call (import_io.rs): the folder look-through made one call per photo.
+#[cfg(desktop)]
+#[tauri::command]
+async fn photo_stats(app: tauri::AppHandle, paths: Vec<String>) -> Result<Vec<Option<import_io::PhotoStat>>, String> {
+    if paths.len() > import_io::MAX_STAT_PATHS { return Err("Too many photos in one request.".into()); }
+    let scope = app.fs_scope();
+    tauri::async_runtime::spawn_blocking(move || import_io::stats(&paths, &|path| scope.is_allowed(path)))
+        .await.map_err(|_| "The photos could not be looked at.".to_string())
+}
+
+/// A photo's SHA-256, read here once at the drive's speed (import_io.rs), instead of a MiB at a time across the bridge.
+#[cfg(desktop)]
+#[tauri::command]
+async fn photo_fingerprint(app: tauri::AppHandle, path: String, size: Option<u64>) -> Result<import_io::Fingerprint, String> {
+    let path = std::path::PathBuf::from(path);
+    if !app.fs_scope().is_allowed(&path) { return Err("InFlight has not been given this file.".into()); }
+    tauri::async_runtime::spawn_blocking(move || import_io::fingerprint(&path, size))
+        .await.map_err(|_| "The original could not be read.".to_string())?
+}
+
 /// Store previews from a picture the page decoded itself (a HEIF photo): the body is a JPEG or PNG at most 2,560 px
 /// across, never the original; header `x-preview-key` is the cache key, percent-encoded.
 #[cfg(desktop)]
@@ -597,7 +619,7 @@ pub fn run() {
         .manage(ShootRoomState::default())
         .manage(PtpUsbState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, sftp::sftp_test, sftp::sftp_put, sftp::sftp_get, sftp::sftp_list, sftp::sftp_remove])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, photo_stats, photo_fingerprint, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, sftp::sftp_test, sftp::sftp_put, sftp::sftp_get, sftp::sftp_list, sftp::sftp_remove])
         .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
             let id = event.id().0.clone();

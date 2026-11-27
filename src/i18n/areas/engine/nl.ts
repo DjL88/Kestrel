@@ -162,6 +162,8 @@ export const nl: AreaTranslation<typeof source> = {
     importRunning: 'Er worden al foto’s toegevoegd. Wacht tot dat klaar is, of stop eerst die taak.',
     importNothingNew: 'Die foto’s staan al in dit project.',
     importTask: (count) => (count === 1 ? '1 foto toevoegen' : `${count} foto’s toevoegen`),
+    folderLooking: (folder) => `Foto’s zoeken in ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `${folder} doorlopen: ${done} van ${total} foto’s`,
     importReadStage: 'Het origineel lezen en de vingerafdruk vastleggen',
     importOneFailed: (filename) => `${filename} kon niet worden geïmporteerd. Controleer het origineel en probeer het opnieuw.`,
     importUnreadable: (names) => `Niet leesbaar: ${names}.`,

@@ -162,6 +162,8 @@ export const is: AreaTranslation<typeof source> = {
     importRunning: 'Verið er að bæta við myndum. Bíddu þar til því lýkur, eða stöðvaðu það verk fyrst.',
     importNothingNew: 'Þessar myndir eru þegar í þessu verkefni.',
     importTask: (count) => (count === 1 ? 'Bæti við 1 mynd' : `Bæti við ${count} myndum`),
+    folderLooking: (folder) => `Leitar að myndum í ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Fer í gegnum ${folder}: ${done} af ${total} myndum`,
     importReadStage: 'Les frumritið og skrái fingrafar þess',
     importOneFailed: (filename) => `Ekki tókst að flytja inn ${filename}. Athugaðu frumritið og reyndu aftur.`,
     importUnreadable: (names) => `Ekki tókst að lesa: ${names}.`,

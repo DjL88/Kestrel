@@ -2287,7 +2287,7 @@ export const fi: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Ladataan kuvaa',
-    minutesLeft: (n: number) => `Noin ${n} min jäljellä`,
+    minutesLeft: (n: number) => (n < 60 ? `Noin ${n} min jäljellä` : `Noin ${Math.floor(n / 60)} h ${n % 60} min jäljellä`),
     teaTime: 'Aika keittää kuppi teetä',
   },
 };

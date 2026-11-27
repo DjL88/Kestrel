@@ -162,6 +162,8 @@ export const da: AreaTranslation<typeof source> = {
     importRunning: 'Der bliver allerede tilføjet fotos. Vent, til det er færdigt, eller stop den opgave først.',
     importNothingNew: 'De fotos er allerede i dette projekt.',
     importTask: (count) => (count === 1 ? 'Tilføjer 1 foto' : `Tilføjer ${count} fotos`),
+    folderLooking: (folder) => `Gennemgår ${folder} for fotos…`,
+    folderLookingProgress: (folder, done, total) => `Gennemgår ${folder}: ${done} af ${total} fotos`,
     importReadStage: 'Læser originalen og registrerer dens fingeraftryk',
     importOneFailed: (filename) => `Kunne ikke importere ${filename}. Tjek originalen, og prøv igen.`,
     importUnreadable: (names) => `Kunne ikke læse: ${names}.`,

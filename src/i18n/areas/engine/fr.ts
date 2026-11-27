@@ -162,6 +162,8 @@ export const fr: AreaTranslation<typeof source> = {
     importRunning: 'Des photos sont déjà en cours d’ajout. Attendez la fin, ou arrêtez d’abord cette tâche.',
     importNothingNew: 'Ces photos sont déjà dans ce projet.',
     importTask: (count) => (count === 1 ? 'Ajout d’1 photo' : `Ajout de ${count} photos`),
+    folderLooking: (folder) => `Recherche de photos dans ${folder}…`,
+    folderLookingProgress: (folder, done, total) => `Parcours de ${folder} : ${done} sur ${total} photos`,
     importReadStage: 'Lecture de l’original et enregistrement de son empreinte',
     importOneFailed: (filename) => `Impossible d’importer ${filename}. Vérifiez l’original et réessayez.`,
     importUnreadable: (names) => `Illisible : ${names}.`,

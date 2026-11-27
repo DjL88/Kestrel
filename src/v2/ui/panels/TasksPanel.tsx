@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import type { CloudUsage } from '../../../core/cloudPlan';
 import { cloudTaskCost } from '../utils/cloudTaskCost';
 import BrandIcon from '../icons/BrandIcon';
+import { taskDuration } from '../utils/taskDuration';
 import { engineScheduler } from '../../../core/engineScheduler';
 import { moveQueuedTask, placeSubset, stableTaskOrder } from '../utils/queuedTaskOrder';
 
@@ -17,10 +18,7 @@ interface TasksPanelProps {
 }
 const active = (status: TaskInfo['status']) => status === 'running' || status === 'queued' || status === 'paused';
 const stateLabel = (status: TaskInfo['status']) => STRINGS.taskControls.states[status];
-const duration = (ms: number) => {
-  const seconds = Math.max(0, Math.floor(ms / 1000));
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-};
+const duration = taskDuration;
 function timing(task: TaskInfo, clock: number) {
   if (!task.startedAt) return null;
   const elapsed = Math.max(0, (task.endedAt ?? clock) - task.startedAt);
@@ -118,7 +116,10 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
               </div>
               <span className="font-mono text-xs tabular-nums text-[var(--text-primary)]">{task.progress}%</span>
             </div>
-            <progress aria-label={STRINGS.taskControls.progressLabel(task.label)} max={100} value={task.progress} className="block h-2 w-full" />
+            {/* While it runs, a light sweeps along the bar so a long task never looks frozen (still with less movement). */}
+            <div className={`relative overflow-hidden rounded-full${task.status === 'running' ? ' v2-task-progress-running' : ''}`} data-testid="task-progress">
+              <progress aria-label={STRINGS.taskControls.progressLabel(task.label)} max={100} value={task.progress} className="block h-2 w-full" />
+            </div>
             {task.total !== undefined && task.total !== null && (
               <p className="text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.processed(task.done ?? 0, task.total)}</p>
             )}

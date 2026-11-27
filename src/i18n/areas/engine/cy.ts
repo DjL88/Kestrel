@@ -162,6 +162,8 @@ export const cy: AreaTranslation<typeof source> = {
     importRunning: 'Mae lluniau eisoes yn cael eu hychwanegu. Arhoswch iddyn nhw orffen, neu stopiwch y dasg honno’n gyntaf.',
     importNothingNew: 'Mae’r lluniau hynny eisoes yn y prosiect hwn.',
     importTask: (count) => (count === 1 ? 'Ychwanegu 1 llun' : `Ychwanegu ${count} llun`),
+    folderLooking: (folder) => `Yn chwilio drwy ${folder} am luniau…`,
+    folderLookingProgress: (folder, done, total) => `Yn chwilio drwy ${folder}: ${done} o ${total} llun`,
     importReadStage: 'Darllen y gwreiddiol a chofnodi ei olion bysedd',
     importOneFailed: (filename) => `Doedd dim modd mewnforio ${filename}. Gwiriwch y gwreiddiol a rhowch gynnig arall arni.`,
     importUnreadable: (names) => `Doedd dim modd darllen: ${names}.`,

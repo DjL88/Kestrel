@@ -2289,7 +2289,7 @@ export const ga: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Grianghraf á lódáil',
-    minutesLeft: (n: number) => `Thart ar ${n} nóim fágtha`,
+    minutesLeft: (n: number) => (n < 60 ? `Thart ar ${n} nóim fágtha` : `Thart ar ${Math.floor(n / 60)} h ${n % 60} nóim fágtha`),
     teaTime: 'Am le haghaidh cupán tae',
   },
 };
