@@ -288,6 +288,27 @@
     .switch-price .sp-free{border-color:#e8743c}.switch-price span{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:#9aa1ae}.switch-price b{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-size:1.7rem;font-weight:800}.switch-price small{color:#bfc6d2}
     .frus{display:grid;max-width:900px}.frus div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;padding:12px 0;border-bottom:1px solid #262c36}.frus i{color:#9aa1ae}
     @media(max-width:620px){.frus div{grid-template-columns:1fr;gap:4px}}
+        .band .promises{margin-inline:auto;padding:0}
+        #colour,#features,#inside,#switch{margin-top:72px}
+        .carousel{position:relative}
+        .car-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 60px)/4);gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:12px;scrollbar-width:thin;overscroll-behavior-x:contain}
+        .car-track>*{scroll-snap-align:start;min-width:0}
+        .car-head{display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+        .car-btns{display:flex;gap:8px;margin-bottom:14px}
+        .car-btns button{width:42px;height:42px;border-radius:50%;border:1px solid #3a404c;background:var(--panel);color:var(--ivory);font-size:1.2rem;cursor:pointer}
+        .car-btns button:hover:not(:disabled){border-color:#e0a583}
+        .car-btns button:disabled{opacity:.35;cursor:default}
+        .car-count{color:#bfc6d2;font-size:.9rem;margin:0 0 14px}
+        @media(max-width:1000px){.car-track{grid-auto-columns:calc((100% - 20px)/2.15)}}
+        @media(max-width:620px){.car-track{grid-auto-columns:82%}}
+        @media(prefers-reduced-motion:reduce){.car-track{scroll-behavior:auto}}
+        .matrix td[data-yes],.matrix td[data-no]{font-size:0;text-align:center}
+        .matrix td[data-yes]::before{content:"✓";font-size:1.15rem;font-weight:700;color:#e0a583}
+        .matrix td[data-no]::before{content:"–";font-size:1.15rem;color:#8a93a3}
+        .matrix thead th:not(:first-child),.matrix td{text-align:center}
+        .matrix td.pro-only{font-size:.85rem}
+        .plan-icon{width:40px;height:40px;border-radius:10px;vertical-align:middle;margin-right:10px}
+        .install-link{margin-top:18px}
         /* Home page layout */
         .skip{position:absolute;left:12px;top:-60px;background:var(--ivory);color:var(--canvas);padding:10px 14px;border-radius:8px;z-index:20;font-weight:700}
         .skip:focus{top:12px}
@@ -599,8 +620,8 @@
   </section>
 
   <section id="features" class="wrap" aria-labelledby="features-title">
-    <h2 id="features-title">See it in action</h2>
-    <div class="steps-grid">
+    <div class="car-head"><h2 id="features-title">See it in action</h2><div class="car-btns"><button type="button" data-car="prev" aria-label="Previous" aria-controls="features-track">‹</button><button type="button" data-car="next" aria-label="Next" aria-controls="features-track">›</button></div></div>
+    <div class="carousel"><div class="car-track" id="features-track" tabindex="0" role="region" aria-label="Feature examples, scroll sideways">
       <article class="step"><div class="ifx ifx-card ifx-run" role="img" aria-label="Two bird photos are checked on the device and named: Atlantic puffin and Kingfisher. A note says that when InFlight is not sure, it says so and keeps the photo for review.">
   <div class="ifx-a ifx-ph real p-puffin" style="left:4%;top:8%;width:56%;height:84%;border-radius:8px">
     <svg style="display:none" class="nx-bird" viewBox="0 0 60 40" style="left:30%;top:22%;width:42%"><ellipse cx="30" cy="24" rx="14" ry="11" fill="#14161b"/><ellipse cx="31" cy="27" rx="9" ry="8" fill="#f4efe8"/><circle cx="40" cy="14" r="7" fill="#14161b"/><circle cx="41" cy="14" r="4.5" fill="#e9e6df"/><path d="M46 12l8 3-8 4z" fill="#e8743c"/><circle cx="41.5" cy="13" r="1.1" fill="#14161b"/></svg>
@@ -716,19 +737,19 @@
         <h3>Grainy? Not for long.</h3>
         <p>Clean up high-ISO shots and compare before and after. Nothing is invented.</p>
       </article>
-    </div>
+    </div></div>
   </section>
 
   <section id="inside" class="wrap" aria-labelledby="inside-title">
-    <h2 id="inside-title" data-i18n="insideTitle">What's inside</h2>
-    <div class="grid">
+    <div class="car-head"><h2 id="inside-title" data-i18n="insideTitle">What's inside</h2><div class="car-btns"><button type="button" data-car="prev" aria-label="Previous" aria-controls="inside-track">‹</button><button type="button" data-car="next" aria-label="Next" aria-controls="inside-track">›</button></div></div>
+    <div class="carousel"><div class="car-track" id="inside-track" tabindex="0" role="region" aria-label="What's inside, scroll sideways">
       <article class="card"><h3 data-i18n="inCullTitle">Smart culling</h3><p data-i18n="inCullBody">Bursts and look-alike frames are grouped so you compare them side by side. On recent Nikon Z bodies it also draws a box on the photo where the camera focused. You make the call, and any pick can be undone.</p></article>
       <article class="card"><h3 data-i18n="inSubjectTitle">Subject identification</h3><p data-i18n="inSubjectBody">Names bird species and tags aircraft and vehicles, so you can search a shoot by what is in it. When it isn't sure, it says so.</p></article>
       <article class="card"><h3 data-i18n="inSocialTitle">Social formats</h3><p data-i18n="inSocialBody">Set up the crops and sizes you post at, once. One edit then exports to every format, each with its own crop.</p></article>
       <article class="card"><h3 data-i18n="inColourTitle">ColourSense</h3><p data-i18n="inColourBody">Colour notes measured from the photo itself, not your screen, and told in plain words. Colour-blind photographers can edit with confidence.</p></article>
       <article class="card"><h3 data-i18n="inMaskTitle">Masking, before and after, denoise</h3><p data-i18n="inMaskBody">Adjust just part of a photo, compare before and after, and clean up noise. Nothing is generated: no invented pixels.</p></article>
       <article class="card"><h3 data-i18n="inOverlayTitle">Custom overlays and watermarks</h3><p data-i18n="inOverlayBody">Save your logo, colours and text style as a brand kit, and Export puts them on every photo in one step.</p></article>
-    </div>
+    </div></div>
   </section>
 
   <section id="switch" class="wrap" aria-labelledby="switch-title">
@@ -783,7 +804,7 @@
     <h2 id="pricing-title" data-i18n="pricingTitle">Pricing</h2>
     <p class="muted" data-i18n-html="pricingIntro"><strong>Basic is free for good.</strong> Pro is a subscription, paid monthly or yearly. You subscribe from the InFlight app; this website does not take payments itself.</p>
     <div class="grid plans">
-      <article class="card"><h3><span data-i18n="freeTitle">Basic</span> <span class="pill"><span data-i18n="priceFree">Free</span></span></h3>
+      <article class="card"><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-night-192.png" alt="" width="40" height="40"><span data-i18n="freeTitle">Basic</span> <span class="pill"><span data-i18n="priceFree">Free</span></span></h3>
         <ul class="ticks">
           <li data-i18n-html="basicOwn"><strong>Download it and it's yours.</strong> Basic never expires and needs no account</li>
           <li data-i18n="basicOffline">Import, cull, edit and export, fully offline</li>
@@ -791,7 +812,7 @@
           <li data-i18n="basicCloud">Cloud runner: 500 photos a month when signed in</li>
         </ul>
       </article>
-      <article class="card featured"><h3><span data-i18n="proTitle">Pro</span> </h3>
+      <article class="card featured"><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="40" height="40"><span data-i18n="proTitle">Pro</span> </h3>
         <p class="price"><strong id="pro-price-annual">£29.99</strong> <span data-i18n="priceYear">a year</span></p>
         <p class="muted"><span data-i18n="priceOr">or</span> <strong id="pro-price-monthly">£2.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
         <p class="price-tax" data-i18n="priceTax">UK prices, including VAT. Paddle shows the price in your currency, with any tax for your country, before you pay.</p>
@@ -813,19 +834,20 @@
         <caption class="sr-only" data-i18n="matrixCaption">Features in InFlight Basic and InFlight Pro</caption>
         <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col" data-i18n="matrixBasic">Basic (free)</th><th scope="col" data-i18n="matrixPro">Pro</th></tr></thead>
         <tbody>
-        <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowCull">Cull and compare by hand: Keep, Reject, side-by-side</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowEdit">Edit light, colour, crop and straighten, with reversible edits</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowMasks">Masks and subject detection on your own device</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowAuto">Natural Auto edit suggestions</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowExport">Full-size export (JPEG, PNG) with an optional watermark</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowBackup">Local backup and restore of your projects</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowKeys">Keyboard shortcuts and macro-pad support</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowCull">Cull and compare by hand: Keep, Reject, side-by-side</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowEdit">Edit light, colour, crop and straighten, with reversible edits</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowMasks">Masks and subject detection on your own device</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowAuto">Natural Auto edit suggestions</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowExport">Full-size export (JPEG, PNG) with an optional watermark</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowBackup">Local backup and restore of your projects</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowKeys">Keyboard shortcuts and macro-pad support</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row">Tethered and camera Wi-Fi (FTP) live import, in the desktop app</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Show a shoot live on a client's iPad or a studio screen, on your own network</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Social formats: one edit, every crop and size you post at</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Brand kit: logo, colours and text on every export</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Colour-vision support and ColourSense notes</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Private client galleries and editing a project together</th><td data-no>Not included</td><td data-yes>Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud runner photos, when signed in</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage for the web app's projects</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage for the web app's projects</th><td data-no data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-no data-i18n="matrixNo">Not included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         </tbody>
       </table>
     </div>
@@ -848,26 +870,8 @@
       <h3 data-i18n="liveTitle">Shooting live</h3>
       <p class="muted" data-i18n="liveBody">InFlight watches the folder your camera maker's tether app saves to, or receives photos from your camera's Wi-Fi (FTP) transfer, and adds each one as it lands. In the desktop app.</p>
     </div>
+    <p class="install-link"><a class="cta" href="/install">Installing InFlight and system requirements</a></p>
     <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
-  </section>
-
-  <section id="install" aria-labelledby="install-title">
-    <h2 id="install-title" data-i18n="installTitle">Installing InFlight</h2>
-    <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
-    <div class="grid">
-      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag InFlight to Applications. The first time, right-click InFlight, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
-      <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
-    </div>
-    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using InFlight. Signed installers will replace these steps in a later release.</p>
-  </section>
-
-  <section id="requirements" aria-labelledby="requirements-title">
-    <h2 id="requirements-title" data-i18n="reqTitle">System requirements</h2>
-    <ul class="steps">
-      <li data-i18n-html="reqMac"><strong>macOS:</strong> to be confirmed once the first build is tested on real Macs (built for Apple silicon and Intel).</li>
-      <li data-i18n-html="reqWindows"><strong>Windows:</strong> to be confirmed once the first build is tested on real PCs.</li>
-      <li data-i18n-html="reqStorage"><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
-    </ul>
   </section>
 
   <section id="devices" aria-labelledby="devices-title">
@@ -1047,6 +1051,12 @@
       link.href = url.pathname + url.search + url.hash;
     }
   })();
+</script>
+<script>
+document.querySelectorAll('.car-btns').forEach(function(g){var t=document.getElementById(g.querySelector('button').getAttribute('aria-controls'));if(!t)return;var p=g.querySelector('[data-car=prev]'),n=g.querySelector('[data-car=next]');
+function step(){var c=t.firstElementChild;return c?c.getBoundingClientRect().width+20:t.clientWidth}
+function upd(){p.disabled=t.scrollLeft<4;n.disabled=t.scrollLeft+t.clientWidth>=t.scrollWidth-4}
+p.addEventListener('click',function(){t.scrollBy({left:-step()})});n.addEventListener('click',function(){t.scrollBy({left:step()})});t.addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd()});
 </script>
 </body>
 </html>
