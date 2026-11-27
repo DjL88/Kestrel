@@ -13,6 +13,7 @@ import { DIMENSIONS, SAMPLE_DEVICES, previewAudience, messagePreview } from './a
 import { readGcpBilling, summariseIncome, accountsSummary, monthName, VAT_HELP } from './admin-accounts.mjs';
 
 import { needsYou, VIEWS, viewForHash } from './admin-needs.mjs';
+import { parseMarkdown } from './admin-markdown.mjs';
 
 const $ = id => document.getElementById(id);
 const status = $('status');
@@ -160,6 +161,7 @@ async function startConsole(accessToken, who) {
   $('who').textContent = who ? 'Signed in as ' + who : 'Signed in';
   say('');
   showView();
+  openOverviewIfShown();
   await refreshAll();
   $('main').focus();
   clearInterval(autoCheck);
@@ -169,6 +171,8 @@ async function startConsole(accessToken, who) {
 function signOut(message = '') {
   token = undefined;
   if (closeAsk) closeAsk(null);
+  overviewMarkdown = null;
+  $('overview-doc').replaceChildren();
   clearInterval(autoCheck);
   snapshot = {};
   $('needs-list').replaceChildren();
@@ -252,6 +256,7 @@ const PAGE_INTRO = {
   people: 'Give people Pro, see who has a licence, and free or cancel devices.',
   money: 'What people paid, refunds owed, each month’s figures, and the prices.',
   messages: 'Messages from the website, reports about shared galleries, and news to everyone.',
+  technical: 'How InFlight works, its code, hosting, security and compliance, with ready answers for customers, partners, investors and security reviewers. Written from the code; anything it cannot show is marked Unknown. Opening it is recorded.',
   advanced: 'Technical settings and records. You rarely need these: open one when you do.',
 };
 const dayLong = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -278,7 +283,7 @@ function showView() {
     target.scrollIntoView({ block: 'start' });
   } else scrollTo(0, 0);
 }
-addEventListener('hashchange', () => { showView(); say(''); if (token) $('main').focus({ preventScroll: true }); });
+addEventListener('hashchange', () => { showView(); say(''); if (token) $('main').focus({ preventScroll: true }); openOverviewIfShown(); });
 showView();
 
 /** The button word for each place a chore is done. */
@@ -1294,3 +1299,64 @@ function renderAudit() {
 $('audit-show-views').addEventListener('change', renderAudit);
 
 void setUpSignIn();
+
+// ---- Technical overview (docs/TECHNICAL-OVERVIEW.md, served by GET /v1/admin/technical-overview) ------------------
+// Loaded only when its page is opened, not on every refresh. Built with textContent only: no HTML from the file.
+
+let overviewMarkdown = null;
+
+function runsInto(node, runs) {
+  for (const r of runs) {
+    if ('code' in r) node.append(code(r.code));
+    else if ('strong' in r) node.append(el('strong', r.strong));
+    else if ('link' in r) { const a = el('a', r.link); a.href = r.href; if (!r.href.startsWith('#')) { a.target = '_blank'; a.rel = 'noopener noreferrer'; } node.append(a); }
+    else node.append(document.createTextNode(r.text));
+  }
+  return node;
+}
+
+function renderOverview(markdown) {
+  const nodes = parseMarkdown(markdown).map((b) => {
+    if (b.type === 'heading') return runsInto(el('h' + Math.min(b.level + 1, 5)), b.runs);
+    if (b.type === 'rule') return el('hr');
+    if (b.type === 'paragraph') return runsInto(el('p'), b.runs);
+    if (b.type === 'list') { const list = el(b.ordered ? 'ol' : 'ul'); for (const item of b.items) list.append(runsInto(el('li'), item)); return list; }
+    const table = el('table'); const head = el('tr');
+    for (const c of b.head) { const th = runsInto(el('th'), c); th.scope = 'col'; head.append(th); }
+    const thead = el('thead'); thead.append(head); const tbody = el('tbody');
+    for (const row of b.rows) { const tr = el('tr'); for (const c of row) tr.append(runsInto(el('td'), c)); tbody.append(tr); }
+    table.append(thead, tbody);
+    const wrap = el('div', undefined, 'scroll'); wrap.append(table); return wrap;
+  });
+  $('overview-doc').replaceChildren(...nodes);
+}
+
+async function loadTechnicalOverview() {
+  if (overviewMarkdown !== null) return;
+  $('overview-status').textContent = 'Loading…';
+  const result = await api('admin/technical-overview');
+  overviewMarkdown = result.markdown;
+  renderOverview(overviewMarkdown);
+  $('overview-status').textContent = '';
+}
+
+function openOverviewIfShown() {
+  if (!token || viewForHash(location.hash) !== 'technical') return;
+  loadTechnicalOverview().catch(error => { if (!(error instanceof SignedOut)) $('overview-status').textContent = error.message; });
+}
+
+act($('overview-pdf'), 'click', async () => {
+  await loadTechnicalOverview();
+  say('In the print window, choose Save as PDF.');
+  print();
+});
+
+act($('overview-md'), 'click', async () => {
+  await loadTechnicalOverview();
+  const link = el('a');
+  link.href = URL.createObjectURL(new Blob([overviewMarkdown], { type: 'text/markdown' }));
+  link.download = 'inflight-technical-overview.md';
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+  say('Downloading inflight-technical-overview.md.');
+});

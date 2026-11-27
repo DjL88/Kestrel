@@ -178,3 +178,21 @@ dialog.ask input{width:100%}
 .ask-error:not(:empty){color:#f1b3bd;margin:4px 0 8px}
 .ask-error:empty{margin:0}
 .ask-buttons{justify-content:flex-end;margin-top:12px}
+/* Technical overview (docs/TECHNICAL-OVERVIEW.md): readable on screen, and printed alone as a light PDF. */
+.doc{max-width:900px;line-height:1.6}
+.doc h2{font-size:1.5rem;margin:8px 0 12px}.doc h3{font-size:1.25rem;margin:28px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.doc table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:.92rem}
+.doc th,.doc td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.doc code{overflow-wrap:anywhere}
+.doc hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media print{
+  :root{background:#fff;color:#111;font-size:11pt;color-scheme:light}
+  body{background:#fff}
+  .top,.skip,.menu,#status,.page-head,.no-print{display:none!important}
+  .frame,main,.card{display:block!important;padding:0!important;margin:0!important;border:0!important;background:none!important;max-width:none!important}
+  .doc{max-width:none;color:#111}
+  .doc a{color:#111}
+  .doc th,.doc td{border-color:#999;color:#111}.doc th{background:#eee}
+  .doc h2,.doc h3,.doc h4{break-after:avoid}.doc tr{break-inside:avoid}
+  .doc code{background:#f1f1f1;color:#111}
+}
