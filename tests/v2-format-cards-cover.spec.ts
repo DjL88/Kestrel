@@ -83,6 +83,11 @@ for (const edited of [false, true]) {
       await expect(card).toBeVisible();
       // Long enough for the full-detail redraw to have settled (it waits 250 ms after the last change).
       await page.waitForTimeout(1200);
+      // The picture fills its whole card, not just the picture's own box: the card once took the width of its header
+      // label, leaving a black band beside the picture that a screenshot of the picture alone never saw.
+      const [cardBox, pictureBox] = await Promise.all([root.getByTestId(`artboard-${id}-0`).boundingBox(), card.boundingBox()]);
+      expect(cardBox && pictureBox, `${id}: card laid out`).toBeTruthy();
+      expect(Math.abs(cardBox!.width - pictureBox!.width), `${id}: card ${cardBox!.width}px wide, picture ${pictureBox!.width}px`).toBeLessThanOrEqual(3);
       const edges = await darkEdges(page, card);
       for (const side of ['left', 'right', 'top', 'bottom'] as const) {
         expect(edges[side], `${id}: dark band at the ${side} edge (${edges.size}, ${JSON.stringify(edges)})`).toBeLessThan(0.05);
