@@ -118,6 +118,15 @@ scope.onmessage = (event) => {
         await done;
         return;
       }
+      if (request.type === 'check') {
+        const canvas = new OffscreenCanvas(request.width, request.height);
+        const context = canvas.getContext('2d', { willReadFrequently: true })!;
+        context.putImageData(new ImageData(request.data as Uint8ClampedArray<ArrayBuffer>, request.width, request.height), 0, 0);
+        applyCanvasPhotoEdit(canvas as unknown as HTMLCanvasElement, request.edit);
+        const pixels = context.getImageData(0, 0, request.width, request.height).data;
+        scope.postMessage({ id: request.id, pixels }, [pixels.buffer]);
+        return;
+      }
       if (request.type === 'detail-source') {
         const known = detailSources.get(request.slot);
         void known?.picture.then((bitmap) => bitmap.close(), () => undefined);

@@ -32,17 +32,6 @@ import { engineText } from '../../i18n/areas/engine';
 import type { AutoUnavailable, AutoUnavailableCause } from './autoUnavailable';
 import { timedStep } from '../../providers/previewTiming';
 
-/**
- * Give the page a turn between Auto's steps on the analysis picture: the same work in the same order, but a click or a
- * slider made meanwhile is answered between steps instead of after all of them (it held the page for about 700 ms
- * under load, owner's report 27 Nov). Null when cancelled meanwhile.
- */
-const breathe = (signal?: AbortSignal) => new Promise<boolean>((resolve) => {
-  const scheduler = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
-  const done = () => resolve(!signal?.aborted);
-  if (scheduler?.yield) void scheduler.yield().then(done, done); else setTimeout(done, 0);
-});
-
 export interface AutoRun {
   plan: AutoPlan;
   headline: string;
@@ -165,13 +154,12 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const sceneHints = sceneHintsFromPhotoTags(frame);
   const basePolicy = preservationPolicy(photographyObservations);
   const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || sceneHints.preserveDark === true };
-  if (!await breathe(signal)) return null;
+  // Marked (inflight:auto:*), so a trace or the stress test shows how long Auto's steps hold the page.
   const natural = timedStep('auto:natural', () => naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints }));
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
   const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
-  if (!await breathe(signal)) return null;
   const naturalPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: global }));
   let plan = naturalPlan;
   const recipes: Omit<AutoCandidate, 'after'>[] = [];
@@ -185,7 +173,6 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     const { scene } = natural;
     // Not for snow or high-key frames: this alternative pulls the highlights down.
     if (scene.referenceP98 > 0.82 && scene.brightTextured > 0.015 && !sceneHints.preserveBright) {
-      if (!await breathe(signal)) return null;
       const balanced = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, base, {
         ...naturalPlan.proposal,
         highlights: Math.max(-0.8, Math.min(naturalPlan.proposal.highlights ?? 0, base.highlights ?? 0) - 0.25),
@@ -197,14 +184,12 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     }
   }
   if (instanceCount === 1 && segmentation && !policy.preserveDark) {
-    if (!await breathe(signal)) return null;
     const local = proposeSubjectAwareAuto({
       pixels: analysis.data, width: analysis.width, height: analysis.height, edit: global, subjectKind: category,
       segmentation, maskId: newId(), framingKey: framingKey(framing), extra: natural.subjectEdit,
     });
     if (local.usedMask) {
-      if (!await breathe(signal)) return null;
-      const subjectPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: local.edit }));
+      const subjectPlan = planAuto({ ...input, proposal: local.edit });
       if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
         plan = subjectPlan;
         recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
@@ -216,8 +201,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     const local = proposeGroupSubjectAuto(analysis.data, analysis.width, analysis.height, global, subjects,
       subjects.map(() => newId()), (frame.exif?.iso ?? 0) >= 1600);
     if (local !== global) {
-      if (!await breathe(signal)) return null;
-      const subjectPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: local }));
+      const subjectPlan = planAuto({ ...input, proposal: local });
       if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
         recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
         plan = subjectPlan;
@@ -237,7 +221,6 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Colour match: the species signature on file, only for a confidently named species on a reliable mask. The vision
   // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
   const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
-  if (!await breathe(signal)) return null;
   const rendered = recipes.length ? timedStep('auto:render', () => renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation)) : { before: '', candidates: [], rejected: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
@@ -248,9 +231,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     // alternative remains preview-only unless it was the checked preferred plan.
     plan = { ...plan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: rendered.rejected[0] ?? 'No preferred rendered edit passed all checks' } };
   }
-  if (!await breathe(signal)) return null;
   const described = describePlan(plan);
-  const colour = timedStep('auto:colour', () => checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }));
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
   const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
@@ -259,7 +240,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     headline: rendered.candidates.length ? engineText.auto.ready
       : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
-    colour,
+    colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
     leanings: leaned.applied,
   };
 }

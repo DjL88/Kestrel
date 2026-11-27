@@ -11,6 +11,8 @@ export type LiveDraftRequest =
   | { type: 'base'; slot: string; key: string; base: ImageBitmap; lensCentre: LensCentre }
   | { type: 'base-file'; slot: string; key: string; blob: Blob; framing: PhotoFraming; longEdge: number }
   | { type: 'release'; slot: string }
+  /** The edit applied to a small test picture, to compare with the page's answer (workerRendersLikePage). */
+  | { type: 'check'; id: number; width: number; height: number; data: Uint8ClampedArray; edit: PhotoEdit }
   /** The photo at full resolution, for the zoomed-in detail: its file, decoded in the worker. */
   | { type: 'detail-source'; slot: string; key: string; blob: Blob }
   /** One region of the framed photo, at the size it is shown, with the edit. */
@@ -21,7 +23,7 @@ export type LiveDraftRequest =
 /** Where the lens's centre falls in the framed picture (photoFraming.ts lensCentre). */
 export type LensCentre = { x: number; y: number; r: number };
 
-export type LiveDraftReply = { id: number; missing: true } | { id: number; bitmap: ImageBitmap; ms: number };
+export type LiveDraftReply = { id: number; missing: true } | { id: number; bitmap: ImageBitmap; ms: number } | { id: number; pixels: Uint8ClampedArray };
 
 type WorkerLike = Pick<Worker, 'postMessage' | 'terminate'> & {
   onmessage: ((event: MessageEvent<LiveDraftReply>) => void) | null;
@@ -38,6 +40,8 @@ export interface LiveDraftClient {
   /** Draw this step at `edge` pixels on the long side. Null when overtaken, when the worker has no base, or on failure. */
   draw(slot: string, key: string, edge: number, edit: PhotoEdit): Promise<ImageBitmap | null>;
   release(slot: string): void;
+  /** The worker's answer for an edit on a small test picture (pixels), or null. */
+  check(width: number, height: number, data: Uint8ClampedArray, edit: PhotoEdit): Promise<Uint8ClampedArray | null>;
   /** Keep this photo's full-resolution file in the worker for detail (once per slot and key). */
   sendDetailSource(slot: string, key: string, blob: Blob): void;
   detailSourceKey(slot: string): string | undefined;
@@ -56,6 +60,7 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
   const detailSources = new Map<string, string>();
   const detailLatest = new Map<string, number>();
   const waiting = new Map<number, (bitmap: ImageBitmap | null) => void>();
+  const checks = new Map<number, (pixels: Uint8ClampedArray | null) => void>();
   /** Per slot: the draw being worked on, and the newest step waiting behind it. */
   const busy = new Set<string>();
   const queued = new Map<string, { send: () => void; resolve: (bitmap: ImageBitmap | null) => void }>();
@@ -65,6 +70,8 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
     const started = start();
     started.onmessage = (event) => {
       const reply = event.data;
+      const checked = checks.get(reply.id);
+      if (checked) { checks.delete(reply.id); checked('pixels' in reply ? reply.pixels : null); return; }
       const done = waiting.get(reply.id);
       waiting.delete(reply.id);
       if (!done) { if ('bitmap' in reply) reply.bitmap.close(); return; }
@@ -75,6 +82,8 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
       // The worker is gone, and so are the pictures it held: every slot sends its base again before drawing.
       for (const done of waiting.values()) done(null);
       waiting.clear();
+      for (const done of checks.values()) done(null);
+      checks.clear();
       bases.clear();
       detailSources.clear();
       started.terminate();
@@ -121,6 +130,15 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
         // Newest wins: the step that was waiting is overtaken and never drawn.
         queued.get(slot)?.resolve(null);
         queued.set(slot, { send, resolve });
+      });
+    },
+    check(width, height, data, edit) {
+      return new Promise((resolve) => {
+        const id = (nextId += 1);
+        checks.set(id, resolve);
+        const copy = data.slice();
+        try { ensure().postMessage({ type: 'check', id, width, height, data: copy, edit } satisfies LiveDraftRequest, [copy.buffer]); }
+        catch { checks.delete(id); resolve(null); }
       });
     },
     sendDetailSource(slot, key, blob) {

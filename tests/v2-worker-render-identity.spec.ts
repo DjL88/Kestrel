@@ -25,7 +25,9 @@ async function settled(page: Page) {
 
 /**
  * The full-quality picture is drawn in a background worker (its tone on the graphics card there, as on the page) so a
- * slider let go never holds the page. Quality must not change: the worker's picture is pixel for pixel the page's.
+ * slider let go never holds the page, but only where a check at start shows the worker draws exactly as the page does
+ * (graphics differ between machines). Quality must not change: whichever drew it, the picture is the page's, pixel for
+ * pixel.
  */
 test('?v2 the full-quality picture drawn in the worker is pixel-identical to the one drawn on the page', async ({ page }) => {
   test.setTimeout(240_000);
@@ -72,8 +74,14 @@ test('?v2 the full-quality picture drawn in the worker is pixel-identical to the
   await settled(page);
   await root.locator('#slider-dehaze').fill('20');
   await settled(page);
-  const usedWorker = await page.evaluate(() => performance.getEntriesByName('inflight:preview:edit-worker').length);
-  expect(usedWorker, 'the full-quality picture was drawn in the worker').toBeGreaterThan(0);
+  // Whether the worker draws exactly as the page does on this machine (its graphics may differ): only then is it used.
+  const { usedWorker, workerMatches } = await page.evaluate(() => ({
+    usedWorker: performance.getEntriesByName('inflight:preview:edit-worker').length,
+    workerMatches: (performance.getEntriesByName('inflight:preview:worker-check')[0] as PerformanceMeasure | undefined)?.detail?.same as boolean | undefined,
+  }));
+  test.info().annotations.push({ type: 'worker render', description: workerMatches ? 'matches the page here: used' : 'differs from the page here: not used' });
+  if (workerMatches) expect(usedWorker, 'the full-quality picture was drawn in the worker').toBeGreaterThan(0);
+  else expect(usedWorker, 'where the worker draws differently, the page draws every full-quality picture').toBe(0);
   const fromWorker = await shown(page);
 
   // The same edit drawn on the page: switch to the page renderer and step one slider away and back.

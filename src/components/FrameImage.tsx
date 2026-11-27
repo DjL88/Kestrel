@@ -16,6 +16,7 @@ import { renderRaw16Screen } from '../providers/raw16Render';
 import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
+import { workerRendersLikePage } from '../providers/workerRenderCheck';
 import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
@@ -338,6 +339,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       && layersKey === '[]' && !frame.edit?.trueDetailAi && hasImage.current;
     const renderFinalInWorker = async (): Promise<HTMLCanvasElement | 'cancelled' | null> => {
       if (!workerCanDrawFinal()) return null;
+      // Only where the worker draws exactly as the page does on this device (checked once, workerRenderCheck.ts).
+      if (!await workerRendersLikePage()) return null;
+      if (cancelled) return 'cancelled';
       const draft = liveDraft();
       if (draft.baseKey(slot.current) !== draftKey || !baseFromRender.current.has(draftKey)) return null;
       const started = performance.now();
