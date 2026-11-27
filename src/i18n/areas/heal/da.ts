@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
-  title: "Pletfjernelse",
+  title: "Fjern pletter",
   intro: "Dækker støv, en kvist eller rod omkring siddepladsen med pixels kopieret fra et sted tæt på i samme foto. Intet bliver opfundet, og den originale fil bliver aldrig ændret.",
   start: "Markér pletter",
   stop: "Færdig",

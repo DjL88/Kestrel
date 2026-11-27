@@ -1173,11 +1173,14 @@ export const source = {
   masks: {
     heading: 'Masks',
     subtitle: 'Connected to your local segmentation engine — select regions for targeted tone or denoise.',
-    autoDetectHeading: 'Smart detection',
+    autoDetectHeading: "Smart",
     subject: 'Detect subject',
+    addAction: "Add",
+    detecting: "Looking…",
     sky: 'Detect sky',
     background: 'Select background',
-    manualToolsHeading: 'Manual refinement',
+    manualToolsHeading: "Manual",
+    spotsMoved: "Spot removal is in Enhance › Refinements.",
     brush: 'Brush',
     eraser: 'Eraser',
     selectArea: 'Select area',
@@ -1187,6 +1190,7 @@ export const source = {
   // Enhance Panel
   enhance: {
     heading: 'Enhance',
+    refinementsHeading: "Refinements",
     denoiseHeading: "TrueDetail noise reduction",
     denoiseNow: "Run TrueDetail on this photo",
     trueDetailRunning: (percent: number) => `TrueDetail is working on this photo: ${percent}%`,

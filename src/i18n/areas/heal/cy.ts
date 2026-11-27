@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Welsh. DRAFT: written without a native speaker's check. */
 export const cy: AreaTranslation<typeof source> = {
-  title: "Trwsio smotiau",
+  title: "Tynnu smotiau",
   intro: "Yn cuddio llwch, brigyn neu annibendod o gwmpas y clwyd gyda phicseli wedi'u copïo o gerllaw yn yr un llun. Does dim yn cael ei greu, a dydy'r ffeil wreiddiol byth yn cael ei newid.",
   start: "Gosod smotiau",
   stop: "Wedi gorffen",

@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
-  title: "Fläckborttagning",
+  title: "Ta bort fläckar",
   intro: "Täcker damm, en kvist eller skräp kring sittplatsen med pixlar som kopieras från närheten i samma foto. Inget hittas på och originalfilen ändras aldrig.",
   start: "Markera fläckar",
   stop: "Klar",
