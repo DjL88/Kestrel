@@ -13,7 +13,8 @@ interface FlightModePickerProps {
   label: string;
   /** Show the label above the choices (otherwise it is for screen readers only). */
   showLabel?: boolean;
-  /** Narrow places (the Flight panel) show the icon and name only; the explanation is shown beside the picker there. */
+  /** Narrow places (the Flight panel) show the icon and name only; the explanation is shown beside the picker there.
+   * On a phone the compact picker is one 44 px row (icon beside name) and its label is for screen readers only. */
   compact?: boolean;
 }
 
@@ -24,20 +25,20 @@ interface FlightModePickerProps {
 export default function FlightModePicker({ value, onChange, name, label, showLabel = true, compact = false }: FlightModePickerProps) {
   return (
     <fieldset className="space-y-2">
-      <legend className={showLabel ? 'mb-2 text-xs font-semibold text-[var(--text-primary)]' : 'sr-only'}>{label}</legend>
+      <legend className={showLabel ? `mb-2 text-xs font-semibold text-[var(--text-primary)] ${compact ? 'max-md:sr-only' : ''}` : 'sr-only'}>{label}</legend>
       <div className={`grid gap-2 ${compact ? 'grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'}`}>
         {MODES.map((mode) => {
           const selected = value === mode;
           return (
             <label key={mode} data-testid={`flight-mode-${mode}`}
               className={`relative flex cursor-pointer rounded-[var(--radius-md)] border-2 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${
-                compact ? 'min-h-12 flex-col items-center justify-center px-1 py-1.5' : 'flex-col gap-1.5 p-3'
+                compact ? 'min-h-12 flex-col items-center justify-center px-1 py-1.5 max-md:min-h-11 max-md:py-1' : 'flex-col gap-1.5 p-3'
               } ${selected
                 ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
                 : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-strong)]'}`}>
               <input type="radio" className="sr-only" name={name} value={mode} checked={selected}
                 onChange={() => onChange(mode)} />
-              <span className={`flex items-center ${compact ? 'flex-col gap-0.5 text-center text-[0.6875rem] leading-tight' : 'gap-1.5 text-xs'} ${selected ? 'font-semibold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]'}`}>
+              <span className={`flex items-center ${compact ? 'flex-col gap-0.5 text-center text-[0.6875rem] leading-tight max-md:flex-row max-md:gap-1.5' : 'gap-1.5 text-xs'} ${selected ? 'font-semibold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]'}`}>
                 <BrandIcon name={assistModeIconName(mode)} size={compact ? 15 : 18} className={selected ? 'text-[var(--brand-accent)]' : ''} />
                 {STRINGS.topBar.assistModes[mode]}
               </span>
