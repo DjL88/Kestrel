@@ -732,6 +732,8 @@ export interface PhotoSurfaceProps {
   onPictureSize?: (size: { width: number; height: number }) => void;
   /** True while the picture is still loading or being redrawn (a develop or an edit), false once it is on screen. */
   onBusyChange?: (busy: boolean) => void;
+  /** True while the zoomed-in part of the photo is being drawn at full detail from the full-resolution picture. */
+  onDetailLoading?: (loading: boolean) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';

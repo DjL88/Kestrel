@@ -568,6 +568,7 @@ export const source = {
     reconnectOriginal: 'Reconnect folder',
     gridTitle: (mode: string) => (mode === 'off' ? 'Show a 3×3 grid over the frame' : mode === '3x3' ? 'Grid 3×3 (click for 4×4)' : 'Grid 4×4 (click to hide)'),
     sizeCapped: (w: number, h: number) => `Smaller than ${w}×${h}`,
+    loadingDetail: "Loading full detail…",
     sizeCappedLong: (rw: number, rh: number, w: number, h: number) => `This photo only has the pixels for ${w}×${h}, so this format exports at ${w}×${h} instead of ${rw}×${rh}. InFlight never enlarges a picture to reach a size.`,
     outputScaled: (f: number) => `Output scale ${f}×: InFlight enlarges this picture ${f} times on export with its on-device resampler. Enlarging does not add real detail.`,
     outputScaleUnused: (f: number) => `${f}× not needed`,

@@ -536,6 +536,7 @@ export const it: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Ricollega cartella',
     gridTitle: (mode) => (mode === 'off' ? 'Mostra una griglia 3×3 sull’inquadratura' : mode === '3x3' ? 'Griglia 3×3 (clic per 4×4)' : 'Griglia 4×4 (clic per nascondere)'),
     sizeCapped: (w, h) => `Più piccola di ${w}×${h}`,
+    loadingDetail: "Caricamento del dettaglio completo…",
     sizeCappedLong: (rw, rh, w, h) => `Questa foto ha solo i pixel per ${w}×${h}, quindi questo formato viene esportato a ${w}×${h} invece che a ${rw}×${rh}. InFlight non ingrandisce mai un’immagine per raggiungere una dimensione.`,
     outputScaled: (f) => `Scala di uscita ${f}×: InFlight ingrandisce questa immagine ${f} volte in esportazione con il suo ricampionatore sul dispositivo. Ingrandire non aggiunge dettagli reali.`,
     outputScaleUnused: (f) => `${f}× non necessario`,

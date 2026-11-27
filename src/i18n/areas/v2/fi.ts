@@ -537,6 +537,7 @@ export const fi: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Yhdistä kansio uudelleen',
     gridTitle: (mode) => (mode === 'off' ? 'Näytä 3×3-ruudukko kehyksen päällä' : mode === '3x3' ? 'Ruudukko 3×3 (napsauta: 4×4)' : 'Ruudukko 4×4 (napsauta: piilota)'),
     sizeCapped: (w, h) => `Pienempi kuin ${w}×${h}`,
+    loadingDetail: "Ladataan täyttä tarkkuutta…",
     sizeCappedLong: (rw, rh, w, h) => `Tässä kuvassa on pikseleitä vain kokoon ${w}×${h}, joten tämä formaatti viedään kokona ${w}×${h} eikä ${rw}×${rh}. InFlight ei koskaan suurenna kuvaa koon saavuttamiseksi.`,
     outputScaled: (f) => `Tulosteen skaala ${f}×: InFlight suurentaa kuvan viennissä ${f}-kertaiseksi laitteen omalla uudelleennäytteistimellä. Suurentaminen ei lisää todellisia yksityiskohtia.`,
     outputScaleUnused: (f) => `${f}× ei tarpeen`,

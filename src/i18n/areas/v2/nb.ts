@@ -536,6 +536,7 @@ export const nb: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Koble til mappen igjen',
     gridTitle: (mode) => (mode === 'off' ? 'Vis et 3×3-rutenett over rammen' : mode === '3x3' ? 'Rutenett 3×3 (klikk for 4×4)' : 'Rutenett 4×4 (klikk for å skjule)'),
     sizeCapped: (w, h) => `Mindre enn ${w}×${h}`,
+    loadingDetail: "Laster inn alle detaljer…",
     sizeCappedLong: (rw, rh, w, h) => `Dette bildet har bare piksler til ${w}×${h}, så formatet eksporteres i ${w}×${h} i stedet for ${rw}×${rh}. InFlight forstørrer aldri et bilde for å nå en størrelse.`,
     outputScaled: (f) => `Utdataskala ${f}×: InFlight forstørrer bildet ${f} ganger ved eksport med sin omsampler på enheten. Forstørring legger ikke til ekte detaljer.`,
     outputScaleUnused: (f) => `${f}× ikke nødvendig`,

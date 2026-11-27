@@ -536,6 +536,7 @@ export const sv: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Anslut mappen igen',
     gridTitle: (mode) => (mode === 'off' ? 'Visa ett 3×3-rutnät över ramen' : mode === '3x3' ? 'Rutnät 3×3 (klicka för 4×4)' : 'Rutnät 4×4 (klicka för att dölja)'),
     sizeCapped: (w, h) => `Mindre än ${w}×${h}`,
+    loadingDetail: "Läser in full detalj…",
     sizeCappedLong: (rw, rh, w, h) => `Det här fotot har bara pixlar för ${w}×${h}, så formatet exporteras i ${w}×${h} i stället för ${rw}×${rh}. InFlight förstorar aldrig en bild för att nå en storlek.`,
     outputScaled: (f) => `Utdataskala ${f}×: InFlight förstorar bilden ${f} gånger vid export med sin omsamplare på enheten. Förstoring tillför inga verkliga detaljer.`,
     outputScaleUnused: (f) => `${f}× behövs inte`,

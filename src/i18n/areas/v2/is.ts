@@ -536,6 +536,7 @@ export const is: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Tengja möppu aftur',
     gridTitle: (mode) => (mode === 'off' ? 'Sýna 3×3 hnitanet yfir rammanum' : mode === '3x3' ? 'Hnitanet 3×3 (smelltu fyrir 4×4)' : 'Hnitanet 4×4 (smelltu til að fela)'),
     sizeCapped: (w, h) => `Minni en ${w}×${h}`,
+    loadingDetail: "Hleð inn fullri upplausn…",
     sizeCappedLong: (rw, rh, w, h) => `Þessi mynd hefur aðeins díla fyrir ${w}×${h}, svo þetta snið er flutt út í ${w}×${h} í stað ${rw}×${rh}. InFlight stækkar aldrei mynd til að ná stærð.`,
     outputScaled: (f) => `Úttakskvarði ${f}×: InFlight stækkar myndina ${f} sinnum við útflutning með endursýnatöku í tækinu. Stækkun bætir ekki við raunverulegum smáatriðum.`,
     outputScaleUnused: (f) => `${f}× óþarft`,

@@ -536,6 +536,7 @@ export const cy: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Ailgysylltu’r ffolder',
     gridTitle: (mode) => (mode === 'off' ? 'Dangos grid 3×3 dros y ffrâm' : mode === '3x3' ? 'Grid 3×3 (cliciwch am 4×4)' : 'Grid 4×4 (cliciwch i guddio)'),
     sizeCapped: (w, h) => `Llai na ${w}×${h}`,
+    loadingDetail: "Yn llwytho’r manylion llawn…",
     sizeCappedLong: (rw, rh, w, h) => `Dim ond picseli ar gyfer ${w}×${h} sydd gan y llun hwn, felly mae’r fformat hwn yn allforio ar ${w}×${h} yn lle ${rw}×${rh}. Dydy InFlight byth yn chwyddo llun i gyrraedd maint.`,
     outputScaled: (f) => `Graddfa allbwn ${f}×: mae InFlight yn chwyddo’r llun hwn ${f} gwaith wrth allforio gyda’i ailsamplwr ar y ddyfais. Nid yw chwyddo’n ychwanegu manylion go iawn.`,
     outputScaleUnused: (f) => `${f}× ddim yn angenrheidiol`,
