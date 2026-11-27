@@ -308,6 +308,8 @@ export const Schemas = {
     aiConsent: z.boolean(),
     /** True while the account holds a usable contributor grant: the app then offers "Feedback on this". */
     contributor: z.boolean(),
+    /** Whether InFlight's own online helper is available to this account now (invite-only plan, set up, switch on). */
+    onlineHelper: z.enum(['available', 'unavailable']),
     nextRevalidationMs: z.number(),
   }),
   ContributorFeedback: z.object({

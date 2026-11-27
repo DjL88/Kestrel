@@ -138,7 +138,8 @@ import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { agreeManagedAi, aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
-import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
+import { saveAiSettings } from '../../providers/aiSettings';
+import { useUsableAiSettings } from '../../providers/onlineHelperState';
 import { consentFor } from '../../providers/aiProviders';
 import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
 import { languageOption } from '../../core/locale';
@@ -2045,7 +2046,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Bring your own AI: a second opinion on colour and light from the person's own key or a model on this computer.
   // Advisory only. The answer is kept for one photo; Apply is one undoable edit, refused if the photo changed since.
-  const aiSettings = useAiSettings();
+  // A saved InFlight online helper is not used while it is not available to this account (invite-only, switch on, online).
+  const aiSettings = useUsableAiSettings();
   const [aiOpinion, setAiOpinion] = useState<AiOpinionRecord | null>(null);
   const aiAbort = useRef<AbortController | null>(null);
   const cancelAiOpinion = useCallback(() => {

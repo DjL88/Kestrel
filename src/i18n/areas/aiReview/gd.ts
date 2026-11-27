@@ -17,7 +17,7 @@ export const gd: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (iuchair AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Co-chòrdail ri OpenAI, no modail air a’ choimpiutair seo (Ollama, LM Studio)',
-    inflight: "Neach-cuideachaidh air loidhne InFlight (luchd-deuchainn le cuireadh a-mhàin)",
+    inflight: "Neach-cuideachaidh air loidhne InFlight",
   },
   key: 'Iuchair API',
   keyOptional: 'Iuchair API (fàg falamh e airson modail air a’ choimpiutair seo)',

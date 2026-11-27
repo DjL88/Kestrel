@@ -14,7 +14,7 @@ export const source = {
     gemini: 'Google Gemini (AI Studio key)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-compatible, or a model on this computer (Ollama, LM Studio)',
-    inflight: "InFlight’s online helper (invited testers only)",
+    inflight: "InFlight’s online helper",
   },
   inflightHint: "For accounts InFlight has invited to test its online helper. Sign in first; no key is needed.",
   inflightSummary: "InFlight’s online helper suggests these small changes.",

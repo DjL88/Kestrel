@@ -65,3 +65,19 @@ test('Your own AI (a model on this computer) gives a second opinion, applied onl
   await result.getByTestId('v2-ai-opinion-apply').click();
   await expect(card).toContainText('Applied');
 });
+
+test('InFlight’s own online helper is not offered when it is not available to the account (invite-only)', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Settings opens from the desktop tool rail.');
+  // This build is signed out and has no control plane, so the server has not said "available": no choice, no switch,
+  // no "invited testers only" line (owner, 27 Nov 2026). The available state is covered by src/v2/ui/onlineHelperVisibility.test.ts.
+  await page.route('**/*.onnx*', (route) => route.abort());
+  await page.goto('/?v2');
+  await openV2Settings(page);
+  await page.getByRole('tab', { name: /AI/ }).or(page.getByRole('button', { name: /AI providers|AI/ })).first().click();
+  const setup = page.getByTestId('v2-ai-setup');
+  await expect(setup).toBeVisible();
+  const offered = await setup.locator('select option').evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
+  expect(offered).toEqual(['openai', 'gemini', 'anthropic']);
+  await expect(page.getByText(/invited testers/i)).toHaveCount(0);
+  await expect(page.getByTestId('account-online-helper')).toHaveCount(0);
+});

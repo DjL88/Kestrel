@@ -265,6 +265,9 @@ export function meRoutes(ctx: AppContext): Route[] {
           aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
           aiConsent: account?.aiConsent ?? false,
           contributor: plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now())),
+          // InFlight's own online helper is invite-only: a usable licence that includes it, the helper set up on this server,
+          // and the 'Online photo helper' switch on. The app shows its switch and its provider choice only when 'available'.
+          onlineHelper: plans.some((p) => p.managedAi && licenceIsUsable(p, now())) && ctx.provider !== null && (await switchOn('managed-ai')) ? 'available' : 'unavailable',
           nextRevalidationMs: now() + 7 * DAY_MS,
         },
       };
