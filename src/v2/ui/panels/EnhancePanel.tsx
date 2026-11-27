@@ -1,3 +1,4 @@
+import { useSliderValue } from '../utils/useSliderValue';
 import React from 'react';
 import type { EditRecipe, Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -20,6 +21,15 @@ interface EnhancePanelProps {
   onPreviewEnlargement?: () => void;
   /** Whether this plan includes cloud processing. */
   cloudEnabled?: boolean;
+}
+
+/** A 0 to 100 noise slider whose thumb moves at once; the edit follows as a transition (useSliderValue). */
+function HeldRange({ id, testId, value: workspaceValue, onChange: commit }: { id: string; testId?: string; value: number; onChange: (value: number) => void }) {
+  const [value, onChange] = useSliderValue(workspaceValue, commit);
+  return (
+    <input id={id} type="range" data-testid={testId} min={0} max={100} value={value}
+      onChange={(e) => onChange(Number(e.target.value))} className="inflight-slider" />
+  );
 }
 
 export default function EnhancePanel({
@@ -119,15 +129,11 @@ export default function EnhancePanel({
               </span>
             )}
           </div>
-          <input
+          <HeldRange
             id="denoise-luma"
-            type="range"
-            data-testid="v2-enhance-luminance"
-            min={0}
-            max={100}
+            testId="v2-enhance-luminance"
             value={recipe.denoiseLuminance}
-            onChange={(e) => onUpdateRecipe(photo.id, { denoiseLuminance: Number(e.target.value) })}
-            className="inflight-slider"
+            onChange={(value) => onUpdateRecipe(photo.id, { denoiseLuminance: value })}
           />
         </div>
 
@@ -146,14 +152,10 @@ export default function EnhancePanel({
               </span>
             )}
           </div>
-          <input
+          <HeldRange
             id="denoise-colour"
-            type="range"
-            min={0}
-            max={100}
             value={recipe.denoiseColour}
-            onChange={(e) => onUpdateRecipe(photo.id, { denoiseColour: Number(e.target.value) })}
-            className="inflight-slider"
+            onChange={(value) => onUpdateRecipe(photo.id, { denoiseColour: value })}
           />
         </div>
       </section>
