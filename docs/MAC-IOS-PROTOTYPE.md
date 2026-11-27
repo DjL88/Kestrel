@@ -93,9 +93,15 @@ Result labels are PASS / FAIL / NOT RUN. This is a readiness inventory, not a re
 | `cargo check --target aarch64-apple-ios` (src-tauri) | PASS | Finished in 2 min 08 s, no errors |
 | `x86_64-apple-ios` (Intel simulator) | NOT RUN | The project builds `arm64` only (`ARCHS`, `EXCLUDED_ARCHS`); not needed on Apple silicon |
 | `tauri ios init` | Already done | `src-tauri/gen/apple` is committed (21 Nov). Do not re-run: it would overwrite it |
-| `tauri ios build --debug --target aarch64-sim` | NOT RUN | The build disk had 389 MB free (99% full), so the build's first step, downloading the bundled models, stopped with "No space left on device". Free about 15 GB and run it again |
-| Launch in the Simulator, screenshots | NOT RUN | Needs the build above, and the owner to allow Simulator access when asked |
+| `tauri ios build --debug --target aarch64-sim --ci` | PASS | After freeing disk (the first two tries ran out of space): `** BUILD SUCCEEDED **`, `InFlight.app` at `src-tauri/gen/apple/build/arm64-sim/`, debug build on `main` at `f01922b3` |
+| Launch on iPhone 17 Pro (iOS 26.1), screenshots | PASS (iPhone only) | Launches, shows the blank dark screen for a few seconds, then Welcome, Quick setup (step 1 of 6) and Projects. Two defects seen, below. iPad (Pro 11-inch M5): NOT RUN, the Simulator access prompt for it was not answered. Importing, editing and exporting a photo: NOT RUN |
 | Phone and tablet layout in the browser pane (375 x 812, 1180 x 820) | PASS (web only) | Projects hub fits with no sideways scroll; of 13 controls at phone width only the search box is under 44 px (40 px tall). This is the web build, not the app shell |
+
+Defects seen in the iPhone 17 Pro Simulator (not fixed here: they are in shared frontend and `src-tauri/gen/apple` files other sessions are editing):
+
+1. **Welcome and Quick setup screens ignore the top safe area.** The InFlight logo is drawn under the Dynamic Island. The Projects screen pads correctly, so the first-run screens need the same `env(safe-area-inset-top)` padding.
+2. **Grey band under the web view, confirmed.** About 100 pt of lighter grey sits below the page on every screen (the web view ends at roughly y = 777 pt of 874 pt), so the bottom of the page is cut short. Cause still unexplained; start with the web view's frame in `ios_orientation.rs` (`fill_window`) and the launch storyboard.
+3. The first tap on "Continue as guest" did nothing and the second worked, on a screen that was still settling: recheck on a device.
 
 ### What compiles for iOS, and what is kept off it
 
@@ -136,8 +142,8 @@ Every desktop-only part is already gated, so the iOS build is the shared UI plus
 
 ### Next five actions
 
-1. Free about 15 GB on the Mac (old `src-tauri/target` folders in finished worktrees are 3 to 8 GB each), then run `npx tauri ios build --debug --target aarch64-sim --ci` and launch it on an iPhone 17 Pro and an iPad Pro 11-inch (M5) in the Simulator; screenshot Projects, a project, Cull and Edit.
-2. Fix the 97 pt band under the web view and the 40 px Projects search box, then re-check at both sizes (frontend files; coordinate with the frontend sessions first).
+1. Allow Simulator access for the iPad, then launch the built app on an iPad Pro 11-inch (M5) and screenshot Projects, a project, Cull and Edit on both iPhone and iPad. A full build needs about 6 GB of free disk.
+2. Fix the grey band under the web view, the first-run screens' top safe area and the 40 px Projects search box, then re-check at both sizes (frontend files; coordinate with the frontend sessions first).
 3. Decide items 1, 2, 5, 6, 9 and 11 above, then add the privacy manifest and `ITSAppUsesNonExemptEncryption` to `gen/apple` in a small PR.
 4. Run a debug build on a real iPhone with the Apple Development certificate: import 50 JPEGs and RAW files from Files and Photos, edit, export, reopen, offline.
 5. Add an iOS `cargo check` and a Simulator build to a manual or nightly workflow so gating regressions are caught (macOS runner minutes are paid, so not on every push).
