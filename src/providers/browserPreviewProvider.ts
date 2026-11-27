@@ -10,6 +10,7 @@ import {
 } from './offlinePreviewCache';
 import { THUMB_HEAD_BYTES, extractNefPreview, extractSmallRawPreview, extractThumbRawPreview, shownJpegSize } from '../core/nefPreview';
 import { measureStep, timedWait } from './previewTiming';
+import { thumbnailOffThread } from './pixelAnalysis';
 import { unsupportedRawCompression, type UnsupportedRawCompression } from '../core/rawCompression';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
 import { isHeifFile, isRawPreviewFile, looksLikeHeif } from '../core/rawFormats';
@@ -1015,6 +1016,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const start = performance.now();
     try {
       const size = await shownJpegSize(sourceBlob).catch(() => null);
+      // Decoded, shrunk and encoded in a worker, so a thumbnail never holds the interface; on the page if that fails.
+      const made = await thumbnailOffThread(sourceBlob, THUMB_MAX_WIDTH, 0.82, size).catch(() => null);
+      if (made) {
+        if (epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(frame.stableKey) ?? 0)) void saveOfflinePreview(cacheKey, made);
+        measureStep('thumb:shrink', start, { worker: true, bytes: sourceBlob.size });
+        return this.tagUrl(URL.createObjectURL(made), shownAs);
+      }
       const shrinkWhileDecoding = size !== null && size.width > THUMB_MAX_WIDTH;
       const bitmap = shrinkWhileDecoding
         ? await createImageBitmap(sourceBlob, { resizeWidth: THUMB_MAX_WIDTH, resizeHeight: Math.max(1, Math.round(size.height * THUMB_MAX_WIDTH / size.width)), resizeQuality: 'high' })

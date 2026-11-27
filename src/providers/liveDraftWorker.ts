@@ -7,7 +7,8 @@
  *
  * Started by liveDraft.ts.
  */
-import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyCanvasPhotoEdit, setGpuRenderer } from '../core/canvasEdit';
+import { renderEditOnGpu } from './webglEdit';
 import { fullContext } from '../core/masks';
 import { drawFramedPhoto, lensCentre, type PhotoFraming } from '../core/photoFraming';
 import { createStageCache } from '../core/stageCache';
@@ -21,6 +22,9 @@ interface Slot {
   lens: LensCentre;
   sized?: { edge: number; pixels: ImageData };
 }
+
+// The same tone renderer as the page (WebGL on an OffscreenCanvas), so a picture drawn here matches one drawn there.
+setGpuRenderer(renderEditOnGpu);
 
 const slots = new Map<string, Slot>();
 /** Each picture's full-resolution photo for zoomed-in detail, decoded here once. */

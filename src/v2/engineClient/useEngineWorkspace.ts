@@ -16,6 +16,8 @@ import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler, type ScheduledContext, type SchedulerTicket } from '../../core/engineScheduler';
 import { measureStep, timedStep } from '../../providers/previewTiming';
+import { useTaskList } from './taskListFeed';
+import { histogramOffThread } from '../../providers/pixelAnalysis';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
@@ -345,7 +347,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }).local);
   }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
-  const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
+  // The map is worked out once per plan, not again on every question (it was asked many times on every redraw).
+  const access = useMemo(() => featureAccess(canByPlan), [canByPlan]);
+  const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => access[feature as keyof typeof access] ?? canByPlan(feature), [access, canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
   if (!catalogue.current) catalogue.current = new BrowserCatalogueStore();
   const provider = useRef<BrowserPreviewProvider | null>(null);
@@ -437,7 +441,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
   const lastFollowed = useRef<string | null>(null);
   const relinking = useRef(false);
-  const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
+  // At most four times a second, drawn as a transition: a busy job's progress never holds the page (taskListFeed.ts).
+  const taskList = useTaskList();
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
   const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
   const [clock, setClock] = useState(() => Date.now());
@@ -1402,15 +1407,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
         if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
         const measureStart = performance.now();
-        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy.
-        const canvas = document.createElement('canvas');
-        canvas.width = image.small.width; canvas.height = image.small.height;
-        const context = canvas.getContext('2d', { willReadFrequently: true })!;
-        context.putImageData(image.small, 0, 0);
-        applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
-        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-        measureStep('histogram:measure', measureStart);
-        if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
+        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy,
+        // in the picture worker (pixelAnalysis.ts), so measuring never holds the page; here only if that cannot run.
+        const fromWorker = await histogramOffThread(image.small, frame.edit ?? EMPTY_EDIT).catch(() => null);
+        if (!live) return;
+        let measuredHere = fromWorker;
+        if (!measuredHere) {
+          const canvas = document.createElement('canvas');
+          canvas.width = image.small.width; canvas.height = image.small.height;
+          const context = canvas.getContext('2d', { willReadFrequently: true })!;
+          context.putImageData(image.small, 0, 0);
+          applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
+          measuredHere = toPhotoHistogram(context.getImageData(0, 0, canvas.width, canvas.height).data);
+        }
+        measureStep('histogram:measure', measureStart, { worker: Boolean(fromWorker) });
+        const histogram = measuredHere;
+        if (live) setHistograms((current) => ({ ...current, [frame.id]: histogram }));
         // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
         // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
         if (!live || !raw16Possible(frame, provider.current!.pictureSourceOf(url), canDevelopRaw())) return;

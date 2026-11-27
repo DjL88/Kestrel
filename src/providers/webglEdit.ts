@@ -170,7 +170,7 @@ interface Gpu {
   toneTexture: WebGLTexture;
   framebuffer: WebGLFramebuffer;
   toneSize: [number, number];
-  canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement | OffscreenCanvas;
   gl: WebGL2RenderingContext;
   program: WebGLProgram;
   texture: WebGLTexture;
@@ -189,8 +189,9 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
 
 function setup(): Gpu | null {
   try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
+    // A page canvas on the page; in a worker (the live draft worker), an OffscreenCanvas: the same shaders, the same answer.
+    const canvas: HTMLCanvasElement | OffscreenCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1);
+    const gl = (canvas as HTMLCanvasElement).getContext('webgl2', { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
     if (!gl) return null;
     const program = gl.createProgram()!;
     gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX));

@@ -67,6 +67,12 @@ interface FrameImageProps {
 const FULL_EDGE = 2200;
 /** A drag's quick picture is drawn at the size it is shown, never smaller than this. */
 const DRAFT_MIN_EDGE = 480;
+/** Developer switch: draw the full-quality picture on the page, as before, to compare it with the worker's. */
+const PAGE_RENDER_KEY = 'inflight.debug.page-render';
+function pageRenderChosen(): boolean {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(PAGE_RENDER_KEY) === '1'; } catch { return false; }
+}
+
 /** The 16-bit pass waits until the slider has been still this long. */
 const SENSOR16_SETTLE_MS = 300;
 
@@ -263,6 +269,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   // The full-resolution picture the last full render came from, for drawing the zoomed-in part again at full detail.
   const detailSource = useRef<DetailSource | null>(null);
   const [renderedRevision, setRenderedRevision] = useState(0);
+  /** Draft keys whose worker base came from a full render here (the exact framed pixels), not from the shown file. */
+  const baseFromRender = useRef(new Set<string>());
   const zoomRef = useRef(zoomScale);
   zoomRef.current = zoomScale;
   // A quick drag picture was asked for: when the drag ends, the full-quality picture is drawn (settleRev).
@@ -320,8 +328,39 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       return true;
     };
 
+    /**
+     * The full-quality picture drawn in the drag worker (the same edit maths, its tone on the graphics card there as here,
+     * from the same framed 2,200 px picture it already holds), so letting go of a slider never holds the page for the
+     * redraw. Null when it cannot (no worker, layers or a stored AI result drawn on the page, no framed picture there yet):
+     * then it is drawn here, as before.
+     */
+    const workerCanDrawFinal = () => variant === 'full' && !dragging && prepareDrag && liveDraftSupported() && !pageRenderChosen()
+      && layersKey === '[]' && !frame.edit?.trueDetailAi && hasImage.current;
+    const renderFinalInWorker = async (): Promise<HTMLCanvasElement | 'cancelled' | null> => {
+      if (!workerCanDrawFinal()) return null;
+      const draft = liveDraft();
+      if (draft.baseKey(slot.current) !== draftKey || !baseFromRender.current.has(draftKey)) return null;
+      const started = performance.now();
+      const bitmap = await draft.draw(slot.current, draftKey, FULL_EDGE, frame.edit ?? DEFAULT_EDIT);
+      if (cancelled) { bitmap?.close(); return 'cancelled'; }
+      if (!bitmap) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      measureStep('preview:edit-worker', started, { width: canvas.width, height: canvas.height });
+      return canvas;
+    };
+
     const render = async () => {
       if (dragging && await renderDraft()) return;
+      const fromWorker = await renderFinalInWorker();
+      if (fromWorker === 'cancelled') return;
+      if (fromWorker) {
+        showLive(fromWorker);
+        await finishFull(fromWorker, Math.max(fromWorker.width, fromWorker.height));
+        return;
+      }
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
       const source = await timedWait('preview:source', () => loadEditSource(frame, previewProvider, variant, priority));
       if (cancelled) return;
@@ -331,10 +370,26 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const scale = Math.min(1, (variant === 'thumb' ? 400 : dragging ? shownEdge() : FULL_EDGE) / Math.max(size.width, size.height));
       timedStep('preview:draw-source', () => drawFramedPhoto(source, canvas, framing, { scale }));
       const lens = lensCentre(source.naturalWidth, source.naturalHeight, framing);
+      // The full-resolution picture this render comes from, for the zoomed-in detail (wherever the edit is drawn).
+      if (variant === 'full' && !dragging) {
+        detailSource.current = { element: source, key: JSON.stringify([draftKey, source.currentSrc || source.src]), renderedLongEdge: Math.max(canvas.width, canvas.height) };
+      }
       // The framed picture goes to the draft worker before the edit changes it, so the next drag starts at once.
+      let baseSent: Promise<boolean> | null = null;
       if (variant === 'full' && !dragging && prepareDrag && liveDraftSupported()) {
         const key = draftKey;
-        void createImageBitmap(canvas).then((bitmap) => liveDraft().sendBase(slot.current, key, bitmap, lens)).catch(() => undefined);
+        // Only a base from this full render (not one made from the shown file) is good for drawing the full-quality picture.
+        baseSent = createImageBitmap(canvas).then((bitmap) => { liveDraft().sendBase(slot.current, key, bitmap, lens); baseFromRender.current.add(key); return true; }, () => false);
+      }
+      // Then the edit itself in the worker, from exactly these framed pixels (the same picture as drawing it here).
+      if (baseSent && workerCanDrawFinal() && await baseSent) {
+        const fromWorker = await renderFinalInWorker();
+        if (fromWorker === 'cancelled') return;
+        if (fromWorker) {
+          showLive(fromWorker);
+          await finishFull(fromWorker, Math.max(fromWorker.width, fromWorker.height));
+          return;
+        }
       }
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
@@ -347,11 +402,13 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       showLive(canvas);
       if (dragging) return;
-      if (variant === 'full') {
-        detailSource.current = { element: source, key: JSON.stringify([draftKey, source.currentSrc || source.src]), renderedLongEdge: Math.max(canvas.width, canvas.height) };
-        setRenderedRevision((count) => count + 1);
-      }
-      const eightBitEdge = Math.max(size.width, size.height) * scale;
+      await finishFull(canvas, Math.max(size.width, size.height) * scale);
+    };
+
+    /** The 16-bit pass and the one PNG, for a full-quality picture drawn here or in the worker. */
+    const finishFull = async (canvas: HTMLCanvasElement, eightBitEdge: number) => {
+      // A new full-quality picture is on screen: the zoomed-in detail (useDetailRegion) is drawn again for it.
+      if (variant === 'full') setRenderedRevision((count) => count + 1);
       // A redraw of a photo with a 16-bit copy shows the 8-bit picture at once, waits for the slider to be still, then
       // encodes only the 16-bit picture: one PNG per pause, not two.
       const tried16 = hasImage.current && sensor16Ready();
