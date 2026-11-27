@@ -103,91 +103,21 @@ export default function CoPilotPanel({
         </p>
       </div>
 
-      {/* Renamed Deep Vision Review CTA */}
-      <div className="space-y-2">
-        {onRequestLocalAuto && (
-          <button type="button" onClick={() => onRequestLocalAuto(photo.id)}
-            className="w-full min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            {STRINGS.copilot.localReviewButton}
-          </button>
-        )}
-        {!hideReview && (
-        <>
-        <button
-          type="button"
-          disabled={!reviewAvailable || reviewPending}
-          aria-busy={reviewPending}
-          aria-describedby="copilot-review-status"
-          onClick={() => onRunDeepVisionReview(photo.id)}
-          className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3.5 py-2.5 text-left text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
-        >
-          <span className="flex items-center gap-2">
-            <BrandIcon name="cloud-assist" size={17} />
-            <span>
-              <span className="flex items-center gap-1.5 text-xs font-semibold">{reviewPending ? 'Review in progress…' : STRINGS.copilot.runReviewButton}<ProBadge feature="onlineAi" /></span>
-              <span className="block text-[0.625rem] opacity-85">{STRINGS.copilot.runReviewSub}</span>
-            </span>
-          </span>
-          <BrandIcon name="arrow" size={14} />
-        </button>
-
-        <p id="copilot-review-status" role="status" aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">
-          {reviewPending ? 'Review in progress. Existing suggestions remain available; nothing has been applied.' : !reviewAvailable ? 'Online review is unavailable. Your photos and existing local edits remain usable offline.' : 'Review is optional. Suggestions are not applied without your choice.'}
-        </p>
-        </>
-        )}
-        {ongoingCritique && (
-          <p className="flex items-center gap-1.5 text-[0.6875rem] text-[var(--text-secondary)]">
-            <BrandIcon name="ready" size={13} className="text-[var(--semantic-success)]" />
-            <span>{STRINGS.copilot.ongoingBadge}</span>
-          </p>
-        )}
-        <p className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">
-          {STRINGS.copilot.noGenAiNote}
-        </p>
-      </div>
-
-      {cloudRecipe && (
-        <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
-          onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn}
-          consent={cloudRecipe.consent} onSetConsent={cloudRecipe.setConsent} onTopUp={cloudRecipe.onTopUp} />
-      )}
-
-      {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}
-      {aiOpinion && <AiSecondOpinionCard photoId={photo.id} view={aiOpinion} {...aiOpinionActions} />}
-
-      {/* Assist, merged: the plain-English read of the photo, and the colour check */}
-      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
-          <BrandIcon name="assist" size={15} className="text-[var(--brand-accent)]" />
-          <span>{STRINGS.assist.opinionHeading}</span>
-        </div>
-        <p className="text-xs leading-relaxed text-[var(--text-primary)]">
-          {photo.assistCritique.subjectNote || STRINGS.copilot.nothingYet}
-        </p>
-      </section>
-
-      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
-            <BrandIcon name="palette" size={14} className="text-[var(--semantic-info)]" />
-            <span>{STRINGS.assist.colourConfidenceHeading}</span>
-          </span>
-          <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">{photo.assistCritique.kelvinEstimate}</span>
-        </div>
-        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-          {photo.assistCritique.colourConfidence || STRINGS.copilot.nothingYet}
-        </p>
-        {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
-        <p className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">{STRINGS.assist.safeNote}</p>
-      </section>
-
-      {/* Recommendations */}
-      <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-3.5">
+      {/* Recommendations first: action and advice (Dave, 27 Nov: "This is very useful to show"). */}
+      <div className="space-y-2.5" data-testid="copilot-recommendations">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.copilot.suggestionsHeading}
           </h3>
+          <details className="relative" data-testid="copilot-about">
+            <summary aria-label={STRINGS.copilot.aboutLabel} title={STRINGS.copilot.aboutLabel}
+              className="inline-flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--border-default)] text-[0.6875rem] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">i</summary>
+            <div className="absolute right-0 top-full z-20 mt-1 w-64 space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-2.5 text-[0.6875rem] leading-snug text-[var(--text-secondary)] shadow-[var(--shadow-popover)]">
+              <p>{STRINGS.copilot.noGenAiNote}</p>
+              {ongoingCritique && <p>{STRINGS.copilot.ongoingBadge}</p>}
+              <p>{STRINGS.assist.safeNote}</p>
+            </div>
+          </details>
         </div>
 
         {suggestions.length === 0 ? (
@@ -219,9 +149,6 @@ export default function CoPilotPanel({
                     <p className="line-clamp-2 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>
                   </div>
                 </div>
-                <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--text-muted)]">
-                  {sug.colourReadout}
-                </p>
                 <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
                 <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
                 <ColourSenseLine note={sug.secondOpinion} cvdGuidance={cvdGuidance} testId="second-opinion" />
@@ -296,6 +223,76 @@ export default function CoPilotPanel({
           </div>
         )}
       </div>
+
+      {/* Renamed Deep Vision Review CTA */}
+      <div className="space-y-2">
+        {onRequestLocalAuto && (
+          <button type="button" onClick={() => onRequestLocalAuto(photo.id)}
+            className="w-full min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            {STRINGS.copilot.localReviewButton}
+          </button>
+        )}
+        {!hideReview && (
+        <>
+        <button
+          type="button"
+          disabled={!reviewAvailable || reviewPending}
+          aria-busy={reviewPending}
+          aria-describedby="copilot-review-status"
+          onClick={() => onRunDeepVisionReview(photo.id)}
+          className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3.5 py-2.5 text-left text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
+        >
+          <span className="flex items-center gap-2">
+            <BrandIcon name="cloud-assist" size={17} />
+            <span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold">{reviewPending ? 'Review in progress…' : STRINGS.copilot.runReviewButton}<ProBadge feature="onlineAi" /></span>
+              <span className="block text-[0.625rem] opacity-85">{STRINGS.copilot.runReviewSub}</span>
+            </span>
+          </span>
+          <BrandIcon name="arrow" size={14} />
+        </button>
+
+        <p id="copilot-review-status" role="status" aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">
+          {reviewPending ? STRINGS.copilot.reviewRunning : !reviewAvailable ? STRINGS.copilot.reviewUnavailable : ''}
+        </p>
+        </>
+        )}
+      </div>
+
+      {cloudRecipe && (
+        <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
+          onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn}
+          consent={cloudRecipe.consent} onSetConsent={cloudRecipe.setConsent} onTopUp={cloudRecipe.onTopUp} />
+      )}
+
+      {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}
+      {aiOpinion && aiOpinion.setup !== 'none' && <AiSecondOpinionCard photoId={photo.id} view={aiOpinion} {...aiOpinionActions} />}
+
+      {/* Assist, merged: the plain-English read of the photo, and the colour check */}
+      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+          <BrandIcon name="assist" size={15} className="text-[var(--brand-accent)]" />
+          <span>{STRINGS.assist.opinionHeading}</span>
+        </div>
+        <p className="text-xs leading-relaxed text-[var(--text-primary)]">
+          {photo.assistCritique.subjectNote || STRINGS.copilot.nothingYet}
+        </p>
+      </section>
+
+      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+            <BrandIcon name="palette" size={14} className="text-[var(--semantic-info)]" />
+            <span>{STRINGS.assist.colourConfidenceHeading}</span>
+          </span>
+          <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">{photo.assistCritique.kelvinEstimate}</span>
+        </div>
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {photo.assistCritique.colourConfidence || STRINGS.copilot.nothingYet}
+        </p>
+        {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
+      </section>
+
     </div>
   );
 }
