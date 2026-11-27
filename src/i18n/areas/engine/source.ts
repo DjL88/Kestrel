@@ -70,7 +70,11 @@ export const source = {
     /** "Denoise anyway" on a photo whose noise read as not visible: said gently, with what was measured. */
     anyway: (m: string, s: string, iso: string | null) => `Denoised anyway at a gentle strength (${s}). Measured noise ${m}${iso ? ` at ISO ${iso}` : ''}, below where it starts to show.`,
     /** A RAW whose sensor data has not been developed yet: noise cannot be measured on the camera's small preview. */
-    notDeveloped: (f: string) => `${f} has not been developed from its RAW sensor data yet, so its noise cannot be measured. Wait for the develop to finish, then run Denoise again. Nothing was changed.`,
+    notDeveloped: (f: string) => `${f} has not been developed from its RAW sensor data yet, so its noise cannot be measured. Develop it at full size first, or wait for a develop that is already running, then run Denoise again. Nothing was changed.`,
+    /** The reading may include the subject, because it filled too much of the frame to leave out. */
+    wholeFrameLarge: 'The subject filled too much of the frame to leave out, so the whole picture was read.',
+    /** The reading includes the subject, because none was found. */
+    wholeFrameNoSubject: 'No subject was found, so the whole picture was read, subject included.',
     /** The Tasks row detail once noise has been measured. */
     measuredStage: (m: string, s: string) => `Noise measured ${m}, strength ${s}`,
   },

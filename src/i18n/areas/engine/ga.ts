@@ -57,7 +57,9 @@ export const ga: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
     measured: (m, n, iso) => `Torann tomhaiste: ${m}${iso ? ` ag ISO ${iso}` : ''}. Tosaíonn sé ag taispeáint ó ${n}.`,
     anyway: (m, s, iso) => `Laghdaíodh an torann ar aon nós ar neart séimh (${s}). Torann tomhaiste: ${m}${iso ? ` ag ISO ${iso}` : ''}, faoi bhun an leibhéil ónar tosaíonn sé ag taispeáint.`,
-    notDeveloped: (f) => `Níor forbraíodh ${f} ó shonraí braiteora an RAW fós, mar sin ní féidir a thorann a thomhas. Fan go gcríochnóidh an fhorbairt, ansin rith laghdú torainn arís. Níor athraíodh aon rud.`,
+    notDeveloped: (f) => `Níor forbraíodh ${f} ó shonraí braiteora an RAW fós, mar sin ní féidir a thorann a thomhas. Forbair ar an méid iomlán ar dtús é, nó fan go gcríochnóidh an fhorbairt atá ar siúl, ansin rith laghdú torainn arís. Níor athraíodh aon rud.`,
+    wholeFrameLarge: "Líon an téama an iomarca den fhráma le fágáil amach, mar sin léadh an pictiúr iomlán.",
+    wholeFrameNoSubject: "Ní bhfuarthas aon téama, mar sin léadh an pictiúr iomlán, an téama san áireamh.",
     measuredStage: (m, s) => `Torann tomhaiste ${m}, neart ${s}`,
   },
   workspace: {

@@ -57,7 +57,9 @@ export const gd: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
     measured: (m, n, iso) => `Gràinne air a thomhas: ${m}${iso ? ` aig ISO ${iso}` : ''}. Tòisichidh e a’ nochdadh o ${n}.`,
     anyway: (m, s, iso) => `Chaidh a’ ghràinne a lùghdachadh co-dhiù aig neart socair (${s}). Gràinne air a thomhas: ${m}${iso ? ` aig ISO ${iso}` : ''}, fo far an tòisich e a’ nochdadh.`,
-    notDeveloped: (f) => `Cha deach ${f} a leasachadh o dhàta an sensor RAW fhathast, mar sin chan urrainnear a ghràinne a thomhas. Fuirich gus an tig an leasachadh gu crìch, an uairsin ruith lùghdachadh gràinne a-rithist. Cha deach dad atharrachadh.`,
+    notDeveloped: (f) => `Cha deach ${f} a leasachadh o dhàta an sensor RAW fhathast, mar sin chan urrainnear a ghràinne a thomhas. Leasaich air a’ mheud slàn an toiseach e, no fuirich gus an tig an leasachadh a tha a’ ruith gu crìch, an uairsin ruith lùghdachadh gràinne a-rithist. Cha deach dad atharrachadh.`,
+    wholeFrameLarge: "Lìon cuspair cus den fhrèam airson a fhàgail a-mach, mar sin chaidh an dealbh gu lèir a leughadh.",
+    wholeFrameNoSubject: "Cha deach cuspair a lorg, mar sin chaidh an dealbh gu lèir a leughadh, a’ gabhail a-steach an cuspair.",
     measuredStage: (m, s) => `Gràinne air a thomhas ${m}, neart ${s}`,
   },
   workspace: {

@@ -57,7 +57,9 @@ export const es: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Se dejó como estaba. ${notes}`,
     measured: (m, n, iso) => `Ruido medido: ${m}${iso ? ` a ISO ${iso}` : ''}. Empieza a notarse desde ${n}.`,
     anyway: (m, s, iso) => `Se redujo el ruido de todos modos, con una intensidad suave (${s}). Ruido medido: ${m}${iso ? ` a ISO ${iso}` : ''}, por debajo de donde empieza a notarse.`,
-    notDeveloped: (f) => `${f} todavía no se ha revelado a partir de los datos del sensor del RAW, así que no se puede medir su ruido. Espere a que termine el revelado y vuelva a ejecutar la reducción de ruido. No se cambió nada.`,
+    notDeveloped: (f) => `${f} todavía no se ha revelado a partir de los datos del sensor del RAW, así que no se puede medir su ruido. Revélelo primero a tamaño completo, o espere a que termine el revelado en curso, y vuelva a ejecutar la reducción de ruido. No se cambió nada.`,
+    wholeFrameLarge: "El sujeto ocupaba demasiado del encuadre para dejarlo fuera, así que se leyó la imagen completa.",
+    wholeFrameNoSubject: "No se encontró ningún sujeto, así que se leyó la imagen completa, sujeto incluido.",
     measuredStage: (m, s) => `Ruido medido ${m}, intensidad ${s}`,
   },
   workspace: {

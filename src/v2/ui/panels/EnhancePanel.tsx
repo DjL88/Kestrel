@@ -49,6 +49,7 @@ export default function EnhancePanel({
   trueDetail = null,
   cloudEnabled = false,
 }: EnhancePanelProps) {
+  const runButton = React.useRef<HTMLButtonElement>(null);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToEnhance}</p>;
   }
@@ -56,7 +57,11 @@ export default function EnhancePanel({
   const recipe = getActiveGroup(photo).recipe;
   // A RAW being developed from its sensor data cannot be measured yet: the button says to wait rather than start a job that would only wait.
   const waitingForDevelop = photo.fullDevelop === 'running';
-  const status = denoiseStatus && denoiseStatus.photoId === photo.id ? denoiseStatus : null;
+  const busy = Boolean(trueDetail) || waitingForDevelop;
+  // "Not developed yet" is only true until the develop is made: once the photo is developed (or no develop is offered)
+  // the old answer is stale, so it is not shown. While a develop is running the wait note above says so instead.
+  const stored = denoiseStatus && denoiseStatus.photoId === photo.id ? denoiseStatus : null;
+  const status = stored && (stored.state !== 'waiting-develop' || photo.fullDevelop === 'offered') ? stored : null;
 
   return (
     <div className="space-y-5">
@@ -72,10 +77,12 @@ export default function EnhancePanel({
             <button
               type="button"
               data-testid="truedetail-run"
-              onClick={() => onDenoise(photo.id)}
-              disabled={Boolean(trueDetail) || waitingForDevelop}
-              aria-busy={Boolean(trueDetail) || waitingForDevelop}
-              className="relative h-8 w-full overflow-hidden rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)] disabled:cursor-progress disabled:bg-[var(--brand-accent-soft)] disabled:text-[var(--text-primary)]"
+              ref={runButton}
+              onClick={() => { if (!busy) onDenoise(photo.id); }}
+              // aria-disabled, not disabled: the button stays in the Tab order and keeps focus while a job runs or a develop is awaited.
+              aria-disabled={busy}
+              aria-busy={busy}
+              className="relative h-8 w-full overflow-hidden rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)] aria-disabled:cursor-progress aria-disabled:bg-[var(--brand-accent-soft)] aria-disabled:text-[var(--text-primary)]"
             >
               {trueDetail?.state === 'running' && (
                 <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-[var(--brand-accent)] opacity-40" style={{ width: `${trueDetail.percent}%` }} />
@@ -92,7 +99,11 @@ export default function EnhancePanel({
                     <button
                       type="button"
                       data-testid="denoise-anyway"
-                      onClick={() => onDenoise(photo.id, { anyway: true })}
+                      onClick={() => {
+                        // This button leaves the page the moment the job starts, so keyboard focus moves to the main button first.
+                        runButton.current?.focus();
+                        onDenoise(photo.id, { anyway: true });
+                      }}
                       className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-3 text-xs font-medium text-[var(--text-primary)]"
                     >
                       {STRINGS.enhance.denoiseAnyway}

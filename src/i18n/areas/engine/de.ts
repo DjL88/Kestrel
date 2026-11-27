@@ -57,7 +57,9 @@ export const de: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
     measured: (m, n, iso) => `Gemessenes Rauschen: ${m}${iso ? ` bei ISO ${iso}` : ''}. Sichtbar wird es ab ${n}.`,
     anyway: (m, s, iso) => `Trotzdem entrauscht, mit sanfter Stärke (${s}). Gemessenes Rauschen: ${m}${iso ? ` bei ISO ${iso}` : ''}, unter dem Wert, ab dem es sichtbar wird.`,
-    notDeveloped: (f) => `${f} wurde noch nicht aus den Sensordaten des RAW entwickelt, daher lässt sich das Rauschen nicht messen. Warten Sie, bis die Entwicklung fertig ist, und starten Sie das Entrauschen dann erneut. Es wurde nichts geändert.`,
+    notDeveloped: (f) => `${f} wurde noch nicht aus den Sensordaten des RAW entwickelt, daher lässt sich das Rauschen nicht messen. Entwickeln Sie es zuerst in voller Größe oder warten Sie, bis eine laufende Entwicklung fertig ist, und starten Sie das Entrauschen dann erneut. Es wurde nichts geändert.`,
+    wholeFrameLarge: "Das Motiv füllte zu viel vom Bild, um es auszulassen, daher wurde das ganze Bild gelesen.",
+    wholeFrameNoSubject: "Es wurde kein Motiv gefunden, daher wurde das ganze Bild gelesen, einschließlich des Motivs.",
     measuredStage: (m, s) => `Rauschen gemessen: ${m}, Stärke ${s}`,
   },
   workspace: {

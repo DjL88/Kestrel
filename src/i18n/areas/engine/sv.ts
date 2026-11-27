@@ -57,7 +57,9 @@ export const sv: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Lämnat som det var. ${notes}`,
     measured: (m, n, iso) => `Uppmätt brus: ${m}${iso ? ` vid ISO ${iso}` : ''}. Det börjar synas från ${n}.`,
     anyway: (m, s, iso) => `Brusreducerat ändå, med mild styrka (${s}). Uppmätt brus: ${m}${iso ? ` vid ISO ${iso}` : ''}, under nivån där det börjar synas.`,
-    notDeveloped: (f) => `${f} har ännu inte framkallats från RAW-filens sensordata, så bruset kan inte mätas. Vänta tills framkallningen är klar och kör sedan brusreducering igen. Inget ändrades.`,
+    notDeveloped: (f) => `${f} har ännu inte framkallats från RAW-filens sensordata, så bruset kan inte mätas. Framkalla den först i full storlek, eller vänta tills en pågående framkallning är klar, och kör sedan brusreducering igen. Inget ändrades.`,
+    wholeFrameLarge: "Motivet fyllde för mycket av bilden för att lämnas utanför, så hela bilden lästes.",
+    wholeFrameNoSubject: "Inget motiv hittades, så hela bilden lästes, motivet inräknat.",
     measuredStage: (m, s) => `Brus uppmätt ${m}, styrka ${s}`,
   },
   workspace: {

@@ -24,6 +24,9 @@ import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { ANYWAY_DENOISE_STRENGTH, anywayLuminanceStrength, luminanceStrengthFor, VISIBLE_NOISE_SIGMA, type NoiseMeasurement } from '../../core/noiseEstimate';
 import { mosaicExclusion, noiseLayout, type SubjectCoverage } from './noiseSampling';
 import { language } from '../../i18n/messages';
+import { fullDevelopPossible } from './fullDevelop';
+import { canDevelopRaw } from '../../providers/rawDevelop';
+import { isDesktopApp } from '../../providers/desktopShell';
 import { engineText } from '../../i18n/areas/engine';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } from '../../providers/denoiseOffThread';
 
@@ -114,7 +117,7 @@ export interface DenoiseOutcome {
   notes: string[];
   /** Nothing was changed because no visible noise was found: the panel offers "Denoise anyway". */
   noVisibleNoise?: boolean;
-  /** Nothing was measured because the RAW has not been developed from its sensor data yet: the panel says to wait for the develop. */
+  /** Nothing was measured because the RAW has not been developed from its sensor data yet, and a develop can be made: the panel says to develop it or wait for the develop. */
   notDeveloped?: boolean;
   /** One plain line for a "Denoise anyway" result that was applied: what was measured and the gentle strength used. */
   anywayNote?: string;
@@ -155,9 +158,12 @@ export async function runV2Denoise(
           finally { URL.revokeObjectURL(url); }
         }, signal), loadImage, signal);
   if (!source && !frame.isDemo && !signal?.aborted && isRawPreviewFile(frame.filename) &&
-      !provider.isOfflineFallback(frame.stableKey) && !provider.isDeveloped(frame.stableKey)) {
-    // A RAW that has not been developed from its sensor data yet: its small camera preview hides the noise, so say so
-    // in plain words (and not "could not read the original") and change nothing.
+      !provider.isOfflineFallback(frame.stableKey) && !provider.isDeveloped(frame.stableKey) &&
+      fullDevelopPossible(frame, canDevelopRaw(), provider.hasBlob(frame.stableKey) || frame.sourceKind !== 'file' || isDesktopApp())) {
+    // A RAW that has not been developed from its sensor data yet, on a build that can develop it: its small camera
+    // preview hides the noise, so say so in plain words (and not "could not read the original") and change nothing.
+    // Where no develop can be made (no decoder, original not reachable) this stays the plain "could not read" error,
+    // because waiting or developing would never help.
     return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notDeveloped: true, notes: [engineText.denoise.notDeveloped(frame.filename)] };
   }
   if (!source || !Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight) ||
@@ -254,12 +260,17 @@ async function denoiseVerifiedSource(
   signal?.throwIfAborted();
   const sigma = measurement.sigma;
   const iso = typeof frame.exif?.iso === 'number' && frame.exif.iso > 0 ? frame.exif.iso : undefined;
-  const measuredWords = sigma !== null ? engineText.denoise.measured(formatMeasure(sigma), formatMeasure(VISIBLE_NOISE_SIGMA), iso ? String(iso) : null) : '';
+  // Said whenever the reading may include the subject, so a clean sharp subject never passes for a clean background.
+  const wholeFrameWords = sigma === null ? '' : !combinedAlpha ? engineText.denoise.wholeFrameNoSubject
+    : measurement.subjectBlocks > 0 && !measurement.subjectLeftOut ? engineText.denoise.wholeFrameLarge : '';
+  const measuredWords = sigma !== null
+    ? [engineText.denoise.measured(formatMeasure(sigma), formatMeasure(VISIBLE_NOISE_SIGMA), iso ? String(iso) : null), wholeFrameWords].filter(Boolean).join(' ')
+    : '';
   const luminance = options.anyway ? anywayLuminanceStrength(sigma, iso) : luminanceStrengthFor(sigma, iso);
   if (sigma !== null && luminance === 0) {
     return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, noVisibleNoise: true, notes: [engineText.denoise.noVisibleNoise, measuredWords] };
   }
-  if (sigma !== null) options.onMeasured?.(engineText.denoise.measuredStage(formatMeasure(sigma), formatMeasure(luminance)));
+  if (sigma !== null) options.onMeasured?.([engineText.denoise.measuredStage(formatMeasure(sigma), formatMeasure(luminance)), wholeFrameWords].filter(Boolean).join('. '));
   const lumaPerStrength = asked > 0 ? luminance / asked : 0;
   // TrueDetail: when the opt-in NAFNet pack is on this device, run it on the subject's area at full size, so the
   // guardian can compare it with the built-in denoise region by region.

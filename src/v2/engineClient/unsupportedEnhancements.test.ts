@@ -43,7 +43,8 @@ test('a control that cannot act on this photo right now stays visible and is dis
     photo, hideReadouts: false, onUpdateRecipe: () => {}, onDenoise: () => {}, trueDetail: { state: 'running', percent: 40 },
   }));
   const button = taggedElement(html, 'button', 'truedetail-run');
-  assert.match(button, /disabled(?:="")?/, 'it does not accept a second press');
+  assert.match(button, /aria-disabled="true"/, 'it does not accept a second press');
+  assert.doesNotMatch(button, /\sdisabled(?:="")?[\s>]/, 'it stays in the Tab order and keeps focus');
   assert.match(button, /aria-busy="true"/);
   assert.match(html, /role="status"[^>]*>TrueDetail is working on this photo: 40%/);
 });
@@ -63,7 +64,8 @@ test('a RAW being developed shows "Wait for develop" on a disabled Denoise butto
     photo: { ...photo, fullDevelop: 'running' } as Photo, hideReadouts: false, onUpdateRecipe: () => {}, onDenoise: () => {},
   }));
   const button = taggedElement(html, 'button', 'truedetail-run');
-  assert.match(button, /disabled(?:="")?/);
+  assert.match(button, /aria-disabled="true"/);
+  assert.doesNotMatch(button, /\sdisabled(?:="")?[\s>]/, 'it stays reachable by keyboard');
   assert.match(html, /Wait for develop/);
   assert.match(html, /data-testid="denoise-wait-develop"[^>]*>This RAW is still being developed/);
 });
@@ -78,7 +80,11 @@ test('when Denoise found no visible noise the panel says what was measured and o
   const other = renderToStaticMarkup(React.createElement(EnhancePanel, { ...props, denoiseStatus: { ...status, photoId: 'p2' } }));
   assert.doesNotMatch(other, /denoise-anyway/);
   // A RAW that is not developed yet gets its words but no "anyway": there is nothing measured to go on from.
-  const waiting = renderToStaticMarkup(React.createElement(EnhancePanel, { ...props, denoiseStatus: { photoId: 'p1', state: 'waiting-develop', text: 'DSC_1.NEF has not been developed from its RAW sensor data yet.' } }));
+  const notDeveloped = { photoId: 'p1', state: 'waiting-develop' as const, text: 'DSC_1.NEF has not been developed from its RAW sensor data yet.' };
+  const waiting = renderToStaticMarkup(React.createElement(EnhancePanel, { ...props, photo: { ...photo, fullDevelop: 'offered' } as Photo, denoiseStatus: notDeveloped }));
   assert.match(waiting, /has not been developed/);
   assert.doesNotMatch(waiting, /denoise-anyway/);
+  // Once the photo is developed (no develop offered or running any more) the old "not developed" answer is stale and is not shown.
+  const developed = renderToStaticMarkup(React.createElement(EnhancePanel, { ...props, denoiseStatus: notDeveloped }));
+  assert.doesNotMatch(developed, /has not been developed/);
 });

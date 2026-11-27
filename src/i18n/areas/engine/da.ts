@@ -57,7 +57,9 @@ export const da: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Ladt som det var. ${notes}`,
     measured: (m, n, iso) => `Målt støj: ${m}${iso ? ` ved ISO ${iso}` : ''}. Den begynder at kunne ses fra ${n}.`,
     anyway: (m, s, iso) => `Støj fjernet alligevel med en mild styrke (${s}). Målt støj: ${m}${iso ? ` ved ISO ${iso}` : ''}, under det niveau, hvor den begynder at kunne ses.`,
-    notDeveloped: (f) => `${f} er endnu ikke fremkaldt fra RAW-filens sensordata, så støjen kan ikke måles. Vent til fremkaldelsen er færdig, og kør derefter støjreduktion igen. Intet blev ændret.`,
+    notDeveloped: (f) => `${f} er endnu ikke fremkaldt fra RAW-filens sensordata, så støjen kan ikke måles. Fremkald den først i fuld størrelse, eller vent til en igangværende fremkaldelse er færdig, og kør derefter støjreduktion igen. Intet blev ændret.`,
+    wholeFrameLarge: "Motivet fyldte for meget af billedet til at kunne udelades, så hele billedet blev aflæst.",
+    wholeFrameNoSubject: "Der blev ikke fundet noget motiv, så hele billedet blev aflæst, motivet inklusive.",
     measuredStage: (m, s) => `Støj målt ${m}, styrke ${s}`,
   },
   workspace: {

@@ -57,7 +57,9 @@ export const nb: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
     measured: (m, n, iso) => `Målt støy: ${m}${iso ? ` ved ISO ${iso}` : ''}. Den begynner å synes fra ${n}.`,
     anyway: (m, s, iso) => `Støy fjernet likevel med mild styrke (${s}). Målt støy: ${m}${iso ? ` ved ISO ${iso}` : ''}, under nivået der den begynner å synes.`,
-    notDeveloped: (f) => `${f} er ikke fremkalt fra RAW-filens sensordata ennå, så støyen kan ikke måles. Vent til fremkallingen er ferdig, og kjør støyfjerning på nytt. Ingenting ble endret.`,
+    notDeveloped: (f) => `${f} er ikke fremkalt fra RAW-filens sensordata ennå, så støyen kan ikke måles. Fremkall den først i full størrelse, eller vent til en pågående fremkalling er ferdig, og kjør støyfjerning på nytt. Ingenting ble endret.`,
+    wholeFrameLarge: "Motivet fylte for mye av bildet til å kunne utelates, så hele bildet ble lest.",
+    wholeFrameNoSubject: "Det ble ikke funnet noe motiv, så hele bildet ble lest, motivet inkludert.",
     measuredStage: (m, s) => `Støy målt ${m}, styrke ${s}`,
   },
   workspace: {

@@ -57,7 +57,9 @@ export const it: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
     measured: (m, n, iso) => `Rumore misurato: ${m}${iso ? ` a ISO ${iso}` : ''}. Inizia a vedersi da ${n}.`,
     anyway: (m, s, iso) => `Rumore ridotto comunque, con una forza delicata (${s}). Rumore misurato: ${m}${iso ? ` a ISO ${iso}` : ''}, sotto il livello da cui inizia a vedersi.`,
-    notDeveloped: (f) => `${f} non è ancora stata sviluppata dai dati del sensore del RAW, quindi il suo rumore non può essere misurato. Aspetta la fine dello sviluppo, poi riesegui la riduzione del rumore. Non è stato cambiato nulla.`,
+    notDeveloped: (f) => `${f} non è ancora stata sviluppata dai dati del sensore del RAW, quindi il suo rumore non può essere misurato. Sviluppala prima a dimensione intera, oppure aspetta la fine dello sviluppo in corso, poi riesegui la riduzione del rumore. Non è stato cambiato nulla.`,
+    wholeFrameLarge: "Il soggetto occupava troppo spazio nell’inquadratura per essere escluso, quindi è stata letta l’intera immagine.",
+    wholeFrameNoSubject: "Non è stato trovato alcun soggetto, quindi è stata letta l’intera immagine, soggetto compreso.",
     measuredStage: (m, s) => `Rumore misurato ${m}, forza ${s}`,
   },
   workspace: {

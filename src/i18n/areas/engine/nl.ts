@@ -57,7 +57,9 @@ export const nl: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
     measured: (m, n, iso) => `Gemeten ruis: ${m}${iso ? ` bij ISO ${iso}` : ''}. Het begint zichtbaar te worden vanaf ${n}.`,
     anyway: (m, s, iso) => `Toch ruis verwijderd, met een zachte sterkte (${s}). Gemeten ruis: ${m}${iso ? ` bij ISO ${iso}` : ''}, onder het punt waarop het zichtbaar wordt.`,
-    notDeveloped: (f) => `${f} is nog niet ontwikkeld uit de sensorgegevens van de RAW, dus de ruis kan niet worden gemeten. Wacht tot het ontwikkelen klaar is en voer ruisonderdrukking dan opnieuw uit. Er is niets veranderd.`,
+    notDeveloped: (f) => `${f} is nog niet ontwikkeld uit de sensorgegevens van de RAW, dus de ruis kan niet worden gemeten. Ontwikkel de foto eerst op volledige grootte, of wacht tot een lopende ontwikkeling klaar is, en voer ruisonderdrukking dan opnieuw uit. Er is niets veranderd.`,
+    wholeFrameLarge: "Het onderwerp vulde te veel van het beeld om weg te laten, dus de hele foto is gelezen.",
+    wholeFrameNoSubject: "Er is geen onderwerp gevonden, dus de hele foto is gelezen, onderwerp inbegrepen.",
     measuredStage: (m, s) => `Ruis gemeten ${m}, sterkte ${s}`,
   },
   workspace: {

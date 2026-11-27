@@ -57,7 +57,9 @@ export const is: AreaTranslation<typeof source> = {
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
     measured: (m, n, iso) => `Mælt suð: ${m}${iso ? ` við ISO ${iso}` : ''}. Það fer að sjást frá ${n}.`,
     anyway: (m, s, iso) => `Suð fjarlægt engu að síður með vægum styrk (${s}). Mælt suð: ${m}${iso ? ` við ISO ${iso}` : ''}, undir því marki þar sem það fer að sjást.`,
-    notDeveloped: (f) => `${f} hefur ekki enn verið framkölluð úr skynjaragögnum RAW-skrárinnar, svo ekki er hægt að mæla suðið. Bíddu þar til framköllun lýkur og keyrðu suðeyðingu aftur. Engu var breytt.`,
+    notDeveloped: (f) => `${f} hefur ekki enn verið framkölluð úr skynjaragögnum RAW-skrárinnar, svo ekki er hægt að mæla suðið. Framkallaðu hana fyrst í fullri stærð eða bíddu þar til framköllun sem er í gangi lýkur og keyrðu síðan suðeyðingu aftur. Engu var breytt.`,
+    wholeFrameLarge: "Myndefnið fyllti of mikið af rammanum til að sleppa því, svo öll myndin var lesin.",
+    wholeFrameNoSubject: "Ekkert myndefni fannst, svo öll myndin var lesin, að myndefninu meðtöldu.",
     measuredStage: (m, s) => `Suð mælt ${m}, styrkur ${s}`,
   },
   workspace: {
