@@ -1,6 +1,6 @@
 # InFlight: children's access assessment (UK Online Safety Act 2023)
 
-> **Decided 27 November 2026: accounts, sharing, cloud storage and buying are 18+** (`site/terms.html` §6, `site/privacy.html`). The text below records the 13+ position it replaced. There is still no age check in the code.
+> **Decided 27 November 2026: InFlight on your own device is 13+; accounts, sharing, cloud storage and buying are 18+** (`site/terms.html` §6, `site/privacy.html`), on the owner's legal check. The text below records the earlier position, where accounts were 13+. There is still no age check in the code.
 
 > **DRAFT for a solicitor's review. Not legal advice. Not yet signed.**
 > Written 26 November 2026 from the code on `main` (`aadaa2d3`) and the site pages. **LAW: CHECK** marks points the solicitor should confirm against Ofcom's current Children's Access Assessments guidance.
