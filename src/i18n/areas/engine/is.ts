@@ -105,6 +105,8 @@ export const is: AreaTranslation<typeof source> = {
     enlargementTask: 'Bý til forskoðun stækkunar',
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
     pickerTimingTitle: 'Tímasetning möppuvals (aðeins þetta tæki)',
+    waitBusy: 'Bíður: tölvan er upptekin, svo þetta byrjar þegar verkið á undan klárast.',
+    waitMemory: 'Bíður: lítið minni er laust, svo þetta byrjar þegar verkið á undan klárast.',
     pickerTiming: (app, picker) => `InFlight bað um möppuvalið ${app} s eftir Vista skrár; valið svaraði ${picker} s síðar (með tímanum sem fór í að velja).`,
     exportFolderUnwritable: (folder, reason) => `InFlight gat ekki búið til útflutningsmöppuna í ${folder}${reason ? ` (${reason})` : ''}. Veldu aðra möppu eða athugaðu að drifið sé tengt og ekki skrifvarið. Ekkert var flutt út.`,
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',

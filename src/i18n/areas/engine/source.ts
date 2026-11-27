@@ -125,6 +125,8 @@ export const source = {
     enlargementTask: 'Making the enlargement preview',
     exportNotQueued: 'Could not start this export.',
     pickerTimingTitle: 'Folder picker timing (this device only)',
+    waitBusy: 'Waiting: the computer is busy, so this starts when the task before it finishes.',
+    waitMemory: 'Waiting: memory is low, so this starts when the task before it finishes.',
     pickerTiming: (app: number, picker: number) => `InFlight asked for the folder picker ${app} s after Save files; the picker answered ${picker} s later (including the time spent choosing).`,
     exportFolderUnwritable: (folder: string, reason: string) => `InFlight could not make the export folder in ${folder}${reason ? ` (${reason})` : ''}. Choose another folder, or check that the drive is connected and not read-only. Nothing was exported.`,
     destinationUnavailable: 'That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.',

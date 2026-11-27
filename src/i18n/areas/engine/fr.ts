@@ -105,6 +105,8 @@ export const fr: AreaTranslation<typeof source> = {
     enlargementTask: 'Création de l’aperçu de l’agrandissement',
     exportNotQueued: 'Impossible de lancer cet export.',
     pickerTimingTitle: 'Délai du sélecteur de dossier (cet appareil uniquement)',
+    waitBusy: 'En attente : l’ordinateur est occupé, cela commencera quand la tâche précédente sera terminée.',
+    waitMemory: 'En attente : la mémoire est faible, cela commencera quand la tâche précédente sera terminée.',
     pickerTiming: (app, picker) => `InFlight a demandé le sélecteur de dossier ${app} s après Enregistrer les fichiers ; le sélecteur a répondu ${picker} s plus tard (temps de choix compris).`,
     exportFolderUnwritable: (folder, reason) => `InFlight n’a pas pu créer le dossier d’export dans ${folder}${reason ? ` (${reason})` : ''}. Choisissez un autre dossier, ou vérifiez que le disque est connecté et n’est pas en lecture seule. Rien n’a été exporté.`,
     destinationUnavailable: 'Cette destination d’export n’est pas disponible. Choisissez un ZIP local, des fichiers séparés ou un dossier de l’ordinateur.',

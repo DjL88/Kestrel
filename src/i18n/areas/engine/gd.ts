@@ -105,6 +105,8 @@ export const gd: AreaTranslation<typeof source> = {
     enlargementTask: 'A’ dèanamh ro-shealladh air an meudachadh',
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
     pickerTimingTitle: 'Ùine taghadair a’ phasgain (an t-uidheam seo a-mhàin)',
+    waitBusy: 'A’ feitheamh: tha an coimpiutair trang, mar sin tòisichidh seo nuair a bhios an obair roimhe deiseil.',
+    waitMemory: 'A’ feitheamh: tha a’ chuimhne ìosal, mar sin tòisichidh seo nuair a bhios an obair roimhe deiseil.',
     pickerTiming: (app, picker) => `Dh’iarr InFlight taghadair a’ phasgain ${app} d an dèidh Sàbhail na faidhlichean; fhreagair an taghadair ${picker} d an dèidh sin (a’ gabhail a-steach ùine an taghaidh).`,
     exportFolderUnwritable: (folder, reason) => `Cha b’ urrainn do InFlight am pasgan às-phortaidh a dhèanamh ann an ${folder}${reason ? ` (${reason})` : ''}. Tagh pasgan eile, no dèan cinnteach gu bheil an draibh ceangailte is nach eil e ri leughadh a-mhàin. Cha deach dad às-phortadh.`,
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',
