@@ -2288,7 +2288,7 @@ export const is: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Hleð mynd',
-    minutesLeft: (n: number) => `Um ${n} mín. eftir`,
+    minutesLeft: (n: number) => (n < 60 ? `Um ${n} mín. eftir` : `Um ${Math.floor(n / 60)} h ${n % 60} mín. eftir`),
     teaTime: 'Tími fyrir tebolla',
   },
 };

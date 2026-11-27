@@ -1,6 +1,8 @@
 /** The file and folder pickers the V2 workspace opens: the browser's inputs, or the desktop app's system dialogs. Originals are only linked, never copied. */
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { isDesktopApp } from '../../providers/desktopShell';
+import { engineText } from '../../i18n/areas/engine';
+import { tasks, type TaskHandle } from '../../core/taskStore';
 import { folderNameOf, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 
 export async function pickImageFile(): Promise<File | null> {
@@ -39,12 +41,26 @@ export async function pickFolderFiles(): Promise<File[] | null> {
 export async function pickFolderPhotos(onProblem: (message: string) => void): Promise<{ picks: Array<File | PickedPhoto>; name?: string } | null> {
   if (isDesktopApp()) {
     let name: string | undefined;
+    // From the moment the folder is chosen, Tasks shows the look-through running (its wheel and the edge stripe move),
+    // with Cancel: on a big folder on an external drive this wait used to show nothing at all for minutes.
+    let looking: TaskHandle | null = null;
+    const stop = new AbortController();
     try {
-      const chosen = await pickFolderNatively({ onChosen: (folder) => { name = folderNameOf(folder); } });
+      const chosen = await pickFolderNatively({
+        signal: stop.signal,
+        onChosen: (folder) => {
+          name = folderNameOf(folder);
+          looking = tasks.start(engineText.workspace.folderLooking(name), { kind: 'import', cancel: () => stop.abort() });
+        },
+        onProgress: (done, total) => looking?.progress(done, total, engineText.workspace.folderLookingProgress(name ?? '', done, total)),
+      });
+      (looking as TaskHandle | null)?.finish();
       return chosen === 'cancelled' || !chosen.length ? null : { picks: chosen, name };
     } catch (error) {
       // An incomplete scan is refused rather than importing part of a shoot.
-      onProblem(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      (looking as TaskHandle | null)?.fail(message);
+      onProblem(message);
       return null;
     }
   }

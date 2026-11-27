@@ -1,3 +1,4 @@
+import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hubPreviewKey, projectCoverBlob, projectPreviewBlobs } from './projectCover';
@@ -47,7 +48,7 @@ test('the list cover is the best favourite at review size, preferring the pictur
   const best = { ...photo('best'), rating: 4 };
   const other = photo('other');
   const stored = new Map([
-    [`developed-v1:${hubPreviewKey(best)}`, { thumbnail: image('dev-thumb'), review: image('dev-review') }],
+    [`developed-v${DEVELOP_VERSION}:${hubPreviewKey(best)}`, { thumbnail: image('dev-thumb'), review: image('dev-review') }],
     [hubPreviewKey(best), { thumbnail: image('embedded-thumb'), review: image('embedded-review') }],
     [hubPreviewKey(other), { thumbnail: image('other-thumb'), review: image('other-review') }],
   ]);

@@ -204,7 +204,9 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
+import { createReadAhead, importLanes } from '../../core/importReadAhead';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -1120,7 +1122,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice(engineText.workspace.exportStopped);
         });
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : engineText.workspace.exportNotQueued);
+        // The desktop app rejects with plain text, not an Error: show its reason rather than hiding it.
+        setNotice(reasonOf(error) || engineText.workspace.exportNotQueued);
       }
       return;
     }
@@ -1589,7 +1592,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const connection = can('cloudAssist') ? accountConnection() : null;
     void engineScheduler.submit({
       title: engineText.workspace.denoiseTask(frame.filename),
-      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
+      // One photo the person pressed Denoise on and is watching: it starts beside a running background RAW develop
+      // instead of waiting for that develop's current photo to finish (engineScheduler `interactive`).
+      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local', interactive: true,
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
       itemId: item => item.id, itemLabel: item => item.name,
@@ -2062,6 +2067,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const pendingNames = new Map(additions.map((file) => [pickedKey(file), file.name]));
     recordPendingImport(projectKey, [...pendingNames.values()], true);
     importingInto.current = projectKey;
+    // Several photos are read at once (src/core/importReadAhead.ts) while each is still added in its own turn below.
+    const reads = createReadAhead(additions.length, importLanes(deviceMemoryBudget(), navigator.hardwareConcurrency),
+      async (index) => {
+        // Which project's provider registered this photo's original while it was read (the read may run ahead of its turn).
+        const readIn = provider.current;
+        const result = await loadLocalFileListShoot([additions[index]], sourceProvider, sourceCatalogue,
+          undefined, { allowPartial: true, signal: controller.signal });
+        return { result, readIn };
+      });
     try {
       // An actual scheduler item for each photograph: complete the original
       // fingerprint, preview and catalogue registration before advancing.
@@ -2080,9 +2094,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
         runItem: async (item, _, ctx) => {
           ctx.stage(engineText.workspace.importReadStage);
-          const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
-            undefined, { allowPartial: true, signal: ctx.signal });
+          const { result, readIn } = await reads.take(item.index);
           ctx.checkCancelled();
+          // Read before the project was left and reopened: its original was registered in the provider of the time,
+          // which reopening replaced. Register it in the open project's provider too (from its stored copy or its path),
+          // or the photo would say "Original not connected, preview only". A closed project does this when it opens.
+          if (readIn !== provider.current && provider.current && stateRef.current?.shoot.id === projectKey && result.frames.length) {
+            await rehydrateLocalFramesFromStore(result.frames, provider.current, sourceCatalogue, { checkPaths: false }).catch(() => false);
+            ctx.checkCancelled();
+          }
           if (!result.frames.length) throw new Error(engineText.workspace.importOneFailed(item.file.name));
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its

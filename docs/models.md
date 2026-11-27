@@ -255,7 +255,7 @@ What it does on those synthetic cases (PyTorch): σ 25 goes from 20.2–20.9 dB 
 ### BiRefNet-lite (fine subject edges, desktop and cloud runner only)
 | | |
 | --- | --- |
-| File | `birefnet-lite-w16.onnx`: 92,215,270 B, SHA-256 `2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319` |
+| File | `birefnet-lite-w16.onnx`: 92,215,270 B, SHA-256 `edcf2b66545a0e7cf0d2ac0e05cfb11341b401bff42fff00c4b56ee1805cc797` |
 | Model and weights | BiRefNet (Zheng et al.), Swin-T backbone, general, epoch 232. MIT |
 | Source | https://huggingface.co/ZhengPeng7/BiRefNet_lite, revision `aa62cd87eafb9cc43056d08ef3615a14628b831d` (`model.safetensors` 177,634,392 B, `4417d897…0815`; `birefnet.py` `af8568b5…69c9`) |
 | Conversion | `tools/model-conversion/birefnet_lite.py`, run by the manual **Model conversion** workflow ([run 45648025801](https://github.com/DjL88/Kestrel/actions/runs/45648025801)). Deformable convolution is replaced by an exact pure-PyTorch version (`tools/model-conversion/deform_conv.py`: 1.3e-6 vs torchvision on random inputs; 2.5e-5 for the whole model at 1024 px). It is exported with standard ONNX ops (opset 17, [1,3,1024,1024] → sigmoid alpha [1,1,1024,1024]), then made weight-only fp16 (fp16 weights, fp32 compute). A native DeformConv export is not possible: `torchvision::deform_conv2d` has no ONNX exporter |
@@ -268,5 +268,7 @@ What it does on those synthetic cases (PyTorch): σ 25 goes from 20.2–20.9 dB 
 | our fp32 export | 181.4 MB | PASS | 0.0 | 1.0 | 0.0 | 7.7 s | 0.90 GB |
 | **weight-only fp16 (shipped)** | 92.2 MB | PASS | ≤ 7e-5 | 0.9995 | ≤ 0.0045 | 7.6 s | 1.14 GB |
 | fp16 (ops kept fp32) | 93.7 MB | could not load in onnxruntime | — | — | — | — | — |
+
+**Rebuilt 26 Nov 2026.** The 25 Nov run's file (`2c7c7240…`) was never uploaded, and its workflow artifact had gone, so no installer could include the pack. The same script was re-run on the Windows laptop (Python 3.12, the workflow's pinned packages, the same pinned sources). The weight-only fp16 file is the same size, 92,215,270 B, with SHA-256 `edcf2b66…c797` (byte-level export details differ between machines). It passed the same gate with the same figures: mean diff ≤ 7e-5, lowest IoU 0.9995, edge band ≤ 0.0045. Uploaded to `kestrel-hosting-kestrel-models/bundled/edcf2b66…/birefnet-lite-w16.onnx`; the cache name moved to `kestrel-birefnet-lite-v2`.
 
 The app uses it only in the desktop app, and only when the person downloads it. When the built-in U²-Netp mask and BiRefNet find the same subject (IoU ≥ 0.6), BiRefNet's soft edges become the subject mask (`refineSubjectGrid`). Otherwise U²-Netp's mask stays. **Not measured:** the speed in the desktop app's own runtime (single-thread WebAssembly, expect several times the 7.6 s above), and edges on real feathers and fur.
