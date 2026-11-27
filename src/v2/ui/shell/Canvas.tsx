@@ -359,8 +359,9 @@ export default function Canvas({
     const baseX = parseFloat(base.paddingLeft) || 0;
     const baseY = parseFloat(base.paddingTop) || 0;
     const atFit = { width: box.width / canvasZoom, height: box.height / canvasZoom };
-    const x = Math.max(baseX, (stage.clientWidth - atFit.width) / 2);
-    const y = Math.max(baseY, (stage.clientHeight - atFit.height) / 2);
+    // offsetWidth/Height, as Fit is measured: a scrollbar coming or going must not move the margins either.
+    const x = Math.max(baseX, (stage.offsetWidth - atFit.width) / 2);
+    const y = Math.max(baseY, (stage.offsetHeight - atFit.height) / 2);
     stage.dataset.basePad = `${baseX},${baseY}`;
     stage.style.padding = `${y}px ${x}px`;
   }, [canvasZoom, stageEl]);
@@ -525,12 +526,18 @@ export default function Canvas({
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
-      // The Fit margins added while zoomed in are not less room for the picture: measure inside the stage's own padding.
+      // Measured with any scrollbar counted as room (offsetWidth/Height). Zoom is a multiple of Fit, so when a scrollbar
+      // came and went as the picture crossed the stage's size, Fit shrank, the picture shrank, the scrollbar went, Fit
+      // grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%"). The Fit margins added while zoomed in are
+      // not less room either: measure inside the stage's own padding.
       const el = entry.target as HTMLElement;
       const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
-      if (el.style.padding && Number.isFinite(baseX) && Number.isFinite(baseY)) {
-        setStageSize({ width: el.clientWidth - 2 * baseX, height: el.clientHeight - 2 * baseY });
-      } else setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      const style = getComputedStyle(el);
+      const padX = el.style.padding && Number.isFinite(baseX) ? baseX : parseFloat(style.paddingLeft) || 0;
+      const padY = el.style.padding && Number.isFinite(baseY) ? baseY : parseFloat(style.paddingTop) || 0;
+      const width = Math.max(0, el.offsetWidth - 2 * padX);
+      const height = Math.max(0, el.offsetHeight - 2 * padY);
+      setStageSize((was) => (Math.abs(was.width - width) < 0.5 && Math.abs(was.height - height) < 0.5 ? was : { width, height }));
     });
     observer.observe(stage);
     return () => observer.disconnect();
