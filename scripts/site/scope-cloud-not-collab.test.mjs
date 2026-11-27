@@ -1,6 +1,6 @@
 // Owner's scope decision, 27 Nov 2026: the site keeps cloud edits and cloud storage for your own devices, and pauses
 // collaboration with other people (shared projects, invitations, client galleries) until it opens. The on-device
-// "live to a client's iPad" view on your own network is not cloud collaboration and stays.
+// "live to a client's iPad" view and tether claims were taken off the site until they are verified (owner, 27 Nov 2026).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -34,9 +34,33 @@ test('every language has the new wording, not the old collaboration promise', ()
   }
 });
 
-test('the local-network client view stays: it is not cloud collaboration', () => {
-  const g = strings()['en-GB'];
-  assert.match(g.why2Title, /client's iPad, no internet/);
+test('unverified claims stay off the site until they are proven (owner, 27 Nov 2026)', () => {
+  const UNVERIFIED = /tether|live to a client|client's iPad|shoot live|Wi-Fi \(FTP\)|Nikon Z|supported catalogue|larger checks|refunded at any time/i;
+  for (const page of ['index.html', 'press.html']) assert.doesNotMatch(visible(read(page)), UNVERIFIED, page);
+  for (const [code, words] of Object.entries(strings())) {
+    for (const [key, text] of Object.entries(words)) assert.doesNotMatch(text, UNVERIFIED, `${code}.${key}`);
+  }
+});
+
+test('the press page writes no price: they come from the pricing source', () => {
+  assert.doesNotMatch(visible(read('press.html')), /[£$€]\s?\d/);
+});
+
+test('every language carries the same keys as English', () => {
+  const all = strings(), en = Object.keys(all['en-GB']).sort();
+  for (const [code, words] of Object.entries(all)) {
+    assert.deepEqual(Object.keys(words).sort(), en, `${code} has the same keys as en-GB`);
+  }
+});
+
+test('the reworded lines are translated in every other language, not left in English', () => {
+  const all = strings();
+  for (const key of ['heroLeadNew', 'why3Body', 'matrixRowCloudRunner', 'proCloud', 'creditBody']) {
+    for (const [code, words] of Object.entries(all)) {
+      if (code.startsWith('en')) continue;
+      assert.notEqual(words[key], all['en-GB'][key], `${code}.${key} is translated`);
+    }
+  }
 });
 
 test('the legal pages say which sharing features are coming later', () => {

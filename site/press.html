@@ -66,7 +66,7 @@
 
   <h2>Boilerplate</h2>
   <div class="boilerplate">
-    <p>InFlight is a calm, UK-based, privacy-first photo workspace for importing, culling, editing and exporting — built so photographers spend more time behind the camera and less time managing files. It's designed to be an easy first editor for beginners, and built with colour-blind, ADHD, autistic and other neurodivergent photographers in mind. It works fully offline, never changes or uploads an original photograph, and keeps every edit as a reversible step. Basic is free with no account; InFlight Pro is a subscription (£2.99 a month or £29.99 a year); if it ends you go back to Basic and nothing you made is locked. InFlight is pre-release: Windows, macOS and the web are the platforms being built first, with iOS and Android to follow.</p>
+    <p>InFlight is a calm, UK-based, privacy-first photo workspace for importing, culling, editing and exporting — built so photographers spend more time behind the camera and less time managing files. It's designed to be an easy first editor for beginners, and built with colour-blind, ADHD, autistic and other neurodivergent photographers in mind. It works fully offline, never changes or uploads an original photograph, and keeps every edit as a reversible step. Basic is free with no account; InFlight Pro is a subscription, paid monthly or yearly (current prices are under Fast facts); if it ends you go back to Basic and nothing you made is locked. InFlight is pre-release: Windows, macOS and the web are the platforms being built first, with iOS and Android to follow.</p>
   </div>
 
   <h2>The story</h2>
@@ -78,8 +78,8 @@
 
   <h2>Fast facts</h2>
   <dl class="facts">
-    <div class="fact"><dt>Platforms</dt><dd>Windows, macOS, web — iOS and Android planned</dd></div>
-    <div class="fact"><dt>Pricing</dt><dd>Basic: free for good, no account. Pro: £2.99 a month or £29.99 a year, cancel at any time</dd></div>
+    <div class="fact"><dt>Platforms</dt><dd>Windows, macOS and web, coming soon; iOS and Android to follow</dd></div>
+    <div class="fact"><dt>Pricing</dt><dd>Basic: free for good, no account. Pro: a subscription, cancel at any time<span id="press-prices" hidden>: <strong data-pro-price="pro.monthly"></strong> a month or <strong data-pro-price="pro.annual"></strong> a year</span></dd></div>
     <div class="fact"><dt>Originals</dt><dd>Never changed, moved or replaced</dd></div>
     <div class="fact"><dt>Network use</dt><dd>Fully offline by default; cloud features are opt-in</dd></div>
     <div class="fact"><dt>Status</dt><dd>Pre-release</dd></div>
@@ -96,5 +96,30 @@
   <p><a class="cta" href="/logos">Get the brand assets</a></p>
 </main>
 <footer><div class="wrap">InFlight · Pre-release · <a href="/">Home</a> · <a href="/logos">Brand assets</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
+<script type="module">
+  // Prices are never written on this page: they come from the same source as the home page (the server's local prices, else
+  // the pricing matrix set in Admin → Prices). If neither can be read the built-in starting prices apply, as on the home page.
+  import { loadPricing, loadLocalPrices, currencyFor, priceText } from './assets/pricing.mjs';
+  (async () => {
+    const box = document.getElementById('press-prices');
+    const slots = [...document.querySelectorAll('[data-pro-price]')];
+    try {
+      const local = await loadLocalPrices();
+      if (local) {
+        for (const n of slots) n.textContent = n.dataset.proPrice === 'pro.monthly' ? local.monthly : local.annual;
+      } else {
+        const pricing = await loadPricing();
+        let region = null;
+        for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+          try { region = new Intl.Locale(tag).region || null; } catch { /* not a tag */ }
+          if (region) break;
+        }
+        const currency = currencyFor(pricing, region);
+        for (const n of slots) n.textContent = priceText(pricing, currency, n.dataset.proPrice, 'en-GB');
+      }
+      if (slots.every((n) => n.textContent.trim())) box.hidden = false;
+    } catch { /* leave prices hidden */ }
+  })();
+</script>
 </body>
 </html>
