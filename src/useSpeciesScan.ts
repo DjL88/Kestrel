@@ -31,6 +31,7 @@ import { appText as t } from './i18n/areas/app';
 import { readSpeciesRegions } from './core/speciesRegions';
 import { outsideRegionMatch, regionIdsForArea, resolvedArea, type SpeciesArea } from './core/speciesArea';
 import type { SpeciesLabel } from './core/speciesMatch';
+import { engineScheduler, personWorkClear } from './core/engineScheduler';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
 type SpeciesPatch = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading; speciesArea?: PhotoFrame['speciesArea'] };
@@ -140,6 +141,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
           regionIdsForArea(latest.current.area, readSpeciesRegions()).join(',') === areaKey;
         const available = sources.current;
         if (!stillCurrent() || !store || !readAutoTag()) break;
+        // The scan runs its models on the page itself. It steps aside, photo by photo, while work the person started
+        // (TrueDetail, tap to select...) is running or waiting, so that starts at once and clicks stay quick.
+        if (engineScheduler.personWorkPending()) { await personWorkClear(); continue; }
         const canAsk = () => sources.current.helperOn && sources.current.key === available.key &&
           !helperHalted.current && helperSent < HELPER_SESSION_CAP;
         const frameKey = (id: string) => `${currentId}|${areaKey}|${id}`;
