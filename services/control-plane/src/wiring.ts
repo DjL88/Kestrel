@@ -24,7 +24,7 @@ import type { FirestoreLike } from './firestoreStore.ts';
 import { VertexLearningLedger, configFromEnv as vertexConfigFromEnv } from './vertexLearning.ts';
 import { createHmac } from 'node:crypto';
 import { SafetyService } from './contentSafety.ts';
-import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
+import { FirestoreMailLedger, Mailer, SmtpTransport, isMailAddress, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
 import { NoticeContacts, identityToolkitLookup, type FirebaseUserLookup } from './noticeContacts.ts';
 import { NewsBroadcaster } from './news.ts';
 
@@ -42,7 +42,7 @@ export interface WiringDeps {
   /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
   firebaseUsers?: FirebaseUserLookup;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'contactNotify' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -91,6 +91,13 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', Math.min(DEFAULT_MAIL_LIMITS.daily, cap), cap), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
     });
     out.enabled.push('email');
+    // Website contact messages to the owner (contact_notify_to, private tfvars). Its own admin switch, on by default.
+    const contactTo = env.KCP_CONTACT_NOTIFY_TO?.trim();
+    if (contactTo) {
+      if (!isMailAddress(contactTo)) throw new Error('KCP_CONTACT_NOTIFY_TO must be one email address');
+      out.contactNotify = { to: contactTo };
+      out.enabled.push('contact-email');
+    }
   }
 
   // Vertex learning batches: only when Terraform has created the job (vertex_learning_enabled). "Learn now" starts it.

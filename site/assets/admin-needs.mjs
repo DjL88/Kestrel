@@ -36,6 +36,10 @@ export function needsYou(d, nowMs = Date.now()) {
     if (fresh.length) add('messages', plural(fresh.length, 'new message'), 'From the website contact form. Reply from your own email, then mark it answered.', 'messages');
   }
 
+  const contactMail = d.overview?.contactMailProblem;
+  if (contactMail) add('contact-mail', 'A contact message could not be emailed to you',
+    'It is safe in Messages: ' + contactMail.problem + '. Check Emails under Switches; this clears when the next message is emailed.', 'messages');
+
   if (d.paddleKey?.lastRunOk === false) add('paddle-key', 'The weekly Paddle key renewal failed',
     (d.paddleKey.lastRunReason ? d.paddleKey.lastRunReason + '. ' : '') + 'It tries again next week; renew the key in Paddle if it keeps failing.', 'payments', true);
   else if (d.paddleKey?.expiresAt && Date.parse(d.paddleKey.expiresAt) - nowMs < 14 * DAY) add('paddle-key', 'The Paddle API key expires soon',

@@ -147,10 +147,12 @@ export function createContext(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'cloud-top-ups' ? !!options.topUpCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'contact-email' ? !!options.mailer && !!options.contactNotify : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'cloud-top-ups' ? !!options.topUpCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
+    // On by default once the owner's address is set: turning it off is the choice, not turning it on.
+    if (key === 'contact-email') return (await store.getSetting('switch_contact-email')) !== '0';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
     if (legacy && (await store.getSetting(legacy)) === '1') return false;
     const v = await store.getSetting(`switch_${key}`);
