@@ -19,7 +19,10 @@ import { previewCopyForCloud } from '../../src/providers/recipePreviewCopy';
 import { FULL_FILE_CONSENT_OFF } from '../../src/core/cloudRecipe';
 import { processRecipeJob } from '../../services/cloud-runner/src/process';
 import type { PhotoFrame } from '../../src/core/types';
-import type { CloudRecipeOfferView } from '../../src/v2/ui/contract';
+import type { CloudRecipeOfferView, CloudRecipeResultView } from '../../src/v2/ui/contract';
+import { cloudRecipeChanges } from '../../src/v2/engineClient/cloudRecipeChanges';
+import { editToRecipe } from '../../src/v2/engineClient/recipeMap';
+import { STRINGS } from '../../src/v2/ui/strings';
 
 const params = new URLSearchParams(location.search);
 const BASE = 'https://cp.inflight.test';
@@ -99,6 +102,7 @@ const frame = { id: 'p1', stableKey: 'k1', filename: 'synthetic.jpg', exif: { wi
 
 function Harness() {
   const [applied, setApplied] = useState('');
+  const [previewing, setPreviewing] = useState('');
   const held = useMemo(() => ({ current: null as Awaited<ReturnType<typeof prepareCloudRecipe>> | null }), []);
   const prepare = async (): Promise<CloudRecipeOfferView> => {
     held.current = await prepareCloudRecipe(frame, {
@@ -109,21 +113,26 @@ function Harness() {
     const { offer } = held.current;
     return offer.plan.status === 'ready' ? { status: 'ready', sendLabel: offer.sendLabel } : { status: 'unavailable', message: 'Nothing to send.' };
   };
-  const send = async (_: string, choice: 'send' | 'alternative') => {
+  const send = async (_: string, choice: 'send' | 'alternative'): Promise<CloudRecipeResultView> => {
     if (!held.current) throw new Error('Check the photo again before sending.');
     if (readCloudConsent().answer !== 'yes') throw new Error('Say yes first.');
     const outcome = await sendCloudRecipe(held.current, choice, FULL_FILE_CONSENT_OFF,
       httpCloudRecipeService({ baseUrl: BASE, session: 'test-session', fetch: fakeFetch, pollIntervalMs: 20 }));
-    if (outcome.status !== 'ready') return outcome.status === 'empty' ? 'The cloud suggested no changes for this photo.' : 'Refused.';
-    setApplied(JSON.stringify(cloudRecipeEdit(undefined, outcome.recipe)));
-    return 'Applied the cloud\'s edit settings. Undo takes them back.';
+    if (outcome.status !== 'ready') return { message: outcome.status === 'empty' ? 'The cloud suggested no changes for this photo.' : 'Refused.' };
+    // As the workspace does (useEngineWorkspace.ts): what changed against the photo's settings, in plain words.
+    const changes = cloudRecipeChanges(editToRecipe(undefined), outcome.recipe.settings, STRINGS.history.sliders);
+    if (!changes.lines.length) return { message: 'The cloud suggested no changes for this photo.' };
+    setApplied(JSON.stringify({ edit: cloudRecipeEdit(undefined, outcome.recipe), inputDeleted: outcome.inputDeleted === true }));
+    return { message: 'Applied the cloud\'s edit settings. Undo takes them back.', changes: changes.lines, before: changes.before };
   };
   return (
     <div className="inflight-v2" style={{ maxWidth: 360, padding: 16 }}>
       <CloudRecipeCard photoId="p1" onPrepare={prepare} onSend={send} onSetFullFile={() => false} fullFileOn={() => false}
         consent={() => readCloudConsent().answer} onSetConsent={(a) => saveCloudConsent(a).answer}
-        onTopUp={() => setApplied('top-up opened')} />
+        onTopUp={() => setApplied('top-up opened')}
+        onPreview={(delta) => setPreviewing(delta ? JSON.stringify(delta) : '')} />
       <pre data-testid="applied">{applied}</pre>
+      <pre data-testid="previewing">{previewing}</pre>
     </div>
   );
 }
