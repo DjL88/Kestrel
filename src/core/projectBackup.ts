@@ -110,6 +110,9 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.speciesScanVersion !== undefined && (typeof value.speciesScanVersion !== 'number' || !Number.isFinite(value.speciesScanVersion))) return false;
   if (value.speciesArea !== undefined && !parseSpeciesArea(value.speciesArea)) return false;
   if (value.subjectDisputed !== undefined && typeof value.subjectDisputed !== 'boolean') return false;
+  if (value.speciesNearby !== undefined && typeof value.speciesNearby !== 'boolean') return false;
+  if (value.speciesGuess !== undefined && (typeof value.speciesGuess !== 'object' || value.speciesGuess === null ||
+      !text((value.speciesGuess as { name?: unknown }).name) || !number((value.speciesGuess as { probability?: unknown }).probability, 0, 1))) return false;
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   if (value.asShotWhite !== undefined && !validAsShot(value.asShotWhite)) return false;
