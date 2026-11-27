@@ -132,3 +132,20 @@ test('an unfinished import is remembered by name until an import into the projec
   const full = { ...storage, setItem: () => { throw new Error('QuotaExceededError'); } };
   assert.doesNotThrow(() => writePendingImport(full, 'p', ['a']));
 });
+
+test('a group of photos added as one batch is one update to the open project, in capture order despite a rated-first read order', () => {
+  let updates = 0;
+  let open: CullingState = createEmptyProject('p', 'Card');
+  const handoff = createImportHandoff({
+    isOpen: () => true,
+    applyOpen: (_, batches) => { updates += 1; open = batches.reduce(applyImportBatch, open); },
+    load: async () => null, save: async () => undefined,
+  });
+  const frames = photos(6).map((frame, i) => ({ ...frame, sequenceIndex: i + 1 }));
+  // Read order: 4th and 6th photos first (rated), then the rest.
+  const readOrder = [3, 5, 0, 1, 2, 4].map((i) => frames[i]);
+  handoff.add('p', { importId: 'imp', sequenceBase: 0, frames: readOrder.slice(0, 3) });
+  handoff.add('p', { importId: 'imp', sequenceBase: 0, frames: readOrder.slice(3) });
+  assert.equal(updates, 2, 'one update per group, not per photo');
+  assert.deepEqual(open.frames.map((f) => f.sequenceIndex), [1, 2, 3, 4, 5, 6]);
+});

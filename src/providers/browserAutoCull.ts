@@ -8,6 +8,7 @@ import { countOriginalKeepers, limitAutoKeepers, type CullSuggestion } from '../
 import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
 import { sharedCullObservationPool } from './cullObservationPool';
+import { prioritizePhotoProcessing } from '../core/photoProcessingOrder';
 import type { PhotoFrame } from '../core/types';
 import type { CullEvidence } from '../core/autoCull';
 import type { ScanEvidence } from '../core/cullObservationStore';
@@ -63,15 +64,18 @@ export async function scanForCulling(
   // own workers, as before. The detector's workers are not started when the culling workers do the looking.
   const workers = await sharedCullObservationPool().catch(() => null);
   const lanes = workers ? workers.size : detectorHealthy ? Math.max(1, await detectorParallelism().catch(() => 1)) : 1;
+  // The lanes walk rated photos first. Only the walk is reordered: hashing above and the finalising step below keep
+  // `candidates` in the original order, so keeper-anchor precedence does not change.
+  const walk = prioritizePhotoProcessing(candidates);
   let cursor = 0;
   const analyseInLanes = async () => {
     await Promise.all(Array.from({ length: Math.min(lanes, Math.max(1, candidates.length)) }, async () => {
       const laneCanvas = document.createElement('canvas');
       const laneContext = laneCanvas.getContext('2d', { willReadFrequently: true });
       if (!laneContext) throw new Error('canvas');
-      while (cursor < candidates.length) {
+      while (cursor < walk.length) {
         signal.throwIfAborted();
-        const frame = candidates[cursor++];
+        const frame = walk[cursor++];
         onFrameStage?.(frame.id, 'analysing');
         const result = await analyse(frame, laneCanvas, laneContext);
         signal.throwIfAborted();
