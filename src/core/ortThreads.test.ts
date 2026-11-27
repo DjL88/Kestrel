@@ -69,3 +69,16 @@ describe('desktop app headers', () => {
     assert.equal(read('tauri.ios.conf.json').app.security.headers, null);
   });
 });
+
+it('a model in a worker gets one thread in the desktop app: a worker there cannot start onnxruntime\'s thread workers', async () => {
+  const { ortWorkerPlanFor, ortPlanFor } = await import('./ortThreads');
+  const desktop = { desktop: true, isolated: true, cores: 16 };
+  assert.ok(ortPlanFor(desktop, 1).threads > 1, 'on the page the desktop app still uses several threads');
+  for (const workers of [1, 2, 4]) assert.equal(ortWorkerPlanFor(desktop, workers).threads, 1, `${workers} worker(s)`);
+  // Elsewhere nothing changes.
+  const web = { desktop: false, isolated: true, cores: 16 };
+  assert.deepEqual(ortWorkerPlanFor(web, 2), ortPlanFor(web, 2));
+  // The graphics-card preview, when on, is kept: only the thread count changes.
+  const gpu = { ...desktop, webgpu: true, webgpuPreview: true };
+  assert.deepEqual(ortWorkerPlanFor(gpu, 1).executionProviders, ortPlanFor(gpu, 1).executionProviders);
+});
