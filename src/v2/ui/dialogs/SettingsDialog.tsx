@@ -13,6 +13,7 @@ import { requestSetupAgain } from '../../setupBridge';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
 import HomeRegionSetting from './HomeRegionSetting';
+import CloudHelpSetting from './CloudHelpSetting';
 import MarkingsReaderSetting from './MarkingsReaderSetting';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import type {
@@ -370,6 +371,7 @@ export default function SettingsDialog({
             {activeTab === 'account' && (cloudUsage ?? settings.account.cloud) && (
               <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} onTopUp={cloudTopUp?.topUp} topUpBusy={cloudTopUp?.busy} topUpNote={cloudTopUp?.note ?? null} /></div>
             )}
+            {activeTab === 'account' && cloudUsage && <div className="mb-5"><CloudHelpSetting /></div>}
             {activeTab === 'account' && (
               accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">
                 {accountPanel}

@@ -175,4 +175,11 @@ export const sv: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Den senaste importen till det här projektet blev inte klar: ${count} foton lades inte till (${names}). Importera dem igen för att lägga till dem. Foton som redan har lagts till behålls.`,
     importFailed: 'Det gick inte att lägga till fotona. Dina original ändrades inte.',
   },
+  cloudHelp: {
+    title: 'Molnhjälp för brusreducering',
+    hint: 'Molnet brusreducerar på samma sätt som den här enheten, så det sparar bara tid medan den här enheten är upptagen med annat arbete. Det skickar en arbetskopia, aldrig originalet, och raderar den när jobbet är klart.',
+    off: 'Använd aldrig molnet',
+    whenBusy: 'Bara när den här enheten är upptagen',
+    always: 'Varje gång',
+  },
 };

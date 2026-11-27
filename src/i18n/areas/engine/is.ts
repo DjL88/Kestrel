@@ -175,4 +175,11 @@ export const is: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Síðasti innflutningur í þetta verkefni kláraðist ekki: ${count} myndum var ekki bætt við (${names}). Flyttu þær inn aftur til að bæta þeim við. Myndir sem þegar var bætt við eru geymdar.`,
     importFailed: 'Ekki tókst að bæta við myndum. Frumritunum þínum var ekki breytt.',
   },
+  cloudHelp: {
+    title: 'Skýjahjálp við suðhreinsun',
+    hint: 'Skýið hreinsar suð á sama hátt og þetta tæki, svo það sparar aðeins tíma á meðan þetta tæki er upptekið við annað. Það sendir vinnuafrit, aldrei frumritið, og eyðir því þegar verkinu lýkur.',
+    off: 'Aldrei nota skýið',
+    whenBusy: 'Aðeins þegar þetta tæki er upptekið',
+    always: 'Í hvert skipti',
+  },
 };

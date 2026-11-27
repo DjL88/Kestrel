@@ -14,6 +14,7 @@ export type EngineKind = 'import' | 'raw' | 'preview' | 'thumbnail' | 'cull' | '
   'denoise' | 'auto-edit' | 'vision' | 'export' | 'collage' | 'backup' | 'other';
 export type ItemState = TaskItemInfo['state'];
 export interface DeviceLimits { cpu: number; gpu: number; io: number }
+export interface DeviceLoad { used: DeviceLimits; limits: DeviceLimits; waiting: number }
 export interface JobJournal {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -603,6 +604,11 @@ export function createEngineScheduler(options: {
     },
     setProcessingMode(next: ProcessingMode) { mode = next; pump(); },
     resourceStatus: () => ({ active: { ...used }, measured: resourceSample !== null, mode, blockedReason }),
+    /** How full the device is right now: slots in use, slot limits, and jobs waiting for a slot (paused ones not counted). */
+    load: (): DeviceLoad => ({
+      used: { ...used }, limits: { ...limits },
+      waiting: [...jobs.values()].filter(job => !job.active && !job.paused && !job.cancelled).length,
+    }),
   };
 }
 

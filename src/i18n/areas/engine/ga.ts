@@ -175,4 +175,11 @@ export const ga: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Níor críochnaíodh an iompórtáil dheireanach isteach sa tionscadal seo: níor cuireadh ${count} grianghraf leis (${names}). Iompórtáil arís iad chun iad a chur leis. Coinnítear na grianghraif a cuireadh leis cheana.`,
     importFailed: 'Theip ar na grianghraif a chur leis. Níor athraíodh do bhunchomhaid.',
   },
+  cloudHelp: {
+    title: 'Cabhair ón scamall le torann a laghdú',
+    hint: 'Laghdaíonn an scamall torann ar an mbealach céanna leis an ngléas seo, mar sin ní shábhálann sé am ach nuair atá an gléas seo gnóthach le hobair eile. Seolann sé cóip oibre, ní an bunleagan riamh, agus scriosann sé í nuair a chríochnaíonn an jab.',
+    off: 'Ná húsáid an scamall riamh',
+    whenBusy: 'Ach amháin nuair atá an gléas seo gnóthach',
+    always: 'Gach uair',
+  },
 };

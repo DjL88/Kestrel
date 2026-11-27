@@ -175,4 +175,11 @@ export const cy: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Ni orffennodd y mewnforio diwethaf i'r prosiect hwn: ni ychwanegwyd ${count} llun (${names}). Mewnforiwch nhw eto i'w hychwanegu. Cedwir y lluniau a ychwanegwyd eisoes.`,
     importFailed: 'Methodd ychwanegu lluniau. Ni newidiwyd eich gwreiddiolion.',
   },
+  cloudHelp: {
+    title: 'Help y cwmwl i leihau sŵn',
+    hint: 'Mae’r cwmwl yn lleihau sŵn yn yr un ffordd â’r ddyfais hon, felly dim ond tra bo’r ddyfais hon yn brysur gyda gwaith arall y mae’n arbed amser. Mae’n anfon copi gwaith, byth y gwreiddiol, ac yn ei ddileu pan ddaw’r dasg i ben.',
+    off: 'Peidio byth â defnyddio’r cwmwl',
+    whenBusy: 'Dim ond pan fo’r ddyfais hon yn brysur',
+    always: 'Bob tro',
+  },
 };

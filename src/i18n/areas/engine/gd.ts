@@ -175,4 +175,11 @@ export const gd: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Cha deach an t-ion-phortadh mu dheireadh dhan phròiseact seo a chrìochnachadh: cha deach ${count} dealbhan a chur ris (${names}). Ion-phortaich iad a-rithist gus an cur ris. Thèid na dealbhan a chaidh a chur ris mu thràth a chumail.`,
     importFailed: 'Dh’fhàillig cur nan dealbhan ris. Cha deach na dealbhan tùsail agad atharrachadh.',
   },
+  cloudHelp: {
+    title: 'Taic an neòil airson gràinne a lùghdachadh',
+    hint: 'Lùghdaichidh an neul gràinne san aon dòigh ris an uidheam seo, mar sin chan sàbhail e ùine ach fhad ’s a tha an uidheam seo trang le obair eile. Cuiridh e lethbhreac-obrach, chan ann an tè thùsail idir, agus sguabaidh e às e nuair a bhios an obair deiseil.',
+    off: 'Na cleachd an neul idir',
+    whenBusy: 'Dìreach nuair a tha an uidheam seo trang',
+    always: 'Gach turas',
+  },
 };

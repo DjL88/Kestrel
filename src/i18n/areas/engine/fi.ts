@@ -175,4 +175,11 @@ export const fi: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Viimeisin tuonti tähän projektiin ei valmistunut: ${count} kuvaa jäi lisäämättä (${names}). Tuo ne uudelleen lisätäksesi ne. Jo lisätyt kuvat säilyvät.`,
     importFailed: 'Kuvien lisääminen epäonnistui. Alkuperäisiä ei muutettu.',
   },
+  cloudHelp: {
+    title: 'Pilven apu kohinanpoistoon',
+    hint: 'Pilvi poistaa kohinaa samalla tavalla kuin tämä laite, joten se säästää aikaa vain silloin, kun tämä laite on varattu muuhun työhön. Se lähettää työkopion, ei koskaan alkuperäistä, ja poistaa sen, kun työ on valmis.',
+    off: 'Älä koskaan käytä pilveä',
+    whenBusy: 'Vain kun tämä laite on varattu',
+    always: 'Joka kerta',
+  },
 };

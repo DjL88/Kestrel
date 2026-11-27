@@ -195,4 +195,11 @@ export const source = {
     importNotFinished: (count: number, names: string) => `The last import into this project did not finish: ${count} photos were not added (${names}). Import them again to add them. Photos already added are kept.`,
     importFailed: 'Adding photos failed. Your originals were not changed.',
   },
+  cloudHelp: {
+    title: 'Cloud help for Denoise',
+    hint: 'The cloud runs the same denoise as this device, so it only saves time while this device is busy with other work. It sends a working-size copy, never the original, and deletes it when the job ends.',
+    off: 'Never use the cloud',
+    whenBusy: 'Only when this device is busy',
+    always: 'Every time',
+  },
 };

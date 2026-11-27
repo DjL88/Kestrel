@@ -175,4 +175,11 @@ export const da: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Den sidste import til dette projekt blev ikke færdig: ${count} fotos blev ikke tilføjet (${names}). Importér dem igen for at tilføje dem. Fotos, der allerede er tilføjet, bevares.`,
     importFailed: 'Tilføjelse af fotos mislykkedes. Dine originaler blev ikke ændret.',
   },
+  cloudHelp: {
+    title: 'Skyhjælp til støjreduktion',
+    hint: 'Skyen reducerer støj på samme måde som denne enhed, så den sparer kun tid, mens denne enhed er optaget af andet arbejde. Den sender en arbejdskopi, aldrig originalen, og sletter den, når opgaven er færdig.',
+    off: 'Brug aldrig skyen',
+    whenBusy: 'Kun når denne enhed er optaget',
+    always: 'Hver gang',
+  },
 };

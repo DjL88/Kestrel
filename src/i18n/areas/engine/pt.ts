@@ -175,4 +175,11 @@ export const pt: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `A última importação para este projeto não terminou: ${count} fotografias não foram adicionadas (${names}). Importe-as novamente para as adicionar. As fotografias já adicionadas são mantidas.`,
     importFailed: 'Não foi possível adicionar as fotografias. Os seus originais não foram alterados.',
   },
+  cloudHelp: {
+    title: 'Ajuda da nuvem para reduzir ruído',
+    hint: 'A nuvem reduz o ruído da mesma forma que este dispositivo, por isso só poupa tempo enquanto este dispositivo está ocupado com outro trabalho. Envia uma cópia de trabalho, nunca o original, e apaga-a quando a tarefa termina.',
+    off: 'Nunca usar a nuvem',
+    whenBusy: 'Só quando este dispositivo está ocupado',
+    always: 'Sempre',
+  },
 };

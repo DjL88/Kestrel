@@ -175,4 +175,11 @@ export const nb: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Den siste importen til dette prosjektet ble ikke fullført: ${count} bilder ble ikke lagt til (${names}). Importer dem på nytt for å legge dem til. Bilder som allerede er lagt til, beholdes.`,
     importFailed: 'Kunne ikke legge til bildene. Originalene dine ble ikke endret.',
   },
+  cloudHelp: {
+    title: 'Skyhjelp til støyreduksjon',
+    hint: 'Skyen reduserer støy på samme måte som denne enheten, så den sparer bare tid mens denne enheten er opptatt med annet arbeid. Den sender en arbeidskopi, aldri originalen, og sletter den når jobben er ferdig.',
+    off: 'Bruk aldri skyen',
+    whenBusy: 'Bare når denne enheten er opptatt',
+    always: 'Hver gang',
+  },
 };

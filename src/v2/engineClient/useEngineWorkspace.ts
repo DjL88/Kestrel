@@ -124,6 +124,8 @@ import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { decideCloudHelp } from '../../core/cloudHelp';
+import { readCloudHelp } from '../../providers/cloudHelpSettings';
 import { cloudRecipeEdit, cloudRecipeWhy, prepareCloudRecipe, sendCloudRecipe, type CloudRecipeOffer } from './runCloudRecipe';
 import { cloudRecipePreviewOn, httpCloudRecipeService, readFullFileConsent, saveFullFileConsent } from '../../providers/cloudRecipeService';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
@@ -1640,7 +1642,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     denoiseInFlight.current.add(photoId);
     // Existing explicit cloud opt-in is preserved. A local fallback is labelled
     // with the runner that actually returned, never as a successful cloud job.
-    const connection = can('cloudAssist') ? accountConnection() : null;
+    // Cloud helps a busy device: with the default "when busy", an idle device keeps the job (Settings → Account).
+    const signedIn = can('cloudAssist') ? accountConnection() : null;
+    const connection = signedIn && decideCloudHelp(readCloudHelp().denoise, engineScheduler.load()).useCloud ? signedIn : null;
     void engineScheduler.submit({
       title: engineText.workspace.denoiseTask(frame.filename),
       // One photo the person pressed Denoise on and is watching: it starts beside a running background RAW develop

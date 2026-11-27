@@ -175,4 +175,11 @@ export const de: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `Der letzte Import in dieses Projekt wurde nicht abgeschlossen: ${count} Fotos wurden nicht hinzugefügt (${names}). Importieren Sie sie erneut, um sie hinzuzufügen. Bereits hinzugefügte Fotos bleiben erhalten.`,
     importFailed: 'Das Hinzufügen der Fotos ist fehlgeschlagen. Ihre Originale wurden nicht verändert.',
   },
+  cloudHelp: {
+    title: 'Cloud-Hilfe beim Entrauschen',
+    hint: 'Die Cloud entrauscht genauso wie dieses Gerät und spart daher nur Zeit, während dieses Gerät mit anderer Arbeit beschäftigt ist. Sie sendet eine Arbeitskopie, nie das Original, und löscht sie am Ende des Auftrags.',
+    off: 'Die Cloud nie verwenden',
+    whenBusy: 'Nur wenn dieses Gerät beschäftigt ist',
+    always: 'Jedes Mal',
+  },
 };

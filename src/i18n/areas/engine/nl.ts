@@ -175,4 +175,11 @@ export const nl: AreaTranslation<typeof source> = {
     importNotFinished: (count, names) => `De laatste import in dit project is niet afgemaakt: ${count} foto’s zijn niet toegevoegd (${names}). Importeer ze opnieuw om ze toe te voegen. Foto’s die al zijn toegevoegd, blijven bewaard.`,
     importFailed: 'Foto’s toevoegen is mislukt. Uw originelen zijn niet veranderd.',
   },
+  cloudHelp: {
+    title: 'Cloudhulp bij ruisonderdrukking',
+    hint: 'De cloud onderdrukt ruis op dezelfde manier als dit apparaat, dus het bespaart alleen tijd terwijl dit apparaat met ander werk bezig is. Er gaat een werkkopie heen, nooit het origineel, en die wordt gewist zodra de taak klaar is.',
+    off: 'De cloud nooit gebruiken',
+    whenBusy: 'Alleen als dit apparaat bezig is',
+    always: 'Elke keer',
+  },
 };
