@@ -607,6 +607,8 @@ export default function Canvas({
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
+  // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
+  const [dismissedCropFor, setDismissedCropFor] = useState<string[]>([]);
 
   // Palm rejection for Apple Pencil and other pens. While the pen is on the glass, or for a moment after it lifts, a touch
   // is the hand holding it, so it never swipes to another photo, pinches or moves a crop. A palm that landed before the
@@ -825,7 +827,6 @@ export default function Canvas({
   const shapePending = unknownOriginal(activeSize) && !pictureAspect;
   // Auto's crop suggestion for the active format: only over an untouched single-frame crop, only until dismissed, and
   // never applied by itself. It is worked out here because the frame's shape decides the rectangle.
-  const [dismissedCropFor, setDismissedCropFor] = useState<string[]>([]);
   const cropKey = `${photo.id}:${activeSize.id}`;
   const frameShape = frameAspectOf(activeSize);
   const cropProposal = pictureAspect && photo.cropSuggestion && !dismissedCropFor.includes(cropKey) && splitCountFor(activeSize.id) === 1
