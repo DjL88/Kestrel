@@ -80,3 +80,17 @@ test('plan choices show the matrix price in the currency Paddle charges for the 
   const matrix = parsePricingMatrix({ ...DEFAULT_PRICING, rates: { date: '2026-11-25', perGbp: { EUR: 1.17 } }, currencies: { EUR: { rounding: 'charm', overrides: { 'pro.monthly': 349 } } } });
   assert.deepEqual(proPlanChoices(publicPricing(matrix), 'FR').map((c) => c.price), ['€3.49 a month', '€35 a year']);
 });
+
+test('the installed app may open every page it hands out for Pro: our checkout page and Paddle\'s portal, live and sandbox', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { isPaddlePortalUrl } = await import('./proCheckout.ts');
+  const capability = JSON.parse(readFileSync(new URL('../../src-tauri/capabilities/desktop.json', import.meta.url), 'utf8')) as { permissions: (string | { identifier: string; allow: { url: string }[] })[] };
+  const allowed = capability.permissions.flatMap((p) => (typeof p === 'object' && p.identifier === 'opener:allow-open-url' ? p.allow.map((a) => a.url) : []));
+  // The opener's patterns end in one `*` wildcard here: match the fixed part before it.
+  const opens = (url: string) => allowed.some((pattern) => (pattern.endsWith('*') ? url.startsWith(pattern.slice(0, -1)) : url === pattern));
+  for (const portal of ['https://customer-portal.paddle.com/cpl_01abc/subscriptions/sub_01abc/cancel', 'https://sandbox-customer-portal.paddle.com/cpl_01abc']) {
+    assert.equal(isPaddlePortalUrl(portal), true);
+    assert.equal(opens(portal), true, `${portal} must be on the desktop opener allow-list, or Manage and Cancel cannot open it`);
+  }
+  assert.equal(opens(`https://inflight.studio/pro-checkout?_ptxn=${ID}`), true);
+});
