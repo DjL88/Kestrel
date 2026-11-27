@@ -87,7 +87,7 @@ export const KNOWLEDGE_CITATIONS: readonly KnowledgeCitation[] = [
   c('scene.feathers', 'birdguides-exposure', 'Noise reduction softens fine feather detail, so it is applied with restraint.'),
   c('style.natural', 'audubon-editing', 'Exposure and contrast changes are fair; vibrance is preferred to saturation for natural colour.'),
   c('style.documentary', 'wpp-manipulation', 'Colour, tone and crop changes are acceptable only while they do not alter or hide content; adding or removing anything is manipulation.'),
-  c('subject.documentary', 'wpp-manipulation', 'Tonal and colour changes must not obscure information; cloning, generative fill and AI upscaling breach the rules.'),
+  c('subject.documentary', 'wpp-manipulation', 'Tonal and colour changes must not obscure information; cloning, generative fill and model-made upscaling breach the rules.'),
   c('composition.original-framing', 'audubon-editing', 'Nature photo editing must stay an honest depiction of the moment: no adding, removing or cloning elements.'),
   c('composition.original-framing', 'audubon-ethics', 'Captions and presentation must not misrepresent the subject.'),
   // Light and exposure
@@ -126,7 +126,7 @@ export const KNOWLEDGE_CITATIONS: readonly KnowledgeCitation[] = [
   c('scene.blue-sky', 'cambridge-grad-nd', 'Lowering sky-to-ground contrast can bring out cloud colour and detail, but over-strong or badly placed transitions look unnatural.'),
   c('scene.overcast-sky', 'cambridge-grad-nd', 'A graduated sky adjustment raises contrast within the sky, which helps keep cloud texture.'),
   c('subject.wildlife-in-habitat', 'nhm-wpy-rules', 'Tone, contrast, dodging and burning, cropping, sharpening, noise reduction and lens cleaning are allowed if the result stays authentic.'),
-  c('composition.original-framing', 'nhm-wpy-rules', 'Adding, moving or removing animals, plants, objects or highlights, composites and AI-added content are not allowed.'),
+  c('composition.original-framing', 'nhm-wpy-rules', 'Adding, moving or removing animals, plants, objects or highlights, composites and generated content are not allowed.'),
   c('lighting.clipped-highlights', 'nhm-wpy-rules', 'Removing or painting over highlights is listed as a prohibited change.'),
 ];
 

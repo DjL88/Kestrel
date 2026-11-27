@@ -623,9 +623,9 @@ export const gd: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Lèirmheas lèirsinneach domhainn',
     localReviewButton: 'Dearbh an dealbh air an uidheam seo',
-    runReviewSub: 'Modailean RAW inntearnail + AI ceangailte · Neo-ghintinneach',
+    runReviewSub: "Modailean RAW air an uidheam + an AI agad fhèin, ma tha e ceangailte · Cha deach dad a chruthachadh",
     ongoingBadge: 'Mion-sgrùdadh leantainneach gnìomhach — ùraichidh e mar a ghleusas tu na sleamhnagan',
-    noGenAiNote: 'Gun AI ghintinneach idir. Cha chleachd e ach masgadh, lùghdachadh gràinne, tòna is grèidheadh dhathan.',
+    noGenAiNote: "Cha tèid dad a chruthachadh. Cha chleachd e ach masgadh, lùghdachadh gràinne, tòna is grèidheadh dhathan.",
     applyAllSuggestions: 'Cuir an reasabaidh a mholar an sàs',
     applySingle: 'Cuir an sàs',
     applied: 'Air a chur an sàs',
@@ -1162,8 +1162,8 @@ export const gd: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Nuair a bhios tu air do chlàradh a-steach agus air loidhne, cuiridh am putan seo lethbhreac-obrach (chan e an dealbh tùsail gu bràth) gu neul InFlight airson na h-obrach seo a-mhàin. Dearbhaidh e an toradh air an uidheam seo. Mura bheil an neul ri fhaighinn, ruithidh e an-seo.',
     denoiseDeviceNote: "Ruithidh e air an uidheam seo.",
     denoiseCloudAllowance: (basic, pro) => `Neul: ${basic} dealbh sa mhìos air Basic, ${pro} air Pro.`,
-    aiDenoiseInUse: 'Tha lùghdachadh gràinne AI ga chleachdadh air a’ chuspair. Tha e air a stòradh air an uidheam seo a-mhàin.',
-    aiDenoiseOff: 'Cuir dheth lùghdachadh gràinne AI',
+    aiDenoiseInUse: "Tha lùghdachadh gràinne ionnsaichte ga chleachdadh air a’ chuspair. Tha e air a stòradh air an uidheam seo a-mhàin.",
+    aiDenoiseOff: "Cuir dheth lùghdachadh gràinne ionnsaichte",
     rawAiDenoise: 'Lùghdachadh gràinne RAW domhainn',
     luminanceDenoise: 'Gràinne soillseachd',
     colourDenoise: 'Gràinne dhathan',
@@ -2187,6 +2187,11 @@ export const gd: AreaTranslation<typeof source> = {
     photosFrom: (project) => `O ${project}`,
   },
 
+  promise: {
+    heading: "Gealladh InFlight",
+    body: "Cha bhi InFlight a-chaoidh a’ cruthachadh no a’ cur rud eile an àite na tha nad dhealbh, agus cha sgrìobh e a-chaoidh susbaint bho mhodail ann am meata-dàta nam faidhlichean agad. Chan atharraichear na tùsan agad gu bràth. Bidh modailean a’ tomhas is a’ moladh (cuspair, fòcas, gnè, gràinne). Bidh lùghdachadh gràinne is geurachadh ag obair bho phiogsailean an deilbh agad fhèin; cha dèan an lùghdachadh gràinne ionnsaichte roghainneil ach na piogsailean a tha ann mu thràth a ghlanadh, agus cha tèid a chleachdadh ach nuair a sheallas sgrùdadh gun do mhair am fìor mhion-fhiosrachadh. ’S e Càradh spotan an aon eisgeachd: nì e lethbhreac bho àite eile nad dhealbh fhèin, agus dìreach far an cuir thu fhèin e.",
+  },
+
   setup: {
     title: "Suidheachadh luath",
     stepOf: (n, total) => `Ceum ${n} à ${total}`,
@@ -2196,7 +2201,7 @@ export const gd: AreaTranslation<typeof source> = {
     back: "Air ais",
     finish: "Crìochnaich",
     runAgain: "Ruith an suidheachadh luath a-rithist",
-    runAgainDesc: "Cànan, na bhios tu a' togail, Pro, neul, modh itealaich agus leasachain AI. Mu mhionaid; faodaidh tu leum thar ceum sam bith.",
+    runAgainDesc: "Cànan, na bhios tu a’ togail, Pro, neul, modh itealaich agus luchdaidhean roghainneil. Mu mhionaid; faodaidh tu leum thar ceum sam bith.",
     appliedFromAccount: "Tha na roghainnean on chunntas agad air an uidheam seo cuideachd.",
     language: {
       title: "Tagh do chànan",

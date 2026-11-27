@@ -15,7 +15,7 @@ export const nb: AreaTranslation<typeof source> = {
     copyright: "Opphavsrett",
     includeKeywords: "Ta med nøkkelord",
     keywords: "Nøkkelord (kommaseparert; tomt = bekreftede tagger)",
-    help: "Bekreftede motiver kan fylle ut tittel og nøkkelord. Ubekreftede AI-gjetninger eksporteres aldri. Opplysningene lagres i filen, ikke på bildet.",
+    help: "Bekreftede motiver kan fylle ut tittel og nøkkelord. Ubekreftede forslag fra modeller eksporteres aldri. Opplysningene lagres i filen, ikke på bildet.",
   },
   originals: {
     title: "Originalfiler fra kameraet",

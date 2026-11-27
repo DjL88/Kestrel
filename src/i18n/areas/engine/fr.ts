@@ -51,8 +51,8 @@ export const fr: AreaTranslation<typeof source> = {
     failedCheck: 'Le résultat n’a pas passé le contrôle de qualité. Vos retouches existantes ont été conservées.',
     mainThread: 'Cet appareil n’a pas pu réduire le bruit en arrière-plan : InFlight a donc pu se figer pendant le traitement.',
     workerUnavailable: 'Cet appareil n’a pas pu réduire le bruit en arrière-plan : rien n’a été modifié (le faire ici figerait InFlight). Réessayez après avoir redémarré InFlight.',
-    learnedNoWorker: 'La réduction du bruit par IA n’a pas pu s’exécuter en arrière-plan sur cet appareil : seule la réduction du bruit intégrée a été comparée.',
-    learnedLostDetail: 'En taille réelle, la réduction du bruit par IA a lissé de vrais détails du sujet : la réduction du bruit intégrée a donc été utilisée.',
+    learnedNoWorker: "La réduction du bruit apprise n’a pas pu s’exécuter en arrière-plan sur cet appareil : seule la réduction du bruit intégrée a été comparée.",
+    learnedLostDetail: "En taille réelle, la réduction du bruit apprise a lissé de vrais détails du sujet : la réduction du bruit intégrée a donc été utilisée.",
     leftAsItWas: (notes) => `Laissé tel quel. ${notes}`,
   },
   workspace: {

@@ -4,7 +4,7 @@ import type { MaskContext } from './masks';
 import type { PhotoEdit } from './photoEdits';
 
 /** The message a strict render (export) gives when the stored AI denoise result is not on this device. */
-export const TRUEDETAIL_AI_MISSING = 'This photo uses an AI denoise result that is not on this device, so nothing was exported. Run Denoise again on this device, or turn the AI denoise off.';
+export const TRUEDETAIL_AI_MISSING = 'This photo uses an learned denoise result that is not on this device, so nothing was exported. Run Denoise again on this device, or turn the learned denoise off.';
 
 const ready = new Map<string, ImageBitmap>();
 

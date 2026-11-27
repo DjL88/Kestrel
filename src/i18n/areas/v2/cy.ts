@@ -622,9 +622,9 @@ export const cy: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Adolygiad gweledol manwl',
     localReviewButton: 'Gwirio’r llun ar y ddyfais hon',
-    runReviewSub: 'Modelau RAW mewnol + AI cysylltiedig · Ddim yn gynhyrchiol',
+    runReviewSub: "Modelau RAW ar y ddyfais + eich AI eich hun, os yw wedi’i gysylltu · Dim byd wedi’i greu",
     ongoingBadge: 'Dadansoddi parhaus ar waith — yn diweddaru wrth i chi symud llithryddion',
-    noGenAiNote: 'Dim AI cynhyrchiol. Yn defnyddio masgio, lleihau sŵn, tôn a graddio lliw yn unig.',
+    noGenAiNote: "Does dim byd yn cael ei greu. Yn defnyddio masgio, lleihau sŵn, tôn a graddio lliw yn unig.",
     applyAllSuggestions: 'Defnyddio’r rysáit a awgrymir',
     applySingle: 'Defnyddio',
     applied: 'Wedi’i ddefnyddio',
@@ -1161,8 +1161,8 @@ export const cy: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: "Mae’n rhedeg ar y ddyfais hon.",
     denoiseCloudAllowance: (basic, pro) => `Cwmwl: ${basic} llun y mis ar Basic, ${pro} ar Pro.`,
-    aiDenoiseInUse: 'Mae dad-sŵn AI ar waith ar y gwrthrych. Caiff ei gadw ar y ddyfais hon yn unig.',
-    aiDenoiseOff: 'Diffodd dad-sŵn AI',
+    aiDenoiseInUse: "Mae dad-sŵn dysgedig ar waith ar y gwrthrych. Caiff ei gadw ar y ddyfais hon yn unig.",
+    aiDenoiseOff: "Diffodd dad-sŵn dysgedig",
     rawAiDenoise: 'Lleihau sŵn RAW manwl',
     luminanceDenoise: 'Sŵn goleuedd',
     colourDenoise: 'Sŵn lliw',
@@ -2186,6 +2186,11 @@ export const cy: AreaTranslation<typeof source> = {
     photosFrom: (project) => `O ${project}`,
   },
 
+  promise: {
+    heading: "Addewid InFlight",
+    body: "Nid yw InFlight byth yn dyfeisio nac yn disodli’r hyn sydd yn eich llun, ac nid yw byth yn ysgrifennu cynnwys a wnaed gan fodel ym metadata eich ffeiliau. Nid yw eich gwreiddiolion byth yn cael eu newid. Mae modelau’n mesur ac yn awgrymu (gwrthrych, ffocws, rhywogaeth, sŵn). Mae lleihau sŵn a miniogi’n gweithio o bicseli eich llun ei hun; dim ond glanhau’r picseli sydd yno’n barod y mae’r lleihau sŵn dysgedig dewisol, a dim ond pan fydd gwiriad yn dangos bod manylion go iawn wedi aros y caiff ei ddefnyddio. Yr unig eithriad yw Trwsio smotiau, sy’n copïo o le arall yn eich llun eich hun, a dim ond lle rydych chi’n ei osod eich hun.",
+  },
+
   setup: {
     title: "Gosod cyflym",
     stepOf: (n, total) => `Cam ${n} o ${total}`,
@@ -2195,7 +2200,7 @@ export const cy: AreaTranslation<typeof source> = {
     back: "Yn ôl",
     finish: "Gorffen",
     runAgain: "Rhedeg y gosod cyflym eto",
-    runAgainDesc: "Iaith, beth rydych chi'n ei dynnu, Pro, cwmwl, modd hedfan ac ychwanegion AI. Tua munud; gallwch hepgor pob cam.",
+    runAgainDesc: "Iaith, beth rydych chi’n ei dynnu, Pro, cwmwl, modd hedfan a lawrlwythiadau dewisol. Tua munud; gallwch hepgor pob cam.",
     appliedFromAccount: "Mae'r gosodiadau o'ch cyfrif ar y ddyfais hon hefyd.",
     language: {
       title: "Dewiswch eich iaith",

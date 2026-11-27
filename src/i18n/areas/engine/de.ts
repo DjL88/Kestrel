@@ -51,8 +51,8 @@ export const de: AreaTranslation<typeof source> = {
     failedCheck: 'Das Ergebnis hat die Qualitätsprüfung nicht bestanden. Ihre bisherigen Bearbeitungen wurden beibehalten.',
     mainThread: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher hat InFlight währenddessen vielleicht kurz gestockt.',
     workerUnavailable: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher wurde nichts geändert (hier ausgeführt würde InFlight einfrieren). Versuchen Sie es nach einem Neustart von InFlight erneut.',
-    learnedNoWorker: 'Die KI-Entrauschung konnte auf diesem Gerät nicht im Hintergrund laufen, daher wurde nur die eingebaute Entrauschung verglichen.',
-    learnedLostDetail: 'In voller Größe hat die KI-Rauschreduzierung echte Details am Motiv weggeglättet, daher wurde stattdessen die eingebaute Rauschreduzierung verwendet.',
+    learnedNoWorker: "Die gelernte Entrauschung konnte auf diesem Gerät nicht im Hintergrund laufen, daher wurde nur die eingebaute Entrauschung verglichen.",
+    learnedLostDetail: "In voller Größe hat die gelernte Rauschreduzierung echte Details am Motiv weggeglättet, daher wurde stattdessen die eingebaute Rauschreduzierung verwendet.",
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
   },
   workspace: {

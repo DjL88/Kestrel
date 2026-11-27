@@ -623,9 +623,9 @@ export const fi: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Syvä visuaalinen arvio',
     localReviewButton: 'Tarkista kuva tällä laitteella',
-    runReviewSub: 'Sisäiset RAW-mallit + yhdistetty tekoäly · Ei generatiivinen',
+    runReviewSub: "RAW-mallit laitteella + oma tekoälysi, jos yhdistetty · Mitään ei luoda",
     ongoingBadge: 'Jatkuva analyysi käynnissä — päivittyy, kun säädät liukusäätimiä',
-    noGenAiNote: 'Ei generatiivista tekoälyä. Käyttää vain maskeja, kohinanpoistoa, sävyjä ja värinkorjausta.',
+    noGenAiNote: "Mitään ei luoda. Käyttää vain maskeja, kohinanpoistoa, sävyjä ja värinkorjausta.",
     applyAllSuggestions: 'Käytä ehdotettua reseptiä',
     applySingle: 'Käytä',
     applied: 'Käytetty',
@@ -1162,8 +1162,8 @@ export const fi: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Kun olet kirjautunut ja verkossa, tämä painike lähettää työkopion (ei koskaan alkuperäistä) InFlight-pilveen vain tätä tehtävää varten ja tarkistaa tuloksen tällä laitteella. Jos pilvi ei ole käytettävissä, käsittely tehdään täällä.',
     denoiseDeviceNote: "Toimii tällä laitteella.",
     denoiseCloudAllowance: (basic, pro) => `Pilvi: ${basic} kuvaa kuukaudessa Basicilla, ${pro} Prolla.`,
-    aiDenoiseInUse: 'Tekoälykohinanpoisto on käytössä kohteessa. Se tallennetaan vain tälle laitteelle.',
-    aiDenoiseOff: 'Poista tekoälykohinanpoisto käytöstä',
+    aiDenoiseInUse: "Opittu kohinanpoisto on käytössä kohteessa. Se tallennetaan vain tälle laitteelle.",
+    aiDenoiseOff: "Poista opittu kohinanpoisto käytöstä",
     rawAiDenoise: 'Syvä RAW-kohinanpoisto',
     luminanceDenoise: 'Luminanssikohina',
     colourDenoise: 'Värikohina',
@@ -2187,6 +2187,11 @@ export const fi: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Projektista ${project}`,
   },
 
+  promise: {
+    heading: "InFlightin lupaus",
+    body: "InFlight ei koskaan keksi tai korvaa sitä, mitä kuvassasi on, eikä koskaan kirjoita mallin tuottamaa sisältöä tiedostojesi metatietoihin. Alkuperäisiä ei koskaan muuteta. Mallit mittaavat ja ehdottavat (kohde, tarkennus, laji, kohina). Kohinanpoisto ja terävöitys käyttävät kuvasi omia pikseleitä; valinnainen opittu kohinanpoisto vain puhdistaa jo olemassa olevat pikselit, ja sitä käytetään vain, jos tarkistus näyttää todellisten yksityiskohtien säilyneen. Ainoa poikkeus on Täplien korjaus, joka kopioi toisesta kohdasta omassa kuvassasi, ja vain sinne, mihin itse sen asetat.",
+  },
+
   setup: {
     title: "Pika-asetukset",
     stepOf: (n, total) => `Vaihe ${n}/${total}`,
@@ -2196,7 +2201,7 @@ export const fi: AreaTranslation<typeof source> = {
     back: "Takaisin",
     finish: "Valmis",
     runAgain: "Käy pika-asetukset uudelleen",
-    runAgainDesc: "Kieli, mitä kuvaat, Pro, pilvi, lentotila ja tekoälylisät. Noin minuutti; jokaisen vaiheen voi ohittaa.",
+    runAgainDesc: "Kieli, mitä kuvaat, Pro, pilvi, lentotila ja valinnaiset lataukset. Noin minuutti; jokaisen vaiheen voi ohittaa.",
     appliedFromAccount: "Tilisi asetukset ovat nyt käytössä myös tällä laitteella.",
     language: {
       title: "Valitse kieli",

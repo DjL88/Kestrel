@@ -622,9 +622,9 @@ export const it: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Revisione visiva approfondita',
     localReviewButton: 'Controlla la foto su questo dispositivo',
-    runReviewSub: 'Modelli RAW interni + IA collegata · Non generativa',
+    runReviewSub: "Modelli RAW sul dispositivo + la tua IA, se collegata · Niente di generato",
     ongoingBadge: 'Analisi continua attiva — si aggiorna mentre regoli i cursori',
-    noGenAiNote: 'Nessuna IA generativa. Usa solo maschere, riduzione del rumore, tono e correzione del colore.',
+    noGenAiNote: "Non viene generato nulla. Usa solo maschere, riduzione del rumore, tono e correzione del colore.",
     applyAllSuggestions: 'Applica la ricetta suggerita',
     applySingle: 'Applica',
     applied: 'Applicata',
@@ -1161,8 +1161,8 @@ export const it: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Se hai effettuato l’accesso e sei online, questo pulsante invia una copia di lavoro (mai l’originale) al cloud InFlight solo per questa operazione e verifica il risultato su questo dispositivo. Se il cloud non è disponibile, l’elaborazione avviene qui.',
     denoiseDeviceNote: "Viene eseguito su questo dispositivo.",
     denoiseCloudAllowance: (basic, pro) => `Cloud: ${basic} foto al mese con Basic, ${pro} con Pro.`,
-    aiDenoiseInUse: 'La riduzione del rumore IA è applicata al soggetto. È salvata solo su questo dispositivo.',
-    aiDenoiseOff: 'Disattiva la riduzione del rumore IA',
+    aiDenoiseInUse: "La riduzione del rumore appresa è applicata al soggetto. È salvata solo su questo dispositivo.",
+    aiDenoiseOff: "Disattiva la riduzione del rumore appresa",
     rawAiDenoise: 'Riduzione profonda del rumore RAW',
     luminanceDenoise: 'Rumore di luminanza',
     colourDenoise: 'Rumore di colore',
@@ -2186,6 +2186,11 @@ export const it: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Da ${project}`,
   },
 
+  promise: {
+    heading: "Cosa promette InFlight",
+    body: "InFlight non inventa né sostituisce mai ciò che c’è nella tua foto, e non scrive mai contenuti prodotti da un modello nei metadati dei tuoi file. I tuoi originali non vengono mai modificati. I modelli misurano e suggeriscono (soggetto, messa a fuoco, specie, rumore). Riduzione del rumore e nitidezza lavorano sui pixel della tua foto; la riduzione del rumore appresa, facoltativa, pulisce solo i pixel già presenti, e si usa solo se un controllo mostra che il dettaglio reale resta. L’unica eccezione è Correzione macchie, che copia da un altro punto della tua stessa foto, e solo dove la metti tu.",
+  },
+
   setup: {
     title: "Configurazione rapida",
     stepOf: (n, total) => `Passo ${n} di ${total}`,
@@ -2195,7 +2200,7 @@ export const it: AreaTranslation<typeof source> = {
     back: "Indietro",
     finish: "Fine",
     runAgain: "Ripeti la configurazione rapida",
-    runAgainDesc: "Lingua, cosa fotografi, Pro, cloud, modalità di volo ed extra IA. Circa un minuto; ogni passo si può saltare.",
+    runAgainDesc: "Lingua, cosa fotografi, Pro, cloud, modalità di volo e download facoltativi. Circa un minuto; ogni passo si può saltare.",
     appliedFromAccount: "Le impostazioni del tuo account valgono anche su questo dispositivo.",
     language: {
       title: "Scegli la lingua",

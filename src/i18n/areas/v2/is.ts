@@ -622,9 +622,9 @@ export const is: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Ítarleg myndræn yfirferð',
     localReviewButton: 'Athuga mynd á þessu tæki',
-    runReviewSub: 'Innri RAW-líkön + tengd gervigreind · Ekki skapandi',
+    runReviewSub: "RAW-líkön á tækinu + þín eigin gervigreind, ef tengd · Ekkert búið til",
     ongoingBadge: 'Samfelld greining virk — uppfærist þegar þú hreyfir sleða',
-    noGenAiNote: 'Engin skapandi gervigreind. Notar aðeins grímur, suðeyðingu, tóna og litaleiðréttingu.',
+    noGenAiNote: "Ekkert er búið til. Notar aðeins grímur, suðeyðingu, tóna og litaleiðréttingu.",
     applyAllSuggestions: 'Nota tillögu að uppskrift',
     applySingle: 'Nota',
     applied: 'Notað',
@@ -1161,8 +1161,8 @@ export const is: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Þegar þú ert innskráð/ur og nettengd/ur sendir þessi hnappur vinnuafrit (aldrei frumritið) í InFlight-skýið fyrir þetta eina verk og athugar niðurstöðuna á þessu tæki. Ef skýið er ekki tiltækt er unnið hér.',
     denoiseDeviceNote: "Keyrir á þessu tæki.",
     denoiseCloudAllowance: (basic, pro) => `Ský: ${basic} myndir á mánuði í Basic, ${pro} í Pro.`,
-    aiDenoiseInUse: 'Suðeyðing með gervigreind er notuð á myndefnið. Hún er aðeins vistuð á þessu tæki.',
-    aiDenoiseOff: 'Slökkva á suðeyðingu með gervigreind',
+    aiDenoiseInUse: "Lærð suðeyðing er notuð á myndefnið. Hún er aðeins vistuð á þessu tæki.",
+    aiDenoiseOff: "Slökkva á lærðri suðeyðingu",
     rawAiDenoise: 'Ítarleg RAW-suðeyðing',
     luminanceDenoise: 'Birtusuð',
     colourDenoise: 'Litasuð',
@@ -2186,6 +2186,11 @@ export const is: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Úr ${project}`,
   },
 
+  promise: {
+    heading: "Loforð InFlight",
+    body: "InFlight býr aldrei til eða kemur í stað þess sem er í myndinni þinni, og skrifar aldrei efni frá líkani í lýsigögn skránna þinna. Frummyndunum er aldrei breytt. Líkön mæla og stinga upp á (myndefni, fókus, tegund, suð). Suðeyðing og skerpa vinna úr eigin dílum myndarinnar; valfrjálsa lærða suðeyðingin hreinsar aðeins dílana sem eru þar fyrir, og er aðeins notuð ef athugun sýnir að raunveruleg smáatriði haldist. Eina undantekningin er Blettahreinsun, sem afritar af öðrum stað í þinni eigin mynd, og aðeins þar sem þú setur hana sjálf.",
+  },
+
   setup: {
     title: "Fljótleg uppsetning",
     stepOf: (n, total) => `Skref ${n} af ${total}`,
@@ -2195,7 +2200,7 @@ export const is: AreaTranslation<typeof source> = {
     back: "Til baka",
     finish: "Ljúka",
     runAgain: "Keyra fljótlega uppsetningu aftur",
-    runAgainDesc: "Tungumál, hvað þú myndar, Pro, ský, flugstilling og gervigreindarviðbætur. Um mínúta; hægt er að sleppa hverju skrefi.",
+    runAgainDesc: "Tungumál, hvað þú myndar, Pro, ský, flugstilling og valfrjálst niðurhal. Um mínúta; hægt er að sleppa hverju skrefi.",
     appliedFromAccount: "Stillingarnar af reikningnum þínum gilda nú líka á þessu tæki.",
     language: {
       title: "Veldu tungumál",

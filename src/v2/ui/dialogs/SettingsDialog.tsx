@@ -682,6 +682,10 @@ export default function SettingsDialog({
                     {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
+                <section aria-labelledby="settings-promise-title" data-testid="v2-settings-promise" className="space-y-1">
+                  <h3 id="settings-promise-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.promise.heading}</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.promise.body}</p>
+                </section>
                 <section aria-labelledby="build-information-title" data-testid="v2-build-information" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="build-information-title" className="text-xs font-semibold text-[var(--text-primary)]">{projectsText.licence.buildTitle}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{projectsText.licence.buildHint}</p>

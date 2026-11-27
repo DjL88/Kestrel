@@ -622,9 +622,9 @@ export const de: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Tiefe Bildanalyse',
     localReviewButton: 'Foto auf diesem Gerät prüfen',
-    runReviewSub: 'Interne RAW-Modelle + verbundene KI · Nicht generativ',
+    runReviewSub: "RAW-Modelle auf dem Gerät + Ihre eigene KI, falls verbunden · Nichts generiert",
     ongoingBadge: 'Laufende Analyse aktiv — aktualisiert sich bei jeder Reglerbewegung',
-    noGenAiNote: 'Keine generative KI. Nutzt nur Masken, Rauschreduzierung, Tonwerte und Farbkorrektur.',
+    noGenAiNote: "Nichts wird generiert. Nutzt nur Masken, Rauschreduzierung, Tonwerte und Farbkorrektur.",
     applyAllSuggestions: 'Vorgeschlagenes Rezept anwenden',
     applySingle: 'Anwenden',
     applied: 'Angewendet',
@@ -1161,8 +1161,8 @@ export const de: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Wenn Sie angemeldet und online sind, sendet diese Schaltfläche eine Arbeitskopie (nie das Original) nur für diesen Auftrag an die InFlight-Cloud und prüft das Ergebnis auf diesem Gerät. Ist die Cloud nicht verfügbar, läuft es hier.',
     denoiseDeviceNote: "Läuft auf diesem Gerät.",
     denoiseCloudAllowance: (basic, pro) => `Cloud: ${basic} Fotos im Monat mit Basic, ${pro} mit Pro.`,
-    aiDenoiseInUse: 'KI-Rauschreduzierung wird auf das Motiv angewendet. Sie wird nur auf diesem Gerät gespeichert.',
-    aiDenoiseOff: 'KI-Rauschreduzierung ausschalten',
+    aiDenoiseInUse: "Gelernte Rauschreduzierung wird auf das Motiv angewendet. Sie wird nur auf diesem Gerät gespeichert.",
+    aiDenoiseOff: "Gelernte Rauschreduzierung ausschalten",
     rawAiDenoise: 'Tiefe RAW-Rauschreduzierung',
     luminanceDenoise: 'Luminanzrauschen',
     colourDenoise: 'Farbrauschen',
@@ -2186,6 +2186,11 @@ export const de: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Aus ${project}`,
   },
 
+  promise: {
+    heading: "Was InFlight verspricht",
+    body: "InFlight erfindet oder ersetzt nie, was in Ihrem Foto ist, und schreibt nie von Modellen erzeugte Inhalte in die Metadaten Ihrer Dateien. Ihre Originale werden nie verändert. Modelle messen und schlagen vor (Motiv, Schärfe, Art, Rauschen). Rauschreduzierung und Schärfen arbeiten mit den eigenen Pixeln Ihres Fotos; die optionale gelernte Rauschreduzierung reinigt nur die vorhandenen Pixel und wird nur genutzt, wenn eine Prüfung zeigt, dass echte Details erhalten bleiben. Die einzige Ausnahme ist die Bereichsreparatur: Sie kopiert aus einer anderen Stelle Ihres eigenen Fotos, und nur dort, wo Sie sie selbst setzen.",
+  },
+
   setup: {
     title: "Schnelleinrichtung",
     stepOf: (n, total) => `Schritt ${n} von ${total}`,
@@ -2195,7 +2200,7 @@ export const de: AreaTranslation<typeof source> = {
     back: "Zurück",
     finish: "Fertig",
     runAgain: "Schnelleinrichtung erneut starten",
-    runAgainDesc: "Sprache, Ihre Motive, Pro, Cloud, Flugmodus und KI-Extras. Etwa eine Minute; jeder Schritt lässt sich überspringen.",
+    runAgainDesc: "Sprache, Ihre Motive, Pro, Cloud, Flugmodus und optionale Downloads. Etwa eine Minute; jeder Schritt lässt sich überspringen.",
     appliedFromAccount: "Die Einstellungen aus Ihrem Konto gelten jetzt auch auf diesem Gerät.",
     language: {
       title: "Sprache wählen",

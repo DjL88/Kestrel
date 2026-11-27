@@ -625,9 +625,9 @@ export const ga: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Athbhreithniú amhairc domhain',
     localReviewButton: 'Seiceáil an grianghraf ar an ngléas seo',
-    runReviewSub: 'Samhlacha RAW inmheánacha + AI ceangailte · Neamhghiniúnach',
+    runReviewSub: "Samhlacha RAW ar an ngléas + d’AI féin, má tá sé ceangailte · Dada cruthaithe",
     ongoingBadge: 'Anailís leanúnach ar siúl — nuashonraítear í de réir mar a choigeartaíonn tú na sleamhnáin',
-    noGenAiNote: 'Gan AI ghiniúnach ar bith. Ní úsáideann sé ach maisc, laghdú torainn, ton agus grádú datha.',
+    noGenAiNote: "Ní chruthaítear dada. Ní úsáideann sé ach maisc, laghdú torainn, ton agus grádú datha.",
     applyAllSuggestions: 'Cuir an t-oideas molta i bhfeidhm',
     applySingle: 'Cuir i bhfeidhm',
     applied: 'Curtha i bhfeidhm',
@@ -1164,8 +1164,8 @@ export const ga: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Nuair atá tú sínithe isteach agus ar líne, seolann an cnaipe seo cóip oibre (ní an bunghrianghraf riamh) chuig scamall InFlight don jab seo amháin, agus seiceálann sé an toradh ar an ngléas seo. Mura bhfuil an scamall ar fáil, ritheann sé anseo.',
     denoiseDeviceNote: "Ritheann sé ar an ngléas seo.",
     denoiseCloudAllowance: (basic, pro) => `Néal: ${basic} grianghraf sa mhí ar Basic, ${pro} ar Pro.`,
-    aiDenoiseInUse: 'Tá laghdú torainn AI in úsáid ar an ábhar. Ní stóráiltear é ach ar an ngléas seo.',
-    aiDenoiseOff: 'Múch laghdú torainn AI',
+    aiDenoiseInUse: "Tá laghdú torainn foghlamtha in úsáid ar an ábhar. Ní stóráiltear é ach ar an ngléas seo.",
+    aiDenoiseOff: "Múch laghdú torainn foghlamtha",
     rawAiDenoise: 'Laghdú torainn RAW domhain',
     luminanceDenoise: 'Torann lonrachais',
     colourDenoise: 'Torann datha',
@@ -2189,6 +2189,11 @@ export const ga: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Ó ${project}`,
   },
 
+  promise: {
+    heading: "Gealltanas InFlight",
+    body: "Ní chumann InFlight riamh agus ní chuireann sé aon rud in ionad a bhfuil i do ghrianghraf, agus ní scríobhann sé riamh ábhar ó shamhail i meiteashonraí do chomhad. Ní athraítear do bhunchóipeanna riamh. Tomhaiseann agus molann samhlacha (ábhar, fócas, speiceas, torann). Oibríonn laghdú torainn agus géarú ó phicteilíní do ghrianghraif féin; ní ghlanann an laghdú torainn foghlamtha roghnach ach na picteilíní atá ann cheana, agus ní úsáidtear é ach nuair a léiríonn seiceáil gur fhan na fíormhionsonraí. Is é Deisiú spotaí an t-aon eisceacht: cóipeálann sé ó áit eile i do ghrianghraf féin, agus ní dhéanann sé é ach san áit a gcuireann tú féin é.",
+  },
+
   setup: {
     title: "Socrú tapa",
     stepOf: (n, total) => `Céim ${n} as ${total}`,
@@ -2198,7 +2203,7 @@ export const ga: AreaTranslation<typeof source> = {
     back: "Siar",
     finish: "Críochnaigh",
     runAgain: "Rith an socrú tapa arís",
-    runAgainDesc: "Teanga, an rud a ghlacann tú, Pro, scamall, mód eitilte agus breiseáin AI. Thart ar nóiméad; is féidir aon chéim a scipeáil.",
+    runAgainDesc: "Teanga, an rud a ghlacann tú, Pro, scamall, mód eitilte agus íoslódálacha roghnacha. Thart ar nóiméad; is féidir aon chéim a scipeáil.",
     appliedFromAccount: "Tá na socruithe ó do chuntas ar an ngléas seo freisin.",
     language: {
       title: "Roghnaigh do theanga",

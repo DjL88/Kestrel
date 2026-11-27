@@ -1438,7 +1438,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!aiAsset || !activeFrame) return;
     let live = true;
     void preloadTrueDetailAi(activeFrame.edit).then(found => {
-      if (live && !found) setNotice('This photo’s AI denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the AI denoise off in Enhance.');
+      if (live && !found) setNotice('This photo’s learned denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the learned denoise off in Enhance.');
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -622,9 +622,9 @@ export const sv: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Djup visuell granskning',
     localReviewButton: 'Kontrollera fotot på den här enheten',
-    runReviewSub: 'Interna RAW-modeller + ansluten AI · Icke-generativ',
+    runReviewSub: "RAW-modeller på enheten + din egen AI, om ansluten · Inget genererat",
     ongoingBadge: 'Löpande analys aktiv — uppdateras när du justerar reglage',
-    noGenAiNote: 'Ingen generativ AI. Använder bara masker, brusreducering, ton och färgkorrigering.',
+    noGenAiNote: "Inget genereras. Använder bara masker, brusreducering, ton och färgkorrigering.",
     applyAllSuggestions: 'Använd föreslaget recept',
     applySingle: 'Använd',
     applied: 'Använd',
@@ -1161,8 +1161,8 @@ export const sv: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'När du är inloggad och online skickar den här knappen en arbetskopia (aldrig originalet) till InFlight-molnet för just det här jobbet och kontrollerar resultatet på den här enheten. Om molnet inte är tillgängligt körs det här.',
     denoiseDeviceNote: "Körs på den här enheten.",
     denoiseCloudAllowance: (basic, pro) => `Moln: ${basic} bilder i månaden med Basic, ${pro} med Pro.`,
-    aiDenoiseInUse: 'AI-brusreducering används på motivet. Den sparas bara på den här enheten.',
-    aiDenoiseOff: 'Stäng av AI-brusreducering',
+    aiDenoiseInUse: "Inlärd brusreducering används på motivet. Den sparas bara på den här enheten.",
+    aiDenoiseOff: "Stäng av inlärd brusreducering",
     rawAiDenoise: 'Djup RAW-brusreducering',
     luminanceDenoise: 'Luminansbrus',
     colourDenoise: 'Färgbrus',
@@ -2186,6 +2186,11 @@ export const sv: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Från ${project}`,
   },
 
+  promise: {
+    heading: "Det här lovar InFlight",
+    body: "InFlight hittar aldrig på eller ersätter det som finns i din bild, och skriver aldrig innehåll gjort av en modell i dina filers metadata. Dina original ändras aldrig. Modeller mäter och föreslår (motiv, fokus, art, brus). Brusreducering och skärpning utgår från bildens egna pixlar; den valfria inlärda brusreduceringen rengör bara de pixlar som redan finns, och används bara när en kontroll visar att verkliga detaljer finns kvar. Det enda undantaget är Fläckborttagning, som kopierar från ett annat ställe i din egen bild, och bara där du själv sätter den.",
+  },
+
   setup: {
     title: "Snabbinställning",
     stepOf: (n, total) => `Steg ${n} av ${total}`,
@@ -2195,7 +2200,7 @@ export const sv: AreaTranslation<typeof source> = {
     back: "Tillbaka",
     finish: "Klar",
     runAgain: "Kör snabbinställningen igen",
-    runAgainDesc: "Språk, vad du fotograferar, Pro, moln, läge (Solo, Co-pilot eller Autopilot) och AI-tillägg. Ungefär en minut; varje steg kan hoppas över.",
+    runAgainDesc: "Språk, vad du fotograferar, Pro, moln, läge (Solo, Co-pilot eller Autopilot) och valfria nedladdningar. Ungefär en minut; varje steg kan hoppas över.",
     appliedFromAccount: "Inställningarna från ditt konto gäller nu även på den här enheten.",
     language: {
       title: "Välj språk",
