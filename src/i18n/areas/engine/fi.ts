@@ -105,6 +105,8 @@ export const fi: AreaTranslation<typeof source> = {
     enlargementTask: 'Luodaan suurennoksen esikatselua',
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
     pickerTimingTitle: 'Kansiovalitsimen ajoitus (vain tämä laite)',
+    waitBusy: 'Odottaa: tietokone on kiireinen, joten tämä alkaa, kun edellinen tehtävä valmistuu.',
+    waitMemory: 'Odottaa: muistia on vähän, joten tämä alkaa, kun edellinen tehtävä valmistuu.',
     pickerTiming: (app, picker) => `InFlight pyysi kansiovalitsinta ${app} s Tallenna tiedostot -painalluksen jälkeen; valitsin vastasi ${picker} s myöhemmin (valitsemiseen kulunut aika mukaan lukien).`,
     exportFolderUnwritable: (folder, reason) => `InFlight ei voinut luoda vientikansiota kohteeseen ${folder}${reason ? ` (${reason})` : ''}. Valitse toinen kansio tai tarkista, että asema on liitetty eikä vain luku -tilassa. Mitään ei viety.`,
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',

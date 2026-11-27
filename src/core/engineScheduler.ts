@@ -113,6 +113,8 @@ interface WorkBatch {
   lastActivity: number;
   stallMs: number | undefined;
   cloud: boolean;
+  /** The waiting reason last shown on this task, so it is written once rather than on every pump. */
+  waitShown?: string;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -170,6 +172,16 @@ export function createEngineScheduler(options: {
   const admitted = (job: WorkBatch): boolean => {
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
+    const busy = occupied.filter(other => other.resource !== 'io');
+    if (job.resource !== 'io') {
+      // Never starve: with none of InFlight's own heavy work running, one job always starts, however busy other
+      // programs keep the computer. The measurements only decide whether MORE than one runs at once. (Owner's test: at
+      // 100% CPU from other programs, TrueDetail, the full-size develop and the colour check all sat "Queued" for ever.)
+      if (!busy.length) { blockedReason = null; return true; }
+      // A job the person started themselves (one photo: denoise, tap to select, find subject...) starts as soon as no
+      // other such job runs; background work yields to it, one photo at a time.
+      if (job.interactive && !busy.some(other => other.interactive)) { blockedReason = null; return true; }
+    }
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
       gpuBytes: sum.gpuBytes + other.reservation.gpuBytes,
@@ -193,6 +205,11 @@ export function createEngineScheduler(options: {
     return safe;
   };
   const jobs = new Map<number, WorkBatch>();
+  // The words for a task waiting on the computer's capacity; the app supplies them in the person's language.
+  let waitWords: (reason: string) => string = (reason) => (reason === 'memory'
+    ? 'Waiting: memory is low, so this starts when the task before it finishes.'
+    : 'Waiting: the computer is busy, so this starts when the task before it finishes.');
+  const capacityReasons = new Set(['cpu', 'gpu', 'memory', 'gpu-memory', 'disk', 'thermal']);
   const failedJobs = new Map<number, WorkBatch>();
   // The signal handed to each running photograph. Engine work called with one of these is already inside a
   // batch: it must run there, not queue a second batch behind the one waiting for it (one heavy job at a time).
@@ -256,6 +273,17 @@ export function createEngineScheduler(options: {
     (watchdog as { unref?: () => void }).unref?.();
   };
 
+  /** Queued tasks held back by the computer's capacity say so, instead of a silent "Queued". */
+  const showWaiting = () => {
+    const reason = blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
+    for (const job of jobs.values()) {
+      if (job.active || job.paused || job.cancelled || !job.items.some(item => item.state === 'queued')) continue;
+      const words = reason ? waitWords(reason) : undefined;
+      if (!words || job.waitShown === words) continue;
+      job.waitShown = words;
+      job.handle.patch({ detail: words });
+    }
+  };
   const pump = () => {
     if (pausedAll) return;
     // Each dispatch covers only one photograph, then reconsider priority.
@@ -266,11 +294,12 @@ export function createEngineScheduler(options: {
         j.items.some(item => item.state === 'queued') && admitted(j));
       eligible.sort((a, b) => b.priority - a.priority || a.order - b.order);
       const job = eligible[0];
-      if (!job) break;
+      if (!job) { showWaiting(); break; }
       const index = job.items.findIndex(item => item.state === 'queued');
       if (index < 0) break;
       dispatched = true;
       job.active = true;
+      job.waitShown = undefined;
       job.order = ++sequence;
       job.lastActivity = now();
       used[job.resource]++;
@@ -602,6 +631,8 @@ export function createEngineScheduler(options: {
       pump();
     },
     setProcessingMode(next: ProcessingMode) { mode = next; pump(); },
+    /** The waiting words in the person's language (reason: cpu, memory, thermal...). */
+    setWaitWords(words: (reason: string) => string) { waitWords = words; },
     resourceStatus: () => ({ active: { ...used }, measured: resourceSample !== null, mode, blockedReason }),
   };
 }

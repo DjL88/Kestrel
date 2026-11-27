@@ -105,6 +105,8 @@ export const sv: AreaTranslation<typeof source> = {
     enlargementTask: 'Skapar förhandsvisning av förstoringen',
     exportNotQueued: 'Kunde inte starta den här exporten.',
     pickerTimingTitle: 'Tid för mappväljaren (endast den här enheten)',
+    waitBusy: 'Väntar: datorn är upptagen, så detta börjar när uppgiften före är klar.',
+    waitMemory: 'Väntar: minnet är lågt, så detta börjar när uppgiften före är klar.',
     pickerTiming: (app, picker) => `InFlight bad om mappväljaren ${app} s efter Spara filer; väljaren svarade ${picker} s senare (inklusive tiden för att välja).`,
     exportFolderUnwritable: (folder, reason) => `InFlight kunde inte skapa exportmappen i ${folder}${reason ? ` (${reason})` : ''}. Välj en annan mapp eller kontrollera att enheten är ansluten och inte skrivskyddad. Inget exporterades.`,
     destinationUnavailable: 'Det exportmålet är inte tillgängligt. Välj en lokal ZIP, separata filer eller en mapp på datorn.',

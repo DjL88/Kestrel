@@ -105,6 +105,8 @@ export const it: AreaTranslation<typeof source> = {
     enlargementTask: 'Creazione dell’anteprima dell’ingrandimento',
     exportNotQueued: 'Impossibile avviare questa esportazione.',
     pickerTimingTitle: 'Tempo del selettore di cartelle (solo questo dispositivo)',
+    waitBusy: 'In attesa: il computer è occupato, quindi inizierà quando finisce l’attività precedente.',
+    waitMemory: 'In attesa: la memoria è scarsa, quindi inizierà quando finisce l’attività precedente.',
     pickerTiming: (app, picker) => `InFlight ha chiesto il selettore di cartelle ${app} s dopo Salva file; il selettore ha risposto ${picker} s dopo (incluso il tempo per scegliere).`,
     exportFolderUnwritable: (folder, reason) => `InFlight non ha potuto creare la cartella di esportazione in ${folder}${reason ? ` (${reason})` : ''}. Scegli un’altra cartella o verifica che l’unità sia collegata e non di sola lettura. Non è stato esportato nulla.`,
     destinationUnavailable: 'Quella destinazione di esportazione non è disponibile. Scegli uno ZIP locale, file separati o una cartella del computer.',

@@ -105,6 +105,8 @@ export const de: AreaTranslation<typeof source> = {
     enlargementTask: 'Vergrößerungsvorschau wird erstellt',
     exportNotQueued: 'Dieser Export konnte nicht gestartet werden.',
     pickerTimingTitle: 'Zeit der Ordnerauswahl (nur dieses Gerät)',
+    waitBusy: 'Wartet: Der Computer ist ausgelastet, daher beginnt dies, wenn die Aufgabe davor fertig ist.',
+    waitMemory: 'Wartet: Der Arbeitsspeicher ist knapp, daher beginnt dies, wenn die Aufgabe davor fertig ist.',
     pickerTiming: (app, picker) => `InFlight hat die Ordnerauswahl ${app} s nach „Dateien speichern“ angefordert; die Auswahl antwortete ${picker} s später (einschließlich der Zeit zum Auswählen).`,
     exportFolderUnwritable: (folder, reason) => `InFlight konnte den Exportordner in ${folder} nicht anlegen${reason ? ` (${reason})` : ''}. Wählen Sie einen anderen Ordner oder prüfen Sie, ob das Laufwerk verbunden und nicht schreibgeschützt ist. Es wurde nichts exportiert.`,
     destinationUnavailable: 'Dieses Exportziel ist nicht verfügbar. Wählen Sie ein lokales ZIP, einzelne Dateien oder einen Ordner auf dem Computer.',
