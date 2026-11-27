@@ -1,6 +1,7 @@
 // Pure logic helpers for InFlight UI shell (unit-tested with node:test).
 // Zero DOM, zero network, zero canvas pixel processing.
 
+import { cameraName, lensName } from './nameRules';
 import type {
   CropTransform,
   EditGroup,
@@ -83,8 +84,8 @@ export function buildPreviewFilterCss(
 /**
  * Renders a single OverlayTextRow using photo EXIF & species metadata.
  */
-export function formatOverlayRowText(row: OverlayTextRow, photo: Photo): string {
-  return composeOverlayText(row, photo);
+export function formatOverlayRowText(row: OverlayTextRow, photo: Photo, overlay?: Pick<OverlaySettings, 'rawCameraNames'> | null): string {
+  return composeOverlayText(row, photo, overlay?.rawCameraNames === true);
 }
 
 export interface OverlayOverflowIssue {
@@ -138,7 +139,7 @@ export function detectOverlayOverflow(
 ): OverlayOverflowIssue[] {
   if (!overlay.textEnabled || overlay.rows.length === 0) return [];
   const safeWidth = safeTextWidth(overlay); // % of the frame's width (less the margins and the box's padding)
-  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
+  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo, overlay))));
   const issues: OverlayOverflowIssue[] = [];
   for (const size of sizes.filter((s) => s.enabled)) {
     const frameShape = size.width / Math.max(1, size.height); // frame width over frame height
@@ -160,7 +161,7 @@ export function fitOverlayRows(overlay: OverlaySettings, photo: Photo, sizes: Si
   const full = overlay.textLayoutMode === 'cover-full';
   const safeWidth = safeTextWidth(overlay) - Math.abs(overlay.textOffsetX || 0);
   const safeHeight = (full ? 88 : 45) - Math.abs(overlay.textOffsetY || 0);
-  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
+  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo, overlay))));
   const height = overlay.rows.reduce((sum, row) => sum + row.sizePx * LINE_HEIGHT / REFERENCE_FRAME_WIDTH, 0) * 100;
   const shapes = sizes.filter((size) => size.enabled && size.width > 0 && size.height > 0).map((size) => size.width / size.height);
   const tallest = height * Math.max(0, ...shapes);
@@ -215,6 +216,9 @@ export function photoSearchText(photo: Photo): string {
     photo.category,
     photo.exif.camera,
     photo.exif.lens,
+    // The friendly names too (Settings › Auto-correct), so "Z5 II" and "Z5_2" both find the photo.
+    cameraName(photo.exif.camera),
+    lensName(photo.exif.lens),
   ].join(' ');
 }
 

@@ -270,7 +270,7 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
     : undefined;
   return {
     overlay, text, watermark: mark, contrast,
-    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
+    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo, overlay), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
     mark: !mark || !preset ? null : imageUrl ? { kind: 'image', image: await loadImage(imageUrl) } : { kind: 'text', text: preset.text, ...(preset.subtext ? { subtext: preset.subtext } : {}) },
   };
 }

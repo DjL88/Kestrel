@@ -1183,6 +1183,7 @@ export const nl: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Oorspronkelijke cameranamen gebruiken",
     templatesHeading: 'Sjablonen',
     templatesIntro: 'Sla de tekst- en watermerkindeling van deze foto op en pas die in één keer toe op andere foto’s. Opgeslagen op dit apparaat.',
     templateNameLabel: 'Sjabloonnaam',

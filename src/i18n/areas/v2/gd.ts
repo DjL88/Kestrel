@@ -1184,6 +1184,7 @@ export const gd: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Cleachd ainmean tùsail a’ chamara",
     templatesHeading: 'Teamplaidean',
     templatesIntro: 'Sàbhail co-dhealbhachd an teacsa is a’ chomharra-uisge aig an dealbh seo, an uair sin cuir air dealbhan eile e aig an aon àm. Air a shàbhaladh air an uidheam seo.',
     templateNameLabel: 'Ainm an teamplaid',

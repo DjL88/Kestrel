@@ -1222,6 +1222,7 @@ export const source = {
 
   // Overlays Panel
   overlays: {
+    rawCameraNames: "Use original camera names",
     templatesHeading: 'Templates',
     templatesIntro: 'Save this photo\'s text and watermark layout, then apply it to other photos in one go. Saved on this device.',
     templateNameLabel: 'Template name',

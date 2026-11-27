@@ -1183,6 +1183,7 @@ export const de: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Originale Kameranamen verwenden",
     templatesHeading: 'Vorlagen',
     templatesIntro: 'Speichern Sie die Text- und Wasserzeichen-Anordnung dieses Fotos und wenden Sie sie in einem Schritt auf andere Fotos an. Auf diesem Gerät gespeichert.',
     templateNameLabel: 'Vorlagenname',

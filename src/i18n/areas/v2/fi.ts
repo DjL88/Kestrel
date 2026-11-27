@@ -1184,6 +1184,7 @@ export const fi: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Käytä kameran alkuperäisiä nimiä",
     templatesHeading: 'Pohjat',
     templatesIntro: 'Tallenna tämän kuvan teksti- ja vesileima-asettelu ja käytä sitä muihin kuviin kerralla. Tallennetaan tälle laitteelle.',
     templateNameLabel: 'Pohjan nimi',

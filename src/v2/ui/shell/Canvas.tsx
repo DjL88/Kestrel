@@ -1258,7 +1258,7 @@ export default function Canvas({
         {(() => {
           // Text and watermark are laid out by the rule in overlayLayout.ts, the same one the export uses. An anchored box
           // sits at the edge margin of its place; two boxes at the same place stack (watermark above the text).
-          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo));
+          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo, overlay));
           const showMark = overlay.watermarkEnabled && features.watermarkCustom && !!watermarkPreset;
           const cover = overlay.textLayoutMode === 'cover-full';
           const layer = (target: EventTarget) => (target as HTMLElement).closest('[data-testid="overlay-layer"]') as HTMLElement | null;
@@ -1294,7 +1294,7 @@ export default function Canvas({
               {resizeHandles('resize-text', STRINGS.canvas.resizeText)}
               {overlay.rows.map((row) => {
                 // A row with nothing to say takes no room, here or in the export.
-                const words = formatOverlayRowText(row, photo);
+                const words = formatOverlayRowText(row, photo, overlay);
                 return words ? (
                   <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>
                     {words}
@@ -1341,7 +1341,7 @@ export default function Canvas({
           if (showText && cover) {
             parts.push(
               <div key="cover" data-overlay="text" data-artwork className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center text-center" style={{ padding: cqw(24), backgroundColor: overlay.textScrim ? (overlay.textColour === 'light' ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : 'transparent', color: textColour }}>
-                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
+                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo, overlay); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
               </div>
             );
           }

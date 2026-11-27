@@ -15,7 +15,7 @@ interface OverlayTextRowsProps {
   /** Where the words come from: the photo's file fields and what subject detection found. */
   photo: Photo;
   /** For the size cap: the layout mode and edge margin decide how much width a row may use. */
-  overlay: Pick<OverlaySettings, 'textLayoutMode' | 'edgeMargin'>;
+  overlay: Pick<OverlaySettings, 'textLayoutMode' | 'edgeMargin' | 'rawCameraNames'>;
   fonts: FontOption[];
   onAddRow: () => void;
   onUpdateRow: (rowId: string, patch: Partial<OverlayTextRow>) => void;
@@ -46,7 +46,7 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
         const choices = overlayFieldChoices(photo, row.fields);
         const grouped = GROUP_ORDER.map((group) => ({ group, items: choices.filter(([id]) => overlayFieldGroup(id) === group) })).filter((entry) => entry.items.length > 0);
         const most = maxRowSizePx(row, photo, overlay);
-        const words = formatOverlayRowText(row, photo);
+        const words = formatOverlayRowText(row, photo, overlay);
         return (
           <div key={row.id} data-testid="overlay-row" className="space-y-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5">
             <div className="flex items-center gap-1">
