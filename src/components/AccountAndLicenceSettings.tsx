@@ -112,6 +112,8 @@ export function AccountAndLicenceSettings() {
     setAiStatus(null);
     setCloudUsage(null);
     setAiNote(null);
+    // A different account (or none): forget the last account's helper access until the server answers for this one.
+    setOnlineHelperAccess(null);
     if (!account || offline) { setAiBusy(false); return; }
     setAiBusy(true);
     void (async () => {
@@ -124,7 +126,8 @@ export function AccountAndLicenceSettings() {
           setCloudUsage(result.cloud);
         }
       } catch {
-        if (request === aiRequest.current) setAiNote('Could not check your online helper preference. No change has been made.');
+        // Not confirmed for this account: hide the helper rather than show a switch that cannot work.
+        if (request === aiRequest.current) { setOnlineHelperAccess(null); setAiNote('Could not check your online helper preference. No change has been made.'); }
       } finally {
         if (request === aiRequest.current) setAiBusy(false);
       }
@@ -172,7 +175,7 @@ export function AccountAndLicenceSettings() {
         setCloudUsage(result.cloud);
       }
     } catch {
-      if (request === aiRequest.current) setAiNote('Online helper settings are unavailable. Nothing has changed.');
+      if (request === aiRequest.current) { setOnlineHelperAccess(null); setAiNote('Online helper settings are unavailable. Nothing has changed.'); }
     } finally {
       if (request === aiRequest.current) setAiBusy(false);
     }

@@ -180,7 +180,7 @@ export function createContext(options: AppOptions) {
     decodeImage(body.image);
     if (!(await switchOn('managed-ai'))) throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
-    if (!(await store.hasActiveManagedAi(claims.sub))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
+    if (!(await store.hasActiveManagedAi(claims.sub)) || !(await accountIsPro(claims.sub))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
     const refundSpend = await reserveSpend(options.spend?.aiCallPence ?? 0);
     const refund = await reserveQuota(claims.sub).catch(async (e) => { await refundSpend(); throw e; });
     try {

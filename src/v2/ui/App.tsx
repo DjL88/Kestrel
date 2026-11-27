@@ -216,6 +216,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     // The same read says whether InFlight's own online helper is available (invite-only); signed out, it is not.
     if (!isSignInConfigured() || store.settingsOpen || !accountName) { if (!accountName) { setContributor(false); setOnlineHelperAccess(null); } return; }
     let live = true;
+    setOnlineHelperAccess(null); // never the last account's answer while this one is checked
     void (async () => {
       const [{ parseControlPlaneUrl }, { readAccountOffers }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
       const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
