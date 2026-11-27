@@ -386,16 +386,24 @@ test('a paused task holds no slot, and cancelling it while paused leaves the oth
 });
 
 test('the watchdog fails a photo that shows no progress for its limit, frees the slot and the task carries on', async () => {
+  // An injected clock and an on-demand check: no real waiting, so CI's speed cannot change the outcome.
+  let clock = 0;
   const store = createTaskStore();
-  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, watchdogMs: 5 });
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, now: () => clock, watchdogMs: 0 });
   let committed = false;
   const ran: number[] = [];
   const job = await scheduler.submit(batch('Auto pick', 3, async (n, _s, ctx) => {
     ran.push(n);
     if (n === 2) { await new Promise(() => undefined); ctx.commitIfCurrent(() => { committed = true; }); } // hung model
-  }, { kind: 'cull', stallMs: 40 }));
+  }, { kind: 'cull', stallMs: 60_000 }));
   const develops: number[] = [];
   const develop = await scheduler.submit(batch('Develop', 1, async n => { develops.push(n); }, { kind: 'raw', priority: -1 }));
+  await until(() => ran.length === 2, 'photo 2 is running (and hangs)');
+  clock += 59_000;
+  scheduler.checkStalls();
+  assert.equal(scheduler.runningResourceCount().cpu, 1, 'not stuck yet: under its limit');
+  clock += 2_000;
+  scheduler.checkStalls();
   assert.equal(await job.finished, 'failed', 'stuck photo 2 fails; photos 1 and 3 still ran');
   assert.deepEqual(ran, [1, 2, 3]);
   const task = store.list().find(t => t.id === job.taskId)!;
@@ -409,9 +417,15 @@ test('the watchdog fails a photo that shows no progress for its limit, frees the
 });
 
 test('work that keeps reporting progress is never stopped by the watchdog, however long it takes', async () => {
-  const scheduler = createEngineScheduler({ taskStore: createTaskStore(), limits: { cpu: 1, gpu: 1, io: 1 }, watchdogMs: 5 });
+  let clock = 0;
+  const scheduler = createEngineScheduler({ taskStore: createTaskStore(), limits: { cpu: 1, gpu: 1, io: 1 }, now: () => clock, watchdogMs: 0 });
   const job = await scheduler.submit(batch('Denoise', 1, async (_n, _s, ctx) => {
-    for (let step = 0; step < 12; step += 1) { await pause(10); ctx.reportProgress(step, 12, 'tiles'); }
-  }, { kind: 'denoise', stallMs: 40 }));
-  assert.equal(await job.finished, 'done', '120 ms of work against a 40 ms limit, alive throughout');
+    for (let step = 0; step < 12; step += 1) {
+      clock += 30_000; // 6 minutes in all against a 1-minute limit, with progress every 30 s
+      scheduler.checkStalls();
+      ctx.reportProgress(step, 12, 'tiles');
+      await Promise.resolve();
+    }
+  }, { kind: 'denoise', stallMs: 60_000 }));
+  assert.equal(await job.finished, 'done', 'alive throughout, so never stopped');
 });

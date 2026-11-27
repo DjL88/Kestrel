@@ -145,7 +145,7 @@ export function createEngineScheduler(options: {
   resourceSample?: ResourceSample | null;
   mode?: ProcessingMode;
   now?: () => number;
-  /** How often the watchdog looks for stuck photos (ms). Tests make it short. */
+  /** How often the watchdog looks for stuck photos (ms). 0: never on its own (tests call checkStalls with their own clock). */
   watchdogMs?: number;
 } = {}) {
   const store = options.taskStore ?? tasks;
@@ -250,8 +250,9 @@ export function createEngineScheduler(options: {
     pump();
   };
   const startWatchdog = () => {
-    if (watchdog) return;
+    if (watchdog || options.watchdogMs === 0) return;
     watchdog = setInterval(checkStalls, options.watchdogMs ?? 30_000);
+    // In Node (tests), never keep the process alive just for the watchdog; in the app the page stays open anyway.
     (watchdog as { unref?: () => void }).unref?.();
   };
 
@@ -565,6 +566,8 @@ export function createEngineScheduler(options: {
   };
   return {
     submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    /** Look for stuck photos now (the watchdog does this every 30 s). */
+    checkStalls,
     cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
