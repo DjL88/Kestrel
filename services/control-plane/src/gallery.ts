@@ -80,6 +80,22 @@ export class GalleryStore {
     }));
   }
 
+  /**
+   * Bytes held for a project's live galleries (committed previews and filmstrip pictures). Counted against the payer's
+   * cloud storage with the project's cloud photos: Pro includes 2.5 GB for shared projects and client galleries
+   * (site/terms.html). An expired gallery's previews are gone, so it no longer counts.
+   */
+  async storedBytes(projectId: string, nowMs: number): Promise<number> {
+    const snap = await this.db.collection(G.galleries).where('projectId', '==', projectId).get();
+    let total = 0;
+    for (const d of snap.docs) {
+      const g = d.data()! as unknown as GalleryRecord;
+      if (g.expiresAtMs <= nowMs) continue;
+      for (const p of Object.values(g.previews ?? {})) total += (p.committed ? p.bytes : 0) + (p.committed && p.thumb ? p.thumb.bytes : 0);
+    }
+    return total;
+  }
+
   async signPreviewUpload(galleryId: string, photoId: string, sha256: string, bytes: number, variant: GalleryVariant = 'preview') {
     return this.db.runTransaction(async (tx) => {
       const snap = await tx.get(this.ref(galleryId));

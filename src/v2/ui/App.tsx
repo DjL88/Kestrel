@@ -1611,6 +1611,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         attachOriginal={actions.attachCloudOriginal}
         photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
         onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
+        onTopUp={() => { closeShare(); actions.setSettingsOpen(true, 'account'); }}
         onClose={closeShare}
       /></React.Suspense>
 
