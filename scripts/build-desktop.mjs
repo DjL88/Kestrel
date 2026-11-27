@@ -5,7 +5,7 @@
  * The existing fetch script fails closed on missing bytes or SHA-256 mismatch.
  */
 import { spawnSync } from 'node:child_process';
-import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, missingDriveSettings, releaseModelSource } from './build-desktop-guard.mjs';
+import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, assertSiteOriginAllowed, missingDriveSettings, releaseModelSource } from './build-desktop-guard.mjs';
 import { loadEnv } from 'vite';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_HOST, completePacks, fetchList, readList } from './fetch-bundled-models.mjs';
