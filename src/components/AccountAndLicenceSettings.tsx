@@ -121,7 +121,7 @@ export function AccountAndLicenceSettings() {
           setCloudUsage(result.cloud);
         }
       } catch {
-        if (request === aiRequest.current) setAiNote('Could not check your online AI preference. No change has been made.');
+        if (request === aiRequest.current) setAiNote('Could not check your online helper preference. No change has been made.');
       } finally {
         if (request === aiRequest.current) setAiBusy(false);
       }
@@ -148,7 +148,7 @@ export function AccountAndLicenceSettings() {
       if (request !== aiRequest.current) return;
       // A failed revoke may NOT be shown as successfully off. Require a fresh server read.
       setAiStatus(null);
-      setAiNote('Could not confirm this change with the server. Do not use online AI until you have checked the setting again.');
+      setAiNote('Could not confirm this change with the server. Do not use the online helper until you have checked the setting again.');
     } finally {
       if (request === aiRequest.current) setAiBusy(false);
     }
@@ -168,7 +168,7 @@ export function AccountAndLicenceSettings() {
         setCloudUsage(result.cloud);
       }
     } catch {
-      if (request === aiRequest.current) setAiNote('Online AI settings are unavailable. Nothing has changed.');
+      if (request === aiRequest.current) setAiNote('Online helper settings are unavailable. Nothing has changed.');
     } finally {
       if (request === aiRequest.current) setAiBusy(false);
     }
@@ -366,11 +366,11 @@ export function AccountAndLicenceSettings() {
         {accountBusy && <p role="status">Working on your account…</p>}
         {accountNote && <p role="status" className="text-[var(--account-warning,#fde68a)]">{accountNote}</p>}
         {account && (
-          <div className="space-y-3 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3" aria-label="Optional online AI settings">
+          <div className="space-y-3 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3" aria-label="Optional online helper settings">
             <h4 className="font-medium text-[var(--account-foreground,#f4f4f5)]">Online Gemini helper (optional)</h4>
             <p className="text-xs text-[var(--account-text,#d4d4d8)]">
               Off by default. When allowed, the helper can check a small image without camera metadata,
-              but only when you choose an online AI action. No original photo is automatically uploaded.
+              but only when you choose an online helper action. No original photo is automatically uploaded.
               Culling, editing and exporting still work offline.
             </p>
             <label className="flex min-h-11 items-center gap-3">
@@ -387,7 +387,7 @@ export function AccountAndLicenceSettings() {
             )}
             {!aiBusy && !aiStatus && (
               <button type="button" className={action} disabled={offline} onClick={() => void retryAiConsent()}>
-                Check online AI setting again
+                Check online helper setting again
               </button>
             )}
             {aiNote && <p role="status" className="text-[var(--account-warning,#fde68a)]">{aiNote}</p>}

@@ -15,7 +15,7 @@ export const fi: AreaTranslation<typeof source> = {
     copyright: "Tekijänoikeus",
     includeKeywords: "Sisällytä avainsanat",
     keywords: "Avainsanat (pilkuilla eroteltuina; tyhjä = vahvistetut tunnisteet)",
-    help: "Vahvistetut aiheet voivat täyttää otsikon ja avainsanat. Vahvistamattomia tekoälyarvauksia ei viedä. Tiedot tallennetaan tiedostoon, ei kuvaan.",
+    help: "Vahvistetut aiheet voivat täyttää otsikon ja avainsanat. Mallien vahvistamattomia ehdotuksia ei viedä. Tiedot tallennetaan tiedostoon, ei kuvaan.",
   },
   originals: {
     title: "Kameran alkuperäistiedostot",

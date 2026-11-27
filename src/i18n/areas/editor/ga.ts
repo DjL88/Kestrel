@@ -287,7 +287,7 @@ export const ga: AreaTranslation<typeof source> = {
     tone: 'Ton',
     detail: 'Mionsonraí',
     brightnessTitle: 'Coigeartaigh gile na meántoin agus coinnigh dubh agus bán glan; úsáid an Nochtadh don solas ar fad',
-    denoiseTitle: 'Déanann sé breacadh daite a mhaolú i ngrianghraif ISO ard; ní mhaíonn sé go n-athchóiríonn sé mionsonraí le AI',
+    denoiseTitle: "Déanann sé breacadh daite a mhaolú i ngrianghraif ISO ard. Ní chuireann sé mionsonraí leis.",
     denoiseHelp: 'Maolaíonn sé breacadh datha amháin. Fanann imill agus mionuigeacht mar atá siad.',
     exportFocus: 'Fócas na heaspórtála',
     cancelPlacement: 'Cealaigh an socrú',

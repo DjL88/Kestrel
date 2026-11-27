@@ -333,6 +333,11 @@ export default function ExportDialog({
               open={advancedOpen || undefined} onToggle={(event) => rememberAdvanced((event.currentTarget as HTMLDetailsElement).open)}>
               <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 px-3 text-xs font-semibold text-[var(--text-primary)]"><BrandIcon name="chevron-right" size={14} className="text-[var(--text-muted)] transition-transform group-open:rotate-90 motion-reduce:transition-none" />{STRINGS.exportDialog.advancedHeading}</summary>
               <div className="space-y-5 border-t border-[var(--border-subtle)] p-3">
+              {/* The promise about models, pixels and metadata: the same words as Settings › Privacy and the home page. */}
+              <section aria-labelledby="export-promise-title" data-testid="export-promise" className="space-y-1">
+                <h3 id="export-promise-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.promise.heading}</h3>
+                <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.promise.body}</p>
+              </section>
               {/* Versions */}
               <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
                 <h3 className="text-xs font-semibold text-[var(--text-primary)]">

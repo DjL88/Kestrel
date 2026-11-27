@@ -291,7 +291,7 @@ export const is: AreaTranslation<typeof source> = {
     tone: 'Tónn',
     detail: 'Smáatriði',
     brightnessTitle: 'Stilla birtu miðtóna og halda hreinum svörtum og hvítum; notaðu Lýsingu fyrir heildarljósið',
-    denoiseTitle: 'Sléttir litaða díla í myndum með háu ISO; lofar ekki endurheimt smáatriða með gervigreind',
+    denoiseTitle: "Sléttir litaða díla í myndum með háu ISO. Bætir ekki við smáatriðum.",
     denoiseHelp: 'Sléttir aðeins litadíla. Brúnir og fín áferð haldast eins og þær eru.',
     exportFocus: 'Áherslupunktur fyrir útflutning',
     cancelPlacement: 'Hætta við staðsetningu',

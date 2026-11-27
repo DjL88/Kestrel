@@ -3,6 +3,7 @@ import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { CANVAS_TIPS_EVENT, TIP_MS, readTips, tipDue, tipShown, tipsAgain, writeTips, type CanvasTipKind } from '../utils/canvasTips';
 import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
@@ -150,6 +151,10 @@ function ZoomFullDevelopWatch({ photo, canvasZoom, onDevelopFullSize }: { photo:
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 /** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
+/** A small button in the status line under the canvas. */
+const STATUS_BUTTON = 'inline-flex min-h-6 shrink-0 items-center rounded border border-[var(--border-default)] px-1.5 text-[10px] leading-4 text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]';
+/** How long a finished zoom-to-eye note stays: long enough to read, short enough not to linger. */
+const EYE_NOTE_MS = 6000;
 /** The box a zoom anchors on: the picture itself, else its frame. The frame's border snaps to whole pixels as it
  * zooms, so a share of the frame is not quite the same share of the picture, and a long pinch drifted by a few pixels. */
 const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getBoundingClientRect();
@@ -458,6 +463,14 @@ export default function Canvas({
   const zoomPercentRef = useRef<HTMLButtonElement>(null);
   /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
   const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
+  // A finished note goes after about six seconds (Dave, 27 Nov: it stayed up for good), but not while the pointer or the
+  // keyboard is on it, so it can always be read or dismissed (WCAG 2.2.1).
+  const [eyeNoteHeld, setEyeNoteHeld] = useState(false);
+  useEffect(() => {
+    if (!eyeNote || eyeNote.busy || eyeNoteHeld) return;
+    const timer = window.setTimeout(() => setEyeNote(null), EYE_NOTE_MS);
+    return () => window.clearTimeout(timer);
+  }, [eyeNote, eyeNoteHeld]);
   useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
   // Zoom to eye and 100% look ahead: as soon as a photo is shown (and for the photos either side of it), find the eye,
   // else the subject, else the centre, from the preview, so the zoom menu can name where it will go and both zooms are
@@ -610,6 +623,51 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // Canvas tips (Dave, 27 Nov): no permanent hint, only a short correct tip the first few times the editor opens or
+  // Crop starts, in the status line under the canvas. View › Show canvas tips brings them back.
+  const [tip, setTip] = useState<CanvasTipKind | null>(null);
+  const [tipHeld, setTipHeld] = useState(false);
+  const [tipLeaving, setTipLeaving] = useState(false);
+  const tipStore = () => { try { return window.localStorage; } catch { return null; } };
+  const offerTip = (kind: CanvasTipKind) => {
+    if (hideHints) return;
+    const store = tipStore();
+    const state = readTips(store);
+    if (!tipDue(state, kind)) return;
+    writeTips(store, tipShown(state, kind));
+    setTipLeaving(false);
+    setTip(kind);
+  };
+  const viewTipOffered = useRef(false);
+  useEffect(() => {
+    if (!photo || viewTipOffered.current) return;
+    viewTipOffered.current = true;
+    offerTip('view');
+  // Once per visit to the editor, when the first photo shows.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo?.id]);
+  useEffect(() => {
+    if (revealSizeId) offerTip('crop');
+    else setTip((shown) => (shown === 'crop' ? null : shown));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealSizeId]);
+  useEffect(() => {
+    if (!tip || tipHeld) return;
+    // Fades out (instantly with reduced motion: the stylesheet turns transitions off), then goes.
+    const fade = window.setTimeout(() => setTipLeaving(true), TIP_MS);
+    const gone = window.setTimeout(() => { setTip(null); setTipLeaving(false); }, TIP_MS + 300);
+    return () => { window.clearTimeout(fade); window.clearTimeout(gone); setTipLeaving(false); };
+  }, [tip, tipHeld]);
+  useEffect(() => {
+    const again = () => {
+      const kind: CanvasTipKind = revealSizeId ? 'crop' : 'view';
+      writeTips(tipStore(), tipShown(tipsAgain(), kind));
+      setTipLeaving(false);
+      setTip(kind);
+    };
+    window.addEventListener(CANVAS_TIPS_EVENT, again);
+    return () => window.removeEventListener(CANVAS_TIPS_EVENT, again);
+  }, [revealSizeId]);
   // One frame of a split composition, selected so it can be removed (button or Delete key).
   const [selectedPane, setSelectedPane] = useState<{ sizeId: string; index: number } | null>(null);
   const paneDown = useRef<{ x: number; y: number } | null>(null);
@@ -1413,24 +1471,24 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
-  /** Names the selected mask and toggles its overlay: inside the single view's frame, and below a split composition so
-   * it never covers a small pane's picture. */
-  const renderMaskLabel = (place = 'bottom-2 left-2') => selectedMask && PhotoSurface ? (
-              <div data-testid="mask-canvas-label" className={`absolute ${place} z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white`}>
+  /** Names the selected mask and toggles its overlay, in the status line under the canvas (Dave, 27 Nov: "nothing should
+   * cover the image"). The mask's own drawing stays on the picture; only these controls moved off it. */
+  const renderMaskLabel = () => selectedMask && PhotoSurface ? (
+              <div data-testid="mask-canvas-label" className="flex min-w-0 items-center gap-1.5 font-medium text-[var(--text-primary)]">
                 <span role="status" className="truncate">{overlayPaused ? STRINGS.maskCanvas.overlayPaused(selectedMask.name)
                   : !overlayChosen ? STRINGS.maskCanvas.overlayHidden(selectedMask.name)
                   : maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.overlayOutline(selectedMask.name) : STRINGS.maskCanvas.overlayShown(selectedMask.name)}</span>
                 {onSetMaskOverlayStyle && overlayChosen && (
                   <button type="button" data-testid="mask-overlay-style"
                     onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onSetMaskOverlayStyle(maskOverlayStyle === 'outline' ? 'fill' : 'outline'); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    className={STATUS_BUTTON}>
                     {maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.styleFill : STRINGS.maskCanvas.styleOutline}
                   </button>
                 )}
                 {onToggleMaskOverlay && (
                   <button type="button" aria-pressed={overlayChosen} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
                     onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    className={`${STATUS_BUTTON} font-mono`}>
                     {maskOverlayKey ?? '◐'}
                   </button>
                 )}
@@ -1692,7 +1750,6 @@ export default function Canvas({
               </div>
             </div>
           ))}
-          {renderMaskLabel('left-0 top-full mt-2')}
           {sectionCount < MAX_SPLIT_FRAMES && (
             <button
               type="button"
@@ -1770,7 +1827,6 @@ export default function Canvas({
             onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
             onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
-            title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             data-shape-pending={shapePending ? 'true' : undefined}
             className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
@@ -1834,17 +1890,6 @@ export default function Canvas({
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, buildImageStyle(activeSize), holdingOriginal ? 'none' : filterCss)
             ))}
-            {!compareMode && !holdingOriginal && renderMaskLabel()}
-            {!compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
-              <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
-                onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setShowCameraFocus((shown) => !shown); }}
-                className="absolute right-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-medium text-white hover:bg-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
-              </button>
-            )}
-            {holdingOriginal && (
-              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
-            )}
             <EdgeProgress active={pictureBusy || photo.fullDevelop === 'running' || photo.state === 'importing'} value={null}
               label={photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.activityBar.photoLoading} edge="bottom" testId="canvas-progress" />
 
@@ -2216,62 +2261,9 @@ export default function Canvas({
           backgroundPosition: '11px 11px',
         }}
       >
-        {hoveredLook && (
-          <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
-            {STRINGS.canvas.previewingLook} <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
-          </div>
-        )}
-
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
       </div>
-        {/* Subtle bottom-left interaction hint */}
-        {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="v2-mouse-hint pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[0.6875rem] text-[var(--text-muted)]">
-            {activeSize.kind === 'video'
-              ? STRINGS.canvas.zoomVideoHint
-              : STRINGS.canvas.dragCropHint}
-          </p>
-        )}
-
-        {eyeNote && (
-          <div role="status" data-capture-ignore data-testid="eye-note"
-            className="absolute bottom-14 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
-            <span>{eyeNote.text}</span>
-            {!eyeNote.busy && (
-              <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setEyeNote(null)}
-                className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
-                <BrandIcon name="close" size={11} />
-              </button>
-            )}
-          </div>
-        )}
-
-        {canvasOnly && onToggleCanvasOnly && (
-          <button
-            type="button"
-            data-capture-ignore
-            data-testid="canvas-only-exit"
-            title={STRINGS.canvas.canvasOnlyExit}
-            aria-label={STRINGS.canvas.canvasOnlyExit}
-            onClick={onToggleCanvasOnly}
-            className="absolute right-3 top-3 z-30 inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)] shadow hover:bg-[var(--bg-surface-hover)]"
-          >
-            <BrandIcon name="panel" size={14} />
-            {STRINGS.canvas.canvasOnlyBack}
-          </button>
-        )}
-        {shotNote && (
-          <div role={shotNote.problem ? 'alert' : 'status'} data-capture-ignore data-testid="canvas-shot-note"
-            className="absolute bottom-14 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 pl-2.5 pr-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
-            <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
-            {shotNote.problem && (
-              <button type="button" onClick={() => setShotNote(null)} aria-label="Dismiss this message"
-                className="v2-touch-target min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">Dismiss</button>
-            )}
-          </div>
-        )}
-
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label={STRINGS.canvas.viewportControls}
@@ -2422,6 +2414,72 @@ export default function Canvas({
             <BrandIcon name={isFullScreen ? 'collapse' : 'expand'} size={15} />
           </button>
         </div>
+      </div>
+      {/* The status line under the canvas (Dave, 27 Nov: "nothing should cover the image"). Notes, the selected mask's
+          controls, the camera-focus switch and the canvas-only way back live here, never over the picture. */}
+      <div data-testid="canvas-status" data-capture-ignore
+        className="v2-canvas-status flex h-9 shrink-0 items-center gap-3 overflow-x-auto border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-[0.6875rem] text-[var(--text-secondary)]">
+        {holdingOriginal && (
+          <span role="status" className="shrink-0 font-semibold text-[var(--text-primary)]">{STRINGS.canvas.showingOriginal}</span>
+        )}
+        {hoveredLook && (
+          <span className="shrink-0 font-medium text-[var(--text-primary)]">
+            {STRINGS.canvas.previewingLook} <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
+          </span>
+        )}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && renderMaskLabel()}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
+          <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
+            onClick={() => setShowCameraFocus((shown) => !shown)} className={STATUS_BUTTON}>
+            <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
+          </button>
+        )}
+        {eyeNote && (
+          <div role="status" data-testid="eye-note" onPointerEnter={() => setEyeNoteHeld(true)} onPointerLeave={() => setEyeNoteHeld(false)}
+            onFocus={() => setEyeNoteHeld(true)} onBlur={() => setEyeNoteHeld(false)}
+            className="flex min-w-0 shrink-0 items-center gap-1.5 text-[var(--text-primary)]">
+            <span className="truncate">{eyeNote.text}</span>
+            {!eyeNote.busy && (
+              <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setEyeNote(null)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name="close" size={11} />
+              </button>
+            )}
+          </div>
+        )}
+        {shotNote && (
+          <div role={shotNote.problem ? 'alert' : 'status'} data-testid="canvas-shot-note" className="flex shrink-0 items-center gap-1 text-[var(--text-primary)]">
+            <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
+            {shotNote.problem && (
+              <button type="button" onClick={() => setShotNote(null)} aria-label="Dismiss this message"
+                className="v2-touch-target min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">Dismiss</button>
+            )}
+          </div>
+        )}
+        {/* A video format needs its one instruction to be usable, so it stays while that format is shown. */}
+        {!hideHints && canvasLayoutMode === 'single' && activeSize.kind === 'video' && !eyeNote && !shotNote && (
+          <p className="v2-mouse-hint min-w-0 truncate text-[var(--text-muted)]">{STRINGS.canvas.zoomVideoHint}</p>
+        )}
+        {tip && !hideHints && (
+          <div role="status" data-testid="canvas-tip" data-tip={tip}
+            onPointerEnter={() => setTipHeld(true)} onPointerLeave={() => setTipHeld(false)}
+            onFocus={() => setTipHeld(true)} onBlur={() => setTipHeld(false)}
+            className={`flex min-w-0 shrink items-center gap-1.5 text-[var(--text-secondary)] transition-opacity duration-300 ${tipLeaving ? 'opacity-0' : 'opacity-100'}`}>
+            <span className="truncate">{tip === 'crop' ? STRINGS.canvas.tipCrop : STRINGS.canvas.tipView}</span>
+            <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setTip(null)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="close" size={11} />
+            </button>
+          </div>
+        )}
+        {canvasOnly && onToggleCanvasOnly && (
+          <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
+            onClick={onToggleCanvasOnly}
+            className="ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            <BrandIcon name="panel" size={14} />
+            {STRINGS.canvas.canvasOnlyBack}
+          </button>
+        )}
       </div>
     </main>
   );

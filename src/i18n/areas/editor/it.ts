@@ -291,7 +291,7 @@ export const it: AreaTranslation<typeof source> = {
     tone: 'Tono',
     detail: 'Dettaglio',
     brightnessTitle: 'Regola la luminosità dei mezzitoni mantenendo nero e bianco puri; usa Esposizione per la luce generale',
-    denoiseTitle: 'Leviga le macchioline di colore nelle foto ad alti ISO; non promette di recuperare dettagli con l’IA',
+    denoiseTitle: "Leviga le macchioline di colore nelle foto ad alti ISO. Non aggiunge dettagli.",
     denoiseHelp: 'Leviga solo le macchioline di colore. Bordi e trama fine restano come sono.',
     exportFocus: 'Punto di interesse per l’esportazione',
     cancelPlacement: 'Annulla il posizionamento',

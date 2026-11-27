@@ -291,7 +291,7 @@ export const nl: AreaTranslation<typeof source> = {
     tone: 'Toon',
     detail: 'Detail',
     brightnessTitle: 'De helderheid van de middentonen aanpassen met behoud van puur zwart en wit; gebruik Belichting voor het totale licht',
-    denoiseTitle: 'Maakt gekleurde spikkels in foto’s met hoge ISO gladder; geen belofte van detailherstel met AI',
+    denoiseTitle: "Maakt gekleurde spikkels in foto’s met hoge ISO gladder. Voegt geen detail toe.",
     denoiseHelp: 'Maakt alleen kleurspikkels gladder. Randen en fijne textuur blijven zoals ze zijn.',
     exportFocus: 'Focuspunt voor export',
     cancelPlacement: 'Plaatsen annuleren',

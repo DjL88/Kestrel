@@ -34,7 +34,7 @@ export async function runLearnedOnSubject(
 ): Promise<LearnedOutcome> {
   if (await nafnetStatus() !== 'ready') return { kind: 'unavailable' };
   const rect = subjectRect(subjectAlpha, working.width, working.height);
-  if (!rect) return { kind: 'skipped', note: 'No subject area was found for the AI denoise.' };
+  if (!rect) return { kind: 'skipped', note: 'No subject area was found for the learned denoise.' };
   const framed = framedSize(source.naturalWidth, source.naturalHeight, framing);
   const region = {
     x: Math.floor(rect.x * framed.width), y: Math.floor(rect.y * framed.height),
@@ -43,7 +43,7 @@ export async function runLearnedOnSubject(
   region.width = Math.min(region.width, framed.width - region.x);
   region.height = Math.min(region.height, framed.height - region.y);
   if (region.width * region.height > LEARNED_MAX_PIXELS) {
-    return { kind: 'skipped', note: `The subject is too large for the on-device AI denoise (${(region.width * region.height / 1e6).toFixed(1)} MP; the limit is ${LEARNED_MAX_PIXELS / 1e6} MP), so only the built-in denoise was compared.` };
+    return { kind: 'skipped', note: `The subject is too large for the on-device learned denoise (${(region.width * region.height / 1e6).toFixed(1)} MP; the limit is ${LEARNED_MAX_PIXELS / 1e6} MP), so only the built-in denoise was compared.` };
   }
   const crop = document.createElement('canvas');
   drawFramedPhoto(source, crop, framing, { region });
@@ -88,7 +88,7 @@ export async function runLearnedOnSubject(
     kind: 'ready',
     result: {
       model: NAFNET_W32.id, modelSha256: NAFNET_W32.files.model.sha256, rect: placed, working: workingPixels, fullSize,
-      png: () => new Promise<Blob>((resolve, reject) => crop.toBlob(blob => blob ? resolve(blob) : reject(new Error('The AI denoise result could not be stored.')), 'image/png')),
+      png: () => new Promise<Blob>((resolve, reject) => crop.toBlob(blob => blob ? resolve(blob) : reject(new Error('The learned denoise result could not be stored.')), 'image/png')),
     },
   };
 }

@@ -291,7 +291,7 @@ export const nb: AreaTranslation<typeof source> = {
     tone: 'Tone',
     detail: 'Detaljer',
     brightnessTitle: 'Juster lysstyrken i mellomtonene og bevar rent svart og hvitt; bruk Eksponering for det samlede lyset',
-    denoiseTitle: 'Glatter ut fargede prikker i bilder med høy ISO; lover ikke KI-gjenoppretting av detaljer',
+    denoiseTitle: "Glatter ut fargede prikker i bilder med høy ISO. Legger ikke til detaljer.",
     denoiseHelp: 'Glatter bare ut fargeprikker. Kanter og fin tekstur forblir som de er.',
     exportFocus: 'Fokuspunkt for eksport',
     cancelPlacement: 'Avbryt plasseringen',
