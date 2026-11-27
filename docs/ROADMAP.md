@@ -1183,6 +1183,7 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 
 ## 4. Integration log
 
+- **27 November 2026: Version 26.12.0.** The owner's scheme is YY.MM.patch, with the product still on version 1, so the December release is 26.12.0. Every version field (package.json and its lock, tauri.conf.json, the Cargo manifests and locks, the iOS Info.plist and project.yml) now reads 26.12.0; scripts/check-release-version.mjs passes for tag v26.12.0.
 - **26 November 2026 — Fine-edge subject pack rebuilt and repinned.** `birefnet-lite-w16.onnx` was missing from the models bucket (the 25 Nov workflow artifact had expired), so no installer included the pack. It was rebuilt on the Windows laptop with `tools/model-conversion/birefnet_lite.py` and the workflow's pinned sources and packages. The gate PASSED with the same figures; new SHA-256 `edcf2b66…c797`, same size. Uploaded to the models bucket, and the pin moved in `src/core/optionalModels.ts` (cache `kestrel-birefnet-lite-v2`), `models/desktop-packs.json` and `docs/models.md`.
 - **26 November 2026 — AI models no longer freeze on several threads in the desktop app (#1797).** Squash-merged on green CI plus the lead's local lint, unit, build and `v2-model-worker-threads` PASS. Fixes Auto pick, Select subject, tap to select and denoise sitting at 0% CPU in the Windows beta test: Vite workers now build as ES modules, so ONNX Runtime's thread helpers load the runtime. Not yet run in the packaged Windows app.
 
