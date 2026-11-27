@@ -7,7 +7,7 @@ import { startHarness } from './helpers.ts';
 
 async function harness() {
   const h = await startHarness(undefined, undefined, { collab: new CollabStore(new MemoryFirestore()) });
-  const person = async (email: string, plan?: 'subscriber') => {
+  const person = async (email: string, plan?: 'subscriber' | 'paid') => {
     const id = await h.app.createAccount(email, 'a-long-password-123', 'user');
     if (plan) await h.app.store.insertLicence(newLicence(`lic-${id}`, plan, h.clock.now, { accountId: id }));
     return { id, token: (await h.app.issueSession(id, 'user')).accessToken };
@@ -33,6 +33,19 @@ test('shared projects answer 503 until set up, and need the Cloud plan to create
   try {
     const r = await call('POST', '/v1/collab/projects', editor.token, { name: 'X', displayName: 'E' });
     assert.equal(r.status, 403); assert.equal(r.body.error.code, 'COLLAB_NOT_ENTITLED');
+  } finally { await h.close(); }
+});
+
+test('Pro bought through checkout (a paid licence) can share; a Basic payer cannot invite anyone new', async () => {
+  const { h, owner, call, P, person } = await harness();
+  try {
+    const buyer = await person('buyer@example.test', 'paid');
+    assert.equal((await call('POST', '/v1/collab/projects', buyer.token, { name: 'Gulls', displayName: 'B' })).status, 200, 'Pro checkout grants a paid licence');
+    assert.equal((await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'a@example.test', role: 'editor' })).status, 200);
+    await h.app.store.setLicenceValidUntil(`lic-${owner.id}`, h.clock.now - 1, h.clock.now); // Pro lapsed: the owner is Basic now
+    const r = await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'b@example.test', role: 'editor' });
+    assert.equal(r.status, 403); assert.equal(r.body.error.code, 'COLLAB_NOT_ENTITLED');
+    assert.equal((await call('GET', P, owner.token)).status, 200, 'the project and everyone in it stay readable');
   } finally { await h.close(); }
 });
 

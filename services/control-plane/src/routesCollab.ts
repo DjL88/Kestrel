@@ -13,18 +13,21 @@ import { PhotoId, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 
 export function collabRoutes(ctx: AppContext): Route[] {
-  const { options, store, now, audit, bearer, switchOn, collabCfg, collabWritable, collab, storageGate, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety } = ctx;
+  const { options, store, now, audit, bearer, accountIsPro, switchOn, collabCfg, collabWritable, collab, storageGate, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety } = ctx;
+  async function requireProPayer(projectId: string) {
+    const payer = await collab(() => collabCfg().payerOf(projectId));
+    if (!(await accountIsPro(payer))) throw new ApiError(403, 'COLLAB_NOT_ENTITLED', 'Inviting people and client galleries are part of Pro.');
+  }
   return [
 
   // ---- Shared projects (#1387 C01-C03). Membership, per-photo checkout and never-last-write-wins revisions.
   {
-    method: 'POST', path: '/v1/collab/projects', summary: 'Share a new project (Cloud plan). You become its owner', auth: 'user', body: Schemas.CollabCreate,
+    method: 'POST', path: '/v1/collab/projects', summary: 'Share a new project (Pro). You become its owner', auth: 'user', body: Schemas.CollabCreate,
     handler: async (req) => {
       const claims = await bearer(req);
       const body = parseJson(Schemas.CollabCreate, req.rawBody);
       const store_ = await collabWritable();
-      const plans = await store.listLicencesForAccount(claims.sub);
-      if (!plans.some((l) => l.plan === 'subscriber' && licenceIsUsable(l, now()))) throw new ApiError(403, 'COLLAB_NOT_ENTITLED', 'Shared projects are part of the Cloud plan.');
+      if (!(await accountIsPro(claims.sub))) throw new ApiError(403, 'COLLAB_NOT_ENTITLED', 'Shared projects are part of Pro.');
       const project = await store_.createProject({ accountId: claims.sub, displayName: body.displayName }, body.name, now());
       await audit(claims.sub, 'collab.create', 'allowed', project.projectId);
       return { status: 200, body: { projectId: project.projectId } };
@@ -48,6 +51,8 @@ export function collabRoutes(ctx: AppContext): Route[] {
       const claims = await bearer(req);
       const body = parseJson(Schemas.CollabMembers, req.rawBody);
       const c = await collabWritable();
+      // Bringing someone new in is Pro, held by whoever pays for the project. Everyone already in keeps their access.
+      if (body.kind === 'inviteEmail') await requireProPayer(params.id);
       const change = body.kind === 'inviteEmail'
         ? { kind: 'inviteEmail' as const, invite: { emailHash: emailHashOf(body.email), role: body.role, displayName: body.displayName, ...(body.photoIds ? { photoIds: body.photoIds } : {}) } }
         : body.kind === 'setPhotos' ? { ...body, photoIds: body.photoIds } : body;
@@ -280,6 +285,7 @@ export function collabRoutes(ctx: AppContext): Route[] {
       const c = await collabWritable();
       const g = galleryCfg();
       for (const photoId of body.photoIds) await collab(() => c.requireMember(params.id, claims.sub, 'export', photoId));
+      await requireProPayer(params.id); // a new client gallery is Pro; links already published keep working
       const created = await g.create({ ...body, projectId: params.id, createdBy: claims.sub }, now());
       await audit(claims.sub, 'gallery.create', 'allowed', `${params.id}/${created.galleryId.slice(0, 12)}`);
       return { status: 200, body: created };

@@ -692,7 +692,7 @@ export const source = {
     intro: 'Only the project name and the people you invite are shared until you choose to send photos: a client gallery, or the cloud photos below.',
     signIn: 'Sign in (Settings, Account) to share projects. Projects you do not share work without an account.',
     notConfigured: 'Sharing is not available in this version yet.',
-    notEntitled: 'Sharing projects is part of the Cloud plan.',
+    notEntitled: 'Sharing projects and client galleries are part of Pro.',
     switchedOff: 'Sharing is switched off for now. Your projects are unaffected.',
     failed: 'Could not reach sharing. Nothing has changed.',
     start: 'Share project',
