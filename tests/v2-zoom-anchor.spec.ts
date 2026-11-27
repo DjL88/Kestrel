@@ -48,7 +48,9 @@ test('a touchpad pinch (Ctrl+wheel) keeps the picture point under the fingers in
   const root = await importPicture(page);
   const start = await pictureBox(page);
   // A point off the middle of the picture, so a zoom about the centre would visibly move it.
-  const at = { x: start.left + start.width * 0.7, y: start.top + start.height * 0.35 };
+  // Whole pixels: the pointer's position reaches the page in whole pixels, so a fractional point would start the check
+  // a fraction of a pixel off, and 8× zoom would multiply that.
+  const at = { x: Math.round(start.left + start.width * 0.7), y: Math.round(start.top + start.height * 0.35) };
   const share = { fx: (at.x - start.left) / start.width, fy: (at.y - start.top) / start.height };
   await page.mouse.move(at.x, at.y);
   const drift = async () => {
@@ -123,7 +125,7 @@ test('on a portrait photo larger than the view, + and − hold the middle of the
   expect(big.height).toBeGreaterThan(view.height);
   expect(big.width).toBeGreaterThan(view.width);
   // A pinch off the middle, larger than the view.
-  const spot = { x: view.left + view.width * 0.3, y: view.top + view.height * 0.6 };
+  const spot = { x: Math.round(view.left + view.width * 0.3), y: Math.round(view.top + view.height * 0.6) };
   await page.mouse.move(spot.x, spot.y);
   const pinchDrift = await track(spot);
   await pinch(page, 8, -12);
