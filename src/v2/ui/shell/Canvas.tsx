@@ -1,4 +1,4 @@
-import { stepFrom, swipeIntent } from '../utils/swipe';
+import { isTap, stepFrom, swipeIntent } from '../utils/swipe';
 import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
@@ -127,6 +127,8 @@ interface CanvasProps {
   /** Canvas only is on: the header, rail, panels and filmstrip are hidden, so the canvas offers the way back. */
   canvasOnly?: boolean;
   onToggleCanvasOnly?: () => void;
+  /** Touch: one clean tap on the photo turns Canvas only on or off (preview `tapForPhoto`). A tool that reads taps keeps them. */
+  tapTogglesCanvasOnly?: boolean;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
   onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
@@ -219,6 +221,7 @@ export default function Canvas({
   onToggleFullScreen,
   neighbourPhotos,
   canvasOnly = false,
+  tapTogglesCanvasOnly = false,
   onToggleCanvasOnly,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -605,6 +608,12 @@ export default function Canvas({
   }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
+  // Tap for photo: the toggle waits a moment, so the second tap of a double tap (which opens Crop) cancels it and the
+  // bars do not blink. The newest callback is read when the wait ends.
+  const tapToggleTimer = useRef<number | null>(null);
+  const toggleCanvasOnlyRef = useRef(onToggleCanvasOnly);
+  toggleCanvasOnlyRef.current = onToggleCanvasOnly;
+  useEffect(() => () => { if (tapToggleTimer.current !== null) window.clearTimeout(tapToggleTimer.current); }, []);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
   // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
@@ -1224,6 +1233,17 @@ export default function Canvas({
       swipeRef.current = null;
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
+        // One clean tap gives the photo the whole screen, or brings the bars back. Tools that use a tap on the picture
+        // (tap to select, heal, the neutral picker) keep it; so does anything the tap landed on that is a control.
+        const onControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"], [role="slider"]');
+        if (tapTogglesCanvasOnly && !onControl && !neutralPick && !heal?.placing && tapSession?.photoId !== photo.id
+          && isTap(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t)) {
+          if (tapToggleTimer.current !== null) {
+            window.clearTimeout(tapToggleTimer.current); tapToggleTimer.current = null; // second tap: a double tap, not ours
+          } else {
+            tapToggleTimer.current = window.setTimeout(() => { tapToggleTimer.current = null; toggleCanvasOnlyRef.current?.(); }, 280);
+          }
+        }
         if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
         else if (intent === 'previous-photo') { if (swipeBetweenPhotos) onStepPhoto?.(-1); }
         else if (intent === 'next-format' || intent === 'previous-format') {

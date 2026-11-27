@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { stepFrom, swipeIntent } from './swipe.ts';
+import { isTap, stepFrom, swipeIntent } from './swipe.ts';
 
 test('a clear flick on each axis is read, and the direction follows the finger', () => {
   assert.equal(swipeIntent(-120, 10, 200), 'next-photo');
@@ -24,4 +24,16 @@ test('stepping stops at either end and never wraps', () => {
   assert.equal(stepFrom(list, 'c', 1), undefined);
   assert.equal(stepFrom(list, 'a', -1), undefined);
   assert.equal(stepFrom(list, 'missing', 1), undefined);
+});
+
+test('a tap is quick and barely moves; a flick, a press or an odd reading is not a tap', () => {
+  assert.equal(isTap(0, 0, 80), true);
+  assert.equal(isTap(6, -6, 250), true);
+  assert.equal(isTap(12, 0, 80), false);
+  assert.equal(isTap(0, 0, 301), false);
+  assert.equal(isTap(-120, 10, 200), false);
+  assert.equal(isTap(Number.NaN, 0, 80), false);
+  assert.equal(isTap(0, 0, -1), false);
+  // A tap is never also a swipe.
+  assert.equal(swipeIntent(6, -6, 250), null);
 });

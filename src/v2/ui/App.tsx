@@ -13,6 +13,7 @@ import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
 import { trueDetailJob } from './utils/trueDetailJob';
 import { photoJobActive } from './utils/photoJob';
+import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
@@ -1044,6 +1045,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
+  // Preview, off unless switched on for this device: a tap on the photo hides the bars and panels (touch screens).
+  const [tapForPhoto] = useState(() => workflowPreviewOn('tapForPhoto'));
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
   useEffect(() => {
     const sheet = sheetEl;
@@ -1103,6 +1106,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
+      data-v2-photo-only={tapForPhoto && canvasOnlyShown ? '' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
@@ -1402,6 +1406,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   neighbourPhotos={neighbourPhotos}
                   canvasOnly={canvasOnlyShown}
                   onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
+                  tapTogglesCanvasOnly={tapForPhoto}
                 />
               )}
 
