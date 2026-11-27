@@ -63,7 +63,11 @@ test('the supported RAW makers are recognised by file name only, with their labe
   for (const name of ['a.jpg', 'a.cr3.exe', 'cr3', 'a.mov', 'a.nef.jpg']) assert.equal(isRawPreviewFile(name), false, name);
   assert.equal(rawFormatOf('IMG_0001.CR3')?.brand, 'Canon');
   assert.equal(rawFormatOf('DSC00001.ARW')?.brand, 'Sony');
-  assert.equal(rawPreviewLabel('IMG_0001.CR3'), 'CR3 Embedded Preview');
+  // Format names the file itself ("CR3 RAW"), never "Embedded Preview": which picture is shown is a separate row.
+  for (const [name, label] of [['A.NEF', 'NEF RAW'], ['a.nrw', 'NRW RAW'], ['a.ARW', 'ARW RAW'], ['a.srf', 'SRF RAW'], ['a.sr2', 'SR2 RAW'],
+    ['a.CR2', 'CR2 RAW'], ['IMG_0001.CR3', 'CR3 RAW'], ['a.RAF', 'RAF RAW'], ['a.rw2', 'RW2 RAW'], ['a.orf', 'ORF RAW'], ['a.pef', 'PEF RAW'], ['a.dng', 'DNG RAW']]) {
+    assert.equal(rawPreviewLabel(name), label, name);
+  }
   assert.match(PHOTO_ACCEPT, /\.cr3/);
   assert.match(PHOTO_ACCEPT, /\.arw/);
 });
