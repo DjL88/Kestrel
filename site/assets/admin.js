@@ -41,6 +41,17 @@ async function api(path, body) {
   return result;
 }
 
+/**
+ * A look-up for a feature this server may not be set up for. The server answers 200 with `configured: false` (never a
+ * server error, so the owner's error alert stays for real faults); here that becomes the section's "not set up" path,
+ * the same one an older server's 503 takes.
+ */
+async function lookUp(path) {
+  const answer = await api(path);
+  if (answer?.configured === false) throw Object.assign(new Error(answer.reason || 'Not set up yet.'), { status: 503, notSetUp: true });
+  return answer;
+}
+
 function say(message) { status.textContent = message; }
 
 /** Runs an action from a form or button, keeps the control disabled meanwhile, and reports errors in words. */
@@ -49,7 +60,70 @@ function act(element, event, work) {
     e.preventDefault();
     const button = e.submitter ?? (element.tagName === 'BUTTON' ? element : element.querySelector('button'));
     if (button) button.disabled = true;
-    try { await work(e); } catch (error) { if (!(error instanceof SignedOut)) say(error.message); } finally { if (button) button.disabled = false; }
+    try { await work(e); } catch (error) { if (!(error instanceof SignedOut)) say(error.message); } finally {
+      if (button) {
+        button.disabled = false;
+        // After a question in the page, focus goes back to the button that asked it (if it is still there).
+        // Straight after a <dialog> closes the browser still reports focus on its own button, so that counts too.
+        const at = document.activeElement;
+        if (button.isConnected && (!at || at === document.body || $('ask').contains(at))) button.focus({ preventScroll: true });
+      }
+    }
+  });
+}
+
+// ---- Questions in the page ------------------------------------------------------------------------------------
+// Never confirm() or prompt(): embedded browsers (the Claude app's browser pane, some webviews) cancel them silently,
+// so "Turn on" did nothing there. A modal <dialog> keeps keyboard focus inside it; Escape and "Go back" cancel.
+
+const askDialog = $('ask');
+let closeAsk = null;
+// Tab and Shift+Tab go round the question's own controls only, never out to the page or the browser.
+askDialog.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab') return;
+  const stops = [...askDialog.querySelectorAll('input, button')].filter((node) => !node.disabled && node.offsetParent !== null);
+  if (!stops.length) return;
+  const at = stops.indexOf(document.activeElement);
+  e.preventDefault();
+  stops[(at + (e.shiftKey ? -1 : 1) + stops.length) % stops.length].focus();
+});
+
+/**
+ * Asks before an action. Resolves `true` (or the typed text, when `field` is given) once the person chooses `yes`,
+ * and `null` when they go back, press Escape or sign out.
+ * @param {string} question
+ * @param {{ yes?: string, danger?: boolean, field?: { label: string, min?: number, tooShort: string } }} [options]
+ */
+function ask(question, { yes = 'Yes', danger = false, field = null } = {}) {
+  if (closeAsk) closeAsk(null);
+  return new Promise(resolve => {
+    const ok = $('ask-ok'), back = $('ask-cancel'), input = $('ask-field');
+    $('ask-text').textContent = question;
+    ok.textContent = yes;
+    ok.className = danger ? 'danger' : '';
+    $('ask-error').textContent = '';
+    $('ask-field-label').hidden = !field;
+    input.value = '';
+    if (field) $('ask-field-name').textContent = field.label;
+    const finish = (value) => {
+      closeAsk = null;
+      ok.onclick = back.onclick = input.onkeydown = askDialog.oncancel = null;
+      if (askDialog.open) askDialog.close();
+      resolve(value);
+    };
+    closeAsk = finish;
+    ok.onclick = () => {
+      if (!field) { finish(true); return; }
+      const text = input.value.trim();
+      if (text.length < (field.min ?? 1)) { $('ask-error').textContent = field.tooShort; input.focus(); return; }
+      finish(text);
+    };
+    back.onclick = () => finish(null);
+    askDialog.oncancel = (e) => { e.preventDefault(); finish(null); };
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } };
+    askDialog.showModal();
+    // Typing goes straight into the field; for something that cannot be taken back, the safe choice has focus.
+    (field ? input : danger ? back : ok).focus();
   });
 }
 
@@ -94,6 +168,7 @@ async function startConsole(accessToken, who) {
 
 function signOut(message = '') {
   token = undefined;
+  if (closeAsk) closeAsk(null);
   clearInterval(autoCheck);
   snapshot = {};
   $('needs-list').replaceChildren();
@@ -254,7 +329,7 @@ function renderToday(needs, unknown) {
 
 async function loadRefunds() {
   let refunds;
-  try { ({ refunds } = await api('admin/balance-refunds')); } catch (error) {
+  try { ({ refunds } = await lookUp('admin/balance-refunds')); } catch (error) {
     if (error instanceof SignedOut) throw error;
     // 503: account deletion is not set up on this server, so nothing can be owed.
     snapshot.refunds = error.status === 503 ? undefined : null;
@@ -269,10 +344,12 @@ async function loadRefunds() {
     const text = el('div');
     text.append(el('strong', gbp.format(r.pence / 100) + ' to account '), code(r.accountId), el('p', 'Owed since ' + when(r.owedAtMs) + '.', 'muted'));
     li.append(text, button('Mark refunded', 'Mark the refund to ' + r.accountId + ' as paid', '', async () => {
-      const reference = prompt('Paddle reference for this refund (from the Paddle dashboard)');
+      const reference = await ask('Mark ' + gbp.format(r.pence / 100) + ' to account ' + r.accountId + ' as refunded? Pay it back in Paddle first.', {
+        yes: 'Mark refunded',
+        field: { label: 'Paddle reference for this refund (from the Paddle dashboard)', min: 3, tooShort: 'Enter the Paddle reference so the refund can be traced.' },
+      });
       if (reference === null) return;
-      if (reference.trim().length < 3) { say('Enter the Paddle reference so the refund can be traced.'); return; }
-      await api('admin/balance-refunds/' + encodeURIComponent(r.accountId) + '/refunded', { paddleReference: reference.trim() });
+      await api('admin/balance-refunds/' + encodeURIComponent(r.accountId) + '/refunded', { paddleReference: reference });
       await Promise.all([loadRefunds(), loadAudit()]);
       renderNeeds();
       say('Marked refunded.');
@@ -320,7 +397,7 @@ function renderLicensees() {
       const item = el('li');
       item.append(el('span', d.platform + ' · ' + d.appVersion + ' · last seen ' + when(d.lastSeenMs) + ' '),
         button('Free up', 'Free up the ' + d.platform + ' device on licence ' + l.licenceId, 'quiet', async () => {
-          if (!confirm('Free up this ' + d.platform + ' device? It keeps working offline for up to 30 days, and the licence can then be used on another device.')) return;
+          if (!(await ask('Free up this ' + d.platform + ' device? It keeps working offline for up to 30 days, and the licence can then be used on another device.', { yes: 'Free up' }))) return;
           await api('admin/devices/' + encodeURIComponent(d.activationId) + '/deactivate', {});
           await loadLicensees();
           say('Device freed up on licence ' + l.licenceId + '.');
@@ -332,7 +409,7 @@ function renderLicensees() {
     const actions = el('div', undefined, 'row');
     if (l.status !== 'revoked') {
       actions.append(button('Cancel licence', 'Cancel licence ' + l.licenceId, 'danger', async () => {
-        if (!confirm('Cancel licence ' + l.licenceId + '? No new devices or renewals. Nobody loses photos or edits.')) return;
+        if (!(await ask('Cancel licence ' + l.licenceId + '? No new devices or renewals. Nobody loses photos or edits.', { yes: 'Cancel licence', danger: true }))) return;
         await api('admin/licences/' + encodeURIComponent(l.licenceId) + '/revoke', {});
         await loadLicensees();
         say('Licence ' + l.licenceId + ' cancelled.');
@@ -349,7 +426,7 @@ $('licence-filter').addEventListener('input', renderLicensees);
 act($('revoke-key-form'), 'submit', async () => {
   const form = $('revoke-key-form');
   const licenceKey = form.elements.licenceKey.value.trim();
-  if (!confirm('Cancel this key? Devices using it lose Pro when they next check online. Nobody loses photos or edits.')) return;
+  if (!(await ask('Cancel this key? Devices using it lose Pro when they next check online. Nobody loses photos or edits.', { yes: 'Cancel this key', danger: true }))) return;
   // Clear the key from the page whatever happens, so it is not left on screen.
   form.reset();
   const result = await api('admin/licences/revoke-by-key', { licenceKey });
@@ -495,7 +572,7 @@ async function loadUsage() {
 
 async function loadPaddleKey() {
   let k;
-  try { k = await api('admin/paddle/key'); } catch (error) {
+  try { k = await lookUp('admin/paddle/key'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.paddleKey = undefined;
     $('paddle-key-state').textContent = '';
@@ -761,7 +838,7 @@ async function loadPriceReview() {
   $('price-review-table').hidden = true;
   $('price-review-rows').replaceChildren();
   let review;
-  try { ({ review } = await api('admin/pricing/review')); } catch (error) {
+  try { ({ review } = await lookUp('admin/pricing/review')); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('price-review-status').textContent = error.message;
     return;
@@ -800,7 +877,7 @@ ossForm.elements.quarter.value = Math.floor(new Date().getMonth() / 3) + 1;
 
 async function loadTax() {
   let summary;
-  try { summary = await api('admin/tax'); } catch (error) {
+  try { summary = await lookUp('admin/tax'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('tax-body').hidden = true;
     $('tax-unavailable').hidden = false;
@@ -869,11 +946,8 @@ flagPick.addEventListener('change', showFlagPick);
 // Details only. There is deliberately no way to open a reported picture from here. InFlight does not scan photos
 // (#1814): reports come from people with a gallery link, and the only actions are no action, remove or revoke.
 
-function askReason(question) {
-  const reason = prompt(question);
-  if (reason === null) return null;
-  if (reason.trim().length < 3) { say('Give a short reason: it is shown to the people involved.'); return null; }
-  return reason.trim();
+function askReason(question, yes) {
+  return ask(question, { yes, danger: yes !== 'No action', field: { label: 'Reason', min: 3, tooShort: 'Give a short reason: it is shown to the people involved.' } });
 }
 
 const REPORT_WORDS = { 'no-action': 'No action', 'photo-removed': 'Photo removed', 'gallery-revoked': 'Gallery closed' };
@@ -903,7 +977,7 @@ async function loadSafety() {
     const actions = el('div', undefined, 'row');
     if (n.status === 'open') {
       const decide = (outcome, label, question) => button(label, label + ' for report ' + n.noticeId, outcome === 'no-action' ? 'quiet' : 'danger', async () => {
-        const reason = askReason(question); if (!reason) return;
+        const reason = await askReason(question, label); if (!reason) return;
         await api('admin/safety/notices/' + n.noticeId + '/decide', { outcome, reason });
         await Promise.all([loadSafety(), loadAudit()]); renderNeeds(); say('Done. The person who reported it and the gallery owner can see your reason.');
       });
@@ -931,8 +1005,10 @@ async function loadSwitches() {
     state.append(badge(word, item.on ? 'good' : !item.configured ? 'quiet' : undefined));
     const turn = !item.on;
     const action = button(turn ? 'Turn on' : 'Turn off', (turn ? 'Turn on ' : 'Turn off ') + item.label, turn ? '' : 'danger', async () => {
-      if (turn && !confirm('Turn on ' + item.label + '? Anything that costs money stays within the monthly spending cap.')) return;
-      if (!turn && !confirm('Turn off ' + item.label + '? It stops straight away for everyone.')) return;
+      const sure = turn
+        ? await ask('Turn on ' + item.label + '? Anything that costs money stays within the monthly spending cap.', { yes: 'Turn on' })
+        : await ask('Turn off ' + item.label + '? It stops straight away for everyone.', { yes: 'Turn off', danger: true });
+      if (!sure) return;
       await api('admin/switches/set', { key: item.key, on: turn });
       await Promise.all([loadSwitches(), loadAudit()]);
       say(item.label + (turn ? ' is on.' : ' is off.'));
@@ -952,7 +1028,7 @@ act(newsForm, 'submit', async (e) => {
   const f = newsForm.elements;
   const body = { title: f.title.value.trim(), body: f.body.value.trim(), dryRun };
   if (f.broadcastId.value.trim()) body.broadcastId = f.broadcastId.value.trim();
-  if (!dryRun && !confirm('Send this news to everyone now? As an alert first; by email only to people who asked for it.')) return;
+  if (!dryRun && !(await ask('Send this news to everyone now? As an alert first; by email only to people who asked for it.', { yes: 'Send now' }))) return;
   const r = await api('admin/news/send', body);
   f.broadcastId.value = r.broadcastId;
   $('news-result').textContent = (dryRun ? 'Nothing sent. It would reach: ' : 'Sent. ') + r.audience + ' people in all; ' +
@@ -969,7 +1045,7 @@ let complianceMaxBytes = 8_000_000;
 
 async function loadCompliance() {
   let c;
-  try { c = await api('admin/compliance/documents'); } catch (error) {
+  try { c = await lookUp('admin/compliance/documents'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('compliance-unavailable').hidden = false; $('compliance-form').hidden = true; $('compliance-empty').hidden = true;
     $('compliance-table').tBodies[0].replaceChildren(); return;
@@ -1009,7 +1085,7 @@ act($('compliance-form'), 'submit', async () => {
 
 async function loadMail() {
   let m;
-  try { m = await api('admin/mail'); } catch (error) {
+  try { m = await lookUp('admin/mail'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.mail = undefined;
     $('mail-unavailable').hidden = false; $('mail-warning').hidden = true; $('mail-facts').replaceChildren(); return;
@@ -1031,7 +1107,7 @@ const WHY = { count: 'Enough new photos', weekly: 'Weekly', manual: 'Train now' 
 const RESULT = { reserved: 'Starting', submitted: 'Running', succeeded: 'Finished', failed: 'Failed (the money set aside still counts)', 'not-started': 'Not started (nothing charged)' };
 async function loadLearning() {
   let s;
-  try { s = await api('admin/learning'); } catch (error) {
+  try { s = await lookUp('admin/learning'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.learning = undefined;
     $('learning-unavailable').hidden = false; $('learning-run').disabled = true; $('learning-facts').replaceChildren(); return;
@@ -1058,7 +1134,7 @@ async function loadLearning() {
   }));
 }
 act($('learning-run'), 'click', async () => {
-  if (!confirm('Start a training batch now? It is refused if it would pass this month’s limit.')) return;
+  if (!(await ask('Start a training batch now? It is refused if it would pass this month’s limit.', { yes: 'Train now' }))) return;
   const r = await api('admin/learning/run', {});
   await Promise.all([loadLearning(), loadAudit()]);
   say(r.startedNow ? 'Training check started. A batch begins if there is something new and it fits within this month’s limit.' : 'Train now will start at the next hourly check.');
@@ -1092,7 +1168,7 @@ function renderFlags() {
     actions.append(
       button('Change', 'Change ' + flagName(key), 'quiet', async () => editFlag(key)),
       button('Remove', 'Remove the flag ' + flagName(key), 'danger', async () => {
-        if (!confirm('Remove the flag for ' + flagName(key) + '? The app goes back to its own setting for it.')) return;
+        if (!(await ask('Remove the flag for ' + flagName(key) + '? The app goes back to its own setting for it.', { yes: 'Remove', danger: true }))) return;
         await api('admin/flags/delete', { key });
         await Promise.all([loadFlags(), loadAudit()]);
         say('Removed the flag for ' + flagName(key) + '.');

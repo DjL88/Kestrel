@@ -16,6 +16,13 @@ import type { AppContext } from './appContext.ts';
 
 export function adminRoutes(ctx: AppContext): Route[] {
   const { options, config, commerce, store, now, paddleSandbox, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  /**
+   * A feature this server has not been set up for is a normal answer for the admin page's own look-ups, not an outage:
+   * 200 with `configured: false` and the reason in words. 503 stays for real failures, so the "server errors" alert
+   * fires only for those. (On 27 Nov the page's checks of Paddle key renewal and model training raised 12 alerts.)
+   */
+  const notSetUp = (claims: Parameters<typeof adminDone>[0], action: string, reason: string) =>
+    adminDone(claims, action, 'not configured', { configured: false, reason });
   return [
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
@@ -32,7 +39,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the sending account\'s Google limit', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'mail.read');
-      if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
+      if (!options.mailer) return notSetUp(claims, 'mail.read', 'App email is not set up on this server.');
       return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
     },
   },
@@ -52,6 +59,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/compliance/documents', summary: 'Signed compliance documents (risk assessments), newest first', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'compliance.list');
+      if (!options.compliance) return notSetUp(claims, 'compliance.list', 'The signed documents store is not set up on this server yet.');
       const docs = await compliance(() => complianceCfg().list());
       return adminDone(claims, 'compliance.list', String(docs.length), { documents: docs.map(({ sha256: _s, ...d }) => d), maxBytes: COMPLIANCE_MAX_BYTES });
     },
@@ -142,7 +150,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/tax', summary: 'Read UK VAT settings and rolling turnover', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'tax.read');
-      if (!commerce) throw new ApiError(503, 'TAX_STORE_UNAVAILABLE', 'Tax reporting needs the Firestore commerce ledger.');
+      if (!commerce) return notSetUp(claims, 'tax.read', 'Tax reporting needs the Firestore commerce ledger, which this server does not have.');
       const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/London' }).format(now());
       const [settings, turnover] = await Promise.all([commerce.getTaxSettings(), commerce.recordTurnover(today)]);
       return adminDone(claims, 'tax.read', '', {
@@ -164,7 +172,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/pricing/review', summary: 'Read the latest scheduled price proposal', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'pricing.review.read');
-      if (!options.pricing) throw new ApiError(503, 'PRICING_REVIEW_UNAVAILABLE', 'Price reviews need the Firestore commerce ledger.');
+      if (!options.pricing) return notSetUp(claims, 'pricing.review.read', 'Price reviews need the Firestore commerce ledger, which this server does not have.');
       return adminDone(claims, 'pricing.review.read', '', { review: await options.pricing.latestPriceReview() });
     },
   },
@@ -261,7 +269,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/paddle/key', summary: 'When the Paddle API key was last renewed, when it expires, and how the last weekly check went', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'paddle.key.read');
-      if (!options.paddleKeyStatus) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle key renewal is not set up.');
+      if (!options.paddleKeyStatus) return notSetUp(claims, 'paddle.key.read', 'Renewing the Paddle key by itself is not set up on this server.');
       const status = await options.paddleKeyStatus();
       return adminDone(claims, 'paddle.key.read', '', {
         rotatedAt: status.current?.rotatedAt ?? null, expiresAt: status.current?.expiresAt ?? null, activated: status.current?.activated ?? null,
@@ -357,7 +365,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await admin(req, 'learning.read');
       const vl = options.vertexLearning;
-      if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+      if (!vl) return notSetUp(claims, 'learning.read', 'Model training is not set up on this server.');
       const state = await vl.ledger.state();
       const month = billingMonth(now());
       return adminDone(claims, 'learning.read', '', {
@@ -536,6 +544,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/balance-refunds', summary: 'Unused cloud balances owed back after an account deletion, to refund through Paddle', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'balance.refund.list');
+      if (!options.accountErasure) return notSetUp(claims, 'balance.refund.list', 'Account deletion is not set up on this server, so no refund can be owed.');
       const refunds = await erasureCfg().owedRefunds();
       return adminDone(claims, 'balance.refund.list', `owed=${refunds.length}`, { refunds });
     },

@@ -52,8 +52,8 @@ test('switches use plain names with a one-line effect, the technical name small,
   await expect(list).not.toContainText('metadata-free');
   await expect(list.locator('li', { hasText: 'Selling Pro' }).locator('code')).toHaveText('pro-checkout');
   await expect(list.locator('li', { hasText: 'Share corrections' })).toContainText('Not set up yet');
-  page.once('dialog', (d) => { void d.accept(); });
   await list.getByRole('button', { name: 'Turn off Phone and browser alerts' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Turn off', exact: true }).click();
   await expect(page.locator('#status')).toContainText('Phone and browser alerts is off.');
   expect(posts).toContainEqual({ path: '/v1/admin/switches/set', body: { key: 'push', on: false } });
 });
@@ -133,4 +133,75 @@ test('a link straight to a section opens its page and unfolds it', async ({ page
   await expect(page.locator('#page-title')).toHaveText('Advanced');
   await expect(page.locator('#tax')).toHaveAttribute('open', '');
   await expect(menu(page).getByRole('link', { name: 'Advanced' })).toHaveAttribute('aria-current', 'page');
+});
+
+test('switches ask in the page, never with the browser’s confirm(), and call the server only after Yes', async ({ page }) => {
+  // Embedded browsers (the Claude app's pane, webviews) cancel confirm() silently, so "Turn on" did nothing there.
+  const nativeDialogs: string[] = [];
+  page.on('dialog', (d) => { nativeDialogs.push(d.message()); void d.dismiss(); });
+  const posts = await signInAdmin(page, origin);
+  await openPage(page, 'Switches');
+  const turnOn = page.locator('#switch-list').getByRole('button', { name: 'Turn on Selling Pro' });
+  const ask = page.getByRole('dialog');
+
+  // Go back: nothing is sent, and focus returns to the button that asked.
+  await turnOn.click();
+  await expect(ask).toBeVisible();
+  await expect(ask).toContainText('Turn on Selling Pro? Anything that costs money stays within the monthly spending cap.');
+  await ask.getByRole('button', { name: 'Go back' }).click();
+  await expect(ask).toBeHidden();
+  await expect(turnOn).toBeFocused();
+
+  // Escape cancels too, and the keyboard stays inside the question while it is open.
+  await turnOn.click();
+  await expect(ask.getByRole('button', { name: 'Turn on', exact: true })).toBeFocused();
+  for (let i = 0; i < 4; i += 1) {
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(ask).toBeHidden();
+  expect(posts.filter((p) => p.path === '/v1/admin/switches/set')).toEqual([]);
+
+  // Yes: the same server call as before.
+  await turnOn.click();
+  await ask.getByRole('button', { name: 'Turn on', exact: true }).click();
+  await expect(page.locator('#status')).toContainText('Selling Pro is on.');
+  expect(posts.filter((p) => p.path === '/v1/admin/switches/set')).toEqual([{ path: '/v1/admin/switches/set', body: { key: 'pro-checkout', on: true } }]);
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('turning something off puts focus on Go back first, so Enter does not switch it off by accident', async ({ page }) => {
+  const posts = await signInAdmin(page, origin);
+  await openPage(page, 'Switches');
+  await page.locator('#switch-list').getByRole('button', { name: 'Turn off Phone and browser alerts' }).click();
+  const ask = page.getByRole('dialog');
+  await expect(ask.getByRole('button', { name: 'Go back' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(ask).toBeHidden();
+  expect(posts.filter((p) => p.path === '/v1/admin/switches/set')).toEqual([]);
+});
+
+test('a feature the server is not set up for reads "Not set up yet", with no error anywhere', async ({ page }) => {
+  // The server now answers these with 200 and configured: false, not a 503 (which set off the owner's error alert).
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  const notSet = (reason: string) => ({ configured: false, reason });
+  await signInAdmin(page, origin, {
+    '/v1/admin/learning': notSet('Model training is not set up on this server.'),
+    '/v1/admin/paddle/key': notSet('Renewing the Paddle key by itself is not set up on this server.'),
+    '/v1/admin/mail': notSet('App email is not set up on this server.'),
+    '/v1/admin/tax': notSet('Tax reporting needs the Firestore commerce ledger, which this server does not have.'),
+  });
+  await expect(page.locator('#needs-unknown')).toBeHidden();
+  await openPage(page, 'Advanced');
+  // By section: 'Model training' is also the name of a switch on another page.
+  await page.locator('#learning > summary').click();
+  await expect(page.locator('#learning-unavailable')).toHaveText('Not set up on this server yet.');
+  await expect(page.locator('#learning-run')).toBeDisabled();
+  await page.locator('#tax > summary').click();
+  await expect(page.locator('#tax-unavailable')).toContainText('does not have');
+  await expect(page.locator('#status')).toBeEmpty();
+  expect(errors).toEqual([]);
 });

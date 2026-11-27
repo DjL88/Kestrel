@@ -192,7 +192,9 @@ test('shadow files count their photo once, inside the same consented write', asy
 test('admin: status and Learn now, switch first, the ceiling still applies, audited', async () => {
   const bare = await startHarness(undefined, undefined, { requireAdminSwitch: true });
   try {
-    assert.equal((await bare.call('GET', '/v1/admin/learning', { token: bare.adminToken })).status, 503);
+    const notSet = await bare.call('GET', '/v1/admin/learning', { token: bare.adminToken });
+    assert.equal(notSet.status, 200, 'not set up is an answer, not a server error');
+    assert.equal(notSet.body.configured, false);
     const sw = (await bare.call('GET', '/v1/admin/switches', { token: bare.adminToken })).body.switches.find((s: any) => s.key === 'vertex-learning');
     assert.equal(sw.configured, false, 'not set up until the job exists');
   } finally { await bare.close(); }
