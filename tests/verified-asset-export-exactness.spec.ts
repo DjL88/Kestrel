@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 import { mosaic } from './rawFixture';
@@ -42,6 +43,7 @@ async function exportZip(page: Page, root: ReturnType<Page['locator']>, original
   const dialog = page.getByRole('dialog', { name: /export/i });
   await root.getByRole('button', { name: /^Export/ }).first().click();
   await expect(dialog).toBeVisible();
+  await openExportAdvanced(dialog);
   if (original) {
     await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
     await dialog.getByRole('button', { name: /After \(edited\)/ }).click();

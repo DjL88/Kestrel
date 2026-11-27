@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 
 /**
  * Owner checklist: see a 2× or 4× output enlargement on the canvas before exporting. The preview is made by the export's
@@ -68,6 +69,7 @@ test('the enlargement preview is the exported picture: same size and pixels as t
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const exportDialog = page.getByRole('dialog', { name: /export/i });
   await exportDialog.getByRole('button', { name: /Download individual files/i }).click();
+  await openExportAdvanced(exportDialog);
   await exportDialog.getByRole('combobox', { name: /File format/i }).selectOption('png');
   const downloading = page.waitForEvent('download', { timeout: 90_000 });
   await exportDialog.getByRole('button', { name: /^Save files$/i }).click();

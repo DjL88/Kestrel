@@ -1,4 +1,4 @@
-import { openV2Settings } from './helpers';
+import { openExportAdvanced, openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -830,6 +830,7 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  await openExportAdvanced(dialog);
   // The wording never passes a developed copy off as the original.
   await expect(dialog.getByRole('button', { name: /Before: unedited, developed to JPEG \(not the original file\)/ })).toBeVisible();
   // Original file only.
@@ -848,6 +849,7 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await page.waitForTimeout(500);
   if (!(await page.getByRole('dialog', { name: /export/i }).isVisible())) await root.getByRole('button', { name: /^Export/ }).first().click();
   const again = page.getByRole('dialog', { name: /export/i });
+  await openExportAdvanced(again);
   const states = await again.getByRole('button', { name: /Original file: exact copy/ }).getAttribute('aria-pressed');
   if (states === 'true') await again.getByRole('button', { name: /Original file: exact copy/ }).click();
   await again.getByRole('button', { name: /Before: unedited/ }).click();

@@ -15,12 +15,13 @@ export default function CaptionsSection({ template, onChange }: { template: Capt
     ['city', t.captionCity], ['country', t.captionCountry], ['keywords', t.captionKeywords],
   ];
   return (
-    <details className="space-y-2 border-t border-[var(--border-subtle)] pt-4" data-testid="export-captions" open={template.enabled || undefined}>
+    <details className="space-y-2" data-testid="export-captions" open={template.enabled || undefined}>
       <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)]">{t.captionsHeading}</summary>
       <label className="flex items-center gap-2 pt-2 text-xs text-[var(--text-primary)]">
         <input type="checkbox" checked={template.enabled} onChange={(event) => set('enabled', event.target.checked)} />
         {t.captionsOn}
       </label>
+      <p className="text-[0.6875rem] text-[var(--text-secondary)]" data-testid="export-captions-metadata-only">{t.captionsMetadataOnly}</p>
       <p className="text-[0.6875rem] text-[var(--text-secondary)]">{t.captionsHelp}</p>
       <label className="block text-[0.6875rem] text-[var(--text-secondary)]">
         {t.captionCaption}
