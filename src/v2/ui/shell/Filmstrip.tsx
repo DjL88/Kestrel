@@ -452,7 +452,10 @@ export default function Filmstrip({
       )}
 
       {/* Dock Header Toolbar */}
-      <div className="v2-filmstrip-tools flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
+      {/* overflow-x-scroll, not auto: the (invisible) scrollbar track is always there, so the row keeps one height. With
+          auto, a scrollbar came and went as an import's progress made the row overflow, the canvas above grew or shrank by
+          its height, and Fit moved: the photo jumped about 10 px near Fit on Windows (27 Nov). */}
+      <div className="v2-filmstrip-tools flex flex-nowrap items-center justify-between gap-2 overflow-x-scroll px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
         {/* Selection, import and Auto-Cull controls */}
         <div className="flex shrink-0 items-center gap-2">
 
