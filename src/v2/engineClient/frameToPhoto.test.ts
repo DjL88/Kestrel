@@ -53,6 +53,13 @@ test('tile state follows the picture: importing until a thumbnail exists, unavai
   assert.equal(frameToPhoto(frame(), { failed: true }).originalConnected, false);
 });
 
+test('a photo in a reopened project whose thumbnail is still on its way never says Importing', () => {
+  assert.equal(tileStateFor(undefined, false), 'ready');
+  assert.equal(frameToPhoto(frame(), undefined, { beingImported: false }).state, 'ready');
+  assert.equal(frameToPhoto(frame(), undefined, { beingImported: true }).state, 'importing', 'only the import now running says it');
+  assert.equal(tileStateFor({ failed: true }, false), 'unavailable', 'a failed thumbnail still says so');
+});
+
 test('a photo whose compression cannot be read yet says so, and is not called missing or offered a develop', () => {
   assert.equal(tileStateFor({ unsupported: 'jpeg-xl' }), 'unsupported');
   assert.equal(tileStateFor({ thumb: 'blob:t', unsupported: 'jpeg-xl', failed: true }), 'unsupported');
@@ -359,4 +366,13 @@ test('Info: beside the histogram, the as-shot white when known, otherwise nothin
   assert.equal(asShotWords({ asShotWhite: { kelvin: 5612.4, duv: 0.001 } } as never), 'As shot about 5,612 K (estimated)');
   assert.equal(asShotWords({}), '');
   assert.equal(asShotWords({ asShotWhite: { kelvin: Number.NaN, duv: 0 } } as never), '');
+});
+
+test('the Look again action is offered only on an automatic species name, never on the person\'s own or a kind word', async () => {
+  const { speciesAutoOf } = await import('./frameToPhoto');
+  assert.equal(speciesAutoOf({ tags: ['Bird', 'Atlantic Puffin'], autoTags: ['Atlantic Puffin'] }), true);
+  assert.equal(speciesAutoOf({ tags: ['Atlantic Puffin'], autoTags: ['Atlantic Puffin'], subjectNames: ['Atlantic Puffin'] }), false);
+  assert.equal(speciesAutoOf({ tags: ['Atlantic Puffin'], autoTags: [] }), false);
+  assert.equal(speciesAutoOf({ tags: ['Bird'], autoTags: ['Bird'] }), false);
+  assert.equal(speciesAutoOf({ tags: [] }), false);
 });

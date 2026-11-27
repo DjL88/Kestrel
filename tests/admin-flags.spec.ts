@@ -54,17 +54,19 @@ test('the Flags page lists each flag with its rules in plain words, and says wha
     export: { default: true, rules: [] },
   });
   await signIn(page);
-  const table = page.locator('#flags-table');
+  const table = page.locator('#flag-list');
   await expect(table.getByText('People without an account: on (trial), from 22 Nov 2026, last day 24 Nov 2026')).toBeVisible();
-  await expect(table.getByText('Never switched off')).toBeVisible();
-  await expect(page.locator('#never-gated')).toContainText('import, basicEditing, cropAndStraighten, export, localBackup');
+  await expect(table.getByText('Always on in the app')).toBeVisible();
+  // Plain names first, the technical name small beside them.
+  await expect(table.getByRole('heading', { name: 'Smart culling smartCulling' })).toBeVisible();
+  await expect(page.locator('#never-gated')).toContainText('Import, Basic editing, Crop and straighten, Export, Local backup');
 });
 
 test('adding a trial for Basic people sends exactly the rule that was described', async ({ page }) => {
   const writes = await mockApi(page, {});
   await signIn(page);
   await expect(page.locator('#flags-empty')).toBeVisible();
-  await page.locator('#flag-key').fill('smartCulling');
+  await page.getByLabel('Feature', { exact: true }).selectOption('smartCulling');
   await page.getByRole('button', { name: 'Add a rule' }).click();
   const row = page.locator('.rule-row').first();
   await row.locator('select').nth(0).selectOption('plan');
@@ -73,16 +75,16 @@ test('adding a trial for Basic people sends exactly the rule that was described'
   await row.getByLabel('First day').fill('2026-11-22');
   await row.getByLabel('Last day (empty = until stopped)').fill('2026-11-24');
   await page.getByRole('button', { name: 'Save flag' }).click();
-  await expect(page.locator('#status')).toContainText('Saved smartCulling.');
+  await expect(page.locator('#status')).toContainText('Saved Smart culling.');
   expect(writes).toHaveLength(1);
   expect(writes[0].body).toEqual({ key: 'smartCulling', flag: { default: false, rules: [{ audience: { kind: 'plan', plan: 'basic' }, enabled: true, trial: true, startsAtMs: NOV22, endsAtMs: NOV22 + 3 * 86_400_000 }] } });
-  await expect(page.locator('#flags-table').getByText('Basic: on (trial), from 22 Nov 2026, last day 24 Nov 2026')).toBeVisible();
+  await expect(page.locator('#flag-list').getByText('Basic: on (trial), from 22 Nov 2026, last day 24 Nov 2026')).toBeVisible();
 });
 
 test('a trial with no last day runs until stopped, and a mistake is explained without sending anything', async ({ page }) => {
   const writes = await mockApi(page, {});
   await signIn(page);
-  await page.locator('#flag-key').fill('watermark');
+  await page.getByLabel('Feature', { exact: true }).selectOption('watermark');
   await page.getByRole('button', { name: 'Add a rule' }).click();
   const row = page.locator('.rule-row').first();
   await row.getByLabel('First day').fill('2026-11-24');
@@ -94,7 +96,7 @@ test('a trial with no last day runs until stopped, and a mistake is explained wi
   await row.getByLabel('Last day (empty = until stopped)').fill('');
   await row.getByLabel('Trial').check();
   await page.getByRole('button', { name: 'Save flag' }).click();
-  await expect(page.locator('#flags-table').getByText('Basic: on (trial), until stopped')).toBeVisible();
+  await expect(page.locator('#flag-list').getByText('Basic: on (trial), until stopped')).toBeVisible();
   expect(writes).toHaveLength(1);
   expect('endsAtMs' in (writes[0].body.flag.rules[0] as object)).toBe(false);
 });
@@ -102,14 +104,15 @@ test('a trial with no last day runs until stopped, and a mistake is explained wi
 test('Edit loads a flag into the form and Delete removes it after confirming', async ({ page }) => {
   const writes = await mockApi(page, { masks: { default: true, kill: true, minAppVersion: '26.11.2', rules: [{ audience: { kind: 'corporate', name: 'Acme Ltd' }, enabled: false }] } });
   await signIn(page);
-  await expect(page.locator('#flags-table').getByText('Switched off now')).toBeVisible();
-  await page.getByRole('button', { name: 'Edit masks' }).click();
+  await expect(page.locator('#flag-list').getByText('Off for everyone now')).toBeVisible();
+  await page.getByRole('button', { name: 'Change Masks' }).click();
+  await expect(page.getByLabel('Feature', { exact: true })).toHaveValue('masks');
   await expect(page.locator('#flag-key')).toHaveValue('masks');
-  await expect(page.getByLabel('Minimum app version (optional)')).toHaveValue('26.11.2');
+  await expect(page.getByLabel('Only app version … or newer (optional)')).toHaveValue('26.11.2');
   await expect(page.locator('.rule-row').first().getByLabel('Name or email')).toHaveValue('Acme Ltd');
   page.once('dialog', (dialog) => { void dialog.accept(); });
-  await page.getByRole('button', { name: 'Delete masks' }).click();
-  await expect(page.locator('#status')).toContainText('Deleted masks.');
+  await page.getByRole('button', { name: 'Remove the flag Masks' }).click();
+  await expect(page.locator('#status')).toContainText('Removed the flag for Masks.');
   expect(writes.map((w) => w.path)).toEqual(['admin/flags/delete']);
   await expect(page.locator('#flags-empty')).toBeVisible();
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LAST_EXPORT_FOLDER_KEY, lastExportFolder, reasonOf, rememberExportFolder } from './exportFolderChoice';
+import { LAST_EXPORT_FOLDER_KEY, lastExportFolder, parentFolder, reasonOf, rememberExportFolder, saveStartFolder } from './exportFolderChoice';
 
 test('the folder picker starts where the last export went, and nowhere odd', () => {
   const values = new Map<string, string>();
@@ -20,4 +20,16 @@ test('the real reason is shown, also when the desktop app rejects with plain tex
   assert.equal(reasonOf({ message: 'disk full' }), 'disk full');
   assert.equal(reasonOf(undefined), '');
   assert.equal(reasonOf(42), '');
+});
+
+test('an export Save As starts at the last export folder, else Pictures/InFlight Exports, else Pictures, never beside the originals', () => {
+  const pictures = String.raw`C:\Users\d\Pictures`;
+  const inflight = String.raw`C:\Users\d\Pictures\InFlight Exports`;
+  assert.equal(saveStartFolder({ last: String.raw`E:\Exports`, pictures, inflightExports: inflight, inflightExportsExists: true }), String.raw`E:\Exports`);
+  assert.equal(saveStartFolder({ pictures, inflightExports: inflight, inflightExportsExists: true }), inflight);
+  assert.equal(saveStartFolder({ pictures, inflightExports: inflight, inflightExportsExists: false }), pictures);
+  assert.equal(saveStartFolder({}), undefined);
+  assert.equal(parentFolder(String.raw`D:\Exports\kingfisher.zip`), String.raw`D:\Exports`);
+  assert.equal(parentFolder('/Users/d/Pictures/a.zip'), '/Users/d/Pictures');
+  assert.equal(parentFolder('a.zip'), undefined);
 });

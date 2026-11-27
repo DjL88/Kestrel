@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { CollabRole } from '../../../core/collabRoles';
 import type { CloudPhotoView, CloudUsage, CollabClient } from '../../../providers/collabClient';
+import { CollabError } from '../../../providers/collabClient';
 import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
 import { STRINGS } from '../strings';
 import { creditsFor, fetchCloudOriginal } from './cloudOriginals';
@@ -18,6 +19,11 @@ interface CloudPhotosPanelProps {
   importCloud?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   attachOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   onProblem: (error: unknown) => void;
+  /**
+   * Cloud storage is full (the server refused with STORAGE_NEEDS_CREDIT): how many photos went up in this run and how
+   * many are still only on this device. Absent: the refusal goes to onProblem like any other.
+   */
+  onStorageFull?: (sent: number, left: number) => void;
 }
 
 
@@ -26,7 +32,7 @@ interface CloudPhotosPanelProps {
  * choose); everyone else adds the previews to their own device once, and fetches an original only when they ask for it.
  * Downloads come out of the owner's monthly allowance, and the cost is shown before each one.
  */
-export default function CloudPhotosPanel({ client, projectId, role, photos, selectedPhotoIds, renderPreview, readOriginal, importCloud, attachOriginal, onProblem }: CloudPhotosPanelProps) {
+export default function CloudPhotosPanel({ client, projectId, role, photos, selectedPhotoIds, renderPreview, readOriginal, importCloud, attachOriginal, onProblem, onStorageFull }: CloudPhotosPanelProps) {
   const t = STRINGS.share;
   const [cloud, setCloud] = useState<CloudPhotoView[] | null>(null);
   const [usage, setUsage] = useState<CloudUsage | null>(null);
@@ -55,9 +61,10 @@ export default function CloudPhotosPanel({ client, projectId, role, photos, sele
     try { await work(); } catch (error) { onProblem(error); } finally { setBusy(false); setProgress(null); await load(); }
   };
 
+  // Never silently drops a photo: when storage fills up part-way, the person is told how many went up and how many did not.
   const upload = () => run(async () => {
     let done = 0;
-    for (const photo of toUpload) {
+    try { for (const photo of toUpload) {
       setProgress(t.cloudProgress(done, toUpload.length));
       const key = photo.sharedKey!;
       if (!inCloud.has(key) && renderPreview) {
@@ -73,6 +80,9 @@ export default function CloudPhotosPanel({ client, projectId, role, photos, sele
         if (original) await client.cloudUpload(projectId, key, 'original', original, photo.filename);
       }
       done += 1;
+    } } catch (error) {
+      if (error instanceof CollabError && error.code === 'STORAGE_NEEDS_CREDIT' && onStorageFull) { onStorageFull(done, toUpload.length - done); return; }
+      throw error;
     }
   });
 

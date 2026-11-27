@@ -4,8 +4,12 @@
  * Immerkaer's fast estimator (1996): the image is filtered with a 3x3 Laplacian-difference kernel that cancels
  * smooth gradients, and sigma = sqrt(pi/2) / (6 * N) * sum |response|. Real photographs also have texture (feathers,
  * fur, foliage), which the kernel mistakes for noise, so the estimate is taken per 16x16 block and the 20th percentile
- * of blocks is reported: the flattest parts of the frame (sky, background, out-of-focus areas) set the answer.
- * Measures, never edits.
+ * of blocks is used: the flattest parts set the answer.
+ *
+ * Noise is not the same in every tone: a RAW is far noisier in its shadows and midtones than in a bright sky. So the
+ * blocks are grouped by brightness (shadows, midtones, highlights), each band's flattest blocks give that band's noise,
+ * and the noisiest band that covers enough of the picture is reported (Dave, 27 Nov: DJL3766 was visibly noisy, but a
+ * clean bright area set the single overall answer and denoise said there was no noise). Measures, never edits.
  */
 const BLOCK = 16;
 const KERNEL_SCALE = Math.sqrt(Math.PI / 2) / 6;
@@ -14,7 +18,7 @@ export function estimateNoiseSigma(rgba: Uint8ClampedArray, width: number, heigh
   if (width < BLOCK + 2 || height < BLOCK + 2 || rgba.length < width * height * 4) return null;
   const luma = new Float32Array(width * height);
   for (let i = 0; i < luma.length; i += 1) luma[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
-  const blocks: number[] = [];
+  const blocks: { sigma: number; band: number }[] = [];
   for (let by = 1; by + BLOCK < height - 1; by += BLOCK) {
     for (let bx = 1; bx + BLOCK < width - 1; bx += BLOCK) {
       let sum = 0;
@@ -32,13 +36,31 @@ export function estimateNoiseSigma(rgba: Uint8ClampedArray, width: number, heigh
         }
       }
       if (clipped > (BLOCK * BLOCK) / 4) continue;
-      blocks.push((KERNEL_SCALE * sum) / (BLOCK * BLOCK));
+      let mean = 0;
+      for (let y = by; y < by + BLOCK; y += 1) for (let x = bx; x < bx + BLOCK; x += 1) mean += luma[y * width + x];
+      blocks.push({ sigma: (KERNEL_SCALE * sum) / (BLOCK * BLOCK), band: bandOf(mean / (BLOCK * BLOCK)) });
     }
   }
   if (blocks.length < 4) return null;
-  blocks.sort((a, b) => a - b);
-  return blocks[Math.floor(blocks.length * 0.2)];
+  const flattest = (list: number[]) => { list.sort((a, b) => a - b); return list[Math.floor(list.length * 0.2)]; };
+  // A band counts when it covers enough of the picture to be seen, so a few odd blocks never decide.
+  const enough = Math.max(MIN_BAND_BLOCKS, Math.ceil(blocks.length * MIN_BAND_SHARE));
+  let worst: number | null = null;
+  for (let band = 0; band < BANDS.length; band += 1) {
+    const inBand = blocks.filter((block) => block.band === band).map((block) => block.sigma);
+    if (inBand.length < enough) continue;
+    const sigma = flattest(inBand);
+    worst = worst === null ? sigma : Math.max(worst, sigma);
+  }
+  // No band large enough (a picture of many small tonal areas): the whole picture's flattest blocks, as before.
+  return worst ?? flattest(blocks.map((block) => block.sigma));
 }
+
+/** Upper bounds of the tonal bands on 0-255 luminance: shadows, midtones, highlights. */
+const BANDS = [85, 170, 256] as const;
+const MIN_BAND_BLOCKS = 8;
+const MIN_BAND_SHARE = 0.1;
+const bandOf = (mean: number) => BANDS.findIndex((top) => mean < top);
 
 /** Below this the noise is not visible at normal viewing; denoise changes nothing and says so. */
 export const VISIBLE_NOISE_SIGMA = 1.2;

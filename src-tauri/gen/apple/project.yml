@@ -59,8 +59,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        CFBundleShortVersionString: 26.11.2
-        CFBundleVersion: "26.11.2"
+        CFBundleShortVersionString: 26.12.0
+        CFBundleVersion: "26.12.0"
     entitlements:
       path: kestrel_iOS/kestrel_iOS.entitlements
     scheme:

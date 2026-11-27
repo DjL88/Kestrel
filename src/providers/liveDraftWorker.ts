@@ -7,7 +7,8 @@
  *
  * Started by liveDraft.ts.
  */
-import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyCanvasPhotoEdit, setGpuRenderer } from '../core/canvasEdit';
+import { renderEditOnGpu } from './webglEdit';
 import { fullContext } from '../core/masks';
 import { drawFramedPhoto, lensCentre, type PhotoFraming } from '../core/photoFraming';
 import { createStageCache } from '../core/stageCache';
@@ -22,7 +23,12 @@ interface Slot {
   sized?: { edge: number; pixels: ImageData };
 }
 
+// The same tone renderer as the page (WebGL on an OffscreenCanvas), so a picture drawn here matches one drawn there.
+setGpuRenderer(renderEditOnGpu);
+
 const slots = new Map<string, Slot>();
+/** Each picture's full-resolution photo for zoomed-in detail, decoded here once. */
+const detailSources = new Map<string, { key: string; picture: Promise<ImageBitmap> }>();
 // A base still being decoded from the file: a draw for that slot waits for it rather than coming back empty.
 const decoding = new Map<string, Promise<void>>();
 let stageCache = createStageCache(96 * 1024 * 1024);
@@ -70,6 +76,21 @@ function sizedPixels(slot: Slot, edge: number): ImageData {
   return pixels;
 }
 
+/**
+ * One region of the framed photo from its full-resolution file, at the size it is shown, with the edit drawn exactly as
+ * for the whole photo at that scale: the region's place in the photo (view) puts masks and the lens centre where they
+ * belong, and imageEdge keeps detail controls at the photo's own scale.
+ */
+function drawDetail(picture: ImageBitmap, request: Extract<LiveDraftRequest, { type: 'detail' }>): ImageBitmap {
+  const source = Object.assign(picture, { naturalWidth: picture.width, naturalHeight: picture.height });
+  const canvas = new OffscreenCanvas(1, 1);
+  drawFramedPhoto(source as unknown as HTMLImageElement, canvas as unknown as HTMLCanvasElement, request.framing, { region: request.region, scale: request.scale });
+  const framedLongEdge = Math.max(request.region.width / request.view.w, request.region.height / request.view.h) * request.scale;
+  applyCanvasPhotoEdit(canvas as unknown as HTMLCanvasElement, request.edit, framedLongEdge,
+    { aspect: request.aspect, view: request.view, lensCentre: request.lensCentre });
+  return canvas.transferToImageBitmap();
+}
+
 function draw(slot: Slot, edge: number, edit: PhotoEdit): ImageBitmap {
   const pixels = sizedPixels(slot, edge);
   const canvas = new OffscreenCanvas(pixels.width, pixels.height);
@@ -97,9 +118,35 @@ scope.onmessage = (event) => {
         await done;
         return;
       }
+      if (request.type === 'check') {
+        const canvas = new OffscreenCanvas(request.width, request.height);
+        const context = canvas.getContext('2d', { willReadFrequently: true })!;
+        context.putImageData(new ImageData(request.data as Uint8ClampedArray<ArrayBuffer>, request.width, request.height), 0, 0);
+        // Only the graphics-card step: everything else is the same JavaScript here as on the page, so it gives the same bytes.
+        const usedGpu = renderEditOnGpu(canvas as unknown as HTMLCanvasElement, request.edit);
+        const pixels = context.getImageData(0, 0, request.width, request.height).data;
+        scope.postMessage({ id: request.id, pixels, usedGpu }, [pixels.buffer]);
+        return;
+      }
+      if (request.type === 'detail-source') {
+        const known = detailSources.get(request.slot);
+        void known?.picture.then((bitmap) => bitmap.close(), () => undefined);
+        detailSources.set(request.slot, { key: request.key, picture: createImageBitmap(request.blob) });
+        return;
+      }
+      if (request.type === 'detail') {
+        const source = detailSources.get(request.slot);
+        if (!source || source.key !== request.key) { scope.postMessage({ id: request.id, missing: true }); return; }
+        const started = performance.now();
+        const bitmap = drawDetail(await source.picture, request);
+        scope.postMessage({ id: request.id, bitmap, ms: performance.now() - started }, [bitmap]);
+        return;
+      }
       if (request.type === 'release') {
         slots.get(request.slot)?.base.close();
         slots.delete(request.slot);
+        void detailSources.get(request.slot)?.picture.then((bitmap) => bitmap.close(), () => undefined);
+        detailSources.delete(request.slot);
         if (!slots.size) stageCache = createStageCache(96 * 1024 * 1024);
         return;
       }
@@ -113,7 +160,7 @@ scope.onmessage = (event) => {
       const bitmap = draw(slot, request.edge, request.edit);
       scope.postMessage({ id: request.id, bitmap, ms: performance.now() - started }, [bitmap]);
     } catch {
-      if (request.type === 'draw') scope.postMessage({ id: request.id, missing: true });
+      if (request.type === 'draw' || request.type === 'detail') scope.postMessage({ id: request.id, missing: true });
     }
   })();
 };

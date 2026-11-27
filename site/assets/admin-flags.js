@@ -2,9 +2,49 @@
 // No page access here, so the logic is unit-tested on its own (scripts/site/admin-flags.test.mjs).
 
 /** Features no flag can ever switch off (src/core/features.ts NEVER_GATED). The page says so and the app enforces it. */
-export const NEVER_GATED = ['import', 'basicEditing', 'cropAndStraighten', 'export', 'localBackup'];
-/** The feature keys the app knows today, offered as suggestions. A new key is fine. */
-export const KNOWN_FLAGS = ['watermark', 'macroPad', 'masks', 'subjectDetection', 'autoTab', 'speciesId', 'onlineAi', 'smartCulling', 'accountData', 'sitePlanChoices', 'proPromo', ...NEVER_GATED];
+export const NEVER_GATED = ['import', 'basicEditing', 'cropAndStraighten', 'export', 'localBackup', 'overlayText', 'watermarkCustom'];
+
+/**
+ * What each flag the app knows means for people, in plain words. The technical key stays visible, small, beside it.
+ * Keys from src/core/features.ts, plus the website's own (sitePlanChoices, proPromo).
+ */
+export const FLAG_INFO = {
+  accountData: { name: 'Delete my account and export my data', effect: 'People can download everything InFlight holds about them, or delete their account, from Settings.' },
+  cloudRecipe: { name: 'Cloud editing', effect: 'A small preview goes to the cloud and editing settings come back. The original never leaves the device.' },
+  cullRules: { name: 'Culling rules', effect: 'Live sliders in the Culling Assistant, and culling from stored checks.' },
+  onlineAi: { name: 'Online photo helper', effect: 'Pro can ask Google Gemini about a photo. Needs the Online photo helper switch.' },
+  cloudAssist: { name: 'Cloud help for Pro', effect: 'Pro can send heavy jobs to the cloud.' },
+  smartCulling: { name: 'Smart culling', effect: 'Suggests which photos to keep, for people to confirm.' },
+  speciesId: { name: 'Species names', effect: 'Suggests the species in wildlife photos, on the device.' },
+  subjectDetection: { name: 'Find the subject', effect: 'Finds the main subject in each photo, on the device.' },
+  masks: { name: 'Masks', effect: 'Edit one part of a photo, such as the subject or the sky.' },
+  autoTab: { name: 'Auto tab', effect: 'The one-click Auto adjustments in the editor.' },
+  watermark: { name: 'Watermark on exports', effect: 'Adds a watermark to exported photos.' },
+  macroPad: { name: 'Macro pad', effect: 'Use a small keypad or controller for shortcuts.' },
+  zoomVideo: { name: 'Zoom video', effect: 'Makes a short zoom video from a photo.' },
+  splitFrames: { name: 'Split frames', effect: 'Splits a burst or video into separate photos.' },
+  focusStack: { name: 'Focus stacking', effect: 'Merges photos focused at different depths into one new photo.' },
+  panorama: { name: 'Panorama', effect: 'Stitches photos into one new panorama.' },
+  hdrMerge: { name: 'HDR merge', effect: 'Merges bracketed exposures into one new photo.' },
+  savedViews: { name: 'Saved views', effect: 'Save a filter and sort to come back to.' },
+  nextToReview: { name: 'Next to review', effect: 'A key that jumps to the next photo still to decide.' },
+  cullWarmup: { name: 'Faster culling', effect: 'Prepares the next previews ahead while culling.' },
+  editStyle: { name: 'Learns your style', effect: 'Auto leans towards how you edit, learned on this device only.' },
+  brandKits: { name: 'Brand kits', effect: 'A saved logo, colours and text style for exports.' },
+  sitePlanChoices: { name: 'Plan choices on the website', effect: 'Shows the monthly and yearly choice on the website.' },
+  proPromo: { name: 'Pro offer', effect: 'Applies the Paddle discount (for example Black Friday) to Pro.' },
+  import: { name: 'Import', effect: 'Bring photos in. Always on.' },
+  basicEditing: { name: 'Basic editing', effect: 'Light, colour and detail. Always on.' },
+  cropAndStraighten: { name: 'Crop and straighten', effect: 'Always on.' },
+  export: { name: 'Export', effect: 'Save finished photos. Always on.' },
+  localBackup: { name: 'Local backup', effect: 'Back up to your own drive. Always on.' },
+  overlayText: { name: 'Text on photos', effect: 'Always on.' },
+  watermarkCustom: { name: 'Custom watermarks', effect: 'Always on.' },
+};
+/** The feature keys the app knows today, for the flag dropdown. "Another flag" still allows a new key. */
+export const KNOWN_FLAGS = Object.keys(FLAG_INFO);
+/** "Delete my account and export my data", or the key itself for a flag the page does not know. */
+export const flagName = (key) => FLAG_INFO[key]?.name ?? key;
 
 const DAY = 86_400_000;
 const KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;

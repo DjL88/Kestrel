@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { shownFormats, useHiddenFormats } from '../utils/formatVisibility';
 import type { CropTransform, FeatureKey, Photo, VideoZoomConfig } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -57,6 +58,8 @@ export default function SizesPanel({
   onSetSplitFrameCount,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
+  // Formats hidden in Settings › Export formats (kept current when Settings changes them).
+  const hiddenFormats = useHiddenFormats();
   const [rename, setRename] = useState<{ photoId: string; groupId: string; name: string } | null>(null);
   useEffect(() => setRename(null), [photo?.id, photo?.activeGroupId]);
   const hideVideoPro = useProHidden('zoomVideo');
@@ -372,7 +375,8 @@ export default function SizesPanel({
         )}
 
         <div className="space-y-1.5">
-          {photo.sizes.filter((size) => !(size.kind === 'video' && !features.zoomVideo && hideVideoPro)).map((size) => {
+          {/* Formats hidden in Settings › Export formats stay out, unless this photo already uses them. */}
+          {shownFormats(photo.sizes, hiddenFormats).filter((size) => !(size.kind === 'video' && !features.zoomVideo && hideVideoPro)).map((size) => {
             const isSelected = selectedSizeIds.includes(size.id);
             const isVideoLocked = size.kind === 'video' && !features.zoomVideo;
             return (

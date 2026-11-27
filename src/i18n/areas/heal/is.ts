@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
-  title: "Blettahreinsun",
+  title: "Fjarlægja bletti",
   intro: "Hylur ryk, kvist eða drasl við setstaðinn með dílum sem eru afritaðir úr næsta nágrenni í sömu mynd. Ekkert er búið til og upprunalegu skránni er aldrei breytt.",
   start: "Merkja bletti",
   stop: "Lokið",

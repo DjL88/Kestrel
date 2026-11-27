@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** German (Sie). DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
-  title: "Bereichsreparatur",
+  title: "Flecken entfernen",
   intro: "Überdeckt Staub, einen Zweig oder störende Sitzwarten mit Pixeln, die aus der Nähe im selben Foto kopiert werden. Nichts wird erfunden, und die Originaldatei wird nie verändert.",
   start: "Stellen markieren",
   stop: "Fertig",

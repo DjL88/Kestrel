@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Italian (Lei). DRAFT: written without a native speaker's check. */
 export const it: AreaTranslation<typeof source> = {
-  title: "Correzione macchie",
+  title: "Rimuovi macchie",
   intro: "Copre polvere, un rametto o un posatoio ingombrante con pixel copiati da una zona vicina della stessa foto. Nulla viene inventato e il file originale non viene mai modificato.",
   start: "Segna macchie",
   stop: "Fatto",

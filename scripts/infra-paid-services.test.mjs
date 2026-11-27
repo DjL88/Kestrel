@@ -77,4 +77,9 @@ test('the compliance document bucket is off by default, private, versioned, neve
   assert.deepEqual([...new Set(roles)].sort(), ['roles/storage.objectCreator', 'roles/storage.objectViewer']);
   assert.match(code('control-plane.tf'), /KCP_COMPLIANCE_BUCKET = try\(google_storage_bucket\.compliance\[0\]\.name, ""\)/);
   assert.match(readFileSync(join(dir, 'switch-features.sh'), 'utf8'), /"compliance_documents_enabled"/);
+  assert.match(readFileSync(join(dir, 'switch-features.sh'), 'utf8'), /"cloud_processing_enabled","cloud_runner_image"/);
+});
+
+test('the retired one-off Pro price is never passed to the control plane (Pro is subscription only)', () => {
+  for (const f of files) assert.doesNotMatch(code(f), /KCP_PADDLE_PRO_PRICE_ID/, f);
 });

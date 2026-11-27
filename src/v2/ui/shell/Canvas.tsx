@@ -707,6 +707,8 @@ export default function Canvas({
   const [shownShape, setShownShape] = useState<{ photoId: string; aspect: number } | null>(null);
   // The photo on screen is still loading or being developed: a thin line along its bottom edge says so.
   const [pictureBusy, setPictureBusy] = useState(false);
+  // Zoomed in: the part on screen is being drawn at full detail. Said beside the picture, never over it.
+  const [detailLoading, setDetailLoading] = useState(false);
   const reportPictureSize = useCallback((size: { width: number; height: number }) => {
     if (!shownPhotoId || !(size.width > 0 && size.height > 0)) return;
     const aspect = size.width / size.height;
@@ -1314,7 +1316,7 @@ export default function Canvas({
         {(() => {
           // Text and watermark are laid out by the rule in overlayLayout.ts, the same one the export uses. An anchored box
           // sits at the edge margin of its place; two boxes at the same place stack (watermark above the text).
-          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo));
+          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo, overlay));
           const showMark = overlay.watermarkEnabled && features.watermarkCustom && !!watermarkPreset;
           const cover = overlay.textLayoutMode === 'cover-full';
           const layer = (target: EventTarget) => (target as HTMLElement).closest('[data-testid="overlay-layer"]') as HTMLElement | null;
@@ -1350,7 +1352,7 @@ export default function Canvas({
               {resizeHandles('resize-text', STRINGS.canvas.resizeText)}
               {overlay.rows.map((row) => {
                 // A row with nothing to say takes no room, here or in the export.
-                const words = formatOverlayRowText(row, photo);
+                const words = formatOverlayRowText(row, photo, overlay);
                 return words ? (
                   <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>
                     {words}
@@ -1397,7 +1399,7 @@ export default function Canvas({
           if (showText && cover) {
             parts.push(
               <div key="cover" data-overlay="text" data-artwork className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center text-center" style={{ padding: cqw(24), backgroundColor: overlay.textScrim ? (overlay.textColour === 'light' ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : 'transparent', color: textColour }}>
-                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
+                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo, overlay); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
               </div>
             );
           }
@@ -1463,7 +1465,7 @@ export default function Canvas({
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         maskOutline={variant === 'edited' && alt && !compareMode && hasCanvasMarks ? renderCanvasMarks : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
-        onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} />
+        onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} onDetailLoading={alt ? setDetailLoading : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1795,6 +1797,10 @@ export default function Canvas({
               {STRINGS.canvas.sizeCapped(output.requestedWidth, output.requestedHeight)}
             </span>
           )}
+          {/* Beside the picture, on the line above it (never over it); one line of the same height, so the picture never moves. */}
+          {detailLoading && (
+            <span role="status" data-testid="detail-loading" className="whitespace-nowrap text-[var(--text-secondary)]">· {STRINGS.canvas.loadingDetail}</span>
+          )}
           {activeSize.crop.flipH && <span>· Flipped H</span>}
           {activeSize.crop.flipV && <span>· Flipped V</span>}
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
@@ -1905,11 +1911,20 @@ export default function Canvas({
             )}
 
             {gridMode !== 'off' && (
-              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
-                  <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                  <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                ])}
+              /* Readable on any photo (Dave, 27 Nov: lost on a busy mid-grey burrow): a solid light line over a darker halo, so
+                 one of the two always stands out. The canvas zooms with CSS zoom, which would thicken the lines as it zooms
+                 in, so the widths are divided by it: one screen pixel at every zoom, kept crisp. */
+              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" shapeRendering="crispEdges">
+                {(['halo', 'line'] as const).map((layer) => (
+                  <g key={layer} data-grid-layer={layer} fill="none" vectorEffect="non-scaling-stroke"
+                    stroke={layer === 'halo' ? 'black' : 'white'} strokeOpacity={layer === 'halo' ? 0.5 : 0.9}
+                    strokeWidth={(layer === 'halo' ? 3 : 1) / Math.max(0.01, canvasZoom)}>
+                    {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
+                      <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" vectorEffect="non-scaling-stroke" />,
+                      <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} vectorEffect="non-scaling-stroke" />,
+                    ])}
+                  </g>
+                ))}
               </svg>
             )}
 

@@ -65,7 +65,7 @@ export async function headBlob(source: Blob | RangeBlob, bytes = EXIF_HEAD_BYTES
  * Open a linked original for ranged reading in the desktop app. Reads are serialised on one handle (seek then read must
  * not interleave). Always call close(), also after an error, so the file handle is released.
  */
-export async function openLinkedRange(path: string, size: number, type = ''): Promise<{ blob: RangeBlob; close(): Promise<void> }> {
+export async function openLinkedRange(path: string, size: number, type = '', headBytes = HEAD_CACHE_BYTES): Promise<{ blob: RangeBlob; close(): Promise<void> }> {
   const fs = await import('@tauri-apps/plugin-fs');
   const handle = await fs.open(path, { read: true });
   let queue: Promise<unknown> = Promise.resolve();
@@ -85,7 +85,7 @@ export async function openLinkedRange(path: string, size: number, type = ''): Pr
     return next;
   };
   return {
-    blob: RangeBlob.of(withHeadCache(direct, size), size, type),
+    blob: RangeBlob.of(withHeadCache(direct, size, headBytes), size, type),
     close: async () => { try { await queue; } finally { await handle.close(); } },
   };
 }

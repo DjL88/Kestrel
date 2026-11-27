@@ -118,6 +118,12 @@ const app = createApp({ config, store, commerce, payments: commerce, settlePaddl
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
+  } : undefined,
+  proSubscriberCounts: firestore ? async () => {
+    const current = await firestore.collection(paddleSubscriptions).where('status', 'in', ['active', 'trialing']).limit(10_000).get();
+    const counts = { monthly: 0, annual: 0 };
+    for (const doc of current.docs) counts[(doc.data() as ProSubscriptionRecord).plan === 'annual' ? 'annual' : 'monthly'] += 1;
+    return counts;
   } : undefined, proCheckout, topUpCheckout, pricing: commerce,
   priceMatrix: commerce ? { get: () => commerce.getPriceMatrix(), save: (matrix) => commerce.savePriceMatrix(matrix) } : undefined,
   paddlePrices: paddle ? { priceIds: paddlePriceIds, get: (id) => paddle.getPrice(id), update: (id, body) => paddle.updatePrice(id, body) } : undefined,

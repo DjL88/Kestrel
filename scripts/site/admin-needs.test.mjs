@@ -43,12 +43,26 @@ test('a Paddle key close to expiry is flagged; VAT breach is urgent', () => {
   assert.deepEqual(r.items.map(i => [i.id, i.urgent]), [['paddle-key', true], ['vat', true]]);
 });
 
-test('old section links still open the view that holds them', () => {
-  assert.equal(viewForHash('#flags'), 'service');
-  assert.equal(viewForHash('#grant'), 'licences');
-  assert.equal(viewForHash('#money'), 'money');
-  assert.equal(viewForHash(''), null);
-  assert.equal(viewForHash('#nope'), null);
+test('links open the page that holds them, older names still work, and anything else is Today', () => {
+  assert.equal(viewForHash('#flags'), 'advanced');
+  assert.equal(viewForHash('#grant'), 'people');
+  assert.equal(viewForHash('#refunds'), 'money');
+  assert.equal(viewForHash('#safety'), 'messages');
+  assert.equal(viewForHash('#service'), 'advanced');
+  assert.equal(viewForHash('#licences'), 'people');
+  assert.equal(viewForHash(''), 'today');
+  assert.equal(viewForHash('#nope'), 'today');
   const all = Object.values(VIEWS).flatMap(v => v.sections);
   assert.equal(new Set(all).size, all.length);
+});
+
+test('each chore links to the section where it is done', () => {
+  const { items } = needsYou({ ...quiet, refunds: [{ pence: 1 }], messages: [{ status: 'new' }], safety: { notices: [{ status: 'open' }] },
+    learning: { runs: [{ status: 'failed' }, { status: 'failed' }] }, tax: { turnover: { backward: { notificationDue: '2026-12-30' } } } }, NOW);
+  const sections = Object.values(VIEWS).flatMap(v => v.sections);
+  for (const item of items) assert.ok(sections.includes(item.view) || VIEWS[item.view], item.id + ' → ' + item.view);
+});
+
+test('a safety answer without a notices list is not a crash', () => {
+  assert.deepEqual(needsYou({ ...quiet, safety: { cases: [] } }, NOW).items, []);
 });

@@ -76,12 +76,16 @@ jobs:
       # about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
       - name: Browser tests
         timeout-minutes: 35
-        # The culling speed check runs on its own afterwards: on a 2-core runner, a second browser beside it
-        # multiplies the timings it measures.
-        run: npx playwright test --workers=2 --grep-invert v2-cull-speed
+        # The culling speed check and the stress test (@stress) run on their own afterwards: on a 2-core runner, a second
+        # browser beside the first multiplies the timings it measures, and the stress test keeps the processor busy on
+        # purpose, which would slow any test running beside it.
+        run: npx playwright test --workers=2 --grep-invert "v2-cull-speed|@stress"
       - name: Browser test (culling speed, alone)
         timeout-minutes: 10
         run: npx playwright test tests/v2-cull-speed.spec.ts --workers=1
+      - name: Browser test (responsive under load, alone)
+        timeout-minutes: 10
+        run: npx playwright test --grep @stress --workers=1
       # Board job p5-export: full-size exports are pixel-exact to the intended render and originals are never changed,
       # proved through the real app on synthetic files and two CC0 camera RAWs from raw.pixls.us (about 50 MB, cached,
       # pinned by SHA-256 in tests/exportExactness.ts, never committed).

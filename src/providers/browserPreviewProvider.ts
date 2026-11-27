@@ -8,8 +8,9 @@ import {
   MAX_RAW_DEVELOP_PREVIEW_BYTES,
   type OfflinePreviewPair,
 } from './offlinePreviewCache';
-import { extractNefPreview, extractSmallRawPreview, shownJpegSize } from '../core/nefPreview';
+import { THUMB_HEAD_BYTES, extractNefPreview, extractSmallRawPreview, extractThumbRawPreview, shownJpegSize } from '../core/nefPreview';
 import { measureStep, timedWait } from './previewTiming';
+import { thumbnailOffThread } from './pixelAnalysis';
 import { unsupportedRawCompression, type UnsupportedRawCompression } from '../core/rawCompression';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
 import { isHeifFile, isRawPreviewFile, looksLikeHeif } from '../core/rawFormats';
@@ -30,7 +31,7 @@ import type { AsShotWhite } from '../core/asShotWhite';
 
 /** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
 export interface LinkedInfo {
-  read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange>;
+  read: () => Promise<Blob>; size: number; lastModified: number; openRange?: (options?: { headBytes?: number }) => Promise<LinkedRange>;
   /** Desktop app: where the original is, and the SHA-256 of the bytes added, so the app can make its disk previews itself. */
   path?: string; sha256?: string;
 }
@@ -536,6 +537,29 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** The camera's own preview from a linked RAW, read from just that part of the file; null on any doubt. */
+  /**
+   * The camera's small embedded JPEG of a linked RAW, for its tile: the file must be the size it was when imported (the
+   * range opener checks that) and must not change while it is read (size and modified time). Not fingerprinted: a
+   * thumbnail is labelled as the camera's preview, and nothing is developed, exported or attached from it.
+   */
+  private async embeddedThumbnail(stableKey: string, linked: LinkedInfo): Promise<Blob | null> {
+    if (!linked.openRange) return null;
+    let range: LinkedRange | null = null;
+    try {
+      range = await linked.openRange({ headBytes: THUMB_HEAD_BYTES });
+      if (!range.unchanged) return null;
+      const blob = range.blob as unknown as Blob;
+      const preview = await extractThumbRawPreview(blob) ?? await extractNefPreview(blob);
+      if (!preview) return null;
+      const bytes = await materialize(preview, 'image/jpeg');
+      return await range.unchanged() && this.linked.get(stableKey) === linked ? bytes : null;
+    } catch {
+      return null;
+    } finally {
+      await range?.close().catch(() => undefined);
+    }
+  }
+
   private async embeddedPreview(stableKey: string, linked: LinkedInfo, nativeCheckOnly = false): Promise<Blob | null> {
     if (!linked.openRange) return null;
     let range: LinkedRange | null = null;
@@ -938,12 +962,14 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const url = this.tagUrl(URL.createObjectURL(offline), shownAs);
       return this.rememberThumbnailUrl(frame, url, revision, epoch);
     }
-    // A linked RAW's thumbnail is its camera preview: read just that part of the file (a few MB, checked against the
-    // original's fingerprint by the app itself), never all of a 45 MP RAW (about 50 MB across the bridge, then hashed).
-    // Where the app cannot fingerprint natively, or on any doubt, the full read below runs, exactly as before.
+    // A linked RAW's thumbnail is the camera's small embedded JPEG: one read of the front of the file (a Nikon Z8's
+    // 640 x 424 one ends at about 243 KB), never the whole RAW and never its fingerprint, which read all 30-60 MB of
+    // every photo before its tile could show (owner's test: "Preparing 8 thumbnails 0/8" for over a minute). It is
+    // labelled as the camera's preview; develop, export and the other steps that use the original still check its
+    // fingerprint. On any doubt the full read below runs, exactly as before.
     const linked = this.linked.get(frame.stableKey);
     if (isRawPreviewFile(frame.filename) && linked && !this.localBlobs.has(frame.stableKey)) {
-      const preview = await timedWait('thumb:ranged-preview', () => this.embeddedPreview(frame.stableKey, linked, true));
+      const preview = await timedWait('thumb:ranged-preview', () => this.embeddedThumbnail(frame.stableKey, linked));
       if (preview) return this.rememberThumbnailUrl(frame, await this.shrinkThumbnail(preview, cacheKey, shownAs, frame, revision, epoch), revision, epoch);
     }
     const blob = await timedWait('thumb:read-original', () => this.ensureOriginal(frame.stableKey, priority), { size: linked?.size });
@@ -990,6 +1016,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const start = performance.now();
     try {
       const size = await shownJpegSize(sourceBlob).catch(() => null);
+      // Decoded, shrunk and encoded in a worker, so a thumbnail never holds the interface; on the page if that fails.
+      const made = await thumbnailOffThread(sourceBlob, THUMB_MAX_WIDTH, 0.82, size).catch(() => null);
+      if (made) {
+        if (epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(frame.stableKey) ?? 0)) void saveOfflinePreview(cacheKey, made);
+        measureStep('thumb:shrink', start, { worker: true, bytes: sourceBlob.size });
+        return this.tagUrl(URL.createObjectURL(made), shownAs);
+      }
       const shrinkWhileDecoding = size !== null && size.width > THUMB_MAX_WIDTH;
       const bitmap = shrinkWhileDecoding
         ? await createImageBitmap(sourceBlob, { resizeWidth: THUMB_MAX_WIDTH, resizeHeight: Math.max(1, Math.round(size.height * THUMB_MAX_WIDTH / size.width)), resizeQuality: 'high' })
