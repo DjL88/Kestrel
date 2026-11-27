@@ -96,6 +96,8 @@ const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview')
 const PrintDialog = lazyPart(() => import('./dialogs/PrintDialog'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
+const FinishBestDialog = lazyPart(() => import('./dialogs/FinishBestDialog'));
+const FinishReviewDialog = lazyPart(() => import('./dialogs/FinishReviewDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
 const StoreInCloudDialog = lazyPart(() => import('./dialogs/StoreInCloudDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
@@ -382,6 +384,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const [cullAssistantOpen, setCullAssistantOpen] = useState(false);
   const closeCullAssistant = React.useCallback(() => setCullAssistantOpen(false), []);
+  // Finish my best (preview): the chooser, and the review of what a batch did.
+  const [finishChooserOpen, setFinishChooserOpen] = useState(false);
+  const [finishReviewOpen, setFinishReviewOpen] = useState(false);
+  const closeFinishChooser = React.useCallback(() => setFinishChooserOpen(false), []);
+  const closeFinishReview = React.useCallback(() => setFinishReviewOpen(false), []);
+  const finishBestEntry = React.useMemo(() => (actions.finishBest
+    ? { onOpen: () => setFinishChooserOpen(true), onReview: () => setFinishReviewOpen(true) } : undefined), [actions.finishBest]);
   const sheetDragY = useRef<number | null>(null);
   // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
   // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
@@ -1338,6 +1347,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSetRating={actions.setRating}
                   onSetFilter={actions.setFilmstripFilter}
                   onSetSearch={actions.setFilmstripSearch}
+                  finishBest={finishBestEntry}
                   onClose={() => actions.setGridViewOpen(false)}
                 />
               ) : (
@@ -1460,6 +1470,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
+                finishBest={store.collage ? undefined : finishBestEntry}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 onStitchPanorama={store.features.panorama && !store.collage ? actions.stitchPanorama : undefined}
                 onFocusStack={store.features.focusStack && !store.collage ? actions.focusStackPhotos : undefined}
@@ -1743,6 +1754,20 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         rank={actions.rankCulling}
         onApply={actions.applyCullRules}
         onClose={closeCullAssistant}
+      /></React.Suspense>}
+
+      {actions.finishBest && finishChooserOpen && <React.Suspense fallback={null}><FinishBestDialog
+        open={finishChooserOpen}
+        plan={actions.finishBest.plan}
+        version={store.photos}
+        onStart={(request) => { void actions.finishBest?.run(request); }}
+        onClose={closeFinishChooser}
+      /></React.Suspense>}
+      {actions.finishBest && finishReviewOpen && <React.Suspense fallback={null}><FinishReviewDialog
+        open={finishReviewOpen}
+        control={actions.finishBest}
+        onOpenPhoto={(id) => { actions.setGridViewOpen(false); actions.selectPhoto(id); }}
+        onClose={closeFinishReview}
       /></React.Suspense>}
 
       <React.Suspense fallback={null}><RemovedPhotosDialog
