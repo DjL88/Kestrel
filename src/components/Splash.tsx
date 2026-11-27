@@ -32,15 +32,15 @@ const RISE_SCALE = 0.62;
 /** Where the finished logo sits inside the Lottie frame (measured on its last frame, the same in all four versions). */
 const ART_TOP = 0.3;
 const ART_BOTTOM = 0.7;
-/** The gap above the risen logo, and between it and the welcome's heading. */
-const LOGO_TOP_PX = 40;
+/** The gap above the risen logo. On a phone with a notch or Dynamic Island the logo starts below the status bar (the layer is full screen, so the inset is not applied for us). The gap between the logo and the welcome's heading is LOGO_GAP_PX. */
+const LOGO_TOP = 'max(40px, calc(env(safe-area-inset-top, 0px) + 12px))';
 const LOGO_GAP_PX = 8;
 const round = (n: number) => Number(n.toFixed(4));
-/** The frame is centred on the layer; this moves it up so the logo's top lands LOGO_TOP_PX below the layer's top. */
-const RISE_TRANSFORM = `translateY(calc(-50% + ${LOGO_TOP_PX}px + ${FRAME} * ${round((0.5 - ART_TOP) * RISE_SCALE)})) scale(${RISE_SCALE})`;
+/** The frame is centred on the layer; this moves it up so the logo's top lands LOGO_TOP below the layer's top. */
+const RISE_TRANSFORM = `translateY(calc(-50% + ${LOGO_TOP} + ${FRAME} * ${round((0.5 - ART_TOP) * RISE_SCALE)})) scale(${RISE_SCALE})`;
 /** The height of the risen logo itself. */
 const RISEN_LOGO_HEIGHT = `calc(${FRAME} * ${round((ART_BOTTOM - ART_TOP) * RISE_SCALE)})`;
-const WELCOME_LOGO_SPACE = `calc(${LOGO_TOP_PX + LOGO_GAP_PX}px + ${FRAME} * ${round((ART_BOTTOM - ART_TOP) * RISE_SCALE)})`;
+const WELCOME_LOGO_SPACE = `calc(${LOGO_TOP} + ${LOGO_GAP_PX}px + ${FRAME} * ${round((ART_BOTTOM - ART_TOP) * RISE_SCALE)})`;
 const RISE_MS = 400;
 const WELCOME_FADE_MS = 300;
 const WELCOME_DELAY_MS = 150;
@@ -310,7 +310,7 @@ export function Splash() {
       )}
       {reduced ? (
         risen ? (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ top: LOGO_TOP_PX, height: RISEN_LOGO_HEIGHT, opacity: scrolled ? 0 : 1 }}>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ top: LOGO_TOP, height: RISEN_LOGO_HEIGHT, opacity: scrolled ? 0 : 1 }}>
             {logoReady && <BrandLogo kind="stacked" decorative className="h-full w-auto" />}
           </div>
         ) : (

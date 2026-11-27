@@ -8,10 +8,10 @@ import { STRINGS } from '../strings';
  */
 export default function ColourVisionToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
-    <div data-testid="cvd-toggle-row" className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
+    <div data-testid="cvd-toggle-row" className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 max-md:border-0 max-md:bg-transparent max-md:px-1 max-md:py-0">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.assistance.cvdLabel}</p>
-        <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{on ? STRINGS.adjust.cvdOnHint : STRINGS.adjust.cvdOffHint}</p>
+        <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)] max-md:sr-only">{on ? STRINGS.adjust.cvdOnHint : STRINGS.adjust.cvdOffHint}</p>
       </div>
       <button
         type="button"
@@ -20,7 +20,7 @@ export default function ColourVisionToggle({ on, onToggle }: { on: boolean; onTo
         aria-label={STRINGS.settings.assistance.cvdLabel}
         data-testid="cvd-toggle"
         onClick={onToggle}
-        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${on
+        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors max-md:min-h-11 max-md:min-w-11 ${on
           ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
           : 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'}`}
       >
