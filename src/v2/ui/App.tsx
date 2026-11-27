@@ -1407,6 +1407,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   canvasOnly={canvasOnlyShown}
                   onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
                   tapTogglesCanvasOnly={tapForPhoto}
+                  canvasOnlyPosition={tapForPhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
+                  onToggleFlag={tapForPhoto ? () => { actions.toggleFlag([activePhoto.id]); advanceAfterDecision([activePhoto.id]); } : undefined}
                 />
               )}
 

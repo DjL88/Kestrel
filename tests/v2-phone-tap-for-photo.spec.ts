@@ -58,3 +58,23 @@ test('off by default: a tap on the photo changes nothing', async ({ page }, test
   await expect(studio.getByTestId('canvas-only-exit')).toHaveCount(0);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
 });
+
+test('switched on: with the bars hidden the photo can still be flagged, and its place is shown', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone', 'Touch layout only.');
+  await page.addInitScript((key) => localStorage.setItem(key, '1'), FLAG);
+  const studio = await openStudio(page);
+  await tapPhoto(page);
+  const place = studio.getByTestId('canvas-only-position');
+  await expect(place).toHaveText(/^1 of \d+$/);
+  const flag = studio.getByTestId('canvas-only-flag');
+  const was = await flag.getAttribute('aria-pressed');
+  await flag.click();
+  // The flag changed for this photo (the bars stay hidden); with "next after a decision" on, the next photo is shown.
+  await expect(studio.getByTestId('canvas-only-exit')).toBeVisible();
+  if ((await place.textContent())!.startsWith('1 of')) await expect(flag).toHaveAttribute('aria-pressed', was === 'true' ? 'false' : 'true');
+  else await expect(place).toHaveText(/^2 of \d+$/);
+  // Back with the bars: the first photo's tile carries the new flag.
+  await studio.getByTestId('canvas-only-exit').click();
+  const first = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').first();
+  await expect(first.getByRole('button', { name: was === 'true' ? /^Flag / : /^Unflag / })).toBeVisible();
+});

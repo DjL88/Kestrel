@@ -129,6 +129,9 @@ interface CanvasProps {
   onToggleCanvasOnly?: () => void;
   /** Touch: one clean tap on the photo turns Canvas only on or off (preview `tapForPhoto`). A tool that reads taps keeps them. */
   tapTogglesCanvasOnly?: boolean;
+  /** Canvas only, for culling with the bars hidden: where this photo is in the project ("3 of 20") and its flag. */
+  canvasOnlyPosition?: string;
+  onToggleFlag?: () => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
   onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
@@ -222,6 +225,8 @@ export default function Canvas({
   neighbourPhotos,
   canvasOnly = false,
   tapTogglesCanvasOnly = false,
+  canvasOnlyPosition,
+  onToggleFlag,
   onToggleCanvasOnly,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -2603,12 +2608,23 @@ export default function Canvas({
           </div>
         )}
         {canvasOnly && onToggleCanvasOnly && (
-          <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
-            onClick={onToggleCanvasOnly}
-            className="ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            <BrandIcon name="panel" size={14} />
-            {STRINGS.canvas.canvasOnlyBack}
-          </button>
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {/* With the bars hidden the photo can still be culled: its place, and its flag as a word and an icon. */}
+            {canvasOnlyPosition && <span data-testid="canvas-only-position" className="text-[var(--text-secondary)]">{canvasOnlyPosition}</span>}
+            {onToggleFlag && (
+              <button type="button" data-testid="canvas-only-flag" aria-pressed={photo.decision === 'keep'} onClick={onToggleFlag}
+                className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name={photo.decision === 'keep' ? 'flag' : 'flag-off'} size={14} />
+                {photo.decision === 'keep' ? STRINGS.filmstrip.unflagAction : STRINGS.filmstrip.flagAction}
+              </button>
+            )}
+            <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
+              onClick={onToggleCanvasOnly}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="panel" size={14} />
+              {STRINGS.canvas.canvasOnlyBack}
+            </button>
+          </span>
         )}
       </div>
     </main>
