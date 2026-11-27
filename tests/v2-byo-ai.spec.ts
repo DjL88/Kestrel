@@ -1,4 +1,4 @@
-import { openV2Settings } from './helpers';
+import { openFlightChecks, openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -51,7 +51,8 @@ test('Your own AI (a model on this computer) gives a second opinion, applied onl
   await page.getByRole('button', { name: 'Close settings' }).click();
 
   const card = studio.getByTestId('v2-ai-opinion').first();
-  if (!await card.isVisible()) await studio.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  // The helper's opinion sits under the Flight panel's closed More checks.
+  await openFlightChecks(studio, studio.getByRole('button', { name: 'Co-pilot', exact: true }));
   await expect(card).toContainText('Nothing leaves your computer');
   expect(asked).toHaveLength(0);
   await card.getByRole('button', { name: 'I agree' }).click();
