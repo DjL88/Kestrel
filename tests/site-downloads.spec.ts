@@ -63,7 +63,7 @@ test('the Basic and Pro table says in words what each edition includes', async (
   await answer(page, { status: 'coming-soon' });
   await page.goto(`${origin}/#compare`);
   const table = page.getByRole('table', { name: 'Features in InFlight Basic and InFlight Pro' });
-  await expect(table.getByRole('columnheader')).toHaveText(['Feature', 'Basic (free)', 'Pro']);
+  await expect(table.getByRole('columnheader')).toHaveText(["What's included", 'Basic (free)', 'Pro']);
   const species = table.getByRole('row', { name: /Species suggestions/ });
   await expect(species.getByRole('cell')).toHaveText(['Included', 'Included']);
   const masks = table.getByRole('row', { name: /Masks and subject detection/ });

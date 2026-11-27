@@ -310,6 +310,13 @@
         .matrix td.pro-only{font-size:.85rem}
         .plan-icon{width:40px;height:40px;border-radius:10px;vertical-align:middle;margin-right:10px}
         .th-icon{display:block;width:28px;height:28px;border-radius:7px;margin:0 auto 6px}
+        #how .steps-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
+        #how,#shoots{margin-top:72px}
+        #features .car-track{grid-template-rows:auto auto;grid-auto-columns:calc((100% - 28px)/2);column-gap:28px;row-gap:28px}
+        #features .car-track>*{scroll-snap-align:none}#features .car-track>*:nth-child(4n+1){scroll-snap-align:start}
+        @media(max-width:620px){#how .steps-grid{grid-template-columns:1fr}#features .car-track{grid-template-rows:auto;grid-auto-columns:82%}#features .car-track>*{scroll-snap-align:start}}
+        .plan-icon-svg{display:inline-grid;place-items:center;background:#1a1f27;border:1px solid #3a404c}.plan-icon-svg svg{width:30px;height:30px}
+        .matrix thead th.th-title{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-size:1.5rem;color:var(--ivory);vertical-align:bottom;text-align:left}
         .install-link{margin-top:18px}
         /* Home page layout */
         .skip{position:absolute;left:12px;top:-60px;background:var(--ivory);color:var(--canvas);padding:10px 14px;border-radius:8px;z-index:20;font-weight:700}
@@ -474,7 +481,7 @@
     <span class="ifx-a ifx-key" style="right:-8%;top:-14%;opacity:0;animation-name:ifxCK4">F</span>
   </div>
 </div>
-        <h3 data-i18n="how2Title">2. Keep the best, calmly</h3>
+        <h3 data-i18n="how2Title">2. Keep the best</h3>
         <p data-i18n="how2Body">Flag, rate and compare. Unsure photos are kept for review, never thrown away for you.</p>
       </article>
       <article class="step"><div class="ifx ifx-card ifx-run" role="img" data-i18n-attr="aria-label:vizEditLabel" aria-label="The pointer drags Vibrance up and Highlights down, and the photo changes. Then Undo is pressed twice, and the photo is back exactly as it was.">
@@ -823,17 +830,17 @@
           <li data-i18n="proStorage">2.5 GB cloud storage for the web app's cloud projects</li>
         </ul>
       </article>
-      <article class="card"><h3 data-i18n="creditTitle">PAYG Cloud Credit</h3>
+      <article class="card"><h3><span class="plan-icon plan-icon-svg" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 28h17a6 6 0 0 0 .6-12A9 9 0 0 0 12.4 18 5 5 0 0 0 12 28z" fill="none" stroke="#f4efe8" stroke-width="2.2" stroke-linejoin="round"/><path d="M20.5 19v8M16.5 23h8" stroke="#e8743c" stroke-width="2.4" stroke-linecap="round"/></svg></span><span data-i18n="creditTitle">Pay as you go Cloud Storage</span></h3>
         <p data-i18n="creditBody">Collaborate across platforms and with friends, with cloud storage. Pay only for what you use beyond what's included. Top up from £5, or let it top up automatically when your balance runs low. Credit rolls over and can be refunded at any time.</p>
       </article>
     </div>
   </section>
   <section id="compare" aria-labelledby="compare-title">
-    <h2 id="compare-title" data-i18n="matrixTitle">What is in Basic and what is in Pro</h2>
+    <h2 id="compare-title" class="sr-only" data-i18n="matrixTitle">What is in Basic and what is in Pro</h2>
     <div class="table-wrap" tabindex="0" role="region" data-i18n-attr="aria-label:matrixCaption" aria-label="Features in InFlight Basic and InFlight Pro">
       <table class="matrix">
         <caption class="sr-only" data-i18n="matrixCaption">Features in InFlight Basic and InFlight Pro</caption>
-        <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixBasic">Basic (free)</span></th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixPro">Pro</span></th></tr></thead>
+        <thead><tr><th scope="col" class="th-title" data-i18n="matrixFeature">What's included</th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixBasic">Basic (free)</span></th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixPro">Pro</span></th></tr></thead>
         <tbody>
         <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowCull">Cull and compare by hand: Keep, Reject, side-by-side</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
@@ -846,7 +853,7 @@
         <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row">Tethered and camera Wi-Fi (FTP) live import, in the desktop app</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Show a shoot live on a client's iPad or a studio screen, on your own network</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Social formats: one edit, every crop and size you post at</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Brand kit: logo, colours and text on every export</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Colour-vision support and ColourSense notes</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Private client galleries and editing a project together</th><td data-no>Not included</td><td data-yes>Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud runner photos, when signed in</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud runner photos, when signed in: heavier checks run in the cloud, taking pressure off your device</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
         <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage for the web app's projects</th><td data-no data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
         <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-no data-i18n="matrixNo">Not included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         </tbody>
@@ -1055,7 +1062,7 @@
 </script>
 <script>
 document.querySelectorAll('.car-btns').forEach(function(g){var t=document.getElementById(g.querySelector('button').getAttribute('aria-controls'));if(!t)return;var p=g.querySelector('[data-car=prev]'),n=g.querySelector('[data-car=next]');
-function step(){var c=t.firstElementChild;return c?c.getBoundingClientRect().width+20:t.clientWidth}
+function step(){return t.clientWidth+parseFloat(getComputedStyle(t).columnGap||0)}
 function upd(){p.disabled=t.scrollLeft<4;n.disabled=t.scrollLeft+t.clientWidth>=t.scrollWidth-4}
 p.addEventListener('click',function(){t.scrollBy({left:-step()})});n.addEventListener('click',function(){t.scrollBy({left:step()})});t.addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd()});
 </script>
