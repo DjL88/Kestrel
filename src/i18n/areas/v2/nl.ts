@@ -1494,7 +1494,16 @@ export const nl: AreaTranslation<typeof source> = {
       storage: 'Opslag',
       keyboard: 'Toetsenbord',
       language: 'Taal',
+      formats: "Exportformaten",
       privacy: 'Privacy',
+    },
+    formats: {
+      intro: "Kies welke kant-en-klare formaten in Formaten en Exporteren verschijnen. Verborgen formaten blijven bewaard: toon ze op elk moment weer. Een formaat dat een foto al gebruikt, blijft bij die foto zichtbaar.",
+      showAll: "Alles tonen",
+      hideSocial: "Socialemediaformaten verbergen",
+      show: (label) => `${label} tonen`,
+      groupPrint: "Afdrukken",
+      groupVideo: "Video",
     },
     appearance: {
       calmMotionLabel: 'Minder beweging',

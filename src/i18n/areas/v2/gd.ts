@@ -1495,7 +1495,16 @@ export const gd: AreaTranslation<typeof source> = {
       storage: 'Stòras',
       keyboard: 'Meur-chlàr',
       language: 'Cànan',
+      formats: "Fòrmatan às-phortaidh",
       privacy: 'Prìobhaideachd',
+    },
+    formats: {
+      intro: "Tagh dè na fòrmatan deiseil a nochdas ann am Fòrmatan is Às-phortadh. Thèid an fheadhainn fhalaichte a chumail: seall a-rithist iad uair sam bith. Bidh fòrmat a tha dealbh a’ cleachdadh mu thràth fhathast ri fhaicinn air an dealbh sin.",
+      showAll: "Seall na h-uile",
+      hideSocial: "Falaich fòrmatan sòisealta",
+      show: (label) => `Seall ${label}`,
+      groupPrint: "Clò-bhualadh",
+      groupVideo: "Bhidio",
     },
     appearance: {
       calmMotionLabel: 'Nas lugha de ghluasad',

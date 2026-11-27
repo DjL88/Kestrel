@@ -1494,7 +1494,16 @@ export const da: AreaTranslation<typeof source> = {
       storage: 'Lager',
       keyboard: 'Tastatur',
       language: 'Sprog',
+      formats: "Eksportformater",
       privacy: 'Privatliv',
+    },
+    formats: {
+      intro: "Vælg, hvilke færdige formater der vises i Formater og Eksport. Skjulte formater gemmes: vis dem igen når som helst. Et format, et billede allerede bruger, vises stadig på det billede.",
+      showAll: "Vis alle",
+      hideSocial: "Skjul sociale formater",
+      show: (label) => `Vis ${label}`,
+      groupPrint: "Print",
+      groupVideo: "Video",
     },
     appearance: {
       calmMotionLabel: 'Mindre bevægelse',

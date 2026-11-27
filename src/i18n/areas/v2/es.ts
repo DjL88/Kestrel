@@ -1494,7 +1494,16 @@ export const es: AreaTranslation<typeof source> = {
       storage: 'Almacenamiento',
       keyboard: 'Teclado',
       language: 'Idioma',
+      formats: "Formatos de exportación",
       privacy: 'Privacidad',
+    },
+    formats: {
+      intro: "Elige qué formatos predefinidos aparecen en Formatos y Exportar. Los ocultos se conservan: vuelve a mostrarlos cuando quieras. Un formato que una foto ya usa sigue apareciendo en esa foto.",
+      showAll: "Mostrar todos",
+      hideSocial: "Ocultar formatos de redes sociales",
+      show: (label) => `Mostrar ${label}`,
+      groupPrint: "Impresión",
+      groupVideo: "Vídeo",
     },
     appearance: {
       calmMotionLabel: 'Reducir el movimiento',

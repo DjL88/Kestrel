@@ -1,4 +1,5 @@
 import { LANGUAGES, type LanguageCode } from '../../../core/locale';
+import ExportFormatsSettings from './ExportFormatsSettings';
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { AiProviderSetup } from './AiProviderSetup';
 import { StorageConnections } from './StorageConnections';
@@ -91,6 +92,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'keyboard', label: STRINGS.settings.tabs.keyboard, icon: 'keyboard' },
   { id: 'language', label: STRINGS.settings.tabs.language, icon: 'language' },
   { id: 'presets', label: STRINGS.overlays.templatesHeading, icon: 'grid' },
+  { id: 'formats', label: STRINGS.settings.tabs.formats, icon: 'all-sizes' },
   { id: 'privacy', label: STRINGS.settings.tabs.privacy, icon: 'info' },
 ];
 
@@ -717,6 +719,7 @@ export default function SettingsDialog({
               </div>
             )}
 
+            {activeTab === 'formats' && <ExportFormatsSettings />}
             {activeTab === 'presets' && (
               <section className="space-y-3" aria-labelledby="settings-template-heading">
                 <h3 id="settings-template-heading" className="text-sm font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>

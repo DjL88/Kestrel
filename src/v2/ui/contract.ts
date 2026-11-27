@@ -58,6 +58,7 @@ export type SettingsTabId =
   | 'storage'
   | 'keyboard'
   | 'presets'
+  | 'formats'
   | 'language'
   | 'privacy';
 

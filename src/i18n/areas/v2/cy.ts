@@ -1494,7 +1494,16 @@ export const cy: AreaTranslation<typeof source> = {
       storage: 'Storio',
       keyboard: 'Bysellfwrdd',
       language: 'Iaith',
+      formats: "Fformatau allforio",
       privacy: 'Preifatrwydd',
+    },
+    formats: {
+      intro: "Dewiswch pa fformatau parod sy’n ymddangos yn Fformatau ac Allforio. Mae’r rhai cudd yn cael eu cadw: dangoswch nhw eto unrhyw bryd. Mae fformat y mae llun eisoes yn ei ddefnyddio yn dal i ddangos ar y llun hwnnw.",
+      showAll: "Dangos y cyfan",
+      hideSocial: "Cuddio fformatau cymdeithasol",
+      show: (label) => `Dangos ${label}`,
+      groupPrint: "Argraffu",
+      groupVideo: "Fideo",
     },
     appearance: {
       calmMotionLabel: 'Llai o symud',

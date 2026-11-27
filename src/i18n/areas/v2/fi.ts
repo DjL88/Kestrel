@@ -1495,7 +1495,16 @@ export const fi: AreaTranslation<typeof source> = {
       storage: 'Tallennustila',
       keyboard: 'Näppäimistö',
       language: 'Kieli',
+      formats: "Vientimuodot",
       privacy: 'Tietosuoja',
+    },
+    formats: {
+      intro: "Valitse, mitkä valmiit muodot näkyvät Muodoissa ja Viennissä. Piilotetut säilyvät: näytä ne uudelleen milloin tahansa. Muoto, jota kuva jo käyttää, näkyy yhä siinä kuvassa.",
+      showAll: "Näytä kaikki",
+      hideSocial: "Piilota somemuodot",
+      show: (label) => `Näytä ${label}`,
+      groupPrint: "Tuloste",
+      groupVideo: "Video",
     },
     appearance: {
       calmMotionLabel: 'Vähemmän liikettä',
