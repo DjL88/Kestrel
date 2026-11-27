@@ -35,6 +35,7 @@ import { colourText } from '../../i18n/areas/colour';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
+import { setOnlineHelperAccess } from '../../providers/onlineHelperState';
 import { firebaseAuth, isSignInConfigured, onSignedInChange } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
@@ -212,14 +213,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [contributor, setContributor] = React.useState(false);
   const [feedbackRequest, setFeedbackRequest] = React.useState<FeedbackRequest | null>(null);
   React.useEffect(() => {
-    if (!isSignInConfigured() || store.settingsOpen || !accountName) { if (!accountName) setContributor(false); return; }
+    // The same read says whether InFlight's own online helper is available (invite-only); signed out, it is not.
+    if (!isSignInConfigured() || store.settingsOpen || !accountName) { if (!accountName) { setContributor(false); setOnlineHelperAccess(null); } return; }
     let live = true;
     void (async () => {
-      const [{ parseControlPlaneUrl }, { readContributorStatus }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
+      const [{ parseControlPlaneUrl }, { readAccountOffers }] = await Promise.all([import('../../core/licenceOnline'), import('../../providers/contributorFeedback')]);
       const origin = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
       const token = await firebaseAuth.idToken().catch(() => null);
-      const yes = origin && token ? await readContributorStatus(origin, token) : false;
-      if (live) setContributor(yes);
+      const offers = origin && token ? await readAccountOffers(origin, token) : { contributor: false, onlineHelper: 'unavailable' as const };
+      if (live) { setContributor(offers.contributor); setOnlineHelperAccess(offers.onlineHelper); }
     })().catch(() => undefined);
     return () => { live = false; };
   }, [accountName, store.settingsOpen]);

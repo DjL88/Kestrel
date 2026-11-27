@@ -137,8 +137,10 @@ import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
+import { deepReviewFailure } from '../ui/utils/deepReview';
 import { agreeManagedAi, aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
-import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
+import { saveAiSettings } from '../../providers/aiSettings';
+import { useUsableAiSettings } from '../../providers/onlineHelperState';
 import { consentFor } from '../../providers/aiProviders';
 import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
 import { languageOption } from '../../core/locale';
@@ -202,6 +204,7 @@ import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest, Photo } from '../ui/contract';
 import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
+import { cloudRecipeChanges } from './cloudRecipeChanges';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
@@ -1810,6 +1813,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel, ...(previewNote ? { previewNote } : {}) };
   }, []);
   const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative') => {
+    const cloudText = v2Text.cloudResult;
     const held = cloudRecipeOffers.current.get(photoId);
     cloudRecipeOffers.current.delete(photoId);
     if (!held) throw new Error('Check the photo again before sending.');
@@ -1817,14 +1821,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const connection = accountConnection();
     if (!connection) throw new Error('Sign in to use cloud edit settings. Nothing was sent.');
     if (navigator.onLine === false) throw new Error('You are offline. Nothing was sent.');
-    const outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection));
-    if (outcome.status === 'refused') return 'The cloud sent back settings this device could not check, so nothing was changed.';
-    if (outcome.status === 'empty') return 'The cloud suggested no changes for this photo.';
+    // One row in Tasks for the job (Dave, 27 Nov: he could not tell the cloud had been used): how long it took and
+    // whether the cloud confirmed its copy was deleted.
+    const startedAt = performance.now();
+    const row = tasks.start(cloudText.taskTitle, { kind: 'cloud', location: 'cloud' });
+    let outcome: Awaited<ReturnType<typeof sendCloudRecipe>>;
+    try {
+      outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection));
+    } catch (error) {
+      row.fail(error instanceof Error ? error.message : cloudText.taskFailed);
+      throw error;
+    }
+    const seconds = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
+    const copy = outcome.inputDeleted ? cloudText.copyDeleted : cloudText.copyNotConfirmed;
+    const finish = (said: string) => { row.finish(cloudText.taskDone(seconds, said, copy)); };
+    if (outcome.status === 'refused') { finish(cloudText.refusedShort); return { message: 'The cloud sent back settings this device could not check, so nothing was changed.' }; }
+    if (outcome.status === 'empty') { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.' }; }
     const unchanged = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) && framingKey(current.framing) === held.framing;
     const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-    if (!latest || !unchanged(latest)) return 'The photo was edited while the cloud worked, so its settings were not applied.';
+    if (!latest || !unchanged(latest)) { finish(cloudText.notAppliedShort); return { message: 'The photo was edited while the cloud worked, so its settings were not applied.' }; }
+    const changes = cloudRecipeChanges(editToRecipe(held.edit), outcome.recipe.settings, v2Text.history.sliders);
+    if (!changes.lines.length) { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.' }; }
     editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent, outcome.previewSource));
-    return 'Applied the cloud\'s edit settings. Undo takes them back.';
+    finish(cloudText.appliedShort(changes.lines.length));
+    return { message: 'Applied the cloud\'s edit settings. Undo takes them back.', changes: changes.lines, before: changes.before };
   }, [editFrames]);
 
   // Personal editing style (x-spec-personal-style, on by default; an admin flag can switch it off): when Auto's edit is applied, the
@@ -2011,6 +2031,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // via deepVisionReview.ts. Result is shown as a plain-text notice for now, not yet an AssistSuggestion.
   const deepVisionInFlight = useRef(new Set<string>());
   const [reviewingIds, setReviewingIds] = useState<string[]>([]);
+  const failedBecause = useRef(new Map<string, string>());
   const runDeepVisionReviewAction = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
     if (!frame || deepVisionInFlight.current.has(photoId)) return;
@@ -2025,7 +2046,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.deepStage);
         // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
-        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
+        let result: Awaited<ReturnType<typeof runDeepVisionReview>>;
+        try {
+          result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
+        } catch (error) {
+          // Say why (the subject finder not installed, say), not only that it failed.
+          if (!ctx.signal.aborted) failedBecause.current.set(photoId, deepReviewFailure(error, engineText.workspace.deepFailed));
+          throw error;
+        }
         ctx.checkCancelled();
         if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
@@ -2035,9 +2063,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ctx.commitIfCurrent(() => setNotice(result.summary));
       },
     }).then(ticket => ticket.finished).then(result => {
-      if (result === 'failed') setNotice(engineText.workspace.deepFailed);
+      if (result === 'failed') setNotice(failedBecause.current.get(photoId) ?? engineText.workspace.deepFailed);
     }).catch(error => setNotice(error instanceof Error ? error.message : engineText.workspace.deepNotQueued))
       .finally(() => {
+        failedBecause.current.delete(photoId);
         deepVisionInFlight.current.delete(photoId);
         setReviewingIds(current => current.filter(id => id !== photoId));
       });
@@ -2045,7 +2074,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Bring your own AI: a second opinion on colour and light from the person's own key or a model on this computer.
   // Advisory only. The answer is kept for one photo; Apply is one undoable edit, refused if the photo changed since.
-  const aiSettings = useAiSettings();
+  // A saved InFlight online helper is not used while it is not available to this account (invite-only, switch on, online).
+  const aiSettings = useUsableAiSettings();
   const [aiOpinion, setAiOpinion] = useState<AiOpinionRecord | null>(null);
   const aiAbort = useRef<AbortController | null>(null);
   const cancelAiOpinion = useCallback(() => {

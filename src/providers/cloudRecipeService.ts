@@ -19,7 +19,12 @@ export interface CloudRecipeJob {
   signal?: AbortSignal;
 }
 
-export interface CloudRecipeAnswer { jobId: string; bytes: Uint8Array }
+export interface CloudRecipeAnswer {
+  jobId: string;
+  bytes: Uint8Array;
+  /** The service confirmed it deleted its copy of the picture when the job ended. False or absent: not confirmed. */
+  inputDeleted?: boolean;
+}
 
 export interface CloudRecipeService {
   run(job: CloudRecipeJob): Promise<CloudRecipeAnswer>;
@@ -39,11 +44,12 @@ export function httpCloudRecipeService(connection: CloudRecipeConnection): Cloud
     async run(job) {
       if (job.userConsent !== true) throw new Error('Cloud edit settings need your approval for this photo.');
       let jobId = '';
+      let inputDeleted = false;
       const blob = await runCloudJob(connection, {
         kind: 'recipe', inputKind: job.inputKind, input: job.input, userConsent: true, signal: job.signal,
-        maxResultBytes: CLOUD_RECIPE_MAX_BYTES, onJobId: (id) => { jobId = id; },
+        maxResultBytes: CLOUD_RECIPE_MAX_BYTES, onJobId: (id) => { jobId = id; }, onFinished: (deleted) => { inputDeleted = deleted; },
       });
-      return { jobId, bytes: new Uint8Array(await blob.arrayBuffer()) };
+      return { jobId, bytes: new Uint8Array(await blob.arrayBuffer()), inputDeleted };
     },
   };
 }
