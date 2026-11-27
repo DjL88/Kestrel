@@ -21,12 +21,24 @@ const link = 'min-h-11 px-2 text-sm text-[var(--text-secondary)] underline under
 
 interface Extra { id: string; role: string; title: string; why: string; bytes: number; download: () => Promise<void> }
 
-/** The optional AI extras this build offers and this device has not got yet (bundled ones report 'built-in'). */
+/** Lens profiles are offered (and ticked) alongside the AI extras until this device has them. */
+const LENS_PROFILES_EXTRA = 'lens-profiles';
+
+/** The optional downloads this build offers and this device has not got yet (bundled AI extras report 'built-in'). */
 async function offeredExtras(): Promise<Extra[]> {
-  const [{ MODEL_CATALOGUE }, { optionalModelBytes }] = await Promise.all([import('../../../providers/modelCatalogue'), import('../../../core/optionalModels')]);
+  const [{ MODEL_CATALOGUE }, { optionalModelBytes }, lens] = await Promise.all([
+    import('../../../providers/modelCatalogue'), import('../../../core/optionalModels'), import('../../../providers/lensProfileStore'),
+  ]);
   const roles = STRINGS.models.role as Record<string, string>;
   const whys = (STRINGS.models as { why?: Record<string, string> }).why;
   const out: Extra[] = [];
+  if (!(await lens.lensDatabase(false).catch(() => null))) {
+    const L = STRINGS.adjust.lens;
+    out.push({
+      id: LENS_PROFILES_EXTRA, role: LENS_PROFILES_EXTRA, title: L.setupTitle, why: L.setupWhy, bytes: lens.LENSFUN_DOWNLOAD_BYTES,
+      download: () => lens.lensDatabase(true).then(() => undefined),
+    });
+  }
   for (const entry of MODEL_CATALOGUE) {
     if (!entry.pack) continue;
     const place = await entry.place().catch(() => 'not-offered' as const);
@@ -75,7 +87,7 @@ export default function QuickSetup({ online, signedInName, onSignIn, onClose }: 
       if (!live) return;
       setExtras(list);
       const wanted = new Set(suggestedExtras(genres));
-      setTicked(new Set(list.filter((e) => wanted.has(e.role)).map((e) => e.id)));
+      setTicked(new Set(list.filter((e) => e.id === LENS_PROFILES_EXTRA || wanted.has(e.role)).map((e) => e.id)));
     });
     return () => { live = false; };
   }, [step, extras, genres]);

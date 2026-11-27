@@ -2259,16 +2259,18 @@ export default function Canvas({
           >
             <BrandIcon name="plus" size={14} />
           </button>
-          {/* Fit, in words: the full-screen button beside it was being taken for "fit" (Windows beta). */}
+          {/* Fit, said in a word (owner, 26 Nov): the full-screen button beside it was taken for "fit" and filled the screen. */}
           <button
             type="button"
             data-testid="zoom-fit"
             title={STRINGS.canvas.zoomFitScreen}
+            aria-label={STRINGS.canvas.zoomFitScreen}
             aria-pressed={Math.abs(canvasZoom - 1) < 0.001}
             onClick={() => zoomAroundCentre(1)}
-            className="v2-zoom-fine inline-flex h-8 items-center justify-center rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--text-primary)]"
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[0.6875rem] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--text-primary)]"
           >
-            {STRINGS.canvas.zoomFit}
+            <BrandIcon name="fit" size={14} />
+            <span>{STRINGS.canvas.zoomFitShort}</span>
           </button>
 
           <div className="mx-0.5 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />

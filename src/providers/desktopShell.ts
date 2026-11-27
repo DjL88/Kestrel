@@ -46,7 +46,11 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
  * repeated exports independent, with each output opened exclusively.
  * The app-lifetime task queue owns the files after the export dialog closes.
  */
-export async function chooseDesktopExportFolder() {
+/**
+ * clickedAt: when the person pressed Save files. The folder picker's timing is then left as a finished task in Tasks on
+ * this device (src/core/pickerTiming.ts), so a slow picker can be told apart from a slow app. Nothing is sent anywhere.
+ */
+export async function chooseDesktopExportFolder(clickedAt?: number) {
   if (!isDesktopApp() || isMobileShell()) throw new Error('Folder-based background export needs the desktop app.');
   const [{ open: choose }, { open: openFile, mkdir, remove }, { join }, { createDesktopFolderDestination }, { exportRunFolder }] = await Promise.all([
     import('@tauri-apps/plugin-dialog'),
@@ -60,7 +64,16 @@ export async function chooseDesktopExportFolder() {
   const storage = typeof localStorage === 'undefined' ? null : localStorage;
   // recursive: the export writes into "InFlight Exports/<run>" inside the chosen folder, so the grant must cover the
   // folders inside it too; without it the app refused to make them ("Could not start this export").
+  const askedAt = Date.now();
   const chosen = await choose({ directory: true, multiple: false, recursive: true, defaultPath: lastExportFolder(storage), title: 'Choose where to save InFlight exports' });
+  if (clickedAt !== undefined) {
+    const { pickerDurations } = await import('../core/pickerTiming');
+    const durations = pickerDurations({ clickedAt, askedAt, answeredAt: Date.now() });
+    if (durations) {
+      const { tasks } = await import('../core/taskStore');
+      tasks.start(engineText.workspace.pickerTimingTitle).finish(engineText.workspace.pickerTiming(durations.appSeconds, durations.pickerSeconds));
+    }
+  }
   if (typeof chosen !== 'string' || !chosen) return null; // Folder picker cancelled.
   const folder = exportRunFolder(new Date(), crypto.randomUUID()).slice('export/'.length);
   const root = await join(chosen, 'InFlight Exports', folder);

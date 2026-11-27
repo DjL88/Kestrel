@@ -420,6 +420,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
+  // Another photo opens fitted to the screen (owner, 26 Nov: it kept the last photo's 214%). Only a change of photo
+  // does this; turning the device keeps the zoom (#1771).
+  const lastPhotoForZoom = useRef(store.activePhotoId);
+  useEffect(() => {
+    if (lastPhotoForZoom.current === store.activePhotoId) return;
+    lastPhotoForZoom.current = store.activePhotoId;
+    if (Math.abs(store.canvasZoom - 1) > 0.0005) actions.setCanvasZoom(1);
+  }, [store.activePhotoId, store.canvasZoom, actions]);
+
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
   const runNeutralWhite = React.useCallback(async (photoId: string, at?: { x: number; y: number }) => {
@@ -955,12 +964,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
-  // Opening a photo or a project starts at Fit, never at the last zoom (Windows beta: it reopened at 214%). Stepping from
-  // photo to photo keeps the zoom, for checking focus in a burst.
-  const loupeOpen = store.screen === 'editor' && !store.gridViewOpen;
-  React.useEffect(() => {
-    if (loupeOpen) actions.setCanvasZoom(1);
-  }, [loupeOpen, store.activeProjectId]);
   useEffect(() => {
     const sheet = sheetEl;
     if (!sheetOpen || !sheet) { setSheetHeight(0); setSheetWidth(0); return; }
