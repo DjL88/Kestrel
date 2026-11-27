@@ -1138,7 +1138,7 @@ export const is: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Grímur',
     subtitle: 'Tengt við staðbundnu greiningarvélina þína — veldu svæði fyrir markvissa tónstillingu eða suðeyðingu.',
-    autoDetectHeading: "Snjallt (gervigreind)",
+    autoDetectHeading: "Snjallt",
     subject: 'Finna myndefni',
     addAction: "Bæta við",
     detecting: "Leitar…",

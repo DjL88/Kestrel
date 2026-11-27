@@ -1138,7 +1138,7 @@ export const sv: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masker',
     subtitle: 'Ansluten till din lokala segmenteringsmotor — välj områden för riktad ton- eller brusjustering.',
-    autoDetectHeading: "Smart (AI)",
+    autoDetectHeading: "Smart",
     subject: 'Hitta motiv',
     addAction: "Lägg till",
     detecting: "Letar …",

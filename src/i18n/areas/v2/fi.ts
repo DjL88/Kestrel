@@ -1139,7 +1139,7 @@ export const fi: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Maskit',
     subtitle: 'Yhdistetty paikalliseen segmentointimoottoriin — valitse alueita kohdistettua sävyn säätöä tai kohinanpoistoa varten.',
-    autoDetectHeading: "Älykäs (tekoäly)",
+    autoDetectHeading: "Älykäs",
     subject: 'Tunnista kohde',
     addAction: "Lisää",
     detecting: "Etsitään…",

@@ -1173,7 +1173,7 @@ export const source = {
   masks: {
     heading: 'Masks',
     subtitle: 'Connected to your local segmentation engine — select regions for targeted tone or denoise.',
-    autoDetectHeading: "Smart (AI)",
+    autoDetectHeading: "Smart",
     subject: 'Detect subject',
     addAction: "Add",
     detecting: "Looking…",

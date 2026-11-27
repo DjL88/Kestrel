@@ -87,7 +87,7 @@ export default function MasksPanel({
 
       <p role="status" className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">{STRINGS.panelWords.maskStatus}</p>
 
-      {/* Two groups of ways to add a mask (Dave, 27 Nov), each a labelled region in keyboard order: Smart (AI), where
+      {/* Two groups of ways to add a mask (Dave, 27 Nov), each a labelled region in keyboard order: Smart, where
           InFlight finds the area, then Manual, where you draw it. Spot removal replaces pixels, so it is in Enhance. */}
       <section aria-labelledby="masks-smart-heading" data-testid="masks-group-smart" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5">
         <h3 id="masks-smart-heading" className="text-xs font-semibold text-[var(--text-primary)]">

@@ -1138,7 +1138,7 @@ export const da: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masker',
     subtitle: 'Forbundet til din lokale segmenteringsmotor — vælg områder til målrettet tone- eller støjjustering.',
-    autoDetectHeading: "Smart (AI)",
+    autoDetectHeading: "Smart",
     subject: 'Find motiv',
     addAction: "Tilføj",
     detecting: "Leder…",

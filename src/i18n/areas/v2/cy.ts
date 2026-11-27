@@ -1138,7 +1138,7 @@ export const cy: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masgiau',
     subtitle: 'Wedi’i gysylltu â’ch peiriant segmentu lleol — dewiswch ardaloedd ar gyfer tôn neu leihau sŵn wedi’i dargedu.',
-    autoDetectHeading: "Clyfar (AI)",
+    autoDetectHeading: "Clyfar",
     subject: 'Canfod y gwrthrych',
     addAction: "Ychwanegu",
     detecting: "Yn chwilio…",

@@ -1138,7 +1138,7 @@ export const nb: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masker',
     subtitle: 'Koblet til din lokale segmenteringsmotor — velg områder for målrettet tone- eller støyjustering.',
-    autoDetectHeading: "Smart (KI)",
+    autoDetectHeading: "Smart",
     subject: 'Finn motiv',
     addAction: "Legg til",
     detecting: "Leter …",

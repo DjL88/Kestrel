@@ -1139,7 +1139,7 @@ export const gd: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masgaichean',
     subtitle: 'Ceangailte ris an einnsean roinneadh ionadail agad — tagh raointean airson tòna no lùghdachadh gràinne cuimsichte.',
-    autoDetectHeading: "Tapaidh (IF)",
+    autoDetectHeading: "Tapaidh",
     subject: 'Lorg an cuspair',
     addAction: "Cuir ris",
     detecting: "A’ lorg…",

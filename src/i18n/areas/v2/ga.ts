@@ -1141,7 +1141,7 @@ export const ga: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Maisc',
     subtitle: 'Ceangailte le d’inneall deighilte áitiúil — roghnaigh réimsí le haghaidh ton nó laghdú torainn spriocdhírithe.',
-    autoDetectHeading: "Cliste (IS)",
+    autoDetectHeading: "Cliste",
     subject: 'Braith an t-ábhar',
     addAction: "Cuir leis",
     detecting: "Ag cuardach…",

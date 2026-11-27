@@ -1138,7 +1138,7 @@ export const nl: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Maskers',
     subtitle: 'Verbonden met uw lokale segmentatie-engine — selecteer gebieden voor gerichte toon- of ruiscorrectie.',
-    autoDetectHeading: "Slim (AI)",
+    autoDetectHeading: "Slim",
     subject: 'Onderwerp detecteren',
     addAction: "Toevoegen",
     detecting: "Zoeken…",

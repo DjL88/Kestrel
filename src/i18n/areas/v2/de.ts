@@ -1138,7 +1138,7 @@ export const de: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Masken',
     subtitle: 'Mit Ihrer lokalen Segmentierungs-Engine verbunden — wählen Sie Bereiche für gezielte Tonwert- oder Rauschkorrektur.',
-    autoDetectHeading: "Intelligent (KI)",
+    autoDetectHeading: "Intelligent",
     subject: 'Motiv erkennen',
     addAction: "Hinzufügen",
     detecting: "Sucht …",

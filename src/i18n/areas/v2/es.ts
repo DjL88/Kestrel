@@ -1138,7 +1138,7 @@ export const es: AreaTranslation<typeof source> = {
   masks: {
     heading: 'Máscaras',
     subtitle: 'Conectado a su motor de segmentación local: seleccione zonas para ajustar el tono o reducir el ruido de forma selectiva.',
-    autoDetectHeading: "Inteligente (IA)",
+    autoDetectHeading: "Inteligente",
     subject: 'Detectar sujeto',
     addAction: "Añadir",
     detecting: "Buscando…",
