@@ -110,8 +110,8 @@ test('Edit loads a flag into the form and Delete removes it after confirming', a
   await expect(page.locator('#flag-key')).toHaveValue('masks');
   await expect(page.getByLabel('Only app version … or newer (optional)')).toHaveValue('26.11.2');
   await expect(page.locator('.rule-row').first().getByLabel('Name or email')).toHaveValue('Acme Ltd');
-  page.once('dialog', (dialog) => { void dialog.accept(); });
   await page.getByRole('button', { name: 'Remove the flag Masks' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.locator('#status')).toContainText('Removed the flag for Masks.');
   expect(writes.map((w) => w.path)).toEqual(['admin/flags/delete']);
   await expect(page.locator('#flags-empty')).toBeVisible();

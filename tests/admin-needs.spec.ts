@@ -72,8 +72,14 @@ test('a refund owed after account deletion is listed and can be marked refunded'
   await expect(page.locator('#needs-list')).toContainText('£4.12');
   await expect(page.locator('#needs-list')).toContainText('1 new message');
   await page.getByRole('link', { name: 'Open refunds: 1 refund owed after account deletion' }).click();
-  page.once('dialog', dialog => dialog.accept('txn_test_123'));
   await page.getByRole('button', { name: 'Mark the refund to acc_test1 as paid' }).click();
+  const ask = page.getByRole('dialog');
+  await ask.getByLabel('Paddle reference for this refund (from the Paddle dashboard)').fill('tx');
+  await ask.getByRole('button', { name: 'Mark refunded' }).click();
+  await expect(ask).toContainText('Enter the Paddle reference so the refund can be traced.');
+  expect(posts.some(p => p.path.endsWith('/refunded')), 'nothing sent with a reference too short to trace').toBe(false);
+  await ask.getByLabel('Paddle reference for this refund (from the Paddle dashboard)').fill('txn_test_123');
+  await ask.getByLabel('Paddle reference for this refund (from the Paddle dashboard)').press('Enter');
   await expect(page.locator('#status')).toContainText('Marked refunded.');
   expect(posts).toContainEqual({ path: '/v1/admin/balance-refunds/acc_test1/refunded', body: { paddleReference: 'txn_test_123' } });
   await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: /^Today/ }).click();
