@@ -545,6 +545,7 @@ export const sv: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zoom ${pct} %: välj Anpassa, 100 % eller Zooma till ögat`,
     zoomMenuLabel: "Zoom",
     zoomFitScreen: "Anpassa till skärmen",
+    zoomFitShort: "Anpassa",
     zoomActual: "100 % (verkliga pixlar)",
     zoomEye: "Zooma till ögat",
     zoomSubject: "Zooma till motivet",

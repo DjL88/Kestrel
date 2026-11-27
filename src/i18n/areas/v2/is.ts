@@ -545,6 +545,7 @@ export const is: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Aðdráttur ${pct}%: veldu Passa, 100% eða Þysja að auga`,
     zoomMenuLabel: "Aðdráttur",
     zoomFitScreen: "Passa á skjá",
+    zoomFitShort: "Passa",
     zoomActual: "100% (raunverulegir dílar)",
     zoomEye: "Þysja að auga",
     zoomSubject: "Þysja að myndefni",

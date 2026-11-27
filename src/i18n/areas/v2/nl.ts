@@ -545,6 +545,7 @@ export const nl: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zoom ${pct}%: kies Passend, 100% of Zoom naar oog`,
     zoomMenuLabel: "Zoom",
     zoomFitScreen: "Passend op scherm",
+    zoomFitShort: "Passend",
     zoomActual: "100% (echte pixels)",
     zoomEye: "Zoom naar oog",
     zoomSubject: "Zoom naar onderwerp",

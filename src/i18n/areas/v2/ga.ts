@@ -548,6 +548,7 @@ export const ga: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zúmáil ${pct}%: roghnaigh Oiriúnaigh, 100% nó Zúmáil chuig an tsúil`,
     zoomMenuLabel: "Zúmáil",
     zoomFitScreen: "Oiriúnaigh don scáileán",
+    zoomFitShort: "Oiriúnaigh",
     zoomActual: "100% (fíor-phicteilíní)",
     zoomEye: "Zúmáil chuig an tsúil",
     zoomSubject: "Zúmáil chuig an ábhar",

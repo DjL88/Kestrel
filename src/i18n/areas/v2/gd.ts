@@ -546,6 +546,7 @@ export const gd: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Sùm ${pct}%: tagh Freagair, 100% no Sùm chun na sùla`,
     zoomMenuLabel: "Sùm",
     zoomFitScreen: "Freagair dhan sgrìn",
+    zoomFitShort: "Freagarraich",
     zoomActual: "100% (fìor-phiogsailean)",
     zoomEye: "Sùm chun na sùla",
     zoomSubject: "Sùm chun a’ chuspair",

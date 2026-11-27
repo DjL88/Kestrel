@@ -577,6 +577,7 @@ export const source = {
     zoomMenu: (pct: number) => `Zoom ${pct}%: choose Fit, 100% or Zoom to eye`,
     zoomMenuLabel: 'Zoom',
     zoomFitScreen: 'Fit to screen',
+    zoomFitShort: "Fit",
     zoomActual: '100% (actual pixels)',
     zoomEye: 'Zoom to eye',
     zoomSubject: 'Zoom to subject',
