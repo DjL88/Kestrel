@@ -536,6 +536,7 @@ export const da: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Tilslut mappe igen',
     gridTitle: (mode) => (mode === 'off' ? 'Vis et 3×3-gitter over rammen' : mode === '3x3' ? 'Gitter 3×3 (klik for 4×4)' : 'Gitter 4×4 (klik for at skjule)'),
     sizeCapped: (w, h) => `Mindre end ${w}×${h}`,
+    loadingDetail: "Indlæser alle detaljer…",
     sizeCappedLong: (rw, rh, w, h) => `Dette foto har kun pixels til ${w}×${h}, så formatet eksporteres i ${w}×${h} i stedet for ${rw}×${rh}. InFlight forstørrer aldrig et billede for at nå en størrelse.`,
     outputScaled: (f) => `Outputskala ${f}×: InFlight forstørrer billedet ${f} gange ved eksport med sin resampler på enheden. Forstørrelse tilføjer ikke ægte detaljer.`,
     outputScaleUnused: (f) => `${f}× ikke nødvendig`,

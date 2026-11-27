@@ -583,6 +583,8 @@ export default function Canvas({
   const [shownShape, setShownShape] = useState<{ photoId: string; aspect: number } | null>(null);
   // The photo on screen is still loading or being developed: a thin line along its bottom edge says so.
   const [pictureBusy, setPictureBusy] = useState(false);
+  // Zoomed in: the part on screen is being drawn at full detail. Said beside the picture, never over it.
+  const [detailLoading, setDetailLoading] = useState(false);
   const reportPictureSize = useCallback((size: { width: number; height: number }) => {
     if (!shownPhotoId || !(size.width > 0 && size.height > 0)) return;
     const aspect = size.width / size.height;
@@ -1334,7 +1336,7 @@ export default function Canvas({
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         maskOutline={variant === 'edited' && alt && !compareMode && hasCanvasMarks ? renderCanvasMarks : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
-        onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} />
+        onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} onDetailLoading={alt ? setDetailLoading : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1659,6 +1661,10 @@ export default function Canvas({
               <BrandIcon name="alert" size={11} />
               {STRINGS.canvas.sizeCapped(output.requestedWidth, output.requestedHeight)}
             </span>
+          )}
+          {/* Beside the picture, on the line above it (never over it); one line of the same height, so the picture never moves. */}
+          {detailLoading && (
+            <span role="status" data-testid="detail-loading" className="whitespace-nowrap text-[var(--text-secondary)]">· {STRINGS.canvas.loadingDetail}</span>
           )}
           {activeSize.crop.flipH && <span>· Flipped H</span>}
           {activeSize.crop.flipV && <span>· Flipped V</span>}

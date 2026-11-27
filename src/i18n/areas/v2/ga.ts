@@ -539,6 +539,7 @@ export const ga: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Athcheangail an fillteán',
     gridTitle: (mode) => (mode === 'off' ? 'Taispeáin greille 3×3 os cionn an fhráma' : mode === '3x3' ? 'Greille 3×3 (cliceáil le haghaidh 4×4)' : 'Greille 4×4 (cliceáil chun folú)'),
     sizeCapped: (w, h) => `Níos lú ná ${w}×${h}`,
+    loadingDetail: "An mionsonra iomlán á lódáil…",
     sizeCappedLong: (rw, rh, w, h) => `Níl de phicteilíní ag an ngrianghraf seo ach dóthain do ${w}×${h}, mar sin easpórtálann an fhormáid seo ag ${w}×${h} in ionad ${rw}×${rh}. Ní mhéadaíonn InFlight pictiúr riamh chun méid a bhaint amach.`,
     outputScaled: (f) => `Scála an aschuir ${f}×: méadaíonn InFlight an pictiúr seo ${f} huaire agus é á easpórtáil lena athshamplóir ar an ngléas. Ní chuireann méadú fíor-mhionsonraí leis.`,
     outputScaleUnused: (f) => `${f}× gan ghá`,

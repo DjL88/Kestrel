@@ -536,6 +536,7 @@ export const pt: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Voltar a ligar a pasta',
     gridTitle: (mode) => (mode === 'off' ? 'Mostrar uma grelha 3×3 sobre o enquadramento' : mode === '3x3' ? 'Grelha 3×3 (clique para 4×4)' : 'Grelha 4×4 (clique para ocultar)'),
     sizeCapped: (w, h) => `Menor do que ${w}×${h}`,
+    loadingDetail: "A carregar o detalhe completo…",
     sizeCappedLong: (rw, rh, w, h) => `Esta fotografia só tem píxeis para ${w}×${h}, por isso este formato é exportado em ${w}×${h} em vez de ${rw}×${rh}. O InFlight nunca amplia uma imagem para atingir um tamanho.`,
     outputScaled: (f) => `Escala de saída ${f}×: o InFlight amplia esta imagem ${f} vezes na exportação com o seu reamostrador no dispositivo. Ampliar não acrescenta detalhe real.`,
     outputScaleUnused: (f) => `${f}× desnecessário`,

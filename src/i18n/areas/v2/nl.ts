@@ -536,6 +536,7 @@ export const nl: AreaTranslation<typeof source> = {
     reconnectOriginal: 'Map opnieuw verbinden',
     gridTitle: (mode) => (mode === 'off' ? 'Een 3×3-raster over het kader tonen' : mode === '3x3' ? 'Raster 3×3 (klik voor 4×4)' : 'Raster 4×4 (klik om te verbergen)'),
     sizeCapped: (w, h) => `Kleiner dan ${w}×${h}`,
+    loadingDetail: "Volledig detail laden…",
     sizeCappedLong: (rw, rh, w, h) => `Deze foto heeft alleen de pixels voor ${w}×${h}, dus dit formaat wordt geëxporteerd op ${w}×${h} in plaats van ${rw}×${rh}. InFlight vergroot nooit een afbeelding om een formaat te halen.`,
     outputScaled: (f) => `Uitvoerschaal ${f}×: InFlight vergroot deze afbeelding bij het exporteren ${f} keer met de resampler op het apparaat. Vergroten voegt geen echt detail toe.`,
     outputScaleUnused: (f) => `${f}× niet nodig`,
