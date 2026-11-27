@@ -549,3 +549,13 @@ test('thumbnails of the tiles on screen start at once on a busy computer, beside
   assert.equal(await develop.finished, 'done');
   assert.equal(await reading.finished, 'done');
 });
+
+test('a single file read starts at once at 100% CPU and little memory, and never says it waits for a task before it', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 2 }, resourceSample: BUSY });
+  let ran = false;
+  const ticket = await scheduler.submit(batch('Preparing 8 thumbnails', 8, async () => { ran = true; }, { resource: 'io', priority: 1 }));
+  assert.equal(await ticket.finished, 'done', 'not held by the load (owner: Queued 1 min 33 s with nothing before it)');
+  assert.equal(ran, true);
+  assert.doesNotMatch(store.list().find(task => task.id === ticket.taskId)?.detail ?? '', /^Waiting/);
+});

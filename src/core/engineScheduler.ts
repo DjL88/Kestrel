@@ -293,7 +293,9 @@ export function createEngineScheduler(options: {
 
   /** Queued tasks held back by the computer's capacity say so, instead of a silent "Queued". */
   const showWaiting = () => {
-    const reason = blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
+    // The words say it starts when the task before it finishes, so they are shown only while one is running.
+    const running = [...jobs.values()].some(job => job.active);
+    const reason = running && blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
     for (const job of jobs.values()) {
       if (job.active || job.paused || job.cancelled || !job.items.some(item => item.state === 'queued')) continue;
       const words = reason ? waitWords(reason) : undefined;
