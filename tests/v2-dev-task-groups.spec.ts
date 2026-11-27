@@ -46,7 +46,9 @@ test('?v2 Tasks shows per-photo thumbnails as one row that counts up, and Cancel
   await expect(rows).toHaveCount(1);
 
   await row.getByRole('button', { name: /^Cancel/ }).click();
-  await expect(rows).toHaveCount(0);
+  // A task that ends while the list is open keeps its row (marked) until the tab changes, so nothing moves under the pointer.
+  await expect(row).toContainText('Cancelled');
+  await expect(rows).toHaveCount(1);
   await root.getByRole('tab', { name: /Completed/ }).click();
   const finished = root.locator('[data-testid="task-row"]');
   await expect(finished).toHaveCount(1);
