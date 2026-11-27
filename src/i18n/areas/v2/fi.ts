@@ -1141,6 +1141,8 @@ export const fi: AreaTranslation<typeof source> = {
     subtitle: 'Yhdistetty paikalliseen segmentointimoottoriin — valitse alueita kohdistettua sävyn säätöä tai kohinanpoistoa varten.',
     autoDetectHeading: 'Älykäs tunnistus',
     subject: 'Tunnista kohde',
+    addAction: "Lisää",
+    detecting: "Etsitään…",
     sky: 'Tunnista taivas',
     background: 'Valitse tausta',
     manualToolsHeading: 'Käsin hienosäätö',

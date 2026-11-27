@@ -1140,6 +1140,8 @@ export const da: AreaTranslation<typeof source> = {
     subtitle: 'Forbundet til din lokale segmenteringsmotor — vælg områder til målrettet tone- eller støjjustering.',
     autoDetectHeading: 'Smart registrering',
     subject: 'Find motiv',
+    addAction: "Tilføj",
+    detecting: "Leder…",
     sky: 'Find himmel',
     background: 'Vælg baggrund',
     manualToolsHeading: 'Manuel finjustering',

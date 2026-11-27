@@ -8,6 +8,8 @@ import { MASK_SLIDERS } from '../../engineClient/maskOps';
 
 interface MasksPanelProps {
   photo: Photo | null;
+  /** A subject or background is being found for this photo now (its mask job is waiting or running). */
+  detecting?: boolean;
   activeMaskTool: WorkspaceStore['activeMaskTool'];
   onSetMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   onAddMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
@@ -25,6 +27,7 @@ interface MasksPanelProps {
 
 export default function MasksPanel({
   photo,
+  detecting = false,
   activeMaskTool,
   onSetMaskTool,
   onAddMaskLayer,
@@ -52,6 +55,9 @@ export default function MasksPanel({
     seen.current = { photoId: photo.id, ids };
   }, [photo?.id, photo?.masks]);
   const previewId = photo?.masks.find(layer => layer.id === openId && layer.visible)?.id;
+  // The detection asked for last, so only its row says it is working (Dave, 27 Nov: the row looked done before it ran).
+  const [asked, setAsked] = React.useState<MaskLayer['type'] | null>(null);
+  React.useEffect(() => setAsked(null), [photo?.id]);
   React.useEffect(() => {
     onPreviewMask?.(photo && previewId ? { photoId: photo.id, maskId: previewId } : null);
     return () => onPreviewMask?.(null);
@@ -88,26 +94,34 @@ export default function MasksPanel({
         </h3>
         <div className="grid grid-cols-1 gap-1.5">
           {autoTools.map((tool) => (
+            // The whole row is the action (Dave, 27 Nov: only the + seemed to add a mask). These are actions, not modes, so
+            // no row looks chosen or done before it has run; the one asked for says it is working until its mask arrives.
             <button
               key={tool.id}
               type="button"
-              disabled={tool.id === 'sky'}
+              data-testid={`mask-detect-${tool.id}`}
+              aria-label={tool.label}
+              disabled={tool.id === 'sky' || (detecting && asked === tool.id)}
+              aria-busy={(detecting && asked === tool.id) || undefined}
               title={tool.id === 'sky' ? STRINGS.panelWords.skyUnavailable : undefined}
               onClick={() => {
                 onSetMaskTool(tool.id);
+                setAsked(tool.id);
                 onAddMaskLayer(photo.id, tool.id);
               }}
-              className={`disabled:cursor-not-allowed disabled:opacity-50 flex h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
-                activeMaskTool === tool.id
-                  ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--border-default)]'
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex min-h-9 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
+                detecting && asked === tool.id
+                  ? 'cursor-progress border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)] disabled:opacity-100'
+                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--brand-accent)] hover:bg-[var(--bg-surface-hover)]'
               }`}
             >
               <span className="flex items-center gap-2">
                 <BrandIcon name={tool.icon} size={15} />
                 <span>{tool.label}</span>
               </span>
-              <BrandIcon name="plus" size={13} />
+              <span className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                {detecting && asked === tool.id ? STRINGS.masks.detecting : <><BrandIcon name="plus" size={12} />{STRINGS.masks.addAction}</>}
+              </span>
             </button>
           ))}
         </div>

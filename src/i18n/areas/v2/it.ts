@@ -1140,6 +1140,8 @@ export const it: AreaTranslation<typeof source> = {
     subtitle: 'Collegato al motore di segmentazione locale — seleziona aree per interventi mirati su tono o rumore.',
     autoDetectHeading: 'Rilevamento intelligente',
     subject: 'Rileva soggetto',
+    addAction: "Aggiungi",
+    detecting: "Ricerca…",
     sky: 'Rileva cielo',
     background: 'Seleziona sfondo',
     manualToolsHeading: 'Rifinitura manuale',

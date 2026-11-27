@@ -1140,6 +1140,8 @@ export const nb: AreaTranslation<typeof source> = {
     subtitle: 'Koblet til din lokale segmenteringsmotor — velg områder for målrettet tone- eller støyjustering.',
     autoDetectHeading: 'Smart gjenkjenning',
     subject: 'Finn motiv',
+    addAction: "Legg til",
+    detecting: "Leter …",
     sky: 'Finn himmel',
     background: 'Velg bakgrunn',
     manualToolsHeading: 'Manuell finjustering',

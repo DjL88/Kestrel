@@ -12,6 +12,7 @@ import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
 import { trueDetailJob } from './utils/trueDetailJob';
+import { photoJobActive } from './utils/photoJob';
 import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
@@ -853,6 +854,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           )}
           <MasksPanel
             photo={activePhoto}
+            detecting={photoJobActive(store.tasks, 'mask', activePhoto?.id)}
             activeMaskTool={store.activeMaskTool}
             onSetMaskTool={actions.setActiveMaskTool}
             onAddMaskLayer={actions.addMaskLayer}

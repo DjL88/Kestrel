@@ -1143,6 +1143,8 @@ export const ga: AreaTranslation<typeof source> = {
     subtitle: 'Ceangailte le d’inneall deighilte áitiúil — roghnaigh réimsí le haghaidh ton nó laghdú torainn spriocdhírithe.',
     autoDetectHeading: 'Brath cliste',
     subject: 'Braith an t-ábhar',
+    addAction: "Cuir leis",
+    detecting: "Ag cuardach…",
     sky: 'Braith an spéir',
     background: 'Roghnaigh an cúlra',
     manualToolsHeading: 'Mionchoigeartú de láimh',

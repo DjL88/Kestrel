@@ -1175,6 +1175,8 @@ export const source = {
     subtitle: 'Connected to your local segmentation engine — select regions for targeted tone or denoise.',
     autoDetectHeading: 'Smart detection',
     subject: 'Detect subject',
+    addAction: "Add",
+    detecting: "Looking…",
     sky: 'Detect sky',
     background: 'Select background',
     manualToolsHeading: 'Manual refinement',

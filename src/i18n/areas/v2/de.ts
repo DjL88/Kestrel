@@ -1140,6 +1140,8 @@ export const de: AreaTranslation<typeof source> = {
     subtitle: 'Mit Ihrer lokalen Segmentierungs-Engine verbunden — wählen Sie Bereiche für gezielte Tonwert- oder Rauschkorrektur.',
     autoDetectHeading: 'Intelligente Erkennung',
     subject: 'Motiv erkennen',
+    addAction: "Hinzufügen",
+    detecting: "Sucht …",
     sky: 'Himmel erkennen',
     background: 'Hintergrund auswählen',
     manualToolsHeading: 'Manuelle Verfeinerung',

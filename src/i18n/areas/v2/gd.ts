@@ -1141,6 +1141,8 @@ export const gd: AreaTranslation<typeof source> = {
     subtitle: 'Ceangailte ris an einnsean roinneadh ionadail agad — tagh raointean airson tòna no lùghdachadh gràinne cuimsichte.',
     autoDetectHeading: 'Lorg glic',
     subject: 'Lorg an cuspair',
+    addAction: "Cuir ris",
+    detecting: "A’ lorg…",
     sky: 'Lorg an speur',
     background: 'Tagh an cùlaibh',
     manualToolsHeading: 'Mion-ghleusadh le làimh',

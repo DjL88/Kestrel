@@ -1140,6 +1140,8 @@ export const cy: AreaTranslation<typeof source> = {
     subtitle: 'Wedi’i gysylltu â’ch peiriant segmentu lleol — dewiswch ardaloedd ar gyfer tôn neu leihau sŵn wedi’i dargedu.',
     autoDetectHeading: 'Canfod clyfar',
     subject: 'Canfod y gwrthrych',
+    addAction: "Ychwanegu",
+    detecting: "Yn chwilio…",
     sky: 'Canfod yr awyr',
     background: 'Dewis y cefndir',
     manualToolsHeading: 'Mireinio â llaw',

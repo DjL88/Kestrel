@@ -1140,6 +1140,8 @@ export const es: AreaTranslation<typeof source> = {
     subtitle: 'Conectado a su motor de segmentación local: seleccione zonas para ajustar el tono o reducir el ruido de forma selectiva.',
     autoDetectHeading: 'Detección inteligente',
     subject: 'Detectar sujeto',
+    addAction: "Añadir",
+    detecting: "Buscando…",
     sky: 'Detectar cielo',
     background: 'Seleccionar fondo',
     manualToolsHeading: 'Refinado manual',

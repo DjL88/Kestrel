@@ -1140,6 +1140,8 @@ export const is: AreaTranslation<typeof source> = {
     subtitle: 'Tengt við staðbundnu greiningarvélina þína — veldu svæði fyrir markvissa tónstillingu eða suðeyðingu.',
     autoDetectHeading: 'Snjöll greining',
     subject: 'Finna myndefni',
+    addAction: "Bæta við",
+    detecting: "Leitar…",
     sky: 'Finna himin',
     background: 'Velja bakgrunn',
     manualToolsHeading: 'Handvirk fínstilling',

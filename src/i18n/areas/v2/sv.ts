@@ -1140,6 +1140,8 @@ export const sv: AreaTranslation<typeof source> = {
     subtitle: 'Ansluten till din lokala segmenteringsmotor — välj områden för riktad ton- eller brusjustering.',
     autoDetectHeading: 'Smart identifiering',
     subject: 'Hitta motiv',
+    addAction: "Lägg till",
+    detecting: "Letar …",
     sky: 'Hitta himmel',
     background: 'Markera bakgrund',
     manualToolsHeading: 'Manuell finjustering',

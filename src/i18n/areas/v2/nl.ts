@@ -1140,6 +1140,8 @@ export const nl: AreaTranslation<typeof source> = {
     subtitle: 'Verbonden met uw lokale segmentatie-engine — selecteer gebieden voor gerichte toon- of ruiscorrectie.',
     autoDetectHeading: 'Slimme detectie',
     subject: 'Onderwerp detecteren',
+    addAction: "Toevoegen",
+    detecting: "Zoeken…",
     sky: 'Lucht detecteren',
     background: 'Achtergrond selecteren',
     manualToolsHeading: 'Handmatig verfijnen',
