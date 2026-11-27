@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { defaultFinishRequest, FINISH_MAX_COUNT, type FinishPlan, type FinishRequest, type FinishSummary } from '../../../core/finishPlan';
+import React, { useMemo, useRef, useState } from 'react';
+import { isRawPreviewFile } from '../../../core/rawFormats';
+import { defaultFinishRequest, FINISH_DEFAULT_COUNT, FINISH_DEFAULT_PERCENT, FINISH_MAX_COUNT, type FinishCandidate, type FinishPlan, type FinishRequest, type FinishSummary } from '../../../core/finishPlan';
 import { STRINGS } from '../strings';
 import { useFocusTrap } from './useFocusTrap';
 
 export interface FinishBestDialogProps {
   open: boolean;
   /** What a request would finish, from the catalogue as it is now. */
-  plan: (request: FinishRequest) => FinishPlan;
+  plan: (request: FinishRequest) => FinishPlan<FinishCandidate & { filename: string }>;
   /** Re-read the plan when the photos change (a number that changes with the catalogue). */
   version: unknown;
   onStart: (request: FinishRequest) => void;
@@ -29,24 +30,22 @@ const field = 'mt-1 h-10 w-32 rounded-[var(--radius-sm)] border border-[var(--bo
  * Finish best: say how many ("best 50", "best 10%", "all"), see what that means before anything runs, then start.
  * It only chooses; the batch runs through the Tasks panel on this device and nothing is uploaded.
  */
-export default function FinishBestDialog({ open, plan, version, onStart, onClose }: FinishBestDialogProps) {
+export default function FinishBestDialog(props: FinishBestDialogProps) {
+  // Mounted only while open, so each opening starts fresh from the right defaults and the focus trap finds its field.
+  return props.open ? <FinishBestChooser {...props} /> : null;
+}
+
+function FinishBestChooser({ open, plan, version, onStart, onClose }: FinishBestDialogProps) {
   const t = STRINGS.finishBest;
-  const [mode, setMode] = useState<Mode>('count');
-  const [count, setCount] = useState('50');
-  const [percent, setPercent] = useState('10');
+  // It starts from 50 photos or 10%, whichever is smaller for this project, worked out before the first render so the
+  // right field is there when focus moves in (a field that swaps afterwards would drop focus to the page).
+  const [start] = useState(() => defaultFinishRequest(plan({ kind: 'all' }).summary.of));
+  const [mode, setMode] = useState<Mode>(start.kind === 'percent' ? 'percent' : 'count');
+  const [count, setCount] = useState(String(start.kind === 'count' ? start.count : FINISH_DEFAULT_COUNT));
+  const [percent, setPercent] = useState(String(start.kind === 'percent' ? start.percent : FINISH_DEFAULT_PERCENT));
   const dialogRef = useRef<HTMLElement>(null);
   const first = useRef<HTMLInputElement>(null);
   useFocusTrap(open, dialogRef, onClose, first);
-
-  // Each time it opens it starts from 50 photos or 10%, whichever is smaller for this project.
-  useEffect(() => {
-    if (!open) return;
-    const start = defaultFinishRequest(plan({ kind: 'all' }).summary.of);
-    setMode(start.kind === 'percent' ? 'percent' : 'count');
-    setCount(String(start.kind === 'count' ? start.count : 50));
-    setPercent(String(start.kind === 'percent' ? start.percent : 10));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const request: FinishRequest | null = useMemo(() => {
     if (mode === 'all') return { kind: 'all' };
@@ -58,8 +57,6 @@ export default function FinishBestDialog({ open, plan, version, onStart, onClose
     return Number.isFinite(p) && p > 0 && p <= 100 ? { kind: 'percent', percent: p } : null;
   }, [mode, count, percent]);
   const result = useMemo(() => (open && request ? plan(request) : null), [open, request, plan, version]);
-  if (!open) return null;
-
   const summary = result?.summary;
   const skips = summary ? [
     summary.edited ? t.skipEdited(summary.edited) : '',
@@ -68,6 +65,7 @@ export default function FinishBestDialog({ open, plan, version, onStart, onClose
     summary.unranked && summary.kind !== 'all' ? t.unranked(summary.unranked) : '',
   ].filter(Boolean) : [];
   const chosen = result?.items.length ?? 0;
+  const rawCount = result?.items.filter((frame) => isRawPreviewFile(frame.filename)).length ?? 0;
   const modeButton = (value: Mode, label: string) => (
     <label key={value} className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm">
       <input type="radio" name="finish-mode" value={value} checked={mode === value} onChange={() => setMode(value)} className="h-4 w-4 accent-[var(--brand-accent)]" />
@@ -113,6 +111,7 @@ export default function FinishBestDialog({ open, plan, version, onStart, onClose
             </>
           ) : null}
         </div>
+        {rawCount > 0 && <p data-testid="finish-raw-note" className="mt-2 text-xs text-[var(--text-secondary)]">{t.rawNote}</p>}
         <p className="mt-3 text-xs text-[var(--text-secondary)]">{t.onDevice}</p>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button type="button" onClick={onClose} className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm font-semibold hover:bg-[var(--bg-surface-hover)]">{t.cancel}</button>

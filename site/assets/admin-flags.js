@@ -12,6 +12,7 @@ export const FLAG_INFO = {
   accountData: { name: 'Delete my account and export my data', effect: 'People can download everything InFlight holds about them, or delete their account, from Settings.' },
   cloudRecipe: { name: 'Cloud editing', effect: 'A small preview goes to the cloud and editing settings come back. The original never leaves the device.' },
   cullRules: { name: 'Culling rules', effect: 'Live sliders in the Culling Assistant, and culling from stored checks.' },
+  finishBest: { name: 'Finish best', effect: 'A Finish best button edits your best photos in one batch on the device, best first, then shows each one to keep or undo.' },
   onlineAi: { name: 'Online photo helper', effect: 'Pro can ask Google Gemini about a photo. Needs the Online photo helper switch.' },
   cloudAssist: { name: 'Cloud help for Pro', effect: 'Pro can send heavy jobs to the cloud.' },
   smartCulling: { name: 'Smart culling', effect: 'Suggests which photos to keep, for people to confirm.' },

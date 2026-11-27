@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import type { SchedulerTicket } from '../../core/engineScheduler';
 import { learnedLeanings } from '../../core/editStyle';
-import { planFinish, type FinishPlan, type FinishRequest } from '../../core/finishPlan';
-import { rawJpegPairs } from '../../core/rawJpegPairs';
+import type { FinishPlan, FinishRequest } from '../../core/finishPlan';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { guardResult } from '../../core/visionGuardian';
 import { v2Text } from '../../i18n/areas/v2';
@@ -15,7 +14,7 @@ import { finishBatchStore } from './finishBatchStore';
 import { renderGalleryPreview } from './galleryPreview';
 import { runAuto } from './runAuto';
 import { runV2Denoise } from './runDenoise';
-import { canUndoFinish, commitFinishEdit, submitFinishBatch, undoFinish, type FinishDeps } from './runFinishBatch';
+import { canUndoFinish, commitFinishEdit, planFinishForCatalogue, submitFinishBatch, undoFinish, type FinishDeps } from './runFinishBatch';
 
 /** Long edge of a review tile's picture: enough to judge an edit at a glance, cheap to draw for fifty at a time. */
 const REVIEW_EDGE = 560;
@@ -29,7 +28,7 @@ export interface FinishBestControl {
   /** The review's Undo for one photo: only the batch's own step, and only while it is still the last one. */
   undo: (photoId: string) => void;
   /** A small picture of the photo as it was (before) or as it is now (after), as an object URL; null when none can be made. */
-  preview: (photoId: string, side: 'before' | 'after') => Promise<string | null>;
+  preview: (photoId: string, side: 'before' | 'after', signal?: AbortSignal) => Promise<string | null>;
   /** Stops the batch at the next photo. Pause and Resume are on the Tasks row. */
   cancel: () => void;
 }
@@ -58,10 +57,7 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
   useEffect(() => () => { ticket.current?.cancel(); }, []);
 
   const plan = useCallback((request: FinishRequest): FinishPlan<PhotoFrame> => {
-    const frames = stateRef.current?.frames ?? [];
-    // A JPEG kept beside its RAW is not a photo of its own.
-    const companions = rawJpegPairs(frames).rawOf;
-    return planFinish(frames.filter((frame) => !companions.has(frame.id)), request);
+    return planFinishForCatalogue(stateRef.current?.frames ?? [], request);
   }, [stateRef]);
 
   const run = useCallback(async (request: FinishRequest): Promise<void> => {
@@ -129,13 +125,14 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
     finishBatchStore.mark(photoId, { review: 'undone', changedSince: false });
   }, [stateRef, mutate]);
 
-  const preview = useCallback(async (photoId: string, side: 'before' | 'after'): Promise<string | null> => {
+  const preview = useCallback(async (photoId: string, side: 'before' | 'after', signal?: AbortSignal): Promise<string | null> => {
     const frame = stateRef.current?.frames.find((item) => item.id === photoId && item.removedAt == null);
     if (!frame || !provider.current) return null;
     // Only photos with no edit and no history are finished, so "before" is the photo with no edit.
     const shown: PhotoFrame = side === 'before' ? { ...frame, edit: undefined } : frame;
     try {
-      const blob = await renderGalleryPreview(shown, provider.current, undefined, REVIEW_EDGE);
+      // Never starts a full sensor development: a RAW not developed on this device yet has no preview here, said in the tile.
+      const blob = await renderGalleryPreview(shown, provider.current, signal, REVIEW_EDGE, { neverDevelop: true });
       return blob ? URL.createObjectURL(blob) : null;
     } catch { return null; }
   }, [stateRef, provider]);

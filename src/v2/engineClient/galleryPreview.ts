@@ -16,8 +16,10 @@ export const GALLERY_PREVIEW_EDGE = 2048;
  * edge, as JPEG. Null when there is no trustworthy picture yet: a RAW whose sensor data has not been developed on this
  * device is not published from its embedded preview.
  */
-export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal, edge = GALLERY_PREVIEW_EDGE): Promise<Blob | null> {
+export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal, edge = GALLERY_PREVIEW_EDGE, options: { neverDevelop?: boolean } = {}): Promise<Blob | null> {
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
+  // A caller that must stay cheap (a list of small tiles) asks for no development: an undeveloped RAW has no picture.
+  if (raw && options.neverDevelop && (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) return null;
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
   if (!raw && !url) return null;
   const source = raw ? await loadExportSource(frame, provider) : await loadImage(url!);

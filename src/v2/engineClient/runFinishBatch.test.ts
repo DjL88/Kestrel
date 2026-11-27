@@ -8,7 +8,10 @@ import { v2Text } from '../../i18n/areas/v2';
 import type { AutoUnavailable } from './autoUnavailable';
 import type { DenoiseOutcome } from './runDenoise';
 import type { AutoRun } from './runAuto';
-import { canUndoFinish, commitFinishEdit, finishOne, LOW_ISO_NO_DENOISE, undoFinish, type FinishDeps } from './runFinishBatch';
+import { createEngineScheduler } from '../../core/engineScheduler';
+import { planFinish } from '../../core/finishPlan';
+import { createTaskStore } from '../../core/taskStore';
+import { canUndoFinish, commitFinishEdit, finishOne, LOW_ISO_NO_DENOISE, planFinishForCatalogue, submitFinishBatch, undoFinish, type FinishDeps, type FinishResult } from './runFinishBatch';
 
 const frame = (id: string, patch: Partial<PhotoFrame> = {}): PhotoFrame => ({
   id, stableKey: `${id}.jpg`, filename: `${id}.jpg`, sequenceIndex: 1, decision: 'unreviewed', burstGroupId: null,
@@ -191,4 +194,66 @@ test('review Undo takes back exactly the batch\'s step, once, and only while it 
   const touched = { ...done, frames: [recordEdit(done.frames[0], { edit: { ...proposal, contrast: 0.2 } }, 9000)] };
   assert.equal(canUndoFinish(touched.frames[0], 3000), false);
   assert.equal(undoFinish(touched, 'a', 3000), touched, 'a later edit by the person is never undone from the review');
+});
+
+test('a held photo says it was not changed and to press Auto, never that a suggestion is waiting in Co-pilot', async () => {
+  const { deps: d } = deps(frame('a'), { holds: async () => true });
+  const result = await finishOne('a', 'a.jpg', d, signal());
+  assert.equal(result.heldReason, v2Text.finishBest.heldReason);
+  assert.match(result.why, /press Auto/);
+  assert.doesNotMatch(result.why, /Co-pilot/);
+  assert.doesNotMatch(v2Text.finishBest.review.heldIntro, /Co-pilot/);
+});
+
+test('a photo edited since the plan says so without blaming the person alone, since another batch can be the cause', async () => {
+  const { deps: d } = deps(frame('a', { edit: proposal }));
+  const result = await finishOne('a', 'a.jpg', d, signal());
+  assert.equal(result.state, 'skipped');
+  assert.match(result.why, /another batch/);
+});
+
+test('the catalogue plan counts a RAW and its kept JPEG as one photo, and the RAW is the one finished', () => {
+  const frames = [
+    frame('r1', { filename: 'IMG_1.NEF', stableKey: 'card/IMG_1.NEF', sequenceIndex: 1, rating: 5 }),
+    frame('j1', { filename: 'IMG_1.JPG', stableKey: 'card/IMG_1.JPG', sequenceIndex: 2, rating: 5 }),
+    frame('j2', { filename: 'IMG_2.JPG', stableKey: 'card/IMG_2.JPG', sequenceIndex: 3, rating: 4 }),
+  ];
+  const plan = planFinishForCatalogue(frames, { kind: 'all' });
+  assert.deepEqual(plan.items.map((item) => item.id), ['r1', 'j2']);
+  assert.equal(plan.summary.of, 2);
+  assert.equal(planFinish(frames, { kind: 'all' }).items.length, 3, 'without the pairing the companion would be edited as its own photo');
+});
+
+function fakeScheduler() {
+  const store = createTaskStore();
+  return { store, scheduler: createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, watchdogMs: 0 }) };
+}
+
+test('the batch runs on the scheduler one photo at a time and reports each result in plan order', async () => {
+  const { scheduler, store } = fakeScheduler();
+  const photos = ['a', 'b', 'c'].map((id, i) => frame(id, { sequenceIndex: i, rating: 5 - i }));
+  const seen: string[] = [];
+  const { deps: d } = deps(photos[0], { frame: (id) => photos.find((p) => p.id === id) });
+  const ticket = await submitFinishBatch({ plan: planFinish(photos, { kind: 'all' }), deps: d, onResult: (r) => seen.push(`${r.photoId}:${r.state}`), scheduler });
+  assert.equal(await ticket.finished, 'done');
+  assert.deepEqual(seen, ['a:applied', 'b:applied', 'c:applied']);
+  assert.equal(store.list().find((task) => task.id === ticket.taskId)?.title, v2Text.finishBest.taskTitle(3));
+});
+
+test('Cancel mid-batch stops after the photo in hand: that result is kept, the rest never start', async () => {
+  const { scheduler } = fakeScheduler();
+  const photos = ['a', 'b', 'c'].map((id, i) => frame(id, { sequenceIndex: i, rating: 5 - i }));
+  const seen: FinishResult[] = [];
+  let started = 0;
+  let cancel: () => boolean = () => false;
+  const { deps: d, calls } = deps(photos[0], {
+    frame: (id) => photos.find((p) => p.id === id),
+    auto: async () => { started += 1; if (started === 2) cancel(); return improved(); },
+  });
+  const ticket = await submitFinishBatch({ plan: planFinish(photos, { kind: 'all' }), deps: d, onResult: (r) => seen.push(r), scheduler });
+  cancel = () => ticket.cancel();
+  assert.equal(await ticket.finished, 'cancelled');
+  assert.equal(started, 2, 'the third photo never starts');
+  assert.deepEqual(seen.map((r) => r.photoId), ['a'], 'the photo finished before Cancel is kept; the one in hand is not recorded');
+  assert.equal(calls.commits.length, 1, 'only the first photo was saved: a photo cancelled mid-way commits nothing');
 });

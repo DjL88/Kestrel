@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { isRawPreviewFile } from '../../../core/rawFormats';
 import { finishBatchStore } from '../../engineClient/finishBatchStore';
 import type { FinishResult } from '../../engineClient/runFinishBatch';
 import type { FinishBestControl } from '../../engineClient/useFinishBest';
@@ -21,9 +22,11 @@ const small = 'inline-flex min-h-10 items-center justify-center rounded-[var(--r
 const MAX_AT_ONCE = 2;
 let drawing = 0;
 const waiting: Array<() => void> = [];
-function drawTurn<T>(job: () => Promise<T>): Promise<T> {
+function drawTurn<T>(job: () => Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     const start = () => {
+      // A tile that has gone while it waited drops its turn instead of drawing a picture nobody will see.
+      if (signal.aborted) { reject(signal.reason); waiting.shift()?.(); return; }
       drawing += 1;
       job().then(resolve, reject).finally(() => { drawing -= 1; waiting.shift()?.(); });
     };
@@ -32,7 +35,7 @@ function drawTurn<T>(job: () => Promise<T>): Promise<T> {
 }
 
 /** One picture, drawn when it scrolls into view. The URL is released when the tile goes. */
-function ReviewPicture({ photoId, filename, side, version, preview }: { photoId: string; filename: string; side: Side; version: string; preview: FinishBestControl['preview'] }) {
+function ReviewPicture({ photoId, filename, side, caption, version, preview }: { photoId: string; filename: string; side: Side; /** Says in words which picture this is; none for a photo that was not changed. */ caption?: string; version: string; preview: FinishBestControl['preview'] }) {
   const t = STRINGS.finishBest.review;
   const host = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
@@ -50,17 +53,19 @@ function ReviewPicture({ photoId, filename, side, version, preview }: { photoId:
     if (!seen) return;
     let live = true;
     let made: string | null = null;
-    void drawTurn(() => preview(photoId, side)).then((url) => {
+    const gone = new AbortController();
+    void drawTurn(() => preview(photoId, side, gone.signal), gone.signal).then((url) => {
       made = url;
       if (live) setShown({ key, url }); else if (url) URL.revokeObjectURL(url);
     }).catch(() => { if (live) setShown({ key, url: null }); });
-    return () => { live = false; if (made) URL.revokeObjectURL(made); };
+    return () => { live = false; gone.abort(); if (made) URL.revokeObjectURL(made); };
   }, [seen, key, photoId, side, preview]);
   const current = shown?.key === key ? shown : null;
   return (
-    <div ref={host} className="flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-[var(--radius-sm)] bg-[var(--bg-surface-sunken,var(--bg-canvas))] text-xs text-[var(--text-secondary)]">
-      {current?.url ? <img src={current.url} alt={filename} className="h-full w-full object-contain" />
-        : <span>{current ? t.noPreview : t.loading}</span>}
+    <div ref={host} className="relative flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-[var(--radius-sm)] bg-[var(--bg-surface-sunken,var(--bg-canvas))] text-xs text-[var(--text-secondary)]">
+      {current?.url ? <img src={current.url} alt={caption ? `${filename}, ${caption}` : filename} className="h-full w-full object-contain" />
+        : <span className="px-2 text-center">{current ? (isRawPreviewFile(filename) ? t.noPreviewRaw : t.noPreview) : t.loading}</span>}
+      {caption && <span data-testid="finish-picture-caption" aria-hidden="true" className="absolute left-1.5 top-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-primary)]">{caption}</span>}
     </div>
   );
 }
@@ -89,7 +94,7 @@ export default function FinishReviewDialog({ open, control, onOpenPhoto, onClose
 
   const tile = (result: FinishResult) => (
     <li key={result.photoId} data-testid="finish-review-tile" data-state={result.state} data-review={result.review} className="flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] p-2">
-      <ReviewPicture photoId={result.photoId} filename={result.filename} side={side} version={result.review} preview={control.preview} />
+      <ReviewPicture photoId={result.photoId} filename={result.filename} side={side} caption={side === 'before' ? r.before : r.after} version={result.review === 'undone' ? 'undone' : 'edited'} preview={control.preview} />
       <p className="truncate text-sm font-semibold" title={result.filename}>{result.filename}</p>
       {result.applied && <p className="text-xs text-[var(--text-primary)]">{result.applied}</p>}
       <p className="text-xs text-[var(--text-secondary)]">{result.why}</p>
@@ -126,7 +131,8 @@ export default function FinishReviewDialog({ open, control, onOpenPhoto, onClose
             <span className="mr-1 text-sm">{r.showing}</span>
             {(['before', 'after'] as const).map((value) => (
               <button key={value} type="button" aria-pressed={side === value} data-testid={`finish-show-${value}`} onClick={() => setSide(value)}
-                className={`${small} ${side === value ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : ''}`}>{value === 'before' ? r.before : r.after}</button>
+                className={`${small} gap-1 ${side === value ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : ''}`}>
+                {side === value && <span aria-hidden="true">✓</span>}{value === 'before' ? r.before : r.after}</button>
             ))}
           </div>
           <button type="button" data-testid="finish-approve-all" disabled={waitingForLook === 0} onClick={() => finishBatchStore.keepAll()}

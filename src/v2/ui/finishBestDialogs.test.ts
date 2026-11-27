@@ -25,7 +25,11 @@ test('the chooser says what a request means in one line, and what it leaves alon
   const html = renderToStaticMarkup(createElement(FinishBestDialog, { open: true, plan: (request) => planFinish(frames, request), version: frames, onStart: () => undefined, onClose: () => undefined }));
   assert.match(html, /role="dialog"/);
   assert.match(html, /aria-modal="true"/);
-  assert.match(html, /Best 4 of 4/);
+  // 10% of 4 is smaller than 50, so the chooser opens on the percentage, with its field already there for focus to land on.
+  assert.match(html, /Best 10%: 1 of 4/);
+  assert.match(html, /data-testid="finish-percent"/);
+  assert.doesNotMatch(html, /data-testid="finish-count"/);
+  assert.doesNotMatch(html, /finish-raw-note/);
   assert.match(html, /Everything runs on this device\. Nothing is uploaded\./);
   assert.equal(renderToStaticMarkup(createElement(FinishBestDialog, { open: false, plan: (request) => planFinish(frames, request), version: frames, onStart: () => undefined, onClose: () => undefined })), '');
 });
@@ -63,5 +67,24 @@ test('the entry button is busy in words while a batch runs, and offers the revie
   assert.match(busy, /Finishing…/);
   assert.match(busy, /disabled/);
   assert.match(busy, /Review 1 finished/);
+  finishBatchStore.reset();
+});
+
+test('the chooser warns that RAW photos take longer, only when the batch includes one', () => {
+  const frames = [frame('a', { rating: 5, filename: 'a.NEF', stableKey: 'a.NEF' }), frame('b', { rating: 4 })];
+  const html = renderToStaticMarkup(createElement(FinishBestDialog, { open: true, plan: (request) => planFinish(frames, request), version: frames, onStart: () => undefined, onClose: () => undefined }));
+  assert.match(html, /RAW photos take longer/);
+});
+
+test('the review says Before or After in words, marks the chosen button with a tick, and never leans on colour alone', () => {
+  finishBatchStore.begin('p', 2);
+  finishBatchStore.add(result('a', 'applied'));
+  finishBatchStore.add(result('b', 'held'));
+  finishBatchStore.finish(false);
+  const html = renderToStaticMarkup(createElement(FinishReviewDialog, { open: true, control, onOpenPhoto: () => undefined, onClose: () => undefined }));
+  assert.match(html, /data-testid="finish-show-after"[^>]*>[^]*?✓[^]*?After<\/button>/);
+  assert.doesNotMatch(html, /data-testid="finish-show-before"[^>]*>[^]*?✓[^]*?Before<\/button>/);
+  assert.equal((html.match(/data-testid="finish-picture-caption"/g) ?? []).length, 1, 'the edited tile is captioned, the held (unchanged) one is not');
+  assert.match(html, /press Auto/);
   finishBatchStore.reset();
 });

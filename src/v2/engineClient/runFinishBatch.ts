@@ -1,12 +1,12 @@
 import { engineScheduler, type SchedulerTicket } from '../../core/engineScheduler';
 import { MAX_WHY_NOTES, recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
-import type { FinishPlan } from '../../core/finishPlan';
+import { planFinish, type FinishPlan, type FinishRequest } from '../../core/finishPlan';
+import { rawJpegPairs } from '../../core/rawJpegPairs';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { v2Text } from '../../i18n/areas/v2';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
-import { autopilotHeldForReview } from './commitAutoEdit';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { readEditGroups, syncEditGroup } from './editGroupState';
 import type { DenoiseOutcome } from './runDenoise';
@@ -86,8 +86,9 @@ export async function finishOne(photoId: string, filename: string, deps: FinishD
     const notes: string[] = [];
     if (run.improved) {
       if (await deps.holds?.(run, signal)) {
-        // Held: nothing at all is applied to this photo, including noise reduction. Auto's suggestion stays in Co-pilot.
-        const reason = autopilotHeldForReview();
+        // Held: nothing at all is applied to this photo, including noise reduction, and the suggestion is not kept: pressing
+        // Auto on the photo makes it again, in any assist mode.
+        const reason = words.heldReason;
         return result('held', reason, { heldReason: reason });
       }
       signal.throwIfAborted();
@@ -171,11 +172,19 @@ export function undoFinish(state: CullingState, photoId: string, at: number): Cu
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() } };
 }
 
+/** What a request would finish: a JPEG kept beside its RAW is not a photo of its own, so only the RAW is counted. */
+export function planFinishForCatalogue(frames: readonly PhotoFrame[], request: FinishRequest): FinishPlan<PhotoFrame> {
+  const companions = rawJpegPairs(frames).rawOf;
+  return planFinish(frames.filter((frame) => !companions.has(frame.id)), request);
+}
+
 export interface FinishBatchOptions {
   plan: FinishPlan<PhotoFrame>;
   deps: FinishDeps;
   /** Called as each photo finishes, in plan order, including photos that were left alone. */
   onResult(result: FinishResult): void;
+  /** The scheduler to queue on; the app's own unless a test passes one. */
+  scheduler?: Pick<typeof engineScheduler, 'submit'>;
 }
 
 /**
@@ -183,9 +192,9 @@ export interface FinishBatchOptions {
  * panel's own. Photos run one at a time, so the interface stays responsive: Auto's measuring and the denoise pixel work
  * (a worker) hand the thread back between steps, and the scheduler never starts a second heavy job beside it.
  */
-export async function submitFinishBatch({ plan, deps, onResult }: FinishBatchOptions): Promise<SchedulerTicket> {
+export async function submitFinishBatch({ plan, deps, onResult, scheduler = engineScheduler }: FinishBatchOptions): Promise<SchedulerTicket> {
   const words = v2Text.finishBest;
-  return engineScheduler.submit({
+  return scheduler.submit({
     title: words.taskTitle(plan.items.length),
     kind: 'auto-edit', resource: 'cpu', priority: 7, pauseable: true,
     stallMs: 10 * 60_000,

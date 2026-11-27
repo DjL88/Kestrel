@@ -20,6 +20,19 @@ test('best first: stars, then cull score, then capture order; unranked photos la
   assert.deepEqual(ids(rankPhotos(frames)), ['e', 'f', 'b', 'a', 'd', 'c']);
 });
 
+test('the photographer\'s own Keep flag counts as best, below stars and above a score, as in the background queue', () => {
+  const frames: FinishCandidate[] = [
+    { id: 'scored', sequenceIndex: 0, cullScore: 9 },
+    { id: 'kept', sequenceIndex: 1, decision: 'keep' },
+    { id: 'starred', sequenceIndex: 2, rating: 1 },
+    { id: 'plain', sequenceIndex: 3 },
+  ];
+  assert.deepEqual(ids(rankPhotos(frames)), ['starred', 'kept', 'scored', 'plain']);
+  const best = planFinish(frames, { kind: 'count', count: 2 });
+  assert.deepEqual(ids(best.items), ['starred', 'kept'], '"best 2" takes the Keep-flagged photo');
+  assert.equal(best.summary.unranked, 1, 'only the photo with no stars, Keep or score is unranked');
+});
+
 test('the ranking agrees with the cloud run for stars and scores', () => {
   const frames = shoot(40, (i) => ({ rating: i % 7 === 0 ? 3 : 0 }));
   assert.deepEqual(ids(rankPhotos(frames)), pickForCloud(frames.map((frame) => ({ ...frame, id: frame.id }))).map((frame) => frame.id));

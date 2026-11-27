@@ -6,10 +6,11 @@ import { isEmptyEdit, type PhotoEdit } from './photoEdits';
  * edits, sends or removes anything, and it never drops a decision: a photo the person rejected, removed or already
  * edited is left out and counted, so the summary can say so.
  *
- * Ranking is the one the cloud run and the background queue already use (src/core/cloudEditsChoice.ts pickForCloud,
- * src/core/photoProcessingOrder.ts): stars first (the photographer's own rating, else the camera's), then Auto pick's
- * cull score, then capture order. A photo with neither stars nor a score is unranked: "best N" never guesses one in, so
- * only "all" takes it, last.
+ * Ranking: stars first (the photographer's own rating, else the camera's), then the photographer's own Keep flag (as
+ * the background queue, src/core/photoProcessingOrder.ts, treats it), then Auto pick's cull score, then capture order.
+ * The cloud run (src/core/cloudEditsChoice.ts pickForCloud) orders by stars and score only, so it does not use a Keep
+ * flag; this plan does. A photo with none of stars, Keep or a score is unranked: "best N" never guesses one in, so only
+ * "all" takes it, last.
  */
 export type FinishRequest =
   | { kind: 'count'; count: number }
@@ -69,13 +70,18 @@ export function starsOf(frame: Pick<FinishCandidate, 'rating' | 'exif'>): number
 const hasEdit = (frame: FinishCandidate): boolean =>
   Boolean(frame.editHistory?.steps.length) || Boolean(frame.edit && !isEmptyEdit(frame.edit));
 const isRejected = (frame: FinishCandidate): boolean => frame.decision === 'reject' || frame.exif?.rejectedByMetadata === true;
-const ranked = (frame: FinishCandidate): boolean => starsOf(frame) > 0 || finite(frame.cullScore);
+/** Stars, else 1 for a Keep flag with no stars (the photographer's own pick), else 0. */
+const standing = (frame: FinishCandidate): number => {
+  const stars = starsOf(frame);
+  return stars > 0 ? 10 + stars : frame.decision === 'keep' ? 1 : 0;
+};
+const ranked = (frame: FinishCandidate): boolean => standing(frame) > 0 || finite(frame.cullScore);
 
-/** Every photo still in the project, best first: stars, then Auto pick's score, then capture order; unranked last. */
+/** Every photo still in the project, best first: stars, then Keep, then Auto pick's score, then capture order; unranked last. */
 export function rankPhotos<T extends FinishCandidate>(frames: readonly T[]): T[] {
   return frames.filter((frame) => frame.removedAt == null && !frame.isDemo && !frame.virtualCopy)
     .slice()
-    .sort((a, b) => starsOf(b) - starsOf(a)
+    .sort((a, b) => standing(b) - standing(a)
       || (finite(b.cullScore) ? 1 : 0) - (finite(a.cullScore) ? 1 : 0)
       || (finite(b.cullScore) && finite(a.cullScore) ? b.cullScore - a.cullScore : 0)
       || a.sequenceIndex - b.sequenceIndex);
