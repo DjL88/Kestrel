@@ -319,3 +319,68 @@ test('without measured capacity Select subject starts beside a shoot-wide Auto p
   assert.deepEqual(started, ['cull', 'mask']);
   gates.forEach((release) => release());
 });
+
+test('cancelling a task whose photo never finishes gives its processing slot back at once', async () => {
+  const { scheduler, store } = build();
+  let committed = false;
+  // A hung analysis: ignores the stop and never resolves (the owner's stuck "Auto pick and analyse").
+  const stuck = await scheduler.submit(batch('Auto pick and analyse', 1, async (_n, _s, ctx) => {
+    await new Promise(() => undefined);
+    ctx.commitIfCurrent(() => { committed = true; });
+  }, { kind: 'cull' }));
+  await until(() => scheduler.runningResourceCount().cpu === 1, 'analysis running');
+  const develops: number[] = [];
+  const develop = await scheduler.submit(batch('Developing RAW files', 3, async n => { develops.push(n); }, { kind: 'raw', priority: 2 }));
+  await pause(5);
+  assert.deepEqual(develops, [], 'waiting for the slot while the analysis holds it');
+  scheduler.cancel(stuck.taskId);
+  assert.equal(await stuck.finished, 'cancelled');
+  assert.equal(scheduler.runningResourceCount().cpu, 0, 'the slot is free straight away');
+  assert.equal(await develop.finished, 'done');
+  assert.deepEqual(develops, [1, 2, 3]);
+  assert.equal(store.list().find(t => t.id === stuck.taskId)?.state, 'cancelled');
+  assert.equal(committed, false);
+});
+
+test('a photo that finishes after its task was cancelled commits nothing and frees no second slot', async () => {
+  const { scheduler } = build();
+  let finishLate!: () => void;
+  let committed = false;
+  const late = await scheduler.submit(batch('Import', 2, async (_n, _s, ctx) => {
+    await new Promise<void>(resolve => { finishLate = resolve; });
+    ctx.commitIfCurrent(() => { committed = true; });
+  }, { kind: 'import' }));
+  await until(() => scheduler.runningResourceCount().cpu === 1, 'import running');
+  let blockerRelease!: () => void;
+  scheduler.cancel(late.taskId);
+  const next = await scheduler.submit(batch('Develop', 1, async () => { await new Promise<void>(resolve => { blockerRelease = resolve; }); }, { kind: 'raw' }));
+  await until(() => scheduler.runningResourceCount().cpu === 1, 'the next task holds the slot');
+  finishLate();
+  await pause(5);
+  assert.equal(committed, false, 'a cancelled photo never lands');
+  assert.equal(scheduler.runningResourceCount().cpu, 1, 'the late finish does not release the next task\'s slot');
+  blockerRelease();
+  assert.equal(await next.finished, 'done');
+  assert.equal(scheduler.runningResourceCount().cpu, 0);
+});
+
+test('a paused task holds no slot, and cancelling it while paused leaves the others running', async () => {
+  const { scheduler } = build();
+  let release!: () => void;
+  const first = new Promise<void>(resolve => { release = resolve; });
+  const imported: number[] = [];
+  const ingest = await scheduler.submit(batch('Import', 5, async n => { imported.push(n); if (n === 1) await first; }, { kind: 'import', priority: 11, pauseable: true }));
+  await until(() => imported.length === 1, 'import started');
+  scheduler.pause(ingest.taskId);
+  release();
+  await until(() => scheduler.runningResourceCount().cpu === 0, 'paused after the current photo, slot given back');
+  const developed: number[] = [];
+  const develop = await scheduler.submit(batch('Develop', 2, async n => { developed.push(n); }, { kind: 'raw', priority: 2 }));
+  assert.equal(await develop.finished, 'done', 'runs while the import is paused');
+  scheduler.cancel(ingest.taskId);
+  assert.equal(await ingest.finished, 'cancelled');
+  assert.deepEqual(imported, [1]);
+  const after = await scheduler.submit(batch('Develop again', 1, async () => undefined, { kind: 'raw' }));
+  assert.equal(await after.finished, 'done');
+  assert.equal(scheduler.runningResourceCount().cpu, 0);
+});

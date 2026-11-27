@@ -2286,7 +2286,7 @@ export const nl: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Foto wordt geladen',
-    minutesLeft: (n: number) => `Nog ongeveer ${n} min`,
+    minutesLeft: (n: number) => (n < 60 ? `Nog ongeveer ${n} min` : `Nog ongeveer ${Math.floor(n / 60)} h ${n % 60} min`),
     teaTime: 'Tijd voor een kopje thee',
   },
 };

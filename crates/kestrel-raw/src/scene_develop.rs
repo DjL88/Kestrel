@@ -55,7 +55,7 @@ impl Default for Look {
 }
 
 /// Bump when the look changes, so cached developments can be told apart from new ones.
-pub const LOOK_VERSION: u32 = 2; // 2: the As shot look (camera_look) on top
+pub const LOOK_VERSION: u32 = 3; // 2: the As shot look (camera_look) on top; 3: its white balance steady, colour smoothing matched to the noise
 
 /// A missing as-shot white balance may be rendered neutral, but malformed supplied
 /// coefficients must not silently corrupt the image or produce NaN/Inf pixels.
@@ -523,6 +523,28 @@ fn guided_coefficients(guide: &[f32], p: &[f32], w: usize, h: usize, r: usize, e
     (box_mean(&a, w, h, r), box_mean(&b, w, h, r))
 }
 
+/// The guided filter's smoothing level, in multiples of the measured luminance noise: a flat area whose brightness
+/// varies only by noise then counts as flat, so its colour is smoothed.
+const NOISE_TO_EPS: f32 = 2.5;
+/// Above this luminance noise (display scale, half resolution) the colour is smoothed over a wider area: high-ISO colour
+/// noise forms blotches larger than the usual window.
+const WIDE_CHROMA_NOISE: f32 = 0.012;
+
+/// Luminance noise of a half-resolution plane (robust: median of each sample's difference from its four neighbours).
+fn half_res_noise(plane: &[f32], w: usize, h: usize) -> f32 {
+    if w < 3 || h < 3 { return 0.0; }
+    let mut d: Vec<f32> = (1..h - 1).step_by(3).flat_map(|y| (1..w - 1).step_by(3).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let c = plane[y * w + x];
+            (c - (plane[y * w + x - 1] + plane[y * w + x + 1] + plane[(y - 1) * w + x] + plane[(y + 1) * w + x]) / 4.0).abs()
+        }).collect();
+    if d.is_empty() { return 0.0; }
+    let mid = d.len() / 2;
+    let median = *d.select_nth_unstable_by(mid, |a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).1;
+    // A sample minus the mean of four independent ones has 1.25 times the variance of one.
+    median / 0.6745 / 1.25f32.sqrt()
+}
+
 /// Denoise chroma and sharpen luminance in place on 16-bit display RGB.
 fn refine(rgb: &mut [u16], w: usize, h: usize, look: &Look) {
     if w < 8 || h < 8 || (look.chroma_denoise <= 0.0 && look.sharpen <= 0.0) {
@@ -549,8 +571,14 @@ fn refine(rgb: &mut [u16], w: usize, h: usize, look: &Look) {
         }
     });
     let denoise = look.chroma_denoise > 0.0;
-    let eps = (0.02 * look.chroma_denoise).powi(2);
-    let coeffs = denoise.then(|| (guided_coefficients(&yh, &cbh, hw, hh, 4, eps), guided_coefficients(&yh, &crh, hw, hh, 4, eps)));
+    // Matched to this photo's own noise. With a fixed smoothing level, a high-ISO photo's luminance noise looked like
+    // detail to the guided filter, so its colour speckle and blotches came through almost untouched (owner's ISO 10000
+    // puffin: colour spread 18.6 levels against the camera's 11.8). The level now follows the measured noise, so a clean
+    // low-ISO photo is treated as before and a noisy one gets the wider, stronger smoothing its chroma needs.
+    let sigma = half_res_noise(&yh, hw, hh);
+    let eps = (look.chroma_denoise * (0.02f32).max(NOISE_TO_EPS * sigma)).powi(2);
+    let radius = if sigma > WIDE_CHROMA_NOISE { 8 } else { 4 };
+    let coeffs = denoise.then(|| (guided_coefficients(&yh, &cbh, hw, hh, radius, eps), guided_coefficients(&yh, &crh, hw, hh, radius, eps)));
 
     let at = |plane: &[f32], x: usize, y: usize| plane[(y / 2).min(hh - 1) * hw + (x / 2).min(hw - 1)];
     // Sharpen only what stands clearly above this photo's own luminance noise (robust MAD estimate on a sample).
@@ -839,6 +867,30 @@ mod tests {
         let left = v[(20 * w + 10) * 3 + 1] as f32 / 65535.0;
         let right = v[(20 * w + 54) * 3 + 1] as f32 / 65535.0;
         assert!(right - left > 0.35, "the edge between dark and light stays sharp: {left} vs {right}");
+    }
+
+    #[test]
+    fn high_iso_colour_noise_with_luminance_noise_is_smoothed_too() {
+        // Like ISO 10000: strong colour speckle AND luminance grain. A fixed smoothing level read the grain as detail.
+        let (w, h) = (96, 64);
+        let mut v = vec![0u16; w * h * 3];
+        for y in 0..h { for x in 0..w {
+            let hash = |k: usize| ((x * 7919 + y * 104729 + k * 15485863) % 101) as f32 / 101.0 - 0.5;
+            // Demosaicing ties colour noise to the grain, which is what let it through the guide as if it were detail.
+            let grain = hash(1) * 0.12;
+            let colour = grain * 0.8 + hash(2) * 0.06;
+            let p = [0.5 + grain + colour, 0.5 + grain - colour * 0.5, 0.5 + grain - colour];
+            for c in 0..3 { v[(y * w + x) * 3 + c] = (p[c].clamp(0.0, 1.0) * 65535.0) as u16; }
+        }}
+        let before = chroma_spread(&v);
+        refine(&mut v, w, h, &Look { sharpen: 0.0, ..Look::default() });
+        assert!(chroma_spread(&v) < before * 0.15, "colour noise cut to under 15% (a fixed level left 27%): {} -> {}", before, chroma_spread(&v));
+    }
+
+    #[test]
+    fn a_clean_photo_is_measured_as_clean() {
+        let plane: Vec<f32> = (0..64 * 64).map(|i| (i % 64) as f32 / 64.0).collect();
+        assert!(half_res_noise(&plane, 64, 64) < 0.001, "a smooth gradient has no noise");
     }
 
     #[test]

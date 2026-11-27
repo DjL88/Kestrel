@@ -73,3 +73,29 @@ test('the RAW preview reader finds an embedded JPEG through ranged reads without
   const total = reads.reduce((sum, [, length]) => sum + length, 0);
   assert.ok(total < 300_000, `read ${total} bytes of ${size}`);
 });
+
+test('reads near the start of a file are answered from one read of its head, with the exact bytes', async () => {
+  const { withHeadCache } = await import('./rangeBlob');
+  const file = Uint8Array.from({ length: 10_000 }, (_, i) => (i * 7) % 256);
+  const calls: Array<[number, number]> = [];
+  const read = async (offset: number, length: number) => { calls.push([offset, length]); return file.slice(offset, offset + length); };
+  const cached = withHeadCache(read, file.length, 4096);
+  assert.deepEqual(await cached(0, 2), file.slice(0, 2));
+  assert.deepEqual(await cached(100, 12), file.slice(100, 112));
+  assert.deepEqual(await cached(4000, 96), file.slice(4000, 4096));
+  assert.deepEqual(calls, [[0, 4096]], 'three small reads, one read of the head');
+  assert.deepEqual(await cached(4000, 200), file.slice(4000, 4200), 'a read past the head goes to the file');
+  assert.deepEqual(calls.at(-1), [4000, 200]);
+  // A short file: the head is the whole file, and a read past its end comes back short, as from the file itself.
+  const short = withHeadCache(read, 50, 4096);
+  assert.equal((await short(40, 10)).byteLength, 10);
+});
+
+test('a failed head read is not kept: the next read tries again', async () => {
+  const { withHeadCache } = await import('./rangeBlob');
+  let fail = true;
+  const read = async (offset: number, length: number) => { if (fail) { fail = false; throw new Error('drive busy'); } return new Uint8Array(length).fill(offset === 0 ? 1 : 2); };
+  const cached = withHeadCache(read, 1000, 512);
+  await assert.rejects(cached(0, 4), /drive busy/);
+  assert.deepEqual(await cached(0, 4), new Uint8Array(4).fill(1));
+});
