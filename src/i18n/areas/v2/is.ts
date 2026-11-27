@@ -617,7 +617,6 @@ export const is: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Aðstoðarflugmaður',
-    changeInSettings: 'Breyta stillingu í Stillingum',
     modeForProject: "Flugstilling þessa verkefnis",
     nothingYet: 'Ekkert að segja enn. Þetta birtist þegar InFlight hefur skoðað þessa mynd.',
     modeDescriptions: {

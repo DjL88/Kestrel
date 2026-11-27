@@ -617,7 +617,6 @@ export const cy: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Cyd-beilot',
-    changeInSettings: 'Newid y modd yn y Gosodiadau',
     modeForProject: "Modd hedfan y prosiect hwn",
     nothingYet: 'Dim i’w adrodd eto. Bydd yn ymddangos unwaith y bydd InFlight wedi edrych ar y llun hwn.',
     modeDescriptions: {

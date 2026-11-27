@@ -14,11 +14,11 @@ test('?v2 the Flight panel leads with recommendations, is named after the mode, 
   await expect(recommendations).toBeVisible();
 
   // Just the points (Dave, 27 Nov): the mode, the recommendation and short findings. The checks that need a press
-  // (Check photo on this device, Deep Vision Review) and the full notes are under one closed More checks.
+  // (Check photo on this device, the connected-helper check) and the full notes are under one closed More checks.
   const more = root.getByTestId('flight-more-checks');
   await expect(more).toBeVisible();
   await expect(more).not.toHaveAttribute('open', '');
-  await expect(root.getByRole('button', { name: /Deep Vision Review/ })).toBeHidden();
+  await expect(root.getByRole('button', { name: /Check with my connected helper/ })).toBeHidden();
   await expect(root.getByRole('button', { name: 'Check photo on this device' })).toBeHidden();
   await expect(root.getByText('Current photo critique')).toBeHidden();
   // No paragraph about the mode on the tab: it is behind the (i).

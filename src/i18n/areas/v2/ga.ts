@@ -620,7 +620,6 @@ export const ga: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Comhphíolóta',
-    changeInSettings: 'Athraigh an mód sna Socruithe',
     modeForProject: "Mód eitilte don tionscadal seo",
     nothingYet: 'Níl aon rud le tuairisciú fós. Feicfear é nuair a bheidh InFlight tar éis breathnú ar an ngrianghraf seo.',
     modeDescriptions: {

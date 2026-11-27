@@ -23,13 +23,13 @@ async function openEditor(page: import('@playwright/test').Page) {
   return root;
 }
 
-test('?v2 Basic: the on-device checks (Auto pick, Deep Vision Review) are offered and never hidden as Pro', async ({ page }) => {
+test('?v2 Basic: the on-device checks (Auto pick, the connected-helper check) are offered and never hidden as Pro', async ({ page }) => {
   const root = await openEditor(page);
   await expect(root.getByRole('button', { name: /Auto pick/ })).toBeVisible();
   await root.getByRole('button', { name: /Co-pilot|Flight|Solo|Auto-pilot/ }).first().click();
-  // Deep Vision Review runs on this device, so a Basic account can use it, offline too (Dave, 27 Nov: Pro was told it was not on the plan).
+  // the connected-helper check runs on this device, so a Basic account can use it, offline too (Dave, 27 Nov: Pro was told it was not on the plan).
   await openFlightChecks(root);
-  await expect(root.getByRole('button', { name: /Deep Vision Review/ })).toBeEnabled();
+  await expect(root.getByRole('button', { name: /Check with my connected helper/ })).toBeEnabled();
   await expect(root.getByText(/Not available on this plan/)).toHaveCount(0);
 
   await openV2Settings(page);
@@ -42,14 +42,14 @@ test('?v2 Basic: the on-device checks (Auto pick, Deep Vision Review) are offere
   // Auto pick is an on-device model, so it is Basic (owner decision 13) and is never hidden as Pro.
   await expect(root.getByRole('button', { name: /Auto pick/ })).toBeVisible();
   await openFlightChecks(root);
-  await expect(root.getByRole('button', { name: /Deep Vision Review/ })).toBeEnabled();
+  await expect(root.getByRole('button', { name: /Check with my connected helper/ })).toBeEnabled();
 
   await openV2Settings(page);
   await page.getByRole('tab', { name: 'Appearance' }).or(page.getByRole('button', { name: 'Appearance' })).first().click();
   await page.getByRole('switch', { name: 'Hide Pro features' }).click();
   await page.getByRole('button', { name: 'Close settings' }).click();
   await openFlightChecks(root);
-  await expect(root.getByRole('button', { name: /Deep Vision Review/ })).toBeEnabled();
+  await expect(root.getByRole('button', { name: /Check with my connected helper/ })).toBeEnabled();
 });
 
 test('?v2 hiding a tool in Panels & layout takes it off the rail (not greyed), and it can be shown again from the menu', async ({ page }) => {
