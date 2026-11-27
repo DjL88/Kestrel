@@ -43,11 +43,14 @@ export function filmstripActivity(tasks: readonly TaskInfo[], now = Date.now()):
   const counted = countAcross(active);
   if (!counted) return { label: shown.label, value: null, done: null, total: null, remainingMs: null };
   const started = active.map((task) => task.startedAt).filter((at): at is number => typeof at === 'number');
+  // The count beside the label is that task's own ("Adding 2050 photos": 0 to 2,050). The bar and the time left span
+  // all of this work; summing the counts put the import's thumbnails on top (it counted to 2,051).
+  const own = typeof shown.total === 'number' && shown.total > 0 ? { done: Math.min(shown.done ?? 0, shown.total), total: shown.total } : counted;
   return {
     label: shown.label,
     value: Math.min(100, Math.round((counted.done / counted.total) * 100)),
-    done: counted.done,
-    total: counted.total,
+    done: own.done,
+    total: own.total,
     remainingMs: roughRemainingMs(counted.done, counted.total, started.length ? Math.min(...started) : undefined, now),
   };
 }

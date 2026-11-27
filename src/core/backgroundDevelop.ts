@@ -8,7 +8,7 @@ import type { PhotoFrame } from './types';
  */
 
 /** Raise when the develop changes, so pictures stored by an older one are made again. */
-export const DEVELOP_VERSION = 1;
+export const DEVELOP_VERSION = 2; // 2: steady As shot white balance (no hue swings on white birds) and noise-matched colour smoothing
 
 /**
  * The RAW photos still to develop, in the order to do them: the one on screen first, then starred and kept photos, then

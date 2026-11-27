@@ -58,6 +58,9 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
     try { return (JSON.parse(localStorage.getItem('inflight.launch.lastProject') ?? 'null') as { name?: string } | null)?.name ?? null; } catch { return null; }
   });
   await expect.poll(rememberedName, { timeout: 10_000 }).toBe('Dawn at the marsh');
+  // The card's photo references follow once the imported photo is in the project.
+  const rememberedThumbs = () => page.evaluate(() => (JSON.parse(localStorage.getItem('inflight.launch.lastProject') ?? 'null') as { thumbs?: { keys: string[] } } | null)?.thumbs?.keys.length ?? 0);
+  await expect.poll(rememberedThumbs, { timeout: 10_000 }).toBe(1);
   const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')))!);
   await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
 
@@ -65,6 +68,11 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
   await expect(splash.getByTestId('welcome-last-project')).toContainText(remembered.name);
+  // The card shows the project's own photo (owner, 26 Nov: it showed a folder icon), read from this device's previews.
+  expect(remembered.thumbs?.keys).toHaveLength(1);
+  const thumb = splash.getByTestId('welcome-last-project-thumbs').locator('img');
+  await expect(thumb).toHaveCount(1, { timeout: 10_000 });
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await splash.getByTestId('welcome-last-project').click();
   await expect(splash).toHaveCount(0, { timeout: 10_000 });
   // The editor is showing, not the hub.

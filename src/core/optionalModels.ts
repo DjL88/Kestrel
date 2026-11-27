@@ -174,8 +174,8 @@ export const BIREFNET_LITE: OptionalModel = {
   source: 'https://huggingface.co/ZhengPeng7/BiRefNet_lite (revision aa62cd87eafb9cc43056d08ef3615a14628b831d), exported to ONNX by tools/model-conversion/birefnet_lite.py',
   tier: 'desktop',
   fallback: 'the built-in U²-Netp subject mask',
-  files: { model: pinned('BIREFNET_MODEL', 'birefnet-lite-w16.onnx', '2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319', 92215270) },
-  cache: 'kestrel-birefnet-lite-v1',
+  files: { model: pinned('BIREFNET_MODEL', 'birefnet-lite-w16.onnx', 'edcf2b66545a0e7cf0d2ac0e05cfb11341b401bff42fff00c4b56ee1805cc797', 92215270) },
+  cache: 'kestrel-birefnet-lite-v2',
 };
 
 /** The manifest id of one file of a pack: the pack id, plus the file's role when the pack has several. */

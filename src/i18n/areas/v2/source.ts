@@ -2367,7 +2367,7 @@ export const source = {
   },
   activityBar: {
     photoLoading: 'Loading photo',
-    minutesLeft: (n: number) => `About ${n} min left`,
+    minutesLeft: (n: number) => (n < 60 ? `About ${n} min left` : `About ${Math.floor(n / 60)} h ${n % 60} min left`),
     teaTime: 'Time for a cup of tea',
   },
 };

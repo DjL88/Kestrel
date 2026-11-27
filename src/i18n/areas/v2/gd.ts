@@ -2290,7 +2290,7 @@ export const gd: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'A\' luchdadh an deilbh',
-    minutesLeft: (n: number) => `Mu ${n} mion air fhàgail`,
+    minutesLeft: (n: number) => (n < 60 ? `Mu ${n} mion air fhàgail` : `Mu ${Math.floor(n / 60)} h ${n % 60} mion air fhàgail`),
     teaTime: 'Àm airson cupa tì',
   },
 };
