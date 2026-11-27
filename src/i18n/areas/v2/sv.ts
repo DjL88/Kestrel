@@ -1831,6 +1831,8 @@ export const sv: AreaTranslation<typeof source> = {
     rateStars: (n) => n === 1 ? 'Ge 1 stjärna' : `Ge ${n} stjärnor`,
     subject: 'Motiv',
     correctSpecies: 'Rätta artnamnet',
+    lookAgain: "Inte rätt? Titta igen",
+    lookAgainHelp: "Tar bort det här föreslagna namnet för gott och kontrollerar bilden igen. Inget visas förrän det nya resultatet kommer.",
     save: 'Spara',
     cancel: 'Avbryt',
     edit: 'Redigera',

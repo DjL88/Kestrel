@@ -1831,6 +1831,8 @@ export const cy: AreaTranslation<typeof source> = {
     rateStars: (n) => `Sgôr: ${n} seren`,
     subject: 'Gwrthrych',
     correctSpecies: 'Cywiro enw’r rhywogaeth',
+    lookAgain: "Ddim yn iawn? Edrych eto",
+    lookAgainHelp: "Yn tynnu’r enw awgrymedig hwn i ffwrdd am byth ac yn gwirio’r llun eto. Does dim yn ymddangos nes i’r canlyniad newydd gyrraedd.",
     save: 'Cadw',
     cancel: 'Canslo',
     edit: 'Golygu',

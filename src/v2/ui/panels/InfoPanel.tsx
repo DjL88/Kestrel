@@ -35,6 +35,7 @@ interface InfoPanelProps {
   onEditInOtherApp?: (photoId: string, app: ExternalApp | 'choose' | 'default') => void;
   onStopExternalEdit?: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
+  onLookAgainAtSpecies?: (photoId: string) => void;
   onCorrectVehicle?: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   onRemovePhotoTag?: (photoId: string, tagId: string) => void;
   speciesPlace?: SpeciesPlace | null;
@@ -52,6 +53,7 @@ export default function InfoPanel({
   onEditInOtherApp,
   onStopExternalEdit,
   onCorrectSpeciesName,
+  onLookAgainAtSpecies,
   onCorrectVehicle,
   onRemovePhotoTag,
   speciesPlace,
@@ -334,6 +336,12 @@ export default function InfoPanel({
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
                   className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
+                {/* An automatic name only: take it off for good and let the species check look again (Dave, 27 Nov). */}
+                {photo.speciesAuto && onLookAgainAtSpecies && (
+                  <button type="button" data-testid="species-look-again" onClick={() => onLookAgainAtSpecies(photo.id)}
+                    title={STRINGS.panelWords.lookAgainHelp}
+                    className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.lookAgain}</button>
+                )}
               </dd>
             )}
           </div>

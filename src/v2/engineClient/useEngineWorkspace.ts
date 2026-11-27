@@ -50,7 +50,7 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { shareNearbySpecies } from '../../core/speciesNearby';
 import { SPECIES_REGIONS_EVENT, readSpeciesRegions } from '../../core/speciesRegions';
 import { regionIdsForArea, reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
-import { SPECIES_SCAN_VERSION, kindWords, speciesScanDue } from '../../core/autoTags';
+import { SPECIES_SCAN_VERSION, kindWords, speciesScanDue, lookAgain } from '../../core/autoTags';
 import { LEGACY_SETTINGS } from '../../core/projectSettings';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { displaySpeciesName } from '../../core/speciesNames';
@@ -3189,6 +3189,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         return { ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames, settings: { ...settings, speciesArea: area } };
       });
       if (moved) setNotice(speciesAreaText.changed(areaWords(area, home)));
+    },
+    lookAgainAtSpecies: (photoId) => {
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((frame) => {
+          if (frame.id !== photoId || frame.removedAt) return frame;
+          const next = lookAgain(frame);
+          return next ? { ...frame, ...next } : frame;
+        }),
+      }));
     },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);

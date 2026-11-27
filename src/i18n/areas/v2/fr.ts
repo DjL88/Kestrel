@@ -1831,6 +1831,8 @@ export const fr: AreaTranslation<typeof source> = {
     rateStars: (n) => n === 1 ? 'Noter 1 étoile' : `Noter ${n} étoiles`,
     subject: 'Sujet',
     correctSpecies: 'Corriger le nom de l’espèce',
+    lookAgain: "Pas juste ? Revoir",
+    lookAgainHelp: "Retire définitivement ce nom suggéré et vérifie de nouveau la photo. Rien n’est affiché avant le nouveau résultat.",
     save: 'Enregistrer',
     cancel: 'Annuler',
     edit: 'Modifier',

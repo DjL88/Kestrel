@@ -1832,6 +1832,8 @@ export const fi: AreaTranslation<typeof source> = {
     rateStars: (n) => `Tähtiä: ${n}`,
     subject: 'Kohde',
     correctSpecies: 'Korjaa lajin nimi',
+    lookAgain: "Väärin? Katso uudelleen",
+    lookAgainHelp: "Poistaa tämän ehdotetun nimen pysyvästi ja tarkistaa kuvan uudelleen. Mitään ei näytetä ennen uutta tulosta.",
     save: 'Tallenna',
     cancel: 'Peruuta',
     edit: 'Muokkaa',

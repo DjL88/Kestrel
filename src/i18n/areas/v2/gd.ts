@@ -1832,6 +1832,8 @@ export const gd: AreaTranslation<typeof source> = {
     rateStars: (n) => `Rangachadh: ${n} rionnag`,
     subject: 'Cuspair',
     correctSpecies: 'Ceartaich ainm a’ ghnè',
+    lookAgain: "Ceàrr? Thoir sùil a-rithist",
+    lookAgainHelp: "Bheir seo an t-ainm molta seo air falbh gu buan is nì e sgrùdadh air an dealbh a-rithist. Cha nochd dad gus an tig an toradh ùr.",
     save: 'Sàbhail',
     cancel: 'Sguir dheth',
     edit: 'Deasaich',

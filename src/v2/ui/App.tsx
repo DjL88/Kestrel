@@ -958,6 +958,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onEditInOtherApp={actions.editInOtherApp}
             onStopExternalEdit={actions.stopExternalEdit}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onLookAgainAtSpecies={actions.lookAgainAtSpecies}
             onCorrectVehicle={actions.correctVehicle}
             speciesPlace={store.speciesPlace}
             onSetSpeciesArea={actions.setSpeciesArea}
