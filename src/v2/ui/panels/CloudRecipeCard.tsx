@@ -1,5 +1,6 @@
 import React from 'react';
-import type { CloudRecipeOfferView } from '../contract';
+import type { CloudRecipeOfferView, CloudRecipeResultView, EditRecipe } from '../contract';
+import { STRINGS } from '../strings';
 import type { CloudConsentAnswer } from '../../../core/cloudConsent';
 import { CloudJobError } from '../../../core/cloudJobProblem';
 
@@ -12,7 +13,9 @@ import { CloudJobError } from '../../../core/cloudJobProblem';
 export interface CloudRecipeCardProps {
   photoId: string;
   onPrepare: (photoId: string) => Promise<CloudRecipeOfferView>;
-  onSend: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+  onSend: (photoId: string, choice: 'send' | 'alternative') => Promise<CloudRecipeResultView>;
+  /** Shows the photo with these settings while "Hold to compare" is held; null puts it back. Absent: no compare. */
+  onPreview?: (delta: Partial<EditRecipe> | null) => void;
   /** Turns the full-original opt-in on or off and returns what is in force afterwards. */
   onSetFullFile: (on: boolean) => boolean;
   /** The opt-in as it stands now. */
@@ -31,16 +34,29 @@ const button = 'min-h-10 rounded-[var(--radius-md)] border border-[var(--border-
 
 const primary = 'min-h-10 rounded-[var(--radius-md)] border border-[var(--accent-primary)] bg-[var(--accent-primary)] px-3 text-left text-xs font-semibold text-[var(--text-on-accent,#fff)] disabled:opacity-50';
 
-export default function CloudRecipeCard({ photoId, onPrepare, onSend, onSetFullFile, fullFileOn, consent, onSetConsent, onTopUp }: CloudRecipeCardProps) {
+export default function CloudRecipeCard({ photoId, onPrepare, onSend, onSetFullFile, fullFileOn, consent, onSetConsent, onTopUp, onPreview }: CloudRecipeCardProps) {
   const [fullFile, setFullFile] = React.useState(fullFileOn);
   const [offer, setOffer] = React.useState<CloudRecipeOfferView | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState('');
   const [needsTopUp, setNeedsTopUp] = React.useState(false);
+  /** What the last job changed, and the old values for the compare. */
+  const [result, setResult] = React.useState<CloudRecipeResultView | null>(null);
+  const [comparing, setComparing] = React.useState(false);
   const [answer, setAnswer] = React.useState<CloudConsentAnswer>(() => consent?.() ?? 'yes');
   /** The choice waiting on the one-time question. */
   const [asking, setAsking] = React.useState<'send' | 'alternative' | null>(null);
-  React.useEffect(() => { setOffer(null); setMessage(''); setNeedsTopUp(false); setAsking(null); }, [photoId]);
+  React.useEffect(() => { setOffer(null); setMessage(''); setNeedsTopUp(false); setAsking(null); setResult(null); }, [photoId]);
+  // Never leave the photo showing its old settings: let go, a new photo, or the card going away all put it back.
+  const previewRef = React.useRef(onPreview);
+  previewRef.current = onPreview;
+  React.useEffect(() => { if (!comparing) return; return () => previewRef.current?.(null); }, [comparing]);
+  React.useEffect(() => () => setComparing(false), [photoId]);
+  const holdCompare = (on: boolean) => {
+    if (!result?.before || !onPreview) return;
+    setComparing(on);
+    onPreview(on ? result.before : null);
+  };
 
   const prepare = async () => {
     setBusy(true); setMessage('');
@@ -49,7 +65,7 @@ export default function CloudRecipeCard({ photoId, onPrepare, onSend, onSetFullF
   };
   const run = async (choice: 'send' | 'alternative') => {
     setBusy(true); setNeedsTopUp(false);
-    try { setMessage(await onSend(photoId, choice)); setOffer(null); } catch (reason) {
+    try { const done = await onSend(photoId, choice); setMessage(done.message); setResult(done.changes?.length ? done : null); setOffer(null); } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : 'Nothing was changed.');
       setNeedsTopUp(reason instanceof CloudJobError && reason.problem.topUp && Boolean(onTopUp));
     } finally { setBusy(false); }
@@ -130,6 +146,26 @@ export default function CloudRecipeCard({ photoId, onPrepare, onSend, onSetFullF
         </span>
       </label>
       {message && <p role="status" aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">{message}</p>}
+      {/* What the cloud changed, so its work is visible (Dave, 27 Nov), and a quick compare. The compare is here, beside
+          the photo, never over it. */}
+      {result?.changes && (
+        <div data-testid="cloud-recipe-result" className="space-y-1.5">
+          <p className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.cloudResult.changesHeading}</p>
+          <p data-testid="cloud-recipe-changes" className="font-mono text-[0.6875rem] tabular-nums text-[var(--text-primary)]">{result.changes.join(' · ')}</p>
+          {result.before && onPreview && (
+            <button type="button" data-testid="cloud-recipe-compare" aria-pressed={comparing} aria-describedby="cloud-recipe-compare-hint"
+              onPointerDown={(event) => { event.currentTarget.setPointerCapture?.(event.pointerId); holdCompare(true); }}
+              onPointerUp={() => holdCompare(false)} onPointerCancel={() => holdCompare(false)} onLostPointerCapture={() => holdCompare(false)}
+              onKeyDown={(event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); holdCompare(true); } }}
+              onKeyUp={(event) => { if (event.key === ' ' || event.key === 'Enter') holdCompare(false); }}
+              onBlur={() => holdCompare(false)}
+              className={button}>
+              {STRINGS.cloudResult.holdCompare}
+            </button>
+          )}
+          <p id="cloud-recipe-compare-hint" className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.cloudResult.holdCompareHint}</p>
+        </div>
+      )}
       {needsTopUp && onTopUp && <button type="button" onClick={onTopUp} className={button}>Top up</button>}
       {consent && answer === 'yes' && (
         <p className="text-[0.6875rem] text-[var(--text-muted)]">
