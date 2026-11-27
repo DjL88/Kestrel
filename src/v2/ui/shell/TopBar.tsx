@@ -1,3 +1,4 @@
+import { formatBytes } from '../../../core/cloudPlan';
 import React, { useEffect, useRef, useState } from 'react';
 import { CANVAS_TIPS_EVENT } from '../utils/canvasTips';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
@@ -41,6 +42,13 @@ interface TopBarProps {
   onPrint?: () => void;
   /** Opens Share (shared projects, #1387). Absent: no Share button. */
   onShare?: () => void;
+  /** File › Save a portfolio: the offline portfolio, with no account and nothing uploaded. Absent: no item. */
+  onPortfolio?: () => void;
+  /**
+   * Store in the cloud, for a signed-in Pro account (absent otherwise: no button at all). `limit` is shown beside the
+   * button only when the account is close to a limit or at it.
+   */
+  storeInCloud?: { onOpen: () => void; onTopUp: () => void; limit: import('../../../core/storeInCloud').CloudLimitNote | null };
   /** Who else is in this shared project (PresenceAvatars). */
   presence?: React.ReactNode;
   onOpenRemoved: () => void;
@@ -99,6 +107,8 @@ export default function TopBar({
   onQuickExport,
   onPrint,
   onShare,
+  onPortfolio,
+  storeInCloud,
   presence,
   onOpenRemoved,
   onSaveXmp,
@@ -253,6 +263,7 @@ export default function TopBar({
                   <MenuItem icon="export" label={STRINGS.exportDialog.quickExport} onClick={() => runAndClose(onQuickExport)} />
                 )}
                 {onPrint && <MenuItem icon="export" label={STRINGS.print.menu} onClick={() => runAndClose(onPrint)} />}
+                {onPortfolio && <MenuItem icon="export" label={STRINGS.share.portfolioMenu} onClick={() => runAndClose(onPortfolio)} />}
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="restore"
@@ -487,6 +498,29 @@ export default function TopBar({
             <BrandIcon name="image-plus" size={15} />
             <span>{STRINGS.filmstrip.importPhotos}</span>
           </button>
+        )}
+        {storeInCloud && (
+          <>
+            {storeInCloud.limit && (storeInCloud.limit.full ? (
+              // At the limit: said in words, with the way to fix it. Never a silent failure later.
+              <button type="button" data-testid="cloud-limit-full" onClick={storeInCloud.onTopUp}
+                className="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                {STRINGS.storeCloud.limitFull}
+              </button>
+            ) : (
+              <span data-testid="cloud-limit-note" className="v2-phone-hide inline-flex shrink-0 flex-col justify-center gap-0.5 whitespace-nowrap text-[0.6875rem] text-[var(--text-secondary)]">
+                <span>{storeInCloud.limit.kind === 'storage'
+                  ? STRINGS.storeCloud.limitStorage(formatBytes(storeInCloud.limit.used).replace(/ GB$/, ''), formatBytes(storeInCloud.limit.included))
+                  : STRINGS.storeCloud.limitEdits(storeInCloud.limit.used, storeInCloud.limit.included)}</span>
+                <meter min={0} max={100} value={storeInCloud.limit.percent} aria-label={STRINGS.storeCloud.limitMeter} className="h-1.5 w-full" />
+              </span>
+            ))}
+            <button type="button" onClick={storeInCloud.onOpen} data-testid="store-cloud-button"
+              className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="cloud-assist" size={15} />
+              <span className="v2-phone-label">{STRINGS.storeCloud.button}</span>
+            </button>
+          </>
         )}
         {onShare && (
           <button

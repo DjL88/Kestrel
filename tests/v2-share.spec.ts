@@ -1,23 +1,29 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-test('?v2 Share opens a calm dialog that explains what is shared and needs no account until used', async ({ page }) => {
+// Dave, 27 Nov: sharing with other people is paused, so there is no Share button. Store in the cloud takes its place for
+// a signed-in Pro account only; signed out (as here) there is no button at all. The offline portfolio is under File.
+test('?v2 signed out: no Share and no Store in the cloud button; File has Save a portfolio, which needs no account', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'The File menu is on the desktop header.');
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
   await page.getByLabel(/name/i).first().fill('Share check');
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
-  await root.getByTestId('share-button').click();
+  await expect(root.getByRole('button', { name: 'Export' }).first()).toBeVisible();
+  await expect(root.getByTestId('share-button')).toHaveCount(0);
+  await expect(root.getByTestId('store-cloud-button')).toHaveCount(0);
+  await root.getByRole('button', { name: 'File', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Save a portfolio…' }).or(page.getByRole('button', { name: 'Save a portfolio…' })).first().click();
   const dialog = page.getByTestId('share-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('heading', { name: 'Share this project' })).toBeVisible();
-  await expect(dialog).toContainText('until you choose to send photos');
-  // This build has no control plane or sign-in, so it says so instead of failing silently.
-  await expect(dialog.getByRole('alert')).toHaveText(/not available in this version|Sign in/);
+  await expect(dialog.getByRole('heading', { name: /portfolio/i }).first()).toBeVisible();
+  await expect(dialog.getByTestId('share-portfolio')).toContainText('Nothing is uploaded');
+  // No account is asked for, nobody can be invited, and no sign-in problem is shown.
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await expect(dialog.getByRole('textbox', { name: /email/i })).toHaveCount(0);
   await expect(root.getByTestId('presence-avatars')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  await expect(root.getByTestId('share-button')).toBeFocused();
 });
 
 test('?v2 Share saves an offline portfolio file on this device without an account or any upload', async ({ page }, testInfo) => {
@@ -34,7 +40,8 @@ test('?v2 Share saves an offline portfolio file on this device without an accoun
   await expect(options).toHaveCount(1, { timeout: 30000 });
   await options.first().click();
 
-  await root.getByTestId('share-button').click();
+  await root.getByRole('button', { name: 'File', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Save a portfolio…' }).or(page.getByRole('button', { name: 'Save a portfolio…' })).first().click();
   const portfolio = page.getByTestId('share-portfolio');
   await expect(portfolio).toContainText('Nothing is uploaded');
   await portfolio.getByLabel('Title').fill('Kestrel walk');
