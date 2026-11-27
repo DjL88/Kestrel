@@ -9,9 +9,13 @@ import { UNMAPPED_KEYS } from '../../engineClient/recipeMap';
 import type { TrueDetailJob } from '../utils/trueDetailJob';
 
 /** A displayed Enhance control is enabled only if the real engine can honour its value. */
+import { MONTHLY_PHOTO_ALLOWANCE } from '../../../core/cloudPlan';
+const count = (n: number) => new Intl.NumberFormat(typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined).format(n);
 const unsupported = (key: keyof EditRecipe): boolean =>
   (UNMAPPED_KEYS as readonly (keyof EditRecipe)[]).includes(key);
-const unsupportedHelp = 'Unavailable: this control does not yet change the photograph or export.';
+/** A control whose feature is not built yet is not shown at all (Dave, 27 Nov: "don't show what we can't do"). It appears
+ * by itself once its recipe key leaves UNMAPPED_KEYS, that is, once it changes the photograph and its export. */
+const built = (key: keyof EditRecipe): boolean => !unsupported(key);
 
 interface EnhancePanelProps {
   photo: Photo | null;
@@ -51,9 +55,6 @@ export default function EnhancePanel({
 
   return (
     <div className="space-y-5">
-      <p id="v2-enhance-unavailable" role="status" className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">
-        {STRINGS.panelWords.unavailableNote}
-      </p>
       {/* Noise Reduction */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -80,6 +81,12 @@ export default function EnhancePanel({
             <p className="text-[0.6875rem] text-[var(--text-muted)]">
               {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
             </p>
+            {/* The allowance the server gives (services/control-plane wiring.ts; src/core/cloudPlan.ts), only where cloud is offered. */}
+            {cloudEnabled && (
+              <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="denoise-cloud-allowance">
+                {STRINGS.enhance.denoiseCloudAllowance(count(MONTHLY_PHOTO_ALLOWANCE.basic), count(MONTHLY_PHOTO_ALLOWANCE.pro))}
+              </p>
+            )}
           </div>
         )}
 
@@ -96,6 +103,7 @@ export default function EnhancePanel({
           </div>
         )}
 
+        {built('denoiseRawAi') && (
         <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-medium text-[var(--text-primary)]">
@@ -111,10 +119,7 @@ export default function EnhancePanel({
             role="switch"
             aria-checked={recipe.denoiseRawAi}
             aria-label={STRINGS.enhance.rawAiDenoise}
-            aria-describedby="v2-enhance-unavailable"
             data-testid="v2-enhance-raw-ai"
-            disabled={unsupported('denoiseRawAi')}
-            title={unsupported('denoiseRawAi') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { denoiseRawAi: !recipe.denoiseRawAi })}
             className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.denoiseRawAi
@@ -125,6 +130,7 @@ export default function EnhancePanel({
             {recipe.denoiseRawAi ? 'On' : 'Off'}
           </button>
         </div>
+        )}
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
@@ -232,6 +238,7 @@ export default function EnhancePanel({
           />
         </div>
 
+        {built('lensCorrection') && (
         <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
           <span className="flex items-center gap-2 text-xs font-medium text-[var(--text-primary)]">
             <BrandIcon name="camera-settings" size={14} className="text-[var(--text-secondary)]" />
@@ -242,10 +249,7 @@ export default function EnhancePanel({
             role="switch"
             aria-checked={recipe.lensCorrection}
             aria-label={STRINGS.enhance.lensCorrection}
-            aria-describedby="v2-enhance-unavailable"
             data-testid="v2-enhance-lens-correction"
-            disabled={unsupported('lensCorrection')}
-            title={unsupported('lensCorrection') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { lensCorrection: !recipe.lensCorrection })}
             className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.lensCorrection
@@ -256,6 +260,7 @@ export default function EnhancePanel({
             {recipe.lensCorrection ? 'On' : 'Off'}
           </button>
         </div>
+        )}
       </section>
     </div>
   );

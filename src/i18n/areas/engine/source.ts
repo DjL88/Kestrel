@@ -60,6 +60,8 @@ export const source = {
     global: 'No subject outline was reliable, so denoise was applied evenly to the whole photo.',
     failedCheck: 'The result did not pass the quality check. Your existing edits were kept.',
     mainThread: 'This device could not denoise in the background, so InFlight may have paused while it worked.',
+    workerUnavailable: 'This device could not denoise in the background, so nothing was changed (running it here would freeze InFlight). Try again after restarting InFlight.',
+    learnedNoWorker: 'The AI denoise could not run in the background on this device, so only the built-in denoise was compared.',
     learnedLostDetail: 'At full size the AI denoise smoothed away real detail on the subject, so the built-in denoise was used instead.',
     leftAsItWas: (notes: string) => `Left as it was. ${notes}`,
   },

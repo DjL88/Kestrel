@@ -16,6 +16,7 @@ import { renderRaw16Screen } from '../providers/raw16Render';
 import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
+import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
 import React, { useEffect, useRef, useState } from 'react';
@@ -55,6 +56,8 @@ interface FrameImageProps {
   onPictureSize?: (size: { width: number; height: number }) => void;
   /** V2 editor: this picture follows the person's edits, so its framed picture is kept ready in the drag worker. */
   prepareDrag?: boolean;
+  /** V2 editor: true while the zoomed-in part of the photo is being drawn from its full-resolution picture. */
+  onDetailLoading?: (loading: boolean) => void;
   /** True while the picture is loading or being redrawn (the interim thumbnail counts as still loading), false once the
    * full picture is shown or it cannot be shown (a low-quality fallback or a placeholder is not "loading"). */
   onBusyChange?: (busy: boolean) => void;
@@ -133,6 +136,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   onPictureSize,
   onBusyChange,
   prepareDrag = false,
+  onDetailLoading,
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -256,6 +260,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   // The drag worker holds this picture's framed source under this key; any change to what it shows makes a new one.
   const draftKey = JSON.stringify([identity, frame.originalSha256 ?? null, frame.framing ?? null, developedRev]);
+  // The full-resolution picture the last full render came from, for drawing the zoomed-in part again at full detail.
+  const detailSource = useRef<DetailSource | null>(null);
+  const [renderedRevision, setRenderedRevision] = useState(0);
   const zoomRef = useRef(zoomScale);
   zoomRef.current = zoomScale;
   // A quick drag picture was asked for: when the drag ends, the full-quality picture is drawn (settleRev).
@@ -340,6 +347,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       showLive(canvas);
       if (dragging) return;
+      if (variant === 'full') {
+        detailSource.current = { element: source, key: JSON.stringify([draftKey, source.currentSrc || source.src]), renderedLongEdge: Math.max(canvas.width, canvas.height) };
+        setRenderedRevision((count) => count + 1);
+      }
       const eightBitEdge = Math.max(size.width, size.height) * scale;
       // A redraw of a photo with a 16-bit copy shows the 8-bit picture at once, waits for the slider to be still, then
       // encodes only the 16-bit picture: one PNG per pause, not two.
@@ -538,6 +549,16 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     </div>
   );
 
+  // Zoomed in past the drawn picture's resolution: the part on screen at full detail (useDetailRegion). Only for an edited
+  // picture without image layers or a stored AI result (those are drawn on the page); an unedited picture already shows
+  // its full-resolution preview as it is.
+  const detailEnabled = variant === 'full' && prepareDrag && edited && !frame.isDemo && layersKey === '[]' && !frame.edit?.trueDetailAi;
+  const detail = useDetailRegion({
+    containerRef, sourceRef: detailSource, slot: slot.current, enabled: detailEnabled, edit: frame.edit ?? DEFAULT_EDIT,
+    framing: frame.framing ?? DEFAULT_FRAMING, pictureKey: JSON.stringify([identity, frame.edit ?? null, frame.framing ?? null, developedRev, sourceRevision]),
+    renderedRevision, onLoading: onDetailLoading, fit: imageSize?.fit ?? 'cover',
+  });
+
   const unavailableNow = (!src && !loading && preview.identity === identity) || (errored && preview.identity === identity);
   const busy = !degraded && !unavailableNow && (loading || preview.identity !== identity || Boolean(src && preview.interim));
   const busyListener = useRef(onBusyChange);
@@ -621,6 +642,12 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             loading && !src ? 'opacity-0' : 'opacity-100'
           } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
+      )}
+      {detailEnabled && (
+        <canvas ref={detail.canvasRef} data-testid="detail-picture" aria-hidden="true" data-detail-scale={detail.shown?.plan.scale}
+          style={detail.shown && src ? { left: `${detail.shown.plan.place.left}%`, top: `${detail.shown.plan.place.top}%`,
+            width: `${detail.shown.plan.place.width}%`, height: `${detail.shown.plan.place.height}%` } : { display: 'none' }}
+          className="pointer-events-none absolute select-none" />
       )}
       {variant === 'full' && (
         <canvas ref={liveCanvas} data-testid="live-picture" aria-hidden="true" 

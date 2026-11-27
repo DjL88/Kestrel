@@ -680,6 +680,7 @@ export default function Filmstrip({
                 return (
                   <div
                     key={photo.id}
+                    data-thumb-id={photo.id}
                     role="option"
                     aria-selected={isSelected}
                     draggable={collageMode}

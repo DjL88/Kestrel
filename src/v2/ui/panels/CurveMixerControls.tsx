@@ -31,7 +31,7 @@ const CHANNEL_STROKE: Record<CurveChannel, string> = { all: 'var(--text-primary)
  * Tone curve: an SVG graph with draggable, keyboard-movable points and plain-word presets. With `channels` (the
  * advanced controls setting) it also edits separate red, green and blue curves, applied after the main one.
  */
-export function ToneCurveControl({ recipe, onChange, channels = false }: Props & { channels?: boolean }) {
+export function ToneCurveControl({ recipe, onChange, channels = false, bare = false }: Props & { channels?: boolean; bare?: boolean }) {
   const [chosen, setChannel] = React.useState<CurveChannel>('all');
   const channel: CurveChannel = channels ? chosen : 'all';
   const source = channel === 'all' ? recipe.toneCurve : recipe.channelCurves?.[channel];
@@ -88,7 +88,7 @@ export function ToneCurveControl({ recipe, onChange, channels = false }: Props &
     <div className="space-y-2" data-testid="tone-curve">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.curve.heading}</h4>
+          {!bare && <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.curve.heading}</h4>}
           <InfoPopover title={T.curve.heading} body={T.curve.help} />
         </div>
         <button type="button" onClick={() => { set(STRAIGHT); setSelected(null); }}
@@ -146,7 +146,7 @@ export function ToneCurveControl({ recipe, onChange, channels = false }: Props &
 }
 
 /** Colour mixer: choose a colour family by name, then Hue, Saturation and Luminance for it. */
-export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
+export function ColourMixerControl({ recipe, calmView, onChange, bare = false }: Props & { bare?: boolean }) {
   const [band, setBand] = React.useState(0);
   const zero = () => Array<number>(8).fill(0);
   const mixer = recipe.colourMixer ?? { hue: zero(), saturation: zero(), luminance: zero() };
@@ -165,7 +165,7 @@ export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
     <div className="space-y-2" data-testid="colour-mixer">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.mixer.heading}</h4>
+          {!bare && <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.mixer.heading}</h4>}
           <InfoPopover title={T.mixer.heading} body={T.mixer.help} />
         </div>
         <button type="button" onClick={() => onChange({ colourMixer: undefined })}

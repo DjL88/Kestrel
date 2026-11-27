@@ -17,7 +17,8 @@ variable "phase5_paddle_environment" {
   }
 }
 # Retired 26 Nov 2026: the one-off Pro price (pri_...). Pro is now sold only as a subscription, so the server no longer
-# offers this price; one-off licences already sold are still honoured from their stored orders. Kept so tfvars parse.
+# offers this price, and it is no longer passed to the server (KCP_PADDLE_PRO_PRICE_ID). One-off licences already sold
+# are still honoured from their stored orders. Kept only so older tfvars still parse; it can be cleared to "".
 variable "phase5_paddle_pro_price_id" {
   type    = string
   default = ""

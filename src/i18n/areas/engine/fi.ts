@@ -50,6 +50,8 @@ export const fi: AreaTranslation<typeof source> = {
     global: 'Yksikään kohteen rajaus ei ollut luotettava, joten kohinanpoisto tehtiin tasaisesti koko kuvaan.',
     failedCheck: 'Tulos ei läpäissyt laatutarkistusta. Nykyiset muokkauksesi säilytettiin.',
     mainThread: 'Tämä laite ei voinut poistaa kohinaa taustalla, joten InFlight saattoi pysähtyä hetkeksi työn aikana.',
+    workerUnavailable: 'Tämä laite ei voinut poistaa kohinaa taustalla, joten mitään ei muutettu (tässä ajettuna InFlight jähmettyisi). Yritä uudelleen, kun olet käynnistänyt InFlightin uudelleen.',
+    learnedNoWorker: 'Tekoälykohinanpoisto ei voinut toimia taustalla tällä laitteella, joten vain sisäänrakennettua kohinanpoistoa verrattiin.',
     learnedLostDetail: 'Täysikokoisena tekoälykohinanpoisto silotti kohteen todellisia yksityiskohtia, joten käytettiin sisäänrakennettua kohinanpoistoa.',
     leftAsItWas: (notes) => `Jätettiin ennalleen. ${notes}`,
   },

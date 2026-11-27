@@ -732,6 +732,8 @@ export interface PhotoSurfaceProps {
   onPictureSize?: (size: { width: number; height: number }) => void;
   /** True while the picture is still loading or being redrawn (a develop or an edit), false once it is on screen. */
   onBusyChange?: (busy: boolean) => void;
+  /** True while the zoomed-in part of the photo is being drawn at full detail from the full-resolution picture. */
+  onDetailLoading?: (loading: boolean) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
@@ -898,6 +900,8 @@ export interface WorkspaceActions {
   /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
   removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
+  /** The photos whose tiles are on screen now (filmstrip, grid): their thumbnails come first. Optional for older stubs. */
+  thumbnailsOnScreen?: (photoIds: readonly string[]) => void;
   importFolder: () => void;
   /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
   watchFolder?: () => void;

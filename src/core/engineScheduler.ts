@@ -63,6 +63,11 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
    */
   interactive?: boolean;
   /**
+   * Small, quick work for what is on screen now (the thumbnail of a tile the person can see). Always admitted, whatever
+   * the load or other work, up to LIGHT_AT_ONCE at a time, so tiles appear one by one ahead of develops and analysis.
+   */
+  light?: boolean;
+  /**
    * How long one photo may go without a new stage or progress before the watchdog stops it, fails it with a plain
    * message and gives its slot back (default STALL_MS; cloud work STALL_CLOUD_MS). Work that takes longer than this
    * legitimately reports progress as it goes.
@@ -101,6 +106,7 @@ interface WorkBatch {
   resource: EngineResource;
   reservation: Reservation;
   interactive: boolean;
+  light: boolean;
   pauseable: boolean;
   paused: boolean;
   pauseRequested: boolean;
@@ -115,6 +121,8 @@ interface WorkBatch {
   cloud: boolean;
   /** The waiting reason last shown on this task, so it is written once rather than on every pump. */
   waitShown?: string;
+  /** The person chose Start now: it starts at once, whatever the load and however many other jobs run. */
+  forced?: boolean;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -124,6 +132,9 @@ interface WorkBatch {
   retry(): Promise<SchedulerTicket | null>;
   finish(result: 'done' | 'failed' | 'cancelled'): void;
 }
+
+/** How many light jobs (on-screen thumbnails) run at once. */
+export const LIGHT_AT_ONCE = 3;
 
 /** A photo with no new stage or progress for this long is stuck: the watchdog fails it and frees its slot. */
 export const STALL_MS = 5 * 60_000;
@@ -169,7 +180,11 @@ export function createEngineScheduler(options: {
   let resourceSample = options.resourceSample ?? null;
   let mode: ProcessingMode = options.mode ?? 'balanced';
   let blockedReason: string | null = null;
+  let admissionChecks = 0;
   const admitted = (job: WorkBatch): boolean => {
+    admissionChecks += 1;
+    if (job.forced) { blockedReason = null; return true; }
+    if (job.light) return [...jobs.values()].filter(other => other.active && other.light).length < LIGHT_AT_ONCE;
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
     const busy = occupied.filter(other => other.resource !== 'io');
@@ -181,6 +196,9 @@ export function createEngineScheduler(options: {
       // A job the person started themselves (one photo: denoise, tap to select, find subject...) starts as soon as no
       // other such job runs; background work yields to it, one photo at a time.
       if (job.interactive && !busy.some(other => other.interactive)) { blockedReason = null; return true; }
+    } else if (!occupied.some(other => other.resource === 'io' && !other.light)) {
+      // Reading files is never held by the load either: with no other read running, one starts.
+      blockedReason = null; return true;
     }
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
@@ -275,7 +293,9 @@ export function createEngineScheduler(options: {
 
   /** Queued tasks held back by the computer's capacity say so, instead of a silent "Queued". */
   const showWaiting = () => {
-    const reason = blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
+    // The words say it starts when the task before it finishes, so they are shown only while one is running.
+    const running = [...jobs.values()].some(job => job.active);
+    const reason = running && blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
     for (const job of jobs.values()) {
       if (job.active || job.paused || job.cancelled || !job.items.some(item => item.state === 'queued')) continue;
       const words = reason ? waitWords(reason) : undefined;
@@ -497,6 +517,7 @@ export function createEngineScheduler(options: {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
       interactive: definition.interactive === true && items.length === 1,
+      light: definition.light === true,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
       lastActivity: now(), stallMs: definition.stallMs, cloud: (definition.location ?? 'local') === 'cloud',
@@ -573,6 +594,15 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /** Start now: the person's choice overrides the load check (and the one-at-a-time limit) for this task. */
+  const startNow = (id: number): boolean => {
+    const job = jobs.get(id);
+    if (!job || job.cancelled || job.paused || job.active || !job.items.some(item => item.state === 'queued')) return false;
+    job.forced = true;
+    job.priority = ++highest;
+    pump();
+    return true;
+  };
   const reorder = (ids: readonly number[]): boolean => {
     if (new Set(ids).size !== ids.length || ids.some(id => !jobs.has(id) || jobs.get(id)?.active)) return false;
     for (const id of [...ids].reverse()) {
@@ -594,7 +624,14 @@ export function createEngineScheduler(options: {
     pump();
   };
   return {
-    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    submit, pause, resume, jumpQueue, startNow, reorder, setCpuLimit,
+    /** Whether this task is waiting for the computer's capacity (it then offers Start now). */
+    isWaitingForCapacity: (id: number) => { const job = jobs.get(id); return Boolean(job && !job.active && !job.cancelled && job.waitShown); },
+    /** Whether work the person started (one photo: TrueDetail, tap to select...) is running or waiting. Quiet
+     * background helpers outside the scheduler (the species scan) step aside while it is. */
+    personWorkPending: () => [...jobs.values()].some(job => job.interactive && !job.cancelled && (job.active || job.items.some(item => item.state === 'queued'))),
+    /** How many admission checks have run (tests: waiting must not re-check in a loop). */
+    admissionChecks: () => admissionChecks,
     /** Look for stuck photos now (the watchdog does this every 30 s). */
     checkStalls,
     cpuLimit: () => limits.cpu,
@@ -616,7 +653,13 @@ export function createEngineScheduler(options: {
     resumeAll() {
       pausedAll = false;
       for (const job of jobs.values()) if (job.paused || job.pauseRequested) resume(job.id);
+      // Resume all also clears a hold: the first task waiting for capacity starts if nothing of InFlight's is running,
+      // so the person never has to restart the app to get work moving.
       pump();
+      if (![...jobs.values()].some(job => job.active)) {
+        const first = [...jobs.values()].filter(job => job.waitShown && !job.paused && !job.cancelled).sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
+        if (first) startNow(first.id);
+      }
     },
     list: () => store.list(),
     subscribe: store.subscribe,
@@ -642,3 +685,11 @@ export const engineScheduler = createEngineScheduler({
   limits: limitsForDevice({ hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory,
     mobile: typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent) }),
 });
+
+/** Resolves once no work the person started is running or waiting. It listens to Tasks; it never polls. */
+export function personWorkClear(scheduler: { personWorkPending(): boolean; subscribe(listener: () => void): () => void } = engineScheduler): Promise<void> {
+  if (!scheduler.personWorkPending()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = scheduler.subscribe(() => { if (!scheduler.personWorkPending()) { stop(); resolve(); } });
+  });
+}

@@ -245,10 +245,12 @@ export function speciesAreaLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tag
   return speciesAreaText.matchedIn(areaWords(frame.speciesArea, []));
 }
 
-export function tileStateFor(urls: FrameUrls | undefined): TileState {
+/** Importing only while the import now running is adding this photo; a photo whose thumbnail is just on its way otherwise
+ * says nothing (its tile stays a quiet empty square until the thumbnail arrives). */
+export function tileStateFor(urls: FrameUrls | undefined, beingImported = true): TileState {
   if (urls?.unsupported) return 'unsupported';
   if (urls?.failed) return 'unavailable';
-  return urls?.thumb ? 'ready' : 'importing';
+  return urls?.thumb || !beingImported ? 'ready' : 'importing';
 }
 
 /**
@@ -256,7 +258,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
+export interface PhotoExtras { /** The import now running is adding this photo (it says Importing until its thumbnail arrives). */ beingImported?: boolean; pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -320,7 +322,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
     thumbUrl: thumb,
-    state: tileStateFor(urls),
+    state: tileStateFor(urls, extras.beingImported ?? true),
     decision: frame.decision,
     originalConnected: extras.originalConnected ?? !urls?.failed,
     rating: Number.isFinite(rating) ? Math.max(0, Math.min(5, Math.round(rating))) : 0,
