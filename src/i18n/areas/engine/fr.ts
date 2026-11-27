@@ -74,6 +74,8 @@ export const fr: AreaTranslation<typeof source> = {
       unreadable: 'InFlight n’a pas pu lire ce dossier. Rien n’a été modifié.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Préparation d’1 vignette' : `Préparation de ${count} vignettes`),
+    thumbnailsGroup: 'Préparation des vignettes',
+    checksGroup: 'Vérification des photos et de leurs couleurs',
     thumbnailStage: 'Lecture et réduction de cette photo',
     thumbnailFailed: (filename) => `Impossible de créer la vignette de ${filename}. Reconnectez l’original et réessayez.`,
     rawJpegXl: 'Ce RAW utilise la compression JPEG XL, que InFlight ne sait pas encore lire. L’original n’est pas modifié.',

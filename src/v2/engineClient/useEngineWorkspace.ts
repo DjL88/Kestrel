@@ -738,6 +738,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     void engineScheduler.submit({
       title: engineText.workspace.thumbnailsTask(frames.length), kind: 'thumbnail', resource: 'io',
+      group: { key: `thumbnails:${stateRef.current?.shoot.id ?? ''}`, title: engineText.workspace.thumbnailsGroup },
       priority: 1, pauseable: frames.length > 1, items: frames,
       snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
       itemId: frame => frame.id, itemLabel: frame => frame.filename,
@@ -779,7 +780,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const shown = new Set(ids);
     for (const [id, ticket] of jobs) {
       if (shown.has(id) || !ticket) continue;
-      if (engineScheduler.list().find((task) => task.id === ticket.taskId)?.state !== 'queued') continue;
+      if (!ticket.queued()) continue;
       ticket.cancel();
       jobs.delete(id);
     }
@@ -795,6 +796,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       jobs.set(id, null);
       void engineScheduler.submit({
         title: engineText.workspace.thumbnailsTask(1), kind: 'thumbnail', resource: 'io', light: true,
+        group: { key: `thumbnails:${stateRef.current?.shoot.id ?? ''}`, title: engineText.workspace.thumbnailsGroup },
         priority: 500, pauseable: false, items: [frame],
         snapshot: { generation, keys: [frame.stableKey] },
         itemId: (item) => item.id, itemLabel: (item) => item.filename,
@@ -1886,13 +1888,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const request = openRequest.current;
     const controller = new AbortController();
     const isCurrent = () => !controller.signal.aborted && request === openRequest.current;
-    let taskId: number | undefined;
     const timer = window.setTimeout(() => {
       if (!isCurrent()) return;
       if (manual) lastAutoRequest.current = autoRequest.sequence;
       void engineScheduler.submit({
         title: engineText.workspace.checkTask(frame.filename),
         kind: 'auto-edit', resource: 'cpu', priority: manual ? 20 : 8, pauseable: false,
+        // The automatic checks share one row per project; one the person asked for keeps its own.
+        ...(manual ? {} : { group: { key: `checks:${assistProjectId}`, title: engineText.workspace.checksGroup } }),
         items: [{ id: frame.id, name: frame.filename }],
         snapshot: { projectId: assistProjectId, frameId: frame.id, edit: frame.edit ?? DEFAULT_EDIT },
         itemId: item => item.id, itemLabel: item => item.name,
@@ -1957,7 +1960,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (autopilot && !piloted) pilot(false);
         },
       }).then(ticket => {
-        taskId = ticket.taskId;
         controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
         if (controller.signal.aborted) ticket.cancel();
         return ticket.finished;
@@ -1972,8 +1974,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }, manual ? 0 : 550);
     return () => {
       window.clearTimeout(timer);
+      // The abort cancels this check's own job through its ticket (never the shared row, which other checks are in).
       controller.abort();
-      if (taskId !== undefined) tasks.cancel(taskId);
     };
     // Recheck a settled recipe, source or framing change without rerunning a completed matching analysis.
     // eslint-disable-next-line react-hooks/exhaustive-deps

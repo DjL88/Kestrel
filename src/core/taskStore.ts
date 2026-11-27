@@ -38,7 +38,7 @@ export interface TaskHandle {
 /** Extended handle used by the scheduler; legacy engine stubs only need TaskHandle. */
 export interface SchedulerTaskHandle extends TaskHandle {
   transition(state: 'queued' | 'running' | 'paused', detail?: string): void;
-  patch(change: Pick<Partial<Task>, 'stage' | 'location' | 'priority' | 'items' | 'pauseable' | 'detail'>): void;
+  patch(change: Pick<Partial<Task>, 'stage' | 'location' | 'priority' | 'items' | 'pauseable' | 'detail' | 'done' | 'total'>): void;
 }
 const KEEP_FINISHED = 5;
 const KEEP_FAILED = 5;

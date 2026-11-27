@@ -74,6 +74,8 @@ export const nl: AreaTranslation<typeof source> = {
       unreadable: 'InFlight kon die map niet lezen. Er is niets gewijzigd.',
     },
     thumbnailsTask: (count) => (count === 1 ? '1 miniatuur wordt voorbereid' : `${count} miniaturen worden voorbereid`),
+    thumbnailsGroup: 'Miniaturen voorbereiden',
+    checksGroup: 'Foto’s en hun kleur controleren',
     thumbnailStage: 'Deze foto wordt gelezen en verkleind',
     thumbnailFailed: (filename) => `De miniatuur van ${filename} kon niet worden gemaakt. Koppel het origineel opnieuw en probeer het nog eens.`,
     rawJpegXl: 'Deze RAW gebruikt JPEG XL-compressie, die InFlight nog niet kan lezen. Het origineel is niet aangeraakt.',

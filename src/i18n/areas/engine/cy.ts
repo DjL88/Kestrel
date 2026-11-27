@@ -74,6 +74,8 @@ export const cy: AreaTranslation<typeof source> = {
       unreadable: 'Doedd InFlight ddim yn gallu darllen y ffolder honno. Ni newidiwyd dim.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Paratoi 1 llun bach' : `Paratoi ${count} llun bach`),
+    thumbnailsGroup: 'Paratoi mân-luniau',
+    checksGroup: 'Gwirio lluniau a’u lliw',
     thumbnailStage: 'Darllen a lleihau’r llun hwn',
     thumbnailFailed: (filename) => `Doedd dim modd creu’r llun bach ar gyfer ${filename}. Ailgysylltwch y gwreiddiol a rhowch gynnig arall arni.`,
     rawJpegXl: 'Mae’r RAW hwn yn defnyddio cywasgu JPEG XL, na all InFlight ei ddarllen eto. Mae’r gwreiddiol heb ei gyffwrdd.',

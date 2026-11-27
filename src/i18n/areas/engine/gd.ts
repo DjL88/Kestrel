@@ -74,6 +74,8 @@ export const gd: AreaTranslation<typeof source> = {
       unreadable: 'Cha b’ urrainn do InFlight am pasgan sin a leughadh. Cha deach dad atharrachadh.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Ag ullachadh 1 dealbhag' : `Ag ullachadh ${count} dealbhagan`),
+    thumbnailsGroup: 'Ag ullachadh dhealbhan beaga',
+    checksGroup: 'A’ sgrùdadh dhealbhan is an dath',
     thumbnailStage: 'A’ leughadh is a’ lùghdachadh an deilbh seo',
     thumbnailFailed: (filename) => `Cha b’ urrainnear an dealbhag airson ${filename} a dhèanamh. Ceangail an tè thùsail a-rithist is feuch a-rithist.`,
     rawJpegXl: 'Tha an RAW seo a’ cleachdadh dùmhlachadh JPEG XL nach urrainn do InFlight a leughadh fhathast. Cha deach beantainn ris an tè thùsail.',
