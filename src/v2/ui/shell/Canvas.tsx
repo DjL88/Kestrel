@@ -2506,6 +2506,19 @@ export default function Canvas({
             )}
           </div>
         )}
+        {/* Colour-vision support: which outline is which, by line and name (the outlines themselves are on the photo). */}
+        {shownColourAreas && !compareMode && !holdingOriginal && (
+          <span data-testid="colour-area-key" className="flex shrink-0 items-center gap-3 text-[var(--text-primary)]">
+            {shownColourAreas.map(({ label }, index) => (
+              <span key={label} data-testid="colour-area-key-item" className="inline-flex items-center gap-1.5">
+                <svg width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" className="shrink-0">
+                  <line x1="1" y1="4" x2="19" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray={index === 0 ? undefined : '4 3'} />
+                </svg>
+                <span>{label}</span>
+              </span>
+            ))}
+          </span>
+        )}
         {shotNote && (
           <div role={shotNote.problem ? 'alert' : 'status'} data-testid="canvas-shot-note" className="flex shrink-0 items-center gap-1 text-[var(--text-primary)]">
             <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
@@ -2558,23 +2571,22 @@ function CameraFocusBox({ picture, area }: { picture: { width: number; height: n
   );
 }
 
-/** Red and green look-alike areas, for Colour-vision support. Each box has its own line (solid, then dashed) and a
- * number and colour name, so the two are told apart without seeing colour. White on a dark edge reads on any photo. */
+/** Red and green look-alike areas, for Colour-vision support. Only the outlines are on the photo, like the mask outline:
+ * each has its own line (solid, then dashed), and its number and colour name are in the key under the canvas, never over
+ * the picture (Dave: nothing covers the image). So the two are told apart without seeing colour. White on a dark edge
+ * reads on any photo. */
 function ColourAreaMarks({ picture, areas }: { picture: { width: number; height: number }; areas: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }> }) {
-  const fontSize = Math.max(12, Math.round(Math.min(picture.width, picture.height) * 0.035));
   return (
     <g data-testid="colour-area-marks" style={{ pointerEvents: 'none' }}>
       {areas.map(({ label, area }, index) => {
         const x = area.x * picture.width, y = area.y * picture.height;
         const width = Math.max(area.width * picture.width, 1), height = Math.max(area.height * picture.height, 1);
         const dash = index === 0 ? undefined : '8 6';
-        const inset = fontSize * 0.4;
         return (
           <g key={label} data-testid="colour-area" role="img" aria-label={label}>
             <title>{label}</title>
             <rect x={x} y={y} width={width} height={height} fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth={4} strokeDasharray={dash} vectorEffect="non-scaling-stroke" />
             <rect x={x} y={y} width={width} height={height} fill="none" stroke="#fff" strokeWidth={2} strokeDasharray={dash} vectorEffect="non-scaling-stroke" />
-            <text x={x + inset} y={y + inset + fontSize} fontSize={fontSize} fontWeight={600} fill="#fff" stroke="rgba(0,0,0,0.75)" strokeWidth={fontSize * 0.18} paintOrder="stroke">{label}</text>
           </g>
         );
       })}

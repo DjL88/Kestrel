@@ -531,6 +531,8 @@ export interface Photo {
     /** Red and green areas that look alike to many colour-blind viewers, numbered and named, in the picture's fractions.
      * Outlined on the photo only with Colour-vision support on. */
     colourAreas?: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }>;
+    /** One plain verdict on the colours (src/core/colourVerdict.ts). Absent until the colours have been measured. */
+    colourVerdict?: import('../../core/colourVerdict').ColourVerdict;
     kelvinEstimate: string;
     suggestions: AssistSuggestion[];
   };
