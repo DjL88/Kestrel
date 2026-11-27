@@ -267,7 +267,8 @@ export function meRoutes(ctx: AppContext): Route[] {
           contributor: plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now())),
           // InFlight's own online helper is invite-only: a usable licence that includes it, the helper set up on this server,
           // and the 'Online photo helper' switch on. The app shows its switch and its provider choice only when 'available'.
-          onlineHelper: plans.some((p) => p.managedAi && licenceIsUsable(p, now())) && ctx.provider !== null && (await switchOn('managed-ai')) ? 'available' : 'unavailable',
+          // Pro only (owner, 27 Nov 2026): an invite on a Basic account is not offered.
+          onlineHelper: plans.some((p) => p.managedAi && licenceIsUsable(p, now())) && (await accountIsPro(claims.sub)) && ctx.provider !== null && (await switchOn('managed-ai')) ? 'available' : 'unavailable',
           nextRevalidationMs: now() + 7 * DAY_MS,
         },
       };

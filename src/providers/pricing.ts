@@ -5,6 +5,7 @@
  * read, or the compiled starting prices. Paddle's checkout always shows the final amount, with tax, before paying.
  */
 import { parseControlPlaneUrl } from '../core/licenceOnline';
+import { guessRegion } from '../core/regionGuess';
 import { DEFAULT_PRICING, publicPricing, readPublicPricing, type PublicPricing } from '../core/pricingMatrix';
 
 export const PRICING_KEY = 'kestrel.pricing.v1';
@@ -59,11 +60,10 @@ export const appPricing = pricingSource({
   now: () => Date.now(),
 });
 
-/** The person's country from the browser's language settings, if it names one (en-GB → GB). No lookup, no network. */
+/** The person's country for showing prices: the computer's time zone first, else the language (see core/regionGuess). */
 export function browserRegion(): string | null {
   if (typeof navigator === 'undefined') return null;
-  for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
-    try { const region = new Intl.Locale(tag).region; if (region) return region; } catch { /* not a language tag */ }
-  }
-  return null;
+  let zone: string | undefined;
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* none */ }
+  return guessRegion(zone, navigator.languages?.length ? navigator.languages : [navigator.language]);
 }
