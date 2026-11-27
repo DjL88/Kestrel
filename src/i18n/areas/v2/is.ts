@@ -1135,8 +1135,10 @@ export const is: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Bæta',
-    denoiseHeading: 'Suðeyðing',
-    denoiseNow: 'Eyða suði úr þessari mynd',
+    denoiseHeading: "TrueDetail suðminnkun",
+    denoiseNow: "Keyra TrueDetail á þessa mynd",
+    trueDetailRunning: (percent) => `TrueDetail vinnur í þessari mynd: ${percent}%`,
+    trueDetailQueued: "TrueDetail hefst eftir augnablik",
     denoiseCloudNote: 'Þegar þú ert innskráð/ur og nettengd/ur sendir þessi hnappur vinnuafrit (aldrei frumritið) í InFlight-skýið fyrir þetta eina verk og athugar niðurstöðuna á þessu tæki. Ef skýið er ekki tiltækt er unnið hér.',
     denoiseDeviceNote: 'Keyrir á þessu tæki. Vinnsla í skýi er hluti af Pro.',
     aiDenoiseInUse: 'Suðeyðing með gervigreind er notuð á myndefnið. Hún er aðeins vistuð á þessu tæki.',

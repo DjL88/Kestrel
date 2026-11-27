@@ -1136,8 +1136,10 @@ export const gd: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Leasaich',
-    denoiseHeading: 'Lùghdachadh gràinne',
-    denoiseNow: 'Lùghdaich gràinne an deilbh seo',
+    denoiseHeading: "Lùghdachadh gràinne TrueDetail",
+    denoiseNow: "Ruith TrueDetail air an dealbh seo",
+    trueDetailRunning: (percent) => `Tha TrueDetail ag obair air an dealbh seo: ${percent}%`,
+    trueDetailQueued: "Tòisichidh TrueDetail ann am mionaid",
     denoiseCloudNote: 'Nuair a bhios tu air do chlàradh a-steach agus air loidhne, cuiridh am putan seo lethbhreac-obrach (chan e an dealbh tùsail gu bràth) gu neul InFlight airson na h-obrach seo a-mhàin. Dearbhaidh e an toradh air an uidheam seo. Mura bheil an neul ri fhaighinn, ruithidh e an-seo.',
     denoiseDeviceNote: 'Ruithidh e air an uidheam seo. Tha obrachadh san neul na phàirt de Pro.',
     aiDenoiseInUse: 'Tha lùghdachadh gràinne AI ga chleachdadh air a’ chuspair. Tha e air a stòradh air an uidheam seo a-mhàin.',

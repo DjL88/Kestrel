@@ -1135,8 +1135,10 @@ export const cy: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Gwella',
-    denoiseHeading: 'Lleihau sŵn',
-    denoiseNow: 'Lleihau sŵn y llun hwn',
+    denoiseHeading: "Lleihau sŵn TrueDetail",
+    denoiseNow: "Rhedeg TrueDetail ar y llun hwn",
+    trueDetailRunning: (percent) => `Mae TrueDetail yn gweithio ar y llun hwn: ${percent}%`,
+    trueDetailQueued: "Bydd TrueDetail yn dechrau mewn eiliad",
     denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: 'Yn rhedeg ar y ddyfais hon. Mae prosesu yn y cwmwl yn rhan o Pro.',
     aiDenoiseInUse: 'Mae dad-sŵn AI ar waith ar y gwrthrych. Caiff ei gadw ar y ddyfais hon yn unig.',

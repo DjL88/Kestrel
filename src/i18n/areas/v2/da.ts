@@ -1135,8 +1135,10 @@ export const da: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Forbedr',
-    denoiseHeading: 'Støjreduktion',
-    denoiseNow: 'Fjern støj fra dette foto',
+    denoiseHeading: "TrueDetail-støjreduktion",
+    denoiseNow: "Kør TrueDetail på dette billede",
+    trueDetailRunning: (percent) => `TrueDetail arbejder på dette billede: ${percent} %`,
+    trueDetailQueued: "TrueDetail starter om et øjeblik",
     denoiseCloudNote: 'Når du er logget ind og online, sender denne knap en arbejdskopi (aldrig originalen) til InFlight-skyen kun til dette job og kontrollerer resultatet på denne enhed. Hvis skyen ikke er tilgængelig, kører det her.',
     denoiseDeviceNote: 'Kører på denne enhed. Behandling i skyen er en del af Pro.',
     aiDenoiseInUse: 'AI-støjreduktion bruges på motivet. Den gemmes kun på denne enhed.',

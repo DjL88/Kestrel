@@ -1135,8 +1135,10 @@ export const nl: AreaTranslation<typeof source> = {
   },
   enhance: {
     heading: 'Verbeteren',
-    denoiseHeading: 'Ruisonderdrukking',
-    denoiseNow: 'Ruis van deze foto verwijderen',
+    denoiseHeading: "TrueDetail-ruisonderdrukking",
+    denoiseNow: "TrueDetail op deze foto toepassen",
+    trueDetailRunning: (percent) => `TrueDetail bewerkt deze foto: ${percent}%`,
+    trueDetailQueued: "TrueDetail begint zo meteen",
     denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: 'Draait op dit apparaat. Verwerking in de cloud hoort bij Pro.',
     aiDenoiseInUse: 'AI-ruisreductie wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.',
