@@ -73,3 +73,10 @@ test('strength grows with noise, is capped, and is never asked for on missing ev
   assert.equal(luminanceStrengthFor(100), 1.6);
   assert.equal(estimateNoiseSigma(new Uint8ClampedArray(16), 2, 2), null);
 });
+
+test('a high ISO still gets a gentle denoise when the estimate reads clean, and a low ISO does not', () => {
+  assert.equal(luminanceStrengthFor(0.3, 100), 0);
+  assert.equal(luminanceStrengthFor(0.3), 0);
+  assert.ok(luminanceStrengthFor(0.3, 3200) > 0);
+  assert.equal(luminanceStrengthFor(null, 6400), 0, 'no evidence is still no denoise');
+});
