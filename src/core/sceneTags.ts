@@ -159,9 +159,12 @@ export function pixelStyleTags(rgba: Uint8ClampedArray): PhotoTag[] {
 }
 
 /** All scene tags for one photo, from whatever witnesses are available. `embedding` null: the image model could not run. */
-export function sceneTags(input: { exif: ExifMetadata; rgba?: Uint8ClampedArray | null; embedding?: Float32Array | null; model?: SceneModel | null }): PhotoTag[] {
+export function sceneTags(input: { exif: ExifMetadata; rgba?: Uint8ClampedArray | null; embedding?: Float32Array | null; model?: SceneModel | null;
+  /** The measured style tags already worked out (in a worker), in place of measuring `rgba` here. */
+  pixelTags?: readonly PhotoTag[] | null }): PhotoTag[] {
   const tags = [...sunTags(input.exif)];
-  if (input.rgba) tags.push(...pixelStyleTags(input.rgba));
+  if (input.pixelTags) tags.push(...input.pixelTags);
+  else if (input.rgba) tags.push(...pixelStyleTags(input.rgba));
   if (input.embedding && input.model) {
     for (const tag of clipSceneTags(input.embedding, input.model, input.exif)) {
       // A calculated night or measured black and white outranks the model's reading of the same thing.

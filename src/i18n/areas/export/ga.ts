@@ -19,7 +19,7 @@ export const ga: AreaTranslation<typeof source> = {
     copyright: "Cóipcheart",
     includeKeywords: "Cuir eochairfhocail san áireamh",
     keywords: "Eochairfhocail (le camóga; fág folamh le haghaidh clibeanna dearbhaithe)",
-    help: "Féadann ábhair dhearbhaithe teideal agus eochairfhocail a líonadh. Ní easpórtáiltear buille faoi thuairim AI gan dearbhú. Stóráiltear an fhaisnéis sa chomhad, ní ar an ngrianghraf.",
+    help: "Féadann ábhair dhearbhaithe teideal agus eochairfhocail a líonadh. Ní easpórtáiltear moltaí samhlacha gan dearbhú. Stóráiltear an fhaisnéis sa chomhad, ní ar an ngrianghraf.",
   },
   originals: {
     title: "Bunchomhaid cheamara",

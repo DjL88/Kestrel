@@ -5,7 +5,8 @@ import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
 import { engineText } from '../../../i18n/areas/engine';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import FilmstripTile, { type TileActions } from './FilmstripTile';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LiveFtpInbox, LiveTether, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
@@ -102,6 +103,14 @@ interface FilmstripProps {
  * resized (owner, 26 Nov 2026). The picture's height is the strip less its padding (16), the name row (36) and the
  * border (2); the tile never narrows below the 96 pixels its name and Flag need.
  */
+/** From how many strip items only the ones in view are drawn. Below it every tile is drawn, as before. */
+const VIRTUAL_FROM = 150;
+const STRIP_PAD = 12;
+const STRIP_PAD_Y = 8;
+const STRIP_GAP = 10;
+/** A burst's controls card (w-40). */
+const CONTROLS_WIDTH = 160;
+
 export function stripTileWidth(height: number): number {
   return Math.max(96, Math.round((height - 54) * 1.5));
 }
@@ -266,7 +275,9 @@ export default function Filmstrip({
     };
   }, [tileMenu]);
 
-  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds });
+  // Worked out again only when what is shown changes, not on every task tick (the lead's stress test, 27 Nov).
+  const visiblePhotos = useMemo(() => viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds }),
+    [photos, filter, search, minRating, sort, tagFilter, pictureIds]);
   // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
   const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
   stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
@@ -289,7 +300,101 @@ export default function Filmstrip({
     return () => window.removeEventListener('inflight:photo-step', onStep);
   }, []);
   const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
-  const items = planFilmstrip(visiblePhotos, expandedBursts, openIds);
+  const items = useMemo(() => planFilmstrip(visiblePhotos, expandedBursts, openIds), [visiblePhotos, expandedBursts, openIds]);
+  const latest = useRef({ selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress: (_e: React.PointerEvent<HTMLElement>, _id: string) => {}, moveLongPress: (_e: React.PointerEvent<HTMLElement>) => {}, cancelLongPress: () => {} });
+  const tileActions = useMemo<TileActions>(() => ({
+    select: (photoId, modifiers) => latest.current.onSelectPhoto(photoId, modifiers),
+    toggleFlag: (photoId) => latest.current.onToggleFlag([photoId]),
+    openMenu: (x, y, photoId) => {
+      if (!latest.current.selectedPhotoIds.includes(photoId)) latest.current.onSelectPhoto(photoId);
+      setTileMenu({ x, y, photoId });
+    },
+    dragIds: (photoId) => draggedPhotoIds(photoId, latest.current.selectedPhotoIds),
+    longPressStart: (event, photoId) => latest.current.startLongPress(event, photoId),
+    longPressMove: (event) => latest.current.moveLongPress(event),
+    longPressCancel: () => latest.current.cancelLongPress(),
+    toggleStack: (groupId, expanded, photoId) => {
+      if (expanded) latest.current.onSelectPhoto(planCoverId(latest.current.items, groupId) ?? photoId);
+      setBurstOpen(groupId, !expanded);
+    },
+  // setBurstOpen and setTileMenu only call state setters, which never change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+  latest.current = { selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress, moveLongPress, cancelLongPress };
+
+  // A big project (2,048 photos) draws only the tiles in view, plus a few either side. Small ones draw every tile, as
+  // before. Positions come from the tile width measured on screen (a phone draws narrower tiles than the desktop).
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const virtual = items.length > VIRTUAL_FROM;
+  const [view, setView] = useState({ left: 0, width: 1600 });
+  const [tileWidth, setTileWidth] = useState(() => stripTileWidth(height));
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!virtual || !strip) return;
+    const measure = () => {
+      const tile = strip.querySelector<HTMLElement>('[role="option"]');
+      if (tile && tile.offsetWidth > 0) setTileWidth((was) => (Math.abs(was - tile.offsetWidth) > 0.5 ? tile.offsetWidth : was));
+      setView((was) => (was.left === strip.scrollLeft && was.width === strip.clientWidth ? was : { left: strip.scrollLeft, width: strip.clientWidth }));
+    };
+    measure();
+    let frame = 0;
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); }); };
+    strip.addEventListener('scroll', onScroll, { passive: true });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onScroll);
+    observer?.observe(strip);
+    return () => { strip.removeEventListener('scroll', onScroll); observer?.disconnect(); if (frame) cancelAnimationFrame(frame); };
+  }, [virtual, height, collapsed, visiblePhotos.length]);
+  const layout = useMemo(() => {
+    if (!virtual) return null;
+    const lefts: number[] = [];
+    let x = STRIP_PAD;
+    for (const item of items) { lefts.push(x); x += (item.type === 'controls' ? CONTROLS_WIDTH : tileWidth) + STRIP_GAP; }
+    return { lefts, total: x - STRIP_GAP + STRIP_PAD };
+  }, [virtual, items, tileWidth]);
+  const windowed = (() => {
+    if (!layout) return { from: 0, to: items.length };
+    const margin = Math.max(tileWidth * 4, 400);
+    let from = 0;
+    while (from < items.length - 1 && layout.lefts[from + 1] < view.left - margin) from += 1;
+    let to = from;
+    while (to < items.length && layout.lefts[to] < view.left + view.width + margin) to += 1;
+    return { from, to };
+  })();
+  const photoCount = useMemo(() => items.filter((item) => item.type !== 'controls').length, [items]);
+  const photoIndex = useMemo(() => {
+    const index = new Map<string, number>();
+    let n = 0;
+    for (const item of items) if (item.type !== 'controls') index.set(item.photo.id, (n += 1));
+    return index;
+  }, [items]);
+  // The photo being worked on is brought into view when it changes (arrow keys, the canvas, a panel), so a windowed
+  // strip draws its tile and the culler always sees where they are (CI, 27 Nov: arrow keys moved past the drawn tiles).
+  const lastActive = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    const id = activePhoto?.id ?? null;
+    if (!strip || !id || lastActive.current === id) return;
+    lastActive.current = id;
+    let left: number;
+    let width: number;
+    if (layout) {
+      const at = items.findIndex((item) => item.type !== 'controls' && item.photo.id === id);
+      if (at < 0) return;
+      left = layout.lefts[at];
+      width = tileWidth;
+    } else {
+      const tile = strip.querySelector<HTMLElement>(`[data-photo-id="${CSS.escape(id)}"]`);
+      if (!tile) return;
+      left = tile.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
+      width = tile.offsetWidth;
+    }
+    const shownFrom = strip.scrollLeft;
+    const shownTo = strip.scrollLeft + strip.clientWidth;
+    if (left >= shownFrom && left + width <= shownTo) return;
+    strip.scrollLeft = left < shownFrom ? left - STRIP_GAP : left + width - strip.clientWidth + STRIP_GAP;
+    if (layout) setView({ left: strip.scrollLeft, width: strip.clientWidth });
+  }, [activePhoto?.id, layout, items, tileWidth]);
+
   const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
   const setBurstOpen = (groupId: string, open: boolean) => setExpandedBursts((current) => { const next = new Set(current); if (open) next.add(groupId); else next.delete(groupId); return next; });
 
@@ -651,15 +756,20 @@ export default function Filmstrip({
             </div>
           ) : (
             <div
+              ref={stripRef}
               role="listbox"
               aria-label={STRINGS.filmstripLabels.label6}
               aria-multiselectable="true"
-              className="flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2"
+              data-virtual={virtual ? 'true' : undefined}
+              className={virtual ? 'relative h-full overflow-x-auto overflow-y-hidden inflight-scroll' : 'flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2'}
             >
-              {items.map((item) => {
+              {virtual && layout && <div aria-hidden="true" style={{ width: layout.total, height: 1 }} />}
+              {items.slice(windowed.from, windowed.to).map((item, offset) => {
+                const at = windowed.from + offset;
+                const place: React.CSSProperties | undefined = layout ? { position: 'absolute', left: layout.lefts[at], top: STRIP_PAD_Y, height: `calc(100% - ${2 * STRIP_PAD_Y}px)` } : undefined;
                 if (item.type === 'controls') {
                   return (
-                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className="h-full w-40 shrink-0 flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
+                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} style={place} className="h-full w-40 shrink-0 flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
                       <p className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
                       <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
                         onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
@@ -671,145 +781,21 @@ export default function Filmstrip({
                   );
                 }
                 const photo = item.photo;
-                const stack = item.stack;
-                const isActive = activePhoto?.id === photo.id;
-                const isSelected = selectedPhotoIds.includes(photo.id);
-                const flagged = photo.decision === 'keep';
-                const stateLabel = STRINGS.filmstrip.tileStates[photo.state];
-
                 return (
-                  <div
+                  <FilmstripTile
                     key={photo.id}
-                    data-thumb-id={photo.id}
-                    role="option"
-                    aria-selected={isSelected}
-                    draggable={collageMode}
-                    onDragStart={collageMode ? (event) => {
-                      cancelLongPress();
-                      event.dataTransfer.effectAllowed = 'copy';
-                      event.dataTransfer.setData(PHOTO_DRAG_TYPE, JSON.stringify(draggedPhotoIds(photo.id, selectedPhotoIds)));
-                      event.dataTransfer.setData('text/plain', photo.filename);
-                    } : undefined}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!isSelected) onSelectPhoto(photo.id);
-                      setTileMenu({
-                        x: Math.min(e.clientX, window.innerWidth - 200),
-                        y: Math.max(12, e.clientY - 120),
-                        photoId: photo.id,
-                      });
-                    }}
-                    onPointerDown={(event) => startLongPress(event, photo.id)}
-                    onPointerMove={moveLongPress}
-                    onPointerUp={cancelLongPress}
-                    onPointerCancel={cancelLongPress}
-                    className={`v2-strip-tile group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors shrink-0 ${
-                      isActive
-                        ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
-                        : isSelected
-                        ? 'border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)]'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
-                    }`}
-                  >
-                    {stack && (
-                      <button
-                        type="button"
-                        aria-expanded={stack.expanded}
-                        aria-label={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
-                        title={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
-                        onClick={(event) => { event.stopPropagation(); if (stack.expanded) onSelectPhoto(planCoverId(items, stack.groupId) ?? photo.id); setBurstOpen(stack.groupId, !stack.expanded); }}
-                        className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[0.625rem] font-semibold text-white"
-                      >
-                        {STRINGS.bursts.badge(stack.count)}{!stack.expanded ? ' ▸' : ''}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-label={`More actions for ${photo.filename}`}
-                      title={STRINGS.filmstripLabels.label7}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (!isSelected) onSelectPhoto(photo.id);
-                        const bounds = event.currentTarget.getBoundingClientRect();
-                        setTileMenu({ x: bounds.left, y: bounds.bottom, photoId: photo.id });
-                      }}
-                      className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
-                    >
-                      <span aria-hidden="true">⋯</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) =>
-                        onSelectPhoto(photo.id, {
-                          ctrl: touchSelectionMode || e.ctrlKey || e.metaKey,
-                          shift: !touchSelectionMode && e.shiftKey,
-                        })
-                      }
-                      className="relative flex-1 w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
-                    >
-                      <img
-                        src={photo.thumbUrl}
-                        alt={photo.title}
-                        referrerPolicy="no-referrer"
-                        className={`h-full w-full object-cover ${
-                          photo.state === 'unavailable' ? 'opacity-55' : ''
-                        }`}
-                      />
-                      {/* Tile state word (always readable text, never colour alone) */}
-                      {photo.tier && (
-                        <span
-                          data-testid="tier-badge"
-                          title={`${STRINGS.tier.label}: ${STRINGS.tier[photo.tier]}`}
-                          className="absolute right-1.5 bottom-1.5 rounded border border-[var(--brand-accent-border)] bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.5625rem] font-semibold text-white"
-                        >
-                          {STRINGS.tier[photo.tier]}
-                        </span>
-                      )}
-                      {/* Fewer badges hides the Ready label from view only: the state stays in the button's name. */}
-                      {photo.state === 'ready' && quietBadges ? (
-                        <span className="sr-only">{stateLabel}</span>
-                      ) : (
-                        <span
-                          title={photo.state === 'unsupported' ? engineText.workspace.rawJpegXl : undefined}
-                          className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
-                            photo.state === 'unavailable' || photo.state === 'unsupported'
-                              ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
-                              : photo.state === 'importing' || photo.state === 'analysing'
-                              ? 'bg-[var(--semantic-info)] text-[#09121a]'
-                              : 'bg-[var(--bg-scrim)] text-white'
-                          }`}
-                        >
-                          {stateLabel}
-                          {photo.state === 'unsupported' && <span className="sr-only">. {engineText.workspace.rawJpegXl}</span>}
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Tile footer: filename + flag toggle */}
-                    <div className="v2-strip-tile-footer flex h-9 shrink-0 items-center justify-between gap-1 px-1">
-                      <span className="v2-strip-tile-name truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
-                        {photo.pairedJpeg && <span data-testid="pair-badge" className="mr-1 rounded-sm border border-[var(--border-default)] px-0.5 font-sans font-semibold text-[var(--text-primary)]">{STRINGS.pair.badge}</span>}
-                        <PictureSourceBadge picture={photo.picture?.thumb} compact className="mr-1 align-middle" />
-                        {photo.filename}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={flagged ? `Unflag ${photo.filename}` : `Flag ${photo.filename}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleFlag([photo.id]);
-                        }}
-                        className={`inline-flex min-h-9 min-w-9 items-center justify-center rounded transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] ${
-                          flagged
-                            ? 'text-[var(--brand-accent)]'
-                            : 'text-[var(--text-muted)] opacity-60 hover:opacity-100 hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={12} />
-                      </button>
-                    </div>
-                  </div>
+                    photo={photo}
+                    stack={item.stack ? { groupId: item.stack.groupId, count: item.stack.count, expanded: item.stack.expanded } : undefined}
+                    active={activePhoto?.id === photo.id}
+                    selected={selectedPhotoIds.includes(photo.id)}
+                    quietBadges={quietBadges}
+                    collageMode={Boolean(collageMode)}
+                    touchSelectionMode={touchSelectionMode}
+                    actions={tileActions}
+                    style={place}
+                    posInSet={virtual ? photoIndex.get(photo.id) : undefined}
+                    setSize={virtual ? photoCount : undefined}
+                  />
                 );
               })}
             </div>

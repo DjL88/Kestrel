@@ -12,6 +12,7 @@ import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
 import { trueDetailJob } from './utils/trueDetailJob';
+import { photoJobActive } from './utils/photoJob';
 import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
@@ -131,10 +132,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
-  // The tiles on screen (filmstrip or grid) get their thumbnails first.
-  useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // The Co-pilot panel is named after the Flight mode in use (Dave, 27 Nov: it said "Co-pilot" in Auto-pilot).
   const panelTitle = (id: PanelId) => (id === 'copilot' ? STRINGS.topBar.assistModes[store.assistMode] : PANEL_TITLES[id]);
+  // The tiles on screen (filmstrip or grid) get their thumbnails first.
+  useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
@@ -778,7 +779,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               onOpenSettings: () => actions.setSettingsOpen(true, 'aiProviders'),
             }}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
-              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
+              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn,
+                consent: actions.cloudConsent, setConsent: actions.setCloudConsent, onTopUp: () => actions.setSettingsOpen(true, 'account') }
               : undefined}
           />
         );
@@ -839,34 +841,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'masks':
         return (
           <div className="space-y-4">
+          {/* Spot removal replaces pixels rather than choosing where an adjustment applies, so it is in Enhance ›
+              Refinements now (Dave, 27 Nov). This pointer stays for one release. */}
           {activePhoto && actions.addHealSpot && (
-            <HealSection
-              photo={activePhoto}
-              placing={Boolean(healFor?.placing)}
-              onSetPlacing={(placing) => setHealUi((current) => ({ photoId: activePhoto.id, selectedId: current?.photoId === activePhoto.id ? current.selectedId : null, placing, note: undefined }))}
-              newSize={healSize}
-              onSetNewSize={setHealSize}
-              selectedId={healFor?.selectedId ?? null}
-              onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
-              note={healFor?.note}
-              busy={healFor?.busy}
-              onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
-              onNextSource={(photoId, spotId) => {
-                if (!actions.nextHealSource) return;
-                setHealUi((current) => (current ? { ...current, busy: true } : current));
-                void actions.nextHealSource(photoId, spotId).catch(() => false).then((moved) =>
-                  setHealUi((current) => (current ? { ...current, busy: false, note: moved ? undefined : healText.noOther } : current)));
-              }}
-              onRemove={(photoId, spotId) => {
-                actions.removeHealSpot?.(photoId, spotId);
-                setHealUi((current) => (current?.selectedId === spotId ? { ...current, selectedId: null } : current));
-              }}
-              onClear={(photoId) => { actions.clearHealSpots?.(photoId); setHealUi((current) => (current ? { ...current, selectedId: null } : current)); }}
-              onShown={setHealShown}
-            />
+            <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="masks-spots-moved">{STRINGS.masks.spotsMoved}</p>
           )}
           <MasksPanel
             photo={activePhoto}
+            detecting={photoJobActive(store.tasks, 'mask', activePhoto?.id)}
             activeMaskTool={store.activeMaskTool}
             onSetMaskTool={actions.setActiveMaskTool}
             onAddMaskLayer={actions.addMaskLayer}
@@ -884,15 +866,49 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         );
       case 'enhance':
         return (
-          <EnhancePanel
-            photo={activePhoto}
-            hideReadouts={store.settings.calmReadouts}
-            onUpdateRecipe={actions.updateRecipe}
-            onDenoise={actions.denoisePhoto}
-            trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
-            cloudEnabled={store.features.cloudAssist}
-            onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
-          />
+          <div className="space-y-4">
+            <EnhancePanel
+              photo={activePhoto}
+              hideReadouts={store.settings.calmReadouts}
+              onUpdateRecipe={actions.updateRecipe}
+              onDenoise={actions.denoisePhoto}
+              trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
+              cloudEnabled={store.features.cloudAssist}
+              onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
+            />
+            {/* Refinements: retouching that replaces pixels (Remove spots now; red-eye and dust can join it). */}
+            {activePhoto && actions.addHealSpot && (
+              <section aria-labelledby="enhance-refinements-heading" data-testid="enhance-refinements" className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
+                <h3 id="enhance-refinements-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.enhance.refinementsHeading}</h3>
+              {(
+                <HealSection
+                  photo={activePhoto}
+                  placing={Boolean(healFor?.placing)}
+                  onSetPlacing={(placing) => setHealUi((current) => ({ photoId: activePhoto.id, selectedId: current?.photoId === activePhoto.id ? current.selectedId : null, placing, note: undefined }))}
+                  newSize={healSize}
+                  onSetNewSize={setHealSize}
+                  selectedId={healFor?.selectedId ?? null}
+                  onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
+                  note={healFor?.note}
+                  busy={healFor?.busy}
+                  onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
+                  onNextSource={(photoId, spotId) => {
+                    if (!actions.nextHealSource) return;
+                    setHealUi((current) => (current ? { ...current, busy: true } : current));
+                    void actions.nextHealSource(photoId, spotId).catch(() => false).then((moved) =>
+                      setHealUi((current) => (current ? { ...current, busy: false, note: moved ? undefined : healText.noOther } : current)));
+                  }}
+                  onRemove={(photoId, spotId) => {
+                    actions.removeHealSpot?.(photoId, spotId);
+                    setHealUi((current) => (current?.selectedId === spotId ? { ...current, selectedId: null } : current));
+                  }}
+                  onClear={(photoId) => { actions.clearHealSpots?.(photoId); setHealUi((current) => (current ? { ...current, selectedId: null } : current)); }}
+                  onShown={setHealShown}
+                />
+              )}
+              </section>
+            )}
+          </div>
         );
       case 'overlays':
         return (
@@ -958,6 +974,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onEditInOtherApp={actions.editInOtherApp}
             onStopExternalEdit={actions.stopExternalEdit}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onLookAgainAtSpecies={actions.lookAgainAtSpecies}
             onCorrectVehicle={actions.correctVehicle}
             speciesPlace={store.speciesPlace}
             onSetSpeciesArea={actions.setSpeciesArea}
@@ -1627,6 +1644,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         attachOriginal={actions.attachCloudOriginal}
         photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
         onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
+        onTopUp={() => { closeShare(); actions.setSettingsOpen(true, 'account'); }}
         onClose={closeShare}
       /></React.Suspense>
 

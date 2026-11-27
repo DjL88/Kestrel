@@ -291,7 +291,7 @@ export const sv: AreaTranslation<typeof source> = {
     tone: 'Ton',
     detail: 'Detaljer',
     brightnessTitle: 'Justera mellantonernas ljusstyrka och behåll rent svart och vitt; använd Exponering för det totala ljuset',
-    denoiseTitle: 'Jämnar ut färgade prickar i bilder med högt ISO; lovar inte AI-återställning av detaljer',
+    denoiseTitle: "Jämnar ut färgade prickar i bilder med högt ISO. Lägger inte till detaljer.",
     denoiseHelp: 'Jämnar bara ut färgprickar. Kanter och fin textur förblir som de är.',
     exportFocus: 'Fokuspunkt för export',
     cancelPlacement: 'Avbryt placeringen',

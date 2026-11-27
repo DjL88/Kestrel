@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Dutch (u). DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
-  title: "Vlekken herstellen",
+  title: "Vlekken verwijderen",
   intro: "Bedekt stof, een takje of een rommelige zitplaats met pixels die vlakbij uit dezelfde foto worden gekopieerd. Er wordt niets verzonnen en het originele bestand wordt nooit gewijzigd.",
   start: "Vlekken plaatsen",
   stop: "Klaar",

@@ -1194,7 +1194,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
           {
             id: `task-dvr-${Date.now()}`,
             label: 'Deep Vision Review',
-            detail: 'Combining internal RAW models + connected AI critique',
+            detail: 'Combining on-device RAW models with your own AI helper, if connected',
             progress: 100,
             status: 'done',
           },
@@ -2175,7 +2175,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     setCanvasZoom: (canvasZoom) => {
-      setStore((prev) => ({ ...prev, canvasZoom: Math.min(16, Math.max(0.25, Number(canvasZoom.toFixed(3)))) }));
+      setStore((prev) => ({ ...prev, canvasZoom: Math.min(256, Math.max(0.25, Number(canvasZoom.toFixed(3)))) }));
     },
 
     toggleFullScreen: () => {

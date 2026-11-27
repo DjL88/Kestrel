@@ -16,6 +16,8 @@ import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler, type ScheduledContext, type SchedulerTicket } from '../../core/engineScheduler';
 import { measureStep, timedStep } from '../../providers/previewTiming';
+import { useTaskList } from './taskListFeed';
+import { histogramOffThread } from '../../providers/pixelAnalysis';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
@@ -47,9 +49,10 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { shareNearbySpecies } from '../../core/speciesNearby';
 import { SPECIES_REGIONS_EVENT, readSpeciesRegions } from '../../core/speciesRegions';
 import { regionIdsForArea, reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
-import { SPECIES_SCAN_VERSION, speciesScanDue } from '../../core/autoTags';
+import { SPECIES_SCAN_VERSION, kindWords, speciesScanDue, lookAgain } from '../../core/autoTags';
 import { LEGACY_SETTINGS } from '../../core/projectSettings';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { displaySpeciesName } from '../../core/speciesNames';
@@ -126,6 +129,8 @@ import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraP
 import { runV2Denoise } from './runDenoise';
 import { cloudRecipeEdit, cloudRecipeWhy, prepareCloudRecipe, sendCloudRecipe, type CloudRecipeOffer } from './runCloudRecipe';
 import { cloudRecipePreviewOn, httpCloudRecipeService, readFullFileConsent, saveFullFileConsent } from '../../providers/cloudRecipeService';
+import { readCloudConsent, saveCloudConsent } from '../../providers/cloudConsent';
+import { previewBlobFromUrl, previewCopyForCloud } from '../../providers/recipePreviewCopy';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
@@ -265,7 +270,7 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
     : undefined;
   return {
     overlay, text, watermark: mark, contrast,
-    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
+    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo, overlay), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
     mark: !mark || !preset ? null : imageUrl ? { kind: 'image', image: await loadImage(imageUrl) } : { kind: 'text', text: preset.text, ...(preset.subtext ? { subtext: preset.subtext } : {}) },
   };
 }
@@ -345,7 +350,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }).local);
   }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
-  const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
+  // The map is worked out once per plan, not again on every question (it was asked many times on every redraw).
+  const access = useMemo(() => featureAccess(canByPlan), [canByPlan]);
+  const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => access[feature as keyof typeof access] ?? canByPlan(feature), [access, canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
   if (!catalogue.current) catalogue.current = new BrowserCatalogueStore();
   const provider = useRef<BrowserPreviewProvider | null>(null);
@@ -437,7 +444,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
   const lastFollowed = useRef<string | null>(null);
   const relinking = useRef(false);
-  const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
+  // At most four times a second, drawn as a transition: a busy job's progress never holds the page (taskListFeed.ts).
+  const taskList = useTaskList();
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
   const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
   const [clock, setClock] = useState(() => Date.now());
@@ -737,6 +745,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     void engineScheduler.submit({
       title: engineText.workspace.thumbnailsTask(frames.length), kind: 'thumbnail', resource: 'io',
+      group: { key: `thumbnails:${stateRef.current?.shoot.id ?? ''}`, title: engineText.workspace.thumbnailsGroup },
       priority: 1, pauseable: frames.length > 1, items: frames,
       snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
       itemId: frame => frame.id, itemLabel: frame => frame.filename,
@@ -778,7 +787,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const shown = new Set(ids);
     for (const [id, ticket] of jobs) {
       if (shown.has(id) || !ticket) continue;
-      if (engineScheduler.list().find((task) => task.id === ticket.taskId)?.state !== 'queued') continue;
+      if (!ticket.queued()) continue;
       ticket.cancel();
       jobs.delete(id);
     }
@@ -794,6 +803,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       jobs.set(id, null);
       void engineScheduler.submit({
         title: engineText.workspace.thumbnailsTask(1), kind: 'thumbnail', resource: 'io', light: true,
+        group: { key: `thumbnails:${stateRef.current?.shoot.id ?? ''}`, title: engineText.workspace.thumbnailsGroup },
         priority: 500, pauseable: false, items: [frame],
         snapshot: { generation, keys: [frame.stableKey] },
         itemId: (item) => item.id, itemLabel: (item) => item.filename,
@@ -1099,9 +1109,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     onOutsideRegion: (_frameId, label) => setState((current) => (current && !current.settings?.speciesArea && !current.settings?.speciesAreaPrompt
       ? { ...current, settings: { ...(current.settings ?? LEGACY_SETTINGS), speciesAreaPrompt: { example: label.common } } } : current)),
     // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
-      frame.id === frameId && !frame.removedAt && speciesScanDue(frame) && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, speciesScanVersion: SPECIES_SCAN_VERSION, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS), VEHICLE_LABELS) } : current)),
+    // Sure shots taken at the same moment also confirm the same guess on their neighbours (src/core/speciesNearby.ts).
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: shareNearbySpecies(syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
+      frame.id === frameId && !frame.removedAt && speciesScanDue(frame) && kindWords(frame.tags) && !frame.subjectNames?.length
+        ? { ...frame, ...patch, speciesScanVersion: SPECIES_SCAN_VERSION, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS), VEHICLE_LABELS)) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -1402,15 +1413,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
         if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
         const measureStart = performance.now();
-        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy.
-        const canvas = document.createElement('canvas');
-        canvas.width = image.small.width; canvas.height = image.small.height;
-        const context = canvas.getContext('2d', { willReadFrequently: true })!;
-        context.putImageData(image.small, 0, 0);
-        applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
-        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-        measureStep('histogram:measure', measureStart);
-        if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
+        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy,
+        // in the picture worker (pixelAnalysis.ts), so measuring never holds the page; here only if that cannot run.
+        const fromWorker = await histogramOffThread(image.small, frame.edit ?? EMPTY_EDIT).catch(() => null);
+        if (!live) return;
+        let measuredHere = fromWorker;
+        if (!measuredHere) {
+          const canvas = document.createElement('canvas');
+          canvas.width = image.small.width; canvas.height = image.small.height;
+          const context = canvas.getContext('2d', { willReadFrequently: true })!;
+          context.putImageData(image.small, 0, 0);
+          applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
+          measuredHere = toPhotoHistogram(context.getImageData(0, 0, canvas.width, canvas.height).data);
+        }
+        measureStep('histogram:measure', measureStart, { worker: Boolean(fromWorker) });
+        const histogram = measuredHere;
+        if (live) setHistograms((current) => ({ ...current, [frame.id]: histogram }));
         // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
         // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
         if (!live || !raw16Possible(frame, provider.current!.pictureSourceOf(url), canDevelopRaw())) return;
@@ -1434,7 +1452,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!aiAsset || !activeFrame) return;
     let live = true;
     void preloadTrueDetailAi(activeFrame.edit).then(found => {
-      if (live && !found) setNotice('This photo’s AI denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the AI denoise off in Enhance.');
+      if (live && !found) setNotice('This photo’s learned denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the learned denoise off in Enhance.');
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1774,18 +1792,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const prepareCloudRecipeFor = useCallback(async (photoId: string) => {
     const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId && candidate.removedAt == null);
     if (!frame || !provider.current) return { status: 'unavailable' as const, message: 'This photo is not available.' };
-    const prepared = await prepareCloudRecipe(frame, provider.current, readFullFileConsent());
+    const source = provider.current;
+    // Web, phones and JPEG photos have no 2,560 px smart preview: a copy of the photo's preview stands in, made in memory.
+    const prepared = await prepareCloudRecipe(frame, {
+      smartPreview: (f) => source.smartPreview(f),
+      ensureOriginal: (key, priority) => source.ensureOriginal(key, priority),
+      previewCopy: async (f) => { const blob = await previewBlobFromUrl(await source.getFullPreviewUrl(f, 'visible')); return blob ? previewCopyForCloud(blob) : null; },
+    }, readFullFileConsent());
     cloudRecipeOffers.current.set(photoId, { prepared, edit: frame.edit ?? DEFAULT_EDIT, framing: framingKey(frame.framing) });
     const offer: CloudRecipeOffer = prepared.offer;
     if (offer.plan.status !== 'ready') {
-      return { status: 'unavailable' as const, message: 'This photo has no 2,560 px smart preview on this device yet, so nothing can be sent. Smart previews are made for RAW photos in the desktop app.' };
+      return { status: 'unavailable' as const, message: 'This photo has no preview InFlight can send yet. Wait for it to finish loading, then try again. Nothing was sent.' };
     }
-    return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel };
+    const previewNote = offer.previewSource === 'copy' && isRawPreviewFile(frame.filename)
+      ? "This is a copy of the preview the camera saved inside the RAW, not InFlight's own develop, so the settings may need a small touch-up."
+      : undefined;
+    return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel, ...(previewNote ? { previewNote } : {}) };
   }, []);
   const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative') => {
     const held = cloudRecipeOffers.current.get(photoId);
     cloudRecipeOffers.current.delete(photoId);
     if (!held) throw new Error('Check the photo again before sending.');
+    if (readCloudConsent().answer !== 'yes') throw new Error("Say yes to using InFlight's cloud first. Nothing was sent.");
     const connection = accountConnection();
     if (!connection) throw new Error('Sign in to use cloud edit settings. Nothing was sent.');
     if (navigator.onLine === false) throw new Error('You are offline. Nothing was sent.');
@@ -1795,7 +1823,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const unchanged = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) && framingKey(current.framing) === held.framing;
     const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
     if (!latest || !unchanged(latest)) return 'The photo was edited while the cloud worked, so its settings were not applied.';
-    editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent));
+    editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent, outcome.previewSource));
     return 'Applied the cloud\'s edit settings. Undo takes them back.';
   }, [editFrames]);
 
@@ -1884,13 +1912,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const request = openRequest.current;
     const controller = new AbortController();
     const isCurrent = () => !controller.signal.aborted && request === openRequest.current;
-    let taskId: number | undefined;
     const timer = window.setTimeout(() => {
       if (!isCurrent()) return;
       if (manual) lastAutoRequest.current = autoRequest.sequence;
       void engineScheduler.submit({
         title: engineText.workspace.checkTask(frame.filename),
         kind: 'auto-edit', resource: 'cpu', priority: manual ? 20 : 8, pauseable: false,
+        // The automatic checks share one row per project; one the person asked for keeps its own.
+        ...(manual ? {} : { group: { key: `checks:${assistProjectId}`, title: engineText.workspace.checksGroup } }),
         items: [{ id: frame.id, name: frame.filename }],
         snapshot: { projectId: assistProjectId, frameId: frame.id, edit: frame.edit ?? DEFAULT_EDIT },
         itemId: item => item.id, itemLabel: item => item.name,
@@ -1955,7 +1984,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (autopilot && !piloted) pilot(false);
         },
       }).then(ticket => {
-        taskId = ticket.taskId;
         controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
         if (controller.signal.aborted) ticket.cancel();
         return ticket.finished;
@@ -1970,8 +1998,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }, manual ? 0 : 550);
     return () => {
       window.clearTimeout(timer);
+      // The abort cancels this check's own job through its ticket (never the shared row, which other checks are in).
       controller.abort();
-      if (taskId !== undefined) tasks.cancel(taskId);
     };
     // Recheck a settled recipe, source or framing change without rerunning a completed matching analysis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3186,6 +3214,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
       if (moved) setNotice(speciesAreaText.changed(areaWords(area, home)));
     },
+    lookAgainAtSpecies: (photoId) => {
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((frame) => {
+          if (frame.id !== photoId || frame.removedAt) return frame;
+          const next = lookAgain(frame);
+          return next ? { ...frame, ...next } : frame;
+        }),
+      }));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -3426,6 +3465,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       sendCloudRecipe: sendCloudRecipeFor,
       setCloudRecipeFullFile: (on: boolean) => saveFullFileConsent(on).on,
       cloudRecipeFullFileOn: () => readFullFileConsent().on,
+      cloudConsent: () => readCloudConsent().answer,
+      setCloudConsent: (answer: 'yes' | 'no' | 'ask') => saveCloudConsent(answer).answer,
     } : {}),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     sharedEditOf: (photoId) => {
@@ -3942,20 +3983,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
   const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
   useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
+  const photoCache = useRef(new Map<string, { inputs: unknown[]; photo: Photo }>());
   const photos = useMemo(() => {
     const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
     // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
     const brackets = bracketsByFrame(shown);
     // Rank within the shoot from Auto pick's scores (src/core/shootTiers.ts); unscored photos stay unranked.
     const tiers = shootTiers(shown);
-    return recountBursts(shown.map((frame) => {
+    const nextCache = new Map<string, { inputs: unknown[]; photo: Photo }>();
+    const counted = recountBursts(shown.map((frame) => {
     const bracket = brackets.get(frame.id);
     const tier = tiers.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { beingImported: importingIds.current.has(frame.id), assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
+    const beingImported = importingIds.current.has(frame.id);
+    const originalConnected = frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true;
+    const sources = { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) };
+    const verifiedOriginalSize = verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`];
+    // One photo is built again only when something of its own changed: a thumbnail arriving for one photo of 2,048 used
+    // to rebuild all of them, a long task each time (the lead's stress test, 27 Nov).
+    const inputs: unknown[] = [frame, urls[frame.id], assist, autoUnavailable[frame.id], watermarkAuto[frame.id], histograms[frame.id],
+      pixelSizes[frame.id], verifiedOriginalSize, originalConnected, JSON.stringify(sources), fullDeveloping[frame.stableKey],
+      speciesNamesVersion, pairedJpeg, tier, bracket ? JSON.stringify(bracket) : undefined, beingImported];
+    const cached = photoCache.current.get(frame.id);
+    if (cached && cached.inputs.length === inputs.length && cached.inputs.every((value, index) => value === inputs[index])) {
+      nextCache.set(frame.id, cached);
+      return cached.photo;
+    }
+    const built = withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { beingImported, assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize, originalConnected, sources, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
+    nextCache.set(frame.id, { inputs, photo: built });
+    return built;
   }));
+  photoCache.current = nextCache;
+  return counted;
   }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping, importing]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough

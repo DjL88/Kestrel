@@ -68,6 +68,12 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
    */
   light?: boolean;
   /**
+   * Small per-photo work shown as ONE task row per group (owner, 27 Nov: "could just have a growing number, 5/120"): every
+   * job with the same key shares a row titled `title`, counting up as each finishes, with the photos under its list.
+   * The jobs stay separate here, so priority (tiles on screen first), cancelling one and the watchdog work as before.
+   */
+  group?: { key: string; title: string };
+  /**
    * How long one photo may go without a new stage or progress before the watchdog stops it, fails it with a plain
    * message and gives its slot back (default STALL_MS; cloud work STALL_CLOUD_MS). Work that takes longer than this
    * legitimately reports progress as it goes.
@@ -82,6 +88,8 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
 }
 export interface SchedulerTicket {
   readonly taskId: number;
+  /** Still waiting to start (not running, not finished). */
+  queued(): boolean;
   readonly finished: Promise<'done' | 'failed' | 'cancelled'>;
   cancel(): boolean;
   pause(): boolean;
@@ -454,6 +462,80 @@ export function createEngineScheduler(options: {
     }
   };
 
+  type MemberState = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled';
+  /** A shown row standing for several jobs (BatchDefinition.group). */
+  interface Group {
+    key: string;
+    handle: SchedulerTaskHandle;
+    members: Map<number, { state: MemberState; done: number; total: number; items: TaskItemInfo[]; cancel: () => void }>;
+    closed: boolean;
+    detail?: string;
+  }
+  const openGroups = new Map<string, Group>();
+  /** The jobs a grouped row stands for, or null when the id is an ordinary task. */
+  const membersOf = (id: number): number[] | null => { const group = groupsByTask.get(id); return group ? [...group.members.keys()] : null; };
+  const groupsByTask = new Map<number, Group>();
+  let virtualIds = 0;
+  const refreshGroup = (group: Group) => {
+    const members = [...group.members.values()];
+    const done = members.reduce((sum, m) => sum + m.done, 0);
+    const total = members.reduce((sum, m) => sum + m.total, 0);
+    group.handle.patch({ items: members.flatMap(m => m.items), done, total, detail: group.detail ?? `${done} of ${total} completed` });
+    const live = members.filter(m => m.state === 'running' || m.state === 'queued' || m.state === 'paused');
+    if (live.length) {
+      const next = members.some(m => m.state === 'running') ? 'running' : members.some(m => m.state === 'queued') ? 'queued' : 'paused';
+      group.handle.transition(next);
+      return;
+    }
+    // Every member has ended: the row finishes once, and the next job with this key starts a new row.
+    group.closed = true;
+    if (openGroups.get(group.key) === group) openGroups.delete(group.key);
+    group.handle.transition('running');
+    group.handle.progress(done, total);
+    const failed = members.filter(m => m.state === 'failed').length;
+    if (failed) group.handle.fail(`${failed} of ${total} items failed. Retry failed items only.`);
+    else if (members.every(m => m.state === 'cancelled')) store.cancel(group.handle.id);
+    else group.handle.finish(`${done} of ${total} completed`);
+  };
+  const groupFor = (key: string, title: string, kind: string, priority: number): Group => {
+    const open = openGroups.get(key);
+    if (open && !open.closed) return open;
+    let group!: Group;
+    const handle = store.enqueue(title, {
+      total: 0, kind, location: 'local', priority, pauseable: true,
+      // Cancel on the row stops every job in it.
+      cancel: () => { for (const member of [...group.members.values()]) member.cancel(); },
+    });
+    group = { key, handle, members: new Map(), closed: false };
+    openGroups.set(key, group);
+    groupsByTask.set(handle.id, group);
+    while (groupsByTask.size > 50) groupsByTask.delete(groupsByTask.keys().next().value!);
+    return group;
+  };
+  /** A job's handle inside a group: its changes update the group's one row instead of a row of its own. */
+  const memberHandle = (group: Group, id: number, total: number, cancel: () => void): SchedulerTaskHandle => {
+    const member = { state: 'queued' as MemberState, done: 0, total, items: [] as TaskItemInfo[], cancel };
+    group.members.set(id, member);
+    let cancelled = false;
+    const live = () => member.state === 'queued' || member.state === 'running' || member.state === 'paused';
+    const end = (state: 'done' | 'failed' | 'cancelled') => { if (!live()) return; member.state = state; if (state === 'done') member.done = member.total; refreshGroup(group); };
+    return {
+      id,
+      progress: (done, totalNow) => { if (!live()) return; member.done = done; if (typeof totalNow === 'number') member.total = totalNow; refreshGroup(group); },
+      finish: () => end('done'),
+      fail: () => end('failed'),
+      get cancelled() { return cancelled; },
+      transition: (next, detail) => { if (!live()) return; member.state = next; if (detail !== undefined && next === 'running') group.detail = undefined; refreshGroup(group); },
+      patch: change => {
+        if (change.items) member.items = [...change.items];
+        if (change.detail !== undefined || change.stage !== undefined) group.detail = change.detail ?? (change.stage ? `${change.stage}` : group.detail);
+        if (change.priority !== undefined) group.handle.patch({ priority: Math.max(change.priority, 0) });
+        refreshGroup(group);
+      },
+      markCancelled: () => { cancelled = true; member.state = 'cancelled'; refreshGroup(group); },
+    } as SchedulerTaskHandle & { markCancelled(): void };
+  };
+
   async function submit<Item, Snapshot>(definition: BatchDefinition<Item, Snapshot>): Promise<SchedulerTicket> {
     if (!definition.items.length) throw new Error('A processing batch needs at least one item.');
     const ids = definition.items.map(definition.itemId);
@@ -489,10 +571,7 @@ export function createEngineScheduler(options: {
     const finished = new Promise<'done' | 'failed' | 'cancelled'>(resolve => { resolveFinished = resolve; });
     let job!: WorkBatch;
     let retryInFlight = false;
-    const handle = store.enqueue(definition.title, {
-      total: items.length, kind: definition.kind, location: definition.location ?? 'local', priority: definition.priority ?? 0,
-      pauseable: definition.pauseable !== false && items.length > 1,
-      cancel: () => {
+    const cancelJob = () => {
         job.cancelled = true;
         job.controller?.abort();
         for (const item of job.items) {
@@ -503,11 +582,24 @@ export function createEngineScheduler(options: {
         job.releaseSlot?.();
         job.finish('cancelled');
         pump();
-      },
-    });
+    };
+    const group = definition.group ? groupFor(definition.group.key, definition.group.title, definition.kind, definition.priority ?? 0) : null;
+    const handle: SchedulerTaskHandle = group
+      ? memberHandle(group, --virtualIds, items.length, () => { if (!job.cancelled && jobs.has(job.id)) { (handle as SchedulerTaskHandle & { markCancelled(): void }).markCancelled(); cancelJob(); } })
+      : store.enqueue(definition.title, {
+        total: items.length, kind: definition.kind, location: definition.location ?? 'local', priority: definition.priority ?? 0,
+        pauseable: definition.pauseable !== false && items.length > 1,
+        cancel: cancelJob,
+      });
     const ticket: SchedulerTicket = {
-      taskId: handle.id, finished,
-      cancel: () => store.cancel(handle.id),
+      taskId: group ? group.handle.id : handle.id, finished,
+      queued: () => jobs.has(handle.id) && !job.active && !job.cancelled && job.items.some(item => item.state === 'queued'),
+      cancel: () => {
+        if (!group) return store.cancel(handle.id);
+        if (job.cancelled || !jobs.has(job.id)) return false;
+        group.members.get(handle.id)?.cancel();
+        return true;
+      },
       pause: () => pause(handle.id),
       resume: () => resume(handle.id),
       jumpQueue: () => jumpQueue(handle.id),
@@ -516,7 +608,8 @@ export function createEngineScheduler(options: {
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
-      interactive: definition.interactive === true && items.length === 1,
+      // One photo the person is waiting on; or an export of several, which they asked for and are waiting on too.
+      interactive: definition.interactive === true && (items.length === 1 || definition.kind === 'export'),
       light: definition.light === true,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
@@ -624,9 +717,29 @@ export function createEngineScheduler(options: {
     pump();
   };
   return {
-    submit, pause, resume, jumpQueue, startNow, reorder, setCpuLimit,
+    submit, setCpuLimit,
+    // A grouped row's buttons act on every job in it (BatchDefinition.group); other rows on their one job.
+    pause: (id: number) => {
+      const members = membersOf(id);
+      if (!members) return pause(id);
+      let any = false;
+      for (const member of members) {
+        const job = jobs.get(member);
+        if (!job || job.cancelled || job.paused) continue;
+        if (job.active) { any = pause(member) || any; continue; }
+        if (!job.items.some(item => item.state === 'queued')) continue;
+        job.paused = true;
+        job.handle.transition('paused', 'Paused before the next photograph');
+        any = true;
+      }
+      return any;
+    },
+    resume: (id: number) => (membersOf(id)?.map(member => resume(member)).some(Boolean) ?? resume(id)),
+    jumpQueue: (id: number) => (membersOf(id)?.map(member => jumpQueue(member)).some(Boolean) ?? jumpQueue(id)),
+    startNow: (id: number) => (membersOf(id)?.map(member => startNow(member)).some(Boolean) ?? startNow(id)),
+    reorder: (ids: readonly number[]) => reorder(ids.flatMap(id => membersOf(id)?.filter(member => jobs.has(member) && !jobs.get(member)!.active) ?? [id])),
     /** Whether this task is waiting for the computer's capacity (it then offers Start now). */
-    isWaitingForCapacity: (id: number) => { const job = jobs.get(id); return Boolean(job && !job.active && !job.cancelled && job.waitShown); },
+    isWaitingForCapacity: (id: number) => (membersOf(id) ?? [id]).some(member => { const job = jobs.get(member); return Boolean(job && !job.active && !job.cancelled && job.waitShown); }),
     /** Whether work the person started (one photo: TrueDetail, tap to select...) is running or waiting. Quiet
      * background helpers outside the scheduler (the species scan) step aside while it is. */
     personWorkPending: () => [...jobs.values()].some(job => job.interactive && !job.cancelled && (job.active || job.items.some(item => item.state === 'queued'))),
@@ -636,15 +749,18 @@ export function createEngineScheduler(options: {
     checkStalls,
     cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
-    canRetryFailed: (id: number) => {
-      const job = jobs.get(id) ?? failedJobs.get(id);
-      return Boolean(job && !jobs.has(id) && job.items.some(item => item.state === 'failed' && !item.uncertain));
-    },
+    canRetryFailed: (id: number) => (membersOf(id) ?? [id]).some(member => {
+      const job = jobs.get(member) ?? failedJobs.get(member);
+      return Boolean(job && !jobs.has(member) && job.items.some(item => item.state === 'failed' && !item.uncertain));
+    }),
     retryFailed: async (id: number) => {
-      const job = jobs.get(id) ?? failedJobs.get(id);
-      const ticket = await job?.retry() ?? null;
-      if (ticket) failedJobs.delete(id);
-      return ticket;
+      let first: SchedulerTicket | null = null;
+      for (const member of membersOf(id) ?? [id]) {
+        const job = jobs.get(member) ?? failedJobs.get(member);
+        const ticket = await job?.retry() ?? null;
+        if (ticket) { failedJobs.delete(member); first ??= ticket; }
+      }
+      return first;
     },
     pauseAll() {
       pausedAll = true;

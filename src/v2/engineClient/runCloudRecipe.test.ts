@@ -71,3 +71,17 @@ test('a recipe the device cannot trust is refused, not applied', async () => {
   const empty = inMemoryCloudRecipeService(() => ({}));
   assert.equal((await sendCloudRecipe(prepared, 'send', FULL_FILE_CONSENT_OFF, empty)).status, 'empty');
 });
+
+test('with no smart preview (web, phones, JPEGs) a copy of the preview is offered, and named as a copy', async () => {
+  const service = inMemoryCloudRecipeService(() => ({ exposure: 0.4 }));
+  const copy = new Blob([new Uint8Array(900_000)], { type: 'image/jpeg' });
+  const prepared = await prepareCloudRecipe(frame, { ...sources(null), previewCopy: async () => copy }, FULL_FILE_CONSENT_OFF);
+  assert.equal(prepared.offer.previewSource, 'copy');
+  assert.equal(prepared.offer.sendLabel, '900 KB preview copy (2,560 px at most)');
+  const outcome = await sendCloudRecipe(prepared, 'send', FULL_FILE_CONSENT_OFF, service);
+  assert.ok(outcome.status === 'ready');
+  if (outcome.status !== 'ready') return;
+  assert.match(cloudRecipeWhy(outcome.recipe, outcome.sent, outcome.previewSource).notes![0]!, /preview copy/);
+  const smart = await prepareCloudRecipe(frame, { ...sources(), previewCopy: async () => { throw new Error('not asked'); } }, FULL_FILE_CONSENT_OFF);
+  assert.equal(smart.offer.previewSource, 'smart', 'the smart preview wins when there is one');
+});

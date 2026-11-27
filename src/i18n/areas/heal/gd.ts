@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
-  title: "Càradh spotan",
+  title: "Thoir air falbh spotan",
   intro: "Falaichidh e dust, slatag no treamsgal mun spiris le piogsailean air an lethbhreacadh o fhaisg air làimh san aon dealbh. Chan eil dad ga chruthachadh, agus chan atharraichear am faidhle tùsail gu bràth.",
   start: "Cuir spotan",
   stop: "Deiseil",

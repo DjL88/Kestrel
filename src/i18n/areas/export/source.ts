@@ -13,7 +13,7 @@ export const source = {
     copyright: 'Copyright',
     includeKeywords: 'Include keywords',
     keywords: 'Keywords (comma separated; leave empty for confirmed tags)',
-    help: 'Confirmed subjects can fill the title and keywords. Unconfirmed AI guesses are never exported. This information is stored in the file, not printed on the photo.',
+    help: "Confirmed subjects can fill the title and keywords. Unconfirmed model suggestions are never exported. This information is stored in the file, not printed on the photo.",
   },
   originals: {
     title: 'Camera originals',

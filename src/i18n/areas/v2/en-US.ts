@@ -22,7 +22,7 @@ export const enUS: AreaTranslation<typeof source> = {
     tileStates: { analysing: 'Analyzing' },
   },
   copilot: {
-    noGenAiNote: 'Zero generative AI. Uses masking, denoise, tone, and color grading only.',
+    noGenAiNote: "Nothing is generated. Uses masking, denoise, tone, and color grading only.",
   },
   adjust: {
     fringe: {

@@ -91,7 +91,7 @@ test('worker and in-thread denoise give identical pixels, noise and verification
 
 test('without Workers it runs on the main thread, says so, and gives the same result', async () => {
   const photo = syntheticPhoto(64, 48, 11);
-  const compute = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); } });
+  const compute = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); }, runOnPage: true });
   const session = await compute.open(job(photo, false));
   const local = openDenoiseSession(job(photo, false));
   assert.deepEqual((await session.render({ denoise: 0.8 }, [])).data, local.render({ denoise: 0.8 }, []).data);
@@ -102,7 +102,7 @@ test('without Workers it runs on the main thread, says so, and gives the same re
 test('a worker that fails mid-job falls back to the main thread for that job', async () => {
   const photo = syntheticPhoto(64, 48, 5);
   let broken: ClonedWorker | null = null;
-  const compute = createDenoiseCompute({ createWorker: () => (broken = new ClonedWorker()) });
+  const compute = createDenoiseCompute({ createWorker: () => (broken = new ClonedWorker()), runOnPage: true });
   const session = await compute.open(job(photo, false));
   broken!.terminate();
   queueMicrotask(() => broken!.onerror?.({ message: 'crashed' }));
@@ -175,7 +175,15 @@ test('the full-size learned check gives the same verdicts in the worker as in-th
   const viaWorker = await createDenoiseCompute({ createWorker: () => worker }).qualifyLearned(photo, learned, alpha, [1, 0.6]);
   assert.deepEqual(viaWorker, expected);
   assert.ok(worker.received > 0, 'the check went to the worker');
-  const fallback = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); } });
+  const fallback = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); }, runOnPage: true });
   assert.deepEqual(await fallback.qualifyLearned(photo, learned, alpha, [1, 0.6]), expected);
   assert.equal(fallback.onMainThread, true);
+});
+
+test('in the app, denoise never runs on the page: with no worker the job stops with a plain message and nothing runs', async () => {
+  const photo = syntheticPhoto(64, 48, 11);
+  const compute = createDenoiseCompute({ createWorker: () => { throw new Error('Workers unavailable'); } });
+  await assert.rejects(compute.open(job(photo, false)), /could not denoise in the background, so nothing was changed/);
+  await assert.rejects(compute.measureNoise(photo.data, photo.width, photo.height), /nothing was changed/);
+  assert.equal(compute.onMainThread, false, 'no pixel work ran on the page');
 });

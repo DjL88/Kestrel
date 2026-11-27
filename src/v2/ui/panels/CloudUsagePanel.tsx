@@ -1,5 +1,5 @@
 import React from 'react';
-import { STORAGE_PLANS, TOP_UP_PENCE, formatBytes, formatPence, photosThatFit, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
+import { STORAGE_PLANS, TOP_UP_PENCE, formatBytes, formatPence, photosThatFit, storageFull, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
 import { STRINGS } from '../strings';
 
 /**
@@ -44,6 +44,7 @@ export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, top
               : <p className="text-xs text-[var(--text-secondary)]">{words.storageNoneIncluded}</p>}
             {m.id === 'storage' && m.included > 0 && <p data-testid="cloud-storage-holds" className="text-xs text-[var(--text-muted)]">{holds(m.included)}</p>}
             {m.chargePence > 0 && <p className="text-xs text-[var(--text-secondary)]">{words.extra(formatPence(Math.ceil(m.chargePence)))}</p>}
+            {m.id === 'storage' && storageFull(usage) && <p role="status" data-testid="cloud-storage-full" className="text-xs font-medium text-[var(--text-primary)]">{words.storageFull}</p>}
           </li>
         ))}
       </ul>

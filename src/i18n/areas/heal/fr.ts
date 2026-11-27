@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** French (vous). DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
-  title: "Correction des taches",
+  title: "Supprimer les taches",
   intro: "Masque la poussière, une brindille ou un perchoir encombré avec des pixels copiés juste à côté dans la même photo. Rien n'est inventé et le fichier original n'est jamais modifié.",
   start: "Placer des taches",
   stop: "Terminé",

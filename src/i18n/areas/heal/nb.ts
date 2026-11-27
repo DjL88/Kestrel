@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
-  title: "Flekkfjerning",
+  title: "Fjern flekker",
   intro: "Dekker støv, en kvist eller rot rundt sittepinnen med piksler kopiert fra like ved i samme bilde. Ingenting blir diktet opp, og originalfilen blir aldri endret.",
   start: "Merk flekker",
   stop: "Ferdig",

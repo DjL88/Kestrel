@@ -1,5 +1,5 @@
 /** Everything the control-plane routes share: the store, limiters, sign-in, quotas and service gates. Built once per app. */
-import { freeStorageFor, settleStorageDay } from './cloudStorageBilling.ts';
+import { dayKey, daysToSettle, freeStorageFor, settleStorageDays, storageAllowsUpload } from './cloudStorageBilling.ts';
 import { OWNED_GRANT_FLAG, type EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
 import { parseFlagSet, resolveFlagsForGrant, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
@@ -46,6 +46,16 @@ export function createContext(options: AppOptions) {
   const firebaseKeys: OidcKeys = options.firebaseKeys ?? oidcKeysFromNetwork(FIREBASE_KEYS_URL);
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
+  /** Test payments: while Paddle is in its sandbox, only these accounts may buy (the admins and KCP_SANDBOX_TESTERS). */
+  const paddleSandbox = options.paddleEnvironment === 'sandbox';
+  const sandboxTesterHashes = new Set([...adminEmailHashes, ...config.sandboxTesters.map((email) => sha256Hex(email))]);
+  /** May this account pay through Paddle now? Always in production; in the sandbox only a tester. */
+  async function mayBuy(accountId: string | undefined): Promise<boolean> {
+    if (!paddleSandbox) return true;
+    if (!accountId) return false;
+    const account = await store.getAccount(accountId).catch(() => undefined);
+    return Boolean(account?.emailHash && sandboxTesterHashes.has(account.emailHash));
+  }
   const activateLimiter = new RateLimiter(20, 60_000);
   const paddleLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
@@ -137,10 +147,12 @@ export function createContext(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'cloud-top-ups' ? !!options.topUpCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'contact-email' ? !!options.mailer && !!options.contactNotify : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'cloud-top-ups' ? !!options.topUpCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
+    // On by default once the owner's address is set: turning it off is the choice, not turning it on.
+    if (key === 'contact-email') return (await store.getSetting('switch_contact-email')) !== '0';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
     if (legacy && (await store.getSetting(legacy)) === '1') return false;
     const v = await store.getSetting(`switch_${key}`);
@@ -302,22 +314,46 @@ export function createContext(options: AppOptions) {
     }
   }
 
-  /** Bytes in the cloud store across the projects this account pays for (projects it owns first). */
+  /**
+   * Bytes in the cloud across the projects this account pays for (projects it owns first): the project's cloud photos
+   * and its live client-gallery previews. Pro's 2.5 GB covers both (site/terms.html).
+   */
   async function accountStoredBytes(accountId: string): Promise<number> {
-    if (!options.cloudPhotos || !options.collab) return 0;
-    const collabStore = options.collab, photos = options.cloudPhotos.store;
+    if (!options.collab || (!options.cloudPhotos && !options.gallery)) return 0;
+    const collabStore = options.collab, photos = options.cloudPhotos?.store, galleries = options.gallery;
     let total = 0;
     for (const p of await collabStore.myProjects(accountId)) {
       if (p.role !== 'owner') continue;
       if ((await collabStore.payerOf(p.projectId).catch(() => null)) !== accountId) continue;
-      total += await photos.storedBytes(p.projectId);
+      if (photos) total += await photos.storedBytes(p.projectId);
+      if (galleries) total += await galleries.storedBytes(p.projectId, now());
     }
     return total;
   }
-  /** Today's storage charge for one account (idempotent per day). */
+  /**
+   * Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance.
+   * Refuses with 402 STORAGE_NEEDS_CREDIT; nothing already stored is ever removed or shrunk.
+   */
+  async function storageGate(projectId: string, addBytes: number) {
+    const payer = await collab(() => collabCfg().payerOf(projectId));
+    await settleStorage(payer);
+    if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), addBytes, freeStorageFor(await accountIsPro(payer))))) {
+      throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "Cloud storage is full for this project's owner (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
+    }
+  }
+  /**
+   * Storage charges for one account: today and any days missed since it was last settled (idempotent per day), so no
+   * daily scheduler is needed. The admin "settle" route still works for accounts that are not seen for a while.
+   */
   async function settleStorage(accountId: string) {
     if (!options.cloudBalance) return 'free' as const;
-    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), now());
+    const key = `storage-settled:${accountId}`;
+    const days = daysToSettle(await store.getSetting(key), now());
+    const result = await settleStorageDays(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), days);
+    // Only finished days are marked settled. Today is tried again on every look (its charge is keyed, so it is taken
+    // once), so storage that passes the included amount later in the day is still charged for today.
+    await store.setSetting(key, dayKey(now() - DAY_MS));
+    return result;
   }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
@@ -543,7 +579,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

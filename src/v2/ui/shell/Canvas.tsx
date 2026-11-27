@@ -3,7 +3,8 @@ import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
+import { CANVAS_TIPS_EVENT, TIP_MS, readTips, tipDue, tipShown, tipsAgain, writeTips, type CanvasTipKind } from '../utils/canvasTips';
+import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
@@ -152,6 +153,17 @@ function ZoomFullDevelopWatch({ photo, canvasZoom, onDevelopFullSize }: { photo:
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 /** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
+/** A small button in the status line under the canvas. */
+const STATUS_BUTTON = 'inline-flex min-h-6 shrink-0 items-center rounded border border-[var(--border-default)] px-1.5 text-[10px] leading-4 text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]';
+/** How long a finished zoom-to-eye note stays: long enough to read, short enough not to linger. */
+const EYE_NOTE_MS = 6000;
+/** The box a zoom anchors on: the picture itself, else its frame. The frame's border snaps to whole pixels as it
+ * zooms, so a share of the frame is not quite the same share of the picture, and a long pinch drifted by a few pixels. */
+const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getBoundingClientRect();
+
+/** The canvas frame's border (Tailwind `border`), inside its width under border-box sizing. */
+const FRAME_BORDER = 1;
+
 export default function Canvas({
   PhotoSurface,
   colourAreas,
@@ -216,7 +228,16 @@ export default function Canvas({
   const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
   const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
-  zoomRef.current = canvasZoom;
+  /** How far in this photo may zoom (set each render once its Fit scale is known): far enough for 100% at any size. */
+  const maxZoomRef = useRef(8);
+  // A zoom asked for by a pinch step reaches canvasZoom a render later. Until it does (or briefly goes missing), the next
+  // step builds on it, not on the zoom still shown, so fast pinch steps are neither lost nor applied twice.
+  const pendingZoom = useRef<{ zoom: number; at: number } | null>(null);
+  if (pendingZoom.current && (Math.abs(pendingZoom.current.zoom - canvasZoom) < 0.0006 || performance.now() - pendingZoom.current.at > 1000)) pendingZoom.current = null;
+  zoomRef.current = pendingZoom.current ? pendingZoom.current.zoom : canvasZoom;
+  /** The zoom the layout on screen was drawn at; a pinch step measures from it even while a newer zoom is pending. */
+  const shownZoomRef = useRef(canvasZoom);
+  shownZoomRef.current = canvasZoom;
   const photoRef = useRef(photo);
   photoRef.current = photo;
   const neighboursRef = useRef(neighbourPhotos);
@@ -229,22 +250,56 @@ export default function Canvas({
    * place in the view (x and y from the stage's top left). Measured from the real layout on both sides, so the stage's
    * padding and the centring of a picture smaller than the view no longer throw the zoom somewhere else.
    */
-  const keepAt = useRef<{ fx: number; fy: number; x: number; y: number } | null>(null);
+  const keepAt = useRef<{ fx: number; fy: number; x: number; y: number; zoom?: number; at?: number } | null>(null);
+  const heldPoint = useRef<{ clientX: number; clientY: number; fx: number; fy: number; at: number } | null>(null);
   const [eyeTarget, setEyeTarget] = useState(0);
   // Where the camera says it focused (src/core/cameraFocus.ts), drawn on the picture when the person asks.
   const [showCameraFocus, setShowCameraFocus] = useState(false);
   /** Hold the picture point under this screen position in place through the next zoom. False when there is no frame. */
-  const holdPointAt = (clientX: number, clientY: number): boolean => {
+  const holdPointAt = (clientX: number, clientY: number, toZoom?: number): boolean => {
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (!stage || !frame) return false;
-    const frameRect = frame.getBoundingClientRect();
+    const frameRect = anchorRect(frame);
     if (!(frameRect.width > 0 && frameRect.height > 0)) return false;
     const stageRect = stage.getBoundingClientRect();
-    keepAt.current = {
-      fx: (clientX - frameRect.left) / frameRect.width, fy: (clientY - frameRect.top) / frameRect.height,
-      x: clientX - stageRect.left, y: clientY - stageRect.top,
+    // Through one continuous pinch at the same place, hold the picture point chosen at its start. Measuring again at
+    // each step would pick up the whole-pixel rounding of the last scroll, and over a long pinch that adds up to a drift.
+    const now = performance.now();
+    const held = heldPoint.current;
+    const same = held && now - held.at < 1000 && Math.abs(held.clientX - clientX) < 1 && Math.abs(held.clientY - clientY) < 1;
+    const fx = same ? held.fx : (clientX - frameRect.left) / frameRect.width;
+    const fy = same ? held.fy : (clientY - frameRect.top) / frameRect.height;
+    heldPoint.current = { clientX, clientY, fx, fy, at: now };
+    keepAt.current = { fx, fy, x: clientX - stageRect.left, y: clientY - stageRect.top, zoom: toZoom, at: now };
+    setEyeTarget((count) => count + 1);
+    return true;
+  };
+  /**
+   * Zooming out, by any means (Dave, 27 Nov): the picture moves steadily back to where it sits at Fit, in step with the
+   * zoom, and is exactly centred when Fit is reached. Its offset from the Fit position shrinks in proportion to how far
+   * the zoom still is above Fit. Where the picture sits at Fit is worked out the same way as the Fit margins below: inside
+   * the stage's scrollbars (clientWidth/Height), which it always keeps, so nothing there changes as Fit nears.
+   * False when there is nothing to hold (no frame, or not zoomed in past Fit).
+   */
+  const holdTowardsFit = (toZoom: number): boolean => {
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    const board = stage?.querySelector<HTMLElement>(':scope > [data-stage-margin]');
+    const from = shownZoomRef.current;
+    if (!stage || !frame || !board || !(from > 1.0005) || toZoom >= from) return false;
+    const pic = anchorRect(frame);
+    if (!(pic.width > 0 && pic.height > 0)) return false;
+    const box = board.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const fit = {
+      x: (stage.clientWidth - box.width / from) / 2 + (pic.left - box.left + pic.width / 2) / from,
+      y: (stage.clientHeight - box.height / from) / 2 + (pic.top - box.top + pic.height / 2) / from,
     };
+    const now = { x: pic.left + pic.width / 2 - stageRect.left, y: pic.top + pic.height / 2 - stageRect.top };
+    const share = toZoom <= 1.0005 ? 0 : (toZoom - 1) / (from - 1);
+    heldPoint.current = null;
+    keepAt.current = { fx: 0.5, fy: 0.5, x: fit.x + (now.x - fit.x) * share, y: fit.y + (now.y - fit.y) * share, zoom: toZoom, at: performance.now() };
     setEyeTarget((count) => count + 1);
     return true;
   };
@@ -268,11 +323,12 @@ export default function Canvas({
       if (mouseNotch && !(event.target instanceof Node && stage.contains(event.target))) return;
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
-      const next = mouseNotch ? mouseWheelZoom(zoomRef.current, event.deltaY) : nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
+      const next = mouseNotch ? mouseWheelZoom(zoomRef.current, event.deltaY, maxZoomRef.current) : nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode, maxZoomRef.current);
       if (next === zoomRef.current) return;
       const atX = clamp(event.clientX, rect.left, rect.left + rect.width);
       const atY = clamp(event.clientY, rect.top, rect.top + rect.height);
-      if (holdPointAt(atX, atY)) { zoomRef.current = next; setZoomRef.current(next); return; }
+      pendingZoom.current = { zoom: next, at: performance.now() };
+      if (next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(atX, atY, next) : holdPointAt(atX, atY, next)) { zoomRef.current = next; setZoomRef.current(next); return; }
       zoomAnchor.current = {
         // A pinch over the bar above the stage anchors on the nearest point of the stage.
         x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
@@ -293,10 +349,12 @@ export default function Canvas({
       const gesture = event as Event & { scale?: number; clientX?: number; clientY?: number };
       if (!Number.isFinite(gesture.scale) || !gesture.scale || gesture.scale <= 0) return;
       const rect = stage.getBoundingClientRect();
-      const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
+      const next = Math.max(0.25, Math.min(maxZoomRef.current, safariStartZoom * gesture.scale));
       const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
       const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
-      if (!holdPointAt(rect.left + x, rect.top + y)) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
+      pendingZoom.current = { zoom: next, at: performance.now() };
+      const held = next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(rect.left + x, rect.top + y, next) : holdPointAt(rect.left + x, rect.top + y, next);
+      if (!held) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
@@ -325,6 +383,36 @@ export default function Canvas({
     return () => window.removeEventListener(CANVAS_ZOOM_EVENT, onZoomKey);
   }, []);
 
+  // Zoomed in past Fit, the stage keeps the margins the picture had at Fit (owner, 27 Nov: "zoom jumps around"). The
+  // picture used to be centred and unscrollable until it outgrew the stage, so a pinch away from the middle drifted
+  // outwards and never came back. With these margins the point under the fingers has room to stay put from Fit, and a
+  // pan stops where an edge sat at Fit. Set before paint and before the anchoring below, so nothing moves on screen.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.style.padding = '';
+    if (canvasZoom <= 1.0005) return;
+    const board = stage.querySelector<HTMLElement>(':scope > [data-stage-margin], :scope > [data-testid="split-composition"], :scope > [data-testid="all-formats-board"]');
+    if (!board) return;
+    const box = board.getBoundingClientRect();
+    // The margins are the picture's, not the board's: the board also holds the size line above the frame and the
+    // buttons beside it, and margins taken from the board let a zoom-out near a corner scroll the picture past where it
+    // sat at Fit, so it jumped sideways (owner, 27 Nov). Each side gets the picture's Fit margin less what of the board
+    // is on that side of the frame, so scrolled to an edge the picture sits exactly where it did at Fit.
+    const frame = board.querySelector<HTMLElement>('[data-testid="canvas-frame"]');
+    const pic = frame ? anchorRect(frame) : box;
+    const base = getComputedStyle(stage);
+    const baseX = parseFloat(base.paddingLeft) || 0;
+    const baseY = parseFloat(base.paddingTop) || 0;
+    const z = canvasZoom;
+    const side = { left: pic.left - box.left, right: box.right - (pic.left + pic.width), top: pic.top - box.top, bottom: box.bottom - (pic.top + pic.height) };
+    // clientWidth/Height, as Fit is measured: the area inside the stage's scrollbars, which it always keeps.
+    const fitX = (stage.clientWidth - box.width / z) / 2;
+    const fitY = (stage.clientHeight - box.height / z) / 2;
+    const pad = (fit: number, near: number, min: number) => Math.max(min, fit + near / z - near);
+    stage.dataset.basePad = `${baseX},${baseY}`;
+    stage.style.padding = `${pad(fitY, side.top, baseY)}px ${pad(fitX, side.right, baseX)}px ${pad(fitY, side.bottom, baseY)}px ${pad(fitX, side.left, baseX)}px`;
+  }, [canvasZoom, stageEl]);
   useLayoutEffect(() => {
     const stage = stageRef.current;
     const anchor = zoomAnchor.current;
@@ -338,9 +426,12 @@ export default function Canvas({
     const point = keepAt.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (!stage || !point || !frame) return;
-    keepAt.current = null;
+    // A render can come before the asked-for zoom does (the step's own state is local, the zoom comes through the
+    // store). Keep the point until that zoom is on screen, or the anchoring is spent on the old zoom and lost.
+    const arrived = point.zoom === undefined || Math.abs(point.zoom - canvasZoom) < 0.0006 || performance.now() - (point.at ?? 0) > 1000;
+    if (arrived) keepAt.current = null;
     // Measured after layout, so centring, padding and the frame's own zoom are all accounted for.
-    const frameRect = frame.getBoundingClientRect();
+    const frameRect = anchorRect(frame);
     const stageRect = stage.getBoundingClientRect();
     stage.scrollLeft += frameRect.left + point.fx * frameRect.width - (stageRect.left + point.x);
     stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + point.y);
@@ -407,6 +498,14 @@ export default function Canvas({
   const zoomPercentRef = useRef<HTMLButtonElement>(null);
   /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
   const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
+  // A finished note goes after about six seconds (Dave, 27 Nov: it stayed up for good), but not while the pointer or the
+  // keyboard is on it, so it can always be read or dismissed (WCAG 2.2.1).
+  const [eyeNoteHeld, setEyeNoteHeld] = useState(false);
+  useEffect(() => {
+    if (!eyeNote || eyeNote.busy || eyeNoteHeld) return;
+    const timer = window.setTimeout(() => setEyeNote(null), EYE_NOTE_MS);
+    return () => window.clearTimeout(timer);
+  }, [eyeNote, eyeNoteHeld]);
   useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
   // Zoom to eye and 100% look ahead: as soon as a photo is shown (and for the photos either side of it), find the eye,
   // else the subject, else the centre, from the preview, so the zoom menu can name where it will go and both zooms are
@@ -482,7 +581,21 @@ export default function Canvas({
     const stage = stageEl;
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      if (!entry) return;
+      // Zoom is a multiple of Fit, so when a scrollbar came and went as the picture crossed the stage's size, Fit shrank,
+      // the picture shrank, the scrollbar went, Fit grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%").
+      // The stage now always keeps its scrollbars, so the area inside them never changes. The Fit margins added while
+      // zoomed in are not less room either: measure inside the stage's own padding.
+      const el = entry.target as HTMLElement;
+      const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
+      const style = getComputedStyle(el);
+      const padX = el.style.padding && Number.isFinite(baseX) ? baseX : parseFloat(style.paddingLeft) || 0;
+      const padY = el.style.padding && Number.isFinite(baseY) ? baseY : parseFloat(style.paddingTop) || 0;
+      // The area inside its scrollbars (clientWidth): the stage always keeps them (overflow: scroll below), so this is the
+      // same at Fit and zoomed in, and Fit is sized for exactly the area the picture is shown in.
+      const width = Math.max(0, el.clientWidth - 2 * padX);
+      const height = Math.max(0, el.clientHeight - 2 * padY);
+      setStageSize((was) => (Math.abs(was.width - width) < 0.5 && Math.abs(was.height - height) < 0.5 ? was : { width, height }));
     });
     observer.observe(stage);
     return () => observer.disconnect();
@@ -547,6 +660,51 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // Canvas tips (Dave, 27 Nov): no permanent hint, only a short correct tip the first few times the editor opens or
+  // Crop starts, in the status line under the canvas. View › Show canvas tips brings them back.
+  const [tip, setTip] = useState<CanvasTipKind | null>(null);
+  const [tipHeld, setTipHeld] = useState(false);
+  const [tipLeaving, setTipLeaving] = useState(false);
+  const tipStore = () => { try { return window.localStorage; } catch { return null; } };
+  const offerTip = (kind: CanvasTipKind) => {
+    if (hideHints) return;
+    const store = tipStore();
+    const state = readTips(store);
+    if (!tipDue(state, kind)) return;
+    writeTips(store, tipShown(state, kind));
+    setTipLeaving(false);
+    setTip(kind);
+  };
+  const viewTipOffered = useRef(false);
+  useEffect(() => {
+    if (!photo || viewTipOffered.current) return;
+    viewTipOffered.current = true;
+    offerTip('view');
+  // Once per visit to the editor, when the first photo shows.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo?.id]);
+  useEffect(() => {
+    if (revealSizeId) offerTip('crop');
+    else setTip((shown) => (shown === 'crop' ? null : shown));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealSizeId]);
+  useEffect(() => {
+    if (!tip || tipHeld) return;
+    // Fades out (instantly with reduced motion: the stylesheet turns transitions off), then goes.
+    const fade = window.setTimeout(() => setTipLeaving(true), TIP_MS);
+    const gone = window.setTimeout(() => { setTip(null); setTipLeaving(false); }, TIP_MS + 300);
+    return () => { window.clearTimeout(fade); window.clearTimeout(gone); setTipLeaving(false); };
+  }, [tip, tipHeld]);
+  useEffect(() => {
+    const again = () => {
+      const kind: CanvasTipKind = revealSizeId ? 'crop' : 'view';
+      writeTips(tipStore(), tipShown(tipsAgain(), kind));
+      setTipLeaving(false);
+      setTip(kind);
+    };
+    window.addEventListener(CANVAS_TIPS_EVENT, again);
+    return () => window.removeEventListener(CANVAS_TIPS_EVENT, again);
+  }, [revealSizeId]);
   // One frame of a split composition, selected so it can be removed (button or Delete key).
   const [selectedPane, setSelectedPane] = useState<{ sizeId: string; index: number } | null>(null);
   const paneDown = useRef<{ x: number; y: number } | null>(null);
@@ -1004,17 +1162,23 @@ export default function Canvas({
         // than the photo, so the fitted crop/export stay byte-for-byte unchanged.
         const stage = stageRef.current;
         if (stage) {
-          const next = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 0.25, 8);
+          const next = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 0.25, maxZoomRef.current);
           stage.scrollLeft -= centreX - start.lastCentreX;
           stage.scrollTop -= centreY - start.lastCentreY;
           start.lastCentreX = centreX;
           start.lastCentreY = centreY;
           if (Math.abs(next - zoomRef.current) > 0.002) {
-            const rect = stage.getBoundingClientRect();
-            zoomAnchor.current = {
-              x: centreX - rect.left, y: centreY - rect.top,
-              left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
-            };
+            // The same anchoring as a touchpad pinch: the picture point between the fingers stays between them,
+            // measured from the real layout (the stage's padding and Fit margins included).
+            pendingZoom.current = { zoom: next, at: performance.now() };
+            const held = next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(centreX, centreY, next) : holdPointAt(centreX, centreY, next);
+            if (!held) {
+              const rect = stage.getBoundingClientRect();
+              zoomAnchor.current = {
+                x: centreX - rect.left, y: centreY - rect.top,
+                left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
+              };
+            }
             zoomRef.current = next;
             setZoomRef.current(next);
           }
@@ -1190,7 +1354,7 @@ export default function Canvas({
         {(() => {
           // Text and watermark are laid out by the rule in overlayLayout.ts, the same one the export uses. An anchored box
           // sits at the edge margin of its place; two boxes at the same place stack (watermark above the text).
-          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo));
+          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo, overlay));
           const showMark = overlay.watermarkEnabled && features.watermarkCustom && !!watermarkPreset;
           const cover = overlay.textLayoutMode === 'cover-full';
           const layer = (target: EventTarget) => (target as HTMLElement).closest('[data-testid="overlay-layer"]') as HTMLElement | null;
@@ -1226,7 +1390,7 @@ export default function Canvas({
               {resizeHandles('resize-text', STRINGS.canvas.resizeText)}
               {overlay.rows.map((row) => {
                 // A row with nothing to say takes no room, here or in the export.
-                const words = formatOverlayRowText(row, photo);
+                const words = formatOverlayRowText(row, photo, overlay);
                 return words ? (
                   <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>
                     {words}
@@ -1273,7 +1437,7 @@ export default function Canvas({
           if (showText && cover) {
             parts.push(
               <div key="cover" data-overlay="text" data-artwork className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center text-center" style={{ padding: cqw(24), backgroundColor: overlay.textScrim ? (overlay.textColour === 'light' ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : 'transparent', color: textColour }}>
-                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
+                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo, overlay); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
               </div>
             );
           }
@@ -1347,24 +1511,24 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
-  /** Names the selected mask and toggles its overlay: inside the single view's frame, and below a split composition so
-   * it never covers a small pane's picture. */
-  const renderMaskLabel = (place = 'bottom-2 left-2') => selectedMask && PhotoSurface ? (
-              <div data-testid="mask-canvas-label" className={`absolute ${place} z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white`}>
+  /** Names the selected mask and toggles its overlay, in the status line under the canvas (Dave, 27 Nov: "nothing should
+   * cover the image"). The mask's own drawing stays on the picture; only these controls moved off it. */
+  const renderMaskLabel = () => selectedMask && PhotoSurface ? (
+              <div data-testid="mask-canvas-label" className="flex min-w-0 items-center gap-1.5 font-medium text-[var(--text-primary)]">
                 <span role="status" className="truncate">{overlayPaused ? STRINGS.maskCanvas.overlayPaused(selectedMask.name)
                   : !overlayChosen ? STRINGS.maskCanvas.overlayHidden(selectedMask.name)
                   : maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.overlayOutline(selectedMask.name) : STRINGS.maskCanvas.overlayShown(selectedMask.name)}</span>
                 {onSetMaskOverlayStyle && overlayChosen && (
                   <button type="button" data-testid="mask-overlay-style"
                     onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onSetMaskOverlayStyle(maskOverlayStyle === 'outline' ? 'fill' : 'outline'); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    className={STATUS_BUTTON}>
                     {maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.styleFill : STRINGS.maskCanvas.styleOutline}
                   </button>
                 )}
                 {onToggleMaskOverlay && (
                   <button type="button" aria-pressed={overlayChosen} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
                     onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    className={`${STATUS_BUTTON} font-mono`}>
                     {maskOverlayKey ?? '◐'}
                   </button>
                 )}
@@ -1436,8 +1600,12 @@ export default function Canvas({
   const fitScale = (() => {
     if (!photo.pixelSize) return null;
     const { frameW, frameH } = artboardFrame(activeSize);
-    return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
+    // Inside the frame's 1 px border: the picture fills the inside, and at 100% that border would otherwise be counted as
+    // picture and leave the photo about 20 px short of its true size.
+    return Math.max((frameW - 2 * FRAME_BORDER) / photo.pixelSize.width, (frameH - 2 * FRAME_BORDER) / photo.pixelSize.height);
   })();
+  const maxZoom = maxCanvasZoom(fitScale);
+  maxZoomRef.current = maxZoom;
   // Match the export's source cap and device-bounded upscale admission.
   const pixelLimit = maxCanvasPixels(typeof navigator === 'undefined' ? { userAgent: '' } : navigator);
   // Original follows the Output scale (2× doubles it), as its export does; a fixed-size format keeps its size and the
@@ -1452,11 +1620,27 @@ export default function Canvas({
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
   };
+  /**
+   * A zoom with no pointer to hold (the + and − buttons, the keys, the menu). In (Dave, 27 Nov): the eye stays where it
+   * is if one was found, else the middle of the subject, else the middle of the picture; if that point is out of view,
+   * the middle of the view. Out: steadily back to the Fit position (holdTowardsFit).
+   */
   const zoomAroundCentre = (next: number) => {
     const stage = stageRef.current;
     if (stage) {
       const rect = stage.getBoundingClientRect();
-      if (!holdPointAt(rect.left + stage.clientWidth / 2, rect.top + stage.clientHeight / 2)) {
+      const middle = { x: rect.left + stage.clientWidth / 2, y: rect.top + stage.clientHeight / 2 };
+      let held = false;
+      if (next < canvasZoom) held = holdTowardsFit(next);
+      else if (next > canvasZoom) {
+        const frame = stage.querySelector('[data-testid="canvas-frame"]');
+        const known = photo && zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus.focus : null;
+        const focus: ZoomFocus = known && known.kind !== 'camera' ? known : { kind: 'centre' };
+        const at = frame && activeSize.kind === 'photo' && !compareMode ? focusOnScreen(frame, focus) : null;
+        const inView = at && at.clientX >= rect.left && at.clientX <= rect.left + stage.clientWidth && at.clientY >= rect.top && at.clientY <= rect.top + stage.clientHeight;
+        held = inView ? holdPointAt(at.clientX, at.clientY, next) : false;
+      }
+      if (!held && !holdPointAt(middle.x, middle.y, next)) {
         zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
       }
     }
@@ -1466,8 +1650,8 @@ export default function Canvas({
    * 100%: one picture pixel per screen pixel, centred on where the camera says it focused, else a clear eye, else the
    * subject, else the middle of the picture. Pressed again at 100%, it goes back to Fit.
    */
-  const zoomToActual = () => {
-    const next = keyboardZoomTarget('actual', canvasZoom, fitScale);
+  const zoomToActual = (cameraPointOnly = false) => {
+    const next = cameraPointOnly ? (fitScale ? 1 / fitScale : null) : keyboardZoomTarget('actual', canvasZoom, fitScale);
     if (next === null) return;
     if (next === 1 || !photo) { zoomAroundCentre(next); return; }
     const stage = stageRef.current;
@@ -1475,20 +1659,23 @@ export default function Canvas({
     const picture = frame ? pictureIn(frame) : null;
     const shown = picture ? (picture instanceof HTMLImageElement ? { width: picture.naturalWidth, height: picture.naturalHeight } : { width: picture.width, height: picture.height }) : null;
     const known = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus : null;
-    const focus = chooseActualFocus(activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null, known?.focus ?? null, known?.subject ?? null);
+    const cameraPoint = activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null;
+    // Zoom to focus point: the camera's own AF point and nothing else (Dave, 27 Nov).
+    if (cameraPointOnly && !cameraPoint) return;
+    const focus = cameraPointOnly ? chooseActualFocus(cameraPoint, null, null) : chooseActualFocus(cameraPoint, known?.focus ?? null, known?.subject ?? null);
     const at = frame ? focusOnScreen(frame, focus) : null;
     if (!stage || !at) { zoomAroundCentre(next); return; }
-    const frameRect = frame!.getBoundingClientRect();
+    const frameRect = anchorRect(frame!);
     keepAt.current = {
       fx: (at.clientX - frameRect.left) / frameRect.width, fy: (at.clientY - frameRect.top) / frameRect.height,
-      x: stage.clientWidth / 2, y: stage.clientHeight / 2,
+      x: stage.clientWidth / 2, y: stage.clientHeight / 2, zoom: next, at: performance.now(),
     };
     setEyeTarget((count) => count + 1);
     if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
   };
   zoomKeyRef.current = (action) => {
     if (action === 'actual') { zoomToActual(); return; }
-    const next = keyboardZoomTarget(action, canvasZoom, fitScale);
+    const next = keyboardZoomTarget(action, canvasZoom, fitScale, maxZoom);
     if (next !== null && Math.abs(next - canvasZoom) > 0.0005) zoomAroundCentre(next);
   };
   const zoomToEye = async () => {
@@ -1502,7 +1689,7 @@ export default function Canvas({
     if (!focus) { setEyeNote({ text: STRINGS.canvas.eyeUnavailable, busy: false }); return; }
     const liveFrame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
     const at = liveFrame ? focusOnScreen(liveFrame, focus) : null;
-    const frameRect = liveFrame?.getBoundingClientRect();
+    const frameRect = liveFrame ? anchorRect(liveFrame) : undefined;
     if (!at || !frameRect || !(frameRect.width > 0 && frameRect.height > 0)) {
       setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeUnavailable : STRINGS.canvas.eyeNone, busy: false });
       return;
@@ -1516,7 +1703,7 @@ export default function Canvas({
       view: { width: stage.clientWidth, height: stage.clientHeight },
     });
     setEyeNote({ text: focus.kind === 'eye' ? (focus.sure ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe) : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
-    keepAt.current = point;
+    keepAt.current = { ...point, zoom: target, at: performance.now() };
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
   };
@@ -1619,7 +1806,6 @@ export default function Canvas({
               </div>
             </div>
           ))}
-          {renderMaskLabel('left-0 top-full mt-2')}
           {sectionCount < MAX_SPLIT_FRAMES && (
             <button
               type="button"
@@ -1697,7 +1883,6 @@ export default function Canvas({
             onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
             onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
-            title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             data-shape-pending={shapePending ? 'true' : undefined}
             className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
@@ -1761,17 +1946,6 @@ export default function Canvas({
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, buildImageStyle(activeSize), holdingOriginal ? 'none' : filterCss)
             ))}
-            {!compareMode && !holdingOriginal && renderMaskLabel()}
-            {!compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
-              <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
-                onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setShowCameraFocus((shown) => !shown); }}
-                className="absolute right-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-medium text-white hover:bg-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
-              </button>
-            )}
-            {holdingOriginal && (
-              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
-            )}
             <EdgeProgress active={pictureBusy || photo.fullDevelop === 'running' || photo.state === 'importing'} value={null}
               label={photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.activityBar.photoLoading} edge="bottom" testId="canvas-progress" />
 
@@ -1793,11 +1967,20 @@ export default function Canvas({
             )}
 
             {gridMode !== 'off' && (
-              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
-                  <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                  <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                ])}
+              /* Readable on any photo (Dave, 27 Nov: lost on a busy mid-grey burrow): a solid light line over a darker halo, so
+                 one of the two always stands out. The canvas zooms with CSS zoom, which would thicken the lines as it zooms
+                 in, so the widths are divided by it: one screen pixel at every zoom, kept crisp. */
+              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" shapeRendering="crispEdges">
+                {(['halo', 'line'] as const).map((layer) => (
+                  <g key={layer} data-grid-layer={layer} fill="none" vectorEffect="non-scaling-stroke"
+                    stroke={layer === 'halo' ? 'black' : 'white'} strokeOpacity={layer === 'halo' ? 0.5 : 0.9}
+                    strokeWidth={(layer === 'halo' ? 3 : 1) / Math.max(0.01, canvasZoom)}>
+                    {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
+                      <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" vectorEffect="non-scaling-stroke" />,
+                      <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} vectorEffect="non-scaling-stroke" />,
+                    ])}
+                  </g>
+                ))}
               </svg>
             )}
 
@@ -2114,6 +2297,9 @@ export default function Canvas({
       <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
         ref={attachStage}
+        // Its scrollbars are always there (thin, on a clear track). When they came and went as the zoom crossed Fit, the
+        // area the picture is shown in changed by their width, and zooming out moved the picture sideways near Fit (Dave,
+        // Windows; headless test browsers hide scrollbars, so only a headed run showed it).
         data-testid="canvas-stage"
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
@@ -2124,7 +2310,7 @@ export default function Canvas({
           if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
           if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
         }}
-        className={`relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
+        className={`relative flex flex-1 overflow-scroll inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
         style={{
           // The page itself never pinch-zooms over the photo or its margin: the canvas takes that gesture.
           touchAction: stageGestures ? 'none' : undefined,
@@ -2134,62 +2320,9 @@ export default function Canvas({
           backgroundPosition: '11px 11px',
         }}
       >
-        {hoveredLook && (
-          <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
-            {STRINGS.canvas.previewingLook} <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
-          </div>
-        )}
-
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
       </div>
-        {/* Subtle bottom-left interaction hint */}
-        {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="v2-mouse-hint pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[0.6875rem] text-[var(--text-muted)]">
-            {activeSize.kind === 'video'
-              ? STRINGS.canvas.zoomVideoHint
-              : STRINGS.canvas.dragCropHint}
-          </p>
-        )}
-
-        {eyeNote && (
-          <div role="status" data-capture-ignore data-testid="eye-note"
-            className="absolute bottom-14 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
-            <span>{eyeNote.text}</span>
-            {!eyeNote.busy && (
-              <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setEyeNote(null)}
-                className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
-                <BrandIcon name="close" size={11} />
-              </button>
-            )}
-          </div>
-        )}
-
-        {canvasOnly && onToggleCanvasOnly && (
-          <button
-            type="button"
-            data-capture-ignore
-            data-testid="canvas-only-exit"
-            title={STRINGS.canvas.canvasOnlyExit}
-            aria-label={STRINGS.canvas.canvasOnlyExit}
-            onClick={onToggleCanvasOnly}
-            className="absolute right-3 top-3 z-30 inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)] shadow hover:bg-[var(--bg-surface-hover)]"
-          >
-            <BrandIcon name="panel" size={14} />
-            {STRINGS.canvas.canvasOnlyBack}
-          </button>
-        )}
-        {shotNote && (
-          <div role={shotNote.problem ? 'alert' : 'status'} data-capture-ignore data-testid="canvas-shot-note"
-            className="absolute bottom-14 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 pl-2.5 pr-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
-            <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
-            {shotNote.problem && (
-              <button type="button" onClick={() => setShotNote(null)} aria-label="Dismiss this message"
-                className="v2-touch-target min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">Dismiss</button>
-            )}
-          </div>
-        )}
-
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label={STRINGS.canvas.viewportControls}
@@ -2224,7 +2357,8 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
-            onClick={() => onSetZoom(canvasZoom / 1.25)}
+            // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
+            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, maxZoom))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
@@ -2249,9 +2383,14 @@ export default function Canvas({
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
                   { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
+                  // The camera's own AF point, read from the file (the same data as "Show where the camera focused").
+                  { id: 'focus-point', label: STRINGS.canvas.zoomFocusPoint, run: () => zoomToActual(true), current: false,
+                    disabled: activeSize.kind !== 'photo' || compareMode || !photo.cameraFocus?.area,
+                    reason: !photo.cameraFocus?.area ? STRINGS.canvas.zoomFocusPointNone : undefined },
                   { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    title={'reason' in item ? item.reason : undefined}
                     data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}
                     className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
@@ -2265,7 +2404,7 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
-            onClick={() => onSetZoom(canvasZoom * 1.25)}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, maxZoom))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
@@ -2334,6 +2473,72 @@ export default function Canvas({
             <BrandIcon name={isFullScreen ? 'collapse' : 'expand'} size={15} />
           </button>
         </div>
+      </div>
+      {/* The status line under the canvas (Dave, 27 Nov: "nothing should cover the image"). Notes, the selected mask's
+          controls, the camera-focus switch and the canvas-only way back live here, never over the picture. */}
+      <div data-testid="canvas-status" data-capture-ignore
+        className="v2-canvas-status flex h-9 shrink-0 items-center gap-3 overflow-x-auto border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-[0.6875rem] text-[var(--text-secondary)]">
+        {holdingOriginal && (
+          <span role="status" className="shrink-0 font-semibold text-[var(--text-primary)]">{STRINGS.canvas.showingOriginal}</span>
+        )}
+        {hoveredLook && (
+          <span className="shrink-0 font-medium text-[var(--text-primary)]">
+            {STRINGS.canvas.previewingLook} <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
+          </span>
+        )}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && renderMaskLabel()}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
+          <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
+            onClick={() => setShowCameraFocus((shown) => !shown)} className={STATUS_BUTTON}>
+            <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
+          </button>
+        )}
+        {eyeNote && (
+          <div role="status" data-testid="eye-note" onPointerEnter={() => setEyeNoteHeld(true)} onPointerLeave={() => setEyeNoteHeld(false)}
+            onFocus={() => setEyeNoteHeld(true)} onBlur={() => setEyeNoteHeld(false)}
+            className="flex min-w-0 shrink-0 items-center gap-1.5 text-[var(--text-primary)]">
+            <span className="truncate">{eyeNote.text}</span>
+            {!eyeNote.busy && (
+              <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setEyeNote(null)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name="close" size={11} />
+              </button>
+            )}
+          </div>
+        )}
+        {shotNote && (
+          <div role={shotNote.problem ? 'alert' : 'status'} data-testid="canvas-shot-note" className="flex shrink-0 items-center gap-1 text-[var(--text-primary)]">
+            <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
+            {shotNote.problem && (
+              <button type="button" onClick={() => setShotNote(null)} aria-label="Dismiss this message"
+                className="v2-touch-target min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">Dismiss</button>
+            )}
+          </div>
+        )}
+        {/* A video format needs its one instruction to be usable, so it stays while that format is shown. */}
+        {!hideHints && canvasLayoutMode === 'single' && activeSize.kind === 'video' && !eyeNote && !shotNote && (
+          <p className="v2-mouse-hint min-w-0 truncate text-[var(--text-muted)]">{STRINGS.canvas.zoomVideoHint}</p>
+        )}
+        {tip && !hideHints && (
+          <div role="status" data-testid="canvas-tip" data-tip={tip}
+            onPointerEnter={() => setTipHeld(true)} onPointerLeave={() => setTipHeld(false)}
+            onFocus={() => setTipHeld(true)} onBlur={() => setTipHeld(false)}
+            className={`flex min-w-0 shrink items-center gap-1.5 text-[var(--text-secondary)] transition-opacity duration-300 ${tipLeaving ? 'opacity-0' : 'opacity-100'}`}>
+            <span className="truncate">{tip === 'crop' ? STRINGS.canvas.tipCrop : STRINGS.canvas.tipView}</span>
+            <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setTip(null)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="close" size={11} />
+            </button>
+          </div>
+        )}
+        {canvasOnly && onToggleCanvasOnly && (
+          <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
+            onClick={onToggleCanvasOnly}
+            className="ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            <BrandIcon name="panel" size={14} />
+            {STRINGS.canvas.canvasOnlyBack}
+          </button>
+        )}
       </div>
     </main>
   );

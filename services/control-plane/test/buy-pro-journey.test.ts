@@ -61,6 +61,10 @@ function fakePaddleSandbox() {
       txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, discount: body.discount_id, status: 'ready' });
       return Response.json({ data: view(id) }, { status: 201 });
     }
+    // The Black Friday discount as made in the Paddle dashboard: 30% off, ending at midnight UTC on 1 December.
+    if (u.pathname.startsWith('/discounts/')) {
+      return Response.json({ data: { id: decodeURIComponent(u.pathname.split('/').pop()!), status: 'active', expires_at: '2026-12-01T00:00:00Z', usage_limit: null, times_used: 0 } });
+    }
     if (u.pathname.startsWith('/subscriptions/')) {
       const sid = decodeURIComponent(u.pathname.split('/').pop()!);
       const t = [...txns.values()].find((x) => x.subscription_id === sid);
@@ -155,11 +159,8 @@ const event = (type: string, id: string) => ({ event_id: 'evt_' + type + '_' + i
 test('subscribe to Pro with the offer on: signed notification, Pro on web and desktop until the paid-through date, 5 devices, refund turns it off', async () => {
   const { h, paddle, orders, sales, mails, addresses, notify } = await rig();
   try {
-    // The offer (#1687) runs on Black Friday only.
-    const startsAtMs = Date.UTC(2026, 10, 27);
-    const set = await h.call('POST', '/v1/admin/flags/set', { token: h.adminToken, body: { key: 'proPromo', flag: { default: false, rules: [{ audience: { kind: 'any' }, enabled: true, startsAtMs, endsAtMs: startsAtMs + 4 * DAY }] } } });
-    assert.equal(set.status, 200, JSON.stringify(set.body));
-    h.clock.now = startsAtMs + DAY;
+    // The offer is a Paddle discount; its dates are set in Paddle, not in InFlight.
+    h.clock.now = Date.UTC(2026, 10, 28);
 
     const me = await buyer(h, 'journey@example.test');
     addresses.set(me.accountId, 'journey@example.test');
@@ -249,9 +250,11 @@ test('subscribe to Pro with the offer on: signed notification, Pro on web and de
   } finally { await h.close(); }
 });
 
-test('with the offer off, the checkout is full price and a refund still removes Pro', async () => {
+test('after the Paddle offer expires, the checkout is full price and a refund still removes Pro', async () => {
   const { h, paddle, orders, sales, notify } = await rig();
   try {
+    // After the Paddle discount's expiry.
+    h.clock.now = Date.UTC(2026, 11, 2);
     const me = await buyer(h, 'fullprice@example.test');
     const app = device(h, 'macos', me.session);
     const start = await app.startProCheckout('id-token');

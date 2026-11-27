@@ -15,7 +15,7 @@ export const nl: AreaTranslation<typeof source> = {
     copyright: "Auteursrecht",
     includeKeywords: "Trefwoorden opnemen",
     keywords: "Trefwoorden (komma's; leeg = bevestigde tags)",
-    help: "Bevestigde onderwerpen kunnen de titel en trefwoorden invullen. Onbevestigde AI-gissingen worden nooit geëxporteerd. Deze informatie staat in het bestand, niet op de foto.",
+    help: "Bevestigde onderwerpen kunnen de titel en trefwoorden invullen. Onbevestigde suggesties van modellen worden nooit geëxporteerd. Deze informatie staat in het bestand, niet op de foto.",
   },
   originals: {
     title: "Originele camerabestanden",

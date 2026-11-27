@@ -619,9 +619,9 @@ test('?v2 overlay panel: clear on/off toggle that greys the controls until on, p
   await expect(root.getByTestId('composition-grid')).toHaveCount(0);
   await grid.click();
   await expect(root.getByTestId('composition-grid')).toBeVisible();
-  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(4);
+  await expect(root.getByTestId('composition-grid').locator('[data-grid-layer="line"] line')).toHaveCount(4);
   await grid.click();
-  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(6);
+  await expect(root.getByTestId('composition-grid').locator('[data-grid-layer="line"] line')).toHaveCount(6);
   await grid.click();
   await expect(root.getByTestId('composition-grid')).toHaveCount(0);
   // Compact and comfortable looked the same, so the setting is gone.
@@ -997,7 +997,7 @@ test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the r
   const path = await saved.path();
   const size = await page.evaluate(async (data) => { const bitmap = await createImageBitmap(await (await fetch(data)).blob()); return { w: bitmap.width, h: bitmap.height }; },
     'data:image/png;base64,' + (await import('node:fs')).readFileSync(path!).toString('base64'));
-  const stage = await root.getByTestId('canvas-frame').evaluate((el) => { const s = el.closest('div.overflow-auto') as HTMLElement; return { w: s.clientWidth, h: s.clientHeight }; });
+  const stage = await root.getByTestId('canvas-frame').evaluate((el) => { const s = el.closest('[data-testid="canvas-stage"]') as HTMLElement; return { w: s.clientWidth, h: s.clientHeight }; });
   expect(size.w).toBeGreaterThanOrEqual(stage.w * 2 - 2);
   expect(size.h).toBeGreaterThanOrEqual(stage.h * 2 - 2);
 

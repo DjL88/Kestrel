@@ -329,7 +329,7 @@ export const source = {
     tone: 'Tone',
     detail: 'Detail',
     brightnessTitle: 'Adjust midtone brightness while preserving pure black and white; use Exposure for overall light',
-    denoiseTitle: 'Smooths coloured speckle in high-ISO photos; not a claim of AI detail restoration',
+    denoiseTitle: "Smooths coloured speckle in high-ISO photos. It does not add detail.",
     denoiseHelp: 'Smooths colour speckle only. Edges and fine texture stay as they are.',
     exportFocus: 'Export focus',
     cancelPlacement: 'Cancel placement',

@@ -16,7 +16,7 @@ import {
   resolveEffectiveRecipe,
   snapOverlayPosition,
 } from './studioMath';
-import type { EditRecipe, LookPreset, OverlaySettings, Photo, SizePreset } from '../contract';
+import type { EditRecipe, LookPreset, OverlaySettings, Photo, SizePreset, OverlayTextRow } from '../contract';
 
 const baseRecipe: EditRecipe = {
   lookId: 'natural',
@@ -127,21 +127,21 @@ test('resolveEffectiveRecipe merges hovered look delta without mutating base', (
   assert.equal(baseRecipe.temperature, 0);
 });
 
-test('formatOverlayRowText composes EXIF fields cleanly', () => {
-  const text = formatOverlayRowText(
-    {
-      id: 'r1',
-      fields: ['camera', 'lens'],
-      customText: '',
-      fontId: 'jakarta',
-      sizePx: 14,
-      weight: 600,
-      uppercase: false,
-      letterSpacing: 0,
-    },
-    mockPhoto
-  );
-  assert.equal(text, 'Sony A7 IV  ·  FE 200-600mm f/5.6-6.3 G');
+test('formatOverlayRowText composes EXIF fields cleanly, with Auto-correct names unless the overlay asks for the originals', () => {
+  const row = {
+    id: 'r1',
+    fields: ['camera', 'lens'] as OverlayTextRow['fields'],
+    customText: '',
+    fontId: 'jakarta',
+    sizePx: 14,
+    weight: 600 as const,
+    uppercase: false,
+    letterSpacing: 0,
+  };
+  // Overlays are drawn into exported pixels, so they use the friendly names (Settings › Auto-correct).
+  assert.equal(formatOverlayRowText(row, mockPhoto), 'Sony A7 IV  ·  FE 200–600mm f/5.6–6.3 G');
+  // "Use original camera names": the camera's own words.
+  assert.equal(formatOverlayRowText(row, mockPhoto, { rawCameraNames: true }), 'Sony A7 IV  ·  FE 200-600mm f/5.6-6.3 G');
 });
 
 test('detectOverlayOverflow flags narrow formats when font size is oversized', () => {

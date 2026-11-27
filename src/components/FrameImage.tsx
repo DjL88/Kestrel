@@ -16,6 +16,8 @@ import { renderRaw16Screen } from '../providers/raw16Render';
 import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
+import { recordWorkerVerdict, renderSignature, samePixels, workerVerdict } from '../providers/workerRenderCheck';
+import { renderEditOnGpu } from '../providers/webglEdit';
 import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
@@ -67,6 +69,26 @@ interface FrameImageProps {
 const FULL_EDGE = 2200;
 /** A drag's quick picture is drawn at the size it is shown, never smaller than this. */
 const DRAFT_MIN_EDGE = 480;
+/** The worker's check of a new kind of edit is made on a copy at most this size (see verifyWorker). */
+const VERIFY_EDGE = 320;
+
+/** Developer switch: draw the full-quality picture on the page, as before, to compare it with the worker's. */
+const PAGE_RENDER_KEY = 'inflight.debug.page-render';
+function pageRenderChosen(): boolean {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(PAGE_RENDER_KEY) === '1'; } catch { return false; }
+}
+
+/**
+ * Developer switch, off by default: let the drag worker draw the full-quality picture too, for a kind of edit it has
+ * drawn byte for byte as the page did (verifyWorker). Off because that check, on a small copy, did not hold on every
+ * machine: on CI the worker's full-size picture differed from the page's (27 Nov), and quality must never differ. So the
+ * worker draws only the quick picture while a slider is held, and the full-quality picture is always drawn on the page.
+ */
+const WORKER_FINAL_KEY = 'inflight.debug.worker-final';
+function workerFinalChosen(): boolean {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(WORKER_FINAL_KEY) === '1'; } catch { return false; }
+}
+
 /** The 16-bit pass waits until the slider has been still this long. */
 const SENSOR16_SETTLE_MS = 300;
 
@@ -263,6 +285,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   // The full-resolution picture the last full render came from, for drawing the zoomed-in part again at full detail.
   const detailSource = useRef<DetailSource | null>(null);
   const [renderedRevision, setRenderedRevision] = useState(0);
+  /** Draft keys whose worker base came from a full render here (the exact framed pixels), not from the shown file. */
+  const baseFromRender = useRef(new Set<string>());
   const zoomRef = useRef(zoomScale);
   zoomRef.current = zoomScale;
   // A quick drag picture was asked for: when the drag ends, the full-quality picture is drawn (settleRev).
@@ -320,8 +344,41 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       return true;
     };
 
+    /**
+     * Only with the developer switch (WORKER_FINAL_KEY, off by default): the full-quality picture drawn in the drag worker
+     * from the same framed 2,200 px picture it already holds. Null when it is off or cannot (no worker, layers or a stored
+     * AI result drawn on the page, no framed picture there yet): then it is drawn here.
+     */
+    const workerCanDrawFinal = () => variant === 'full' && !dragging && prepareDrag && liveDraftSupported() && workerFinalChosen() && !pageRenderChosen()
+      && layersKey === '[]' && !frame.edit?.trueDetailAi && hasImage.current;
+    const renderFinalInWorker = async (): Promise<HTMLCanvasElement | 'cancelled' | null> => {
+      if (!workerCanDrawFinal()) return null;
+      // Only for a kind of edit the worker has already drawn exactly as the page did, on this device (verifyWorker below).
+      if (workerVerdict(renderSignature(frame.edit ?? DEFAULT_EDIT)) !== true) return null;
+      if (cancelled) return 'cancelled';
+      const draft = liveDraft();
+      if (draft.baseKey(slot.current) !== draftKey || !baseFromRender.current.has(draftKey)) return null;
+      const started = performance.now();
+      const bitmap = await draft.draw(slot.current, draftKey, FULL_EDGE, frame.edit ?? DEFAULT_EDIT);
+      if (cancelled) { bitmap?.close(); return 'cancelled'; }
+      if (!bitmap) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      measureStep('preview:edit-worker', started, { width: canvas.width, height: canvas.height });
+      return canvas;
+    };
+
     const render = async () => {
       if (dragging && await renderDraft()) return;
+      const fromWorker = await renderFinalInWorker();
+      if (fromWorker === 'cancelled') return;
+      if (fromWorker) {
+        showLive(fromWorker);
+        await finishFull(fromWorker, Math.max(fromWorker.width, fromWorker.height));
+        return;
+      }
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
       const source = await timedWait('preview:source', () => loadEditSource(frame, previewProvider, variant, priority));
       if (cancelled) return;
@@ -331,10 +388,35 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const scale = Math.min(1, (variant === 'thumb' ? 400 : dragging ? shownEdge() : FULL_EDGE) / Math.max(size.width, size.height));
       timedStep('preview:draw-source', () => drawFramedPhoto(source, canvas, framing, { scale }));
       const lens = lensCentre(source.naturalWidth, source.naturalHeight, framing);
+      // The full-resolution picture this render comes from, for the zoomed-in detail (wherever the edit is drawn).
+      if (variant === 'full' && !dragging) {
+        detailSource.current = { element: source, key: JSON.stringify([draftKey, source.currentSrc || source.src]), renderedLongEdge: Math.max(canvas.width, canvas.height) };
+      }
       // The framed picture goes to the draft worker before the edit changes it, so the next drag starts at once.
+      let baseSent: Promise<boolean> | null = null;
       if (variant === 'full' && !dragging && prepareDrag && liveDraftSupported()) {
         const key = draftKey;
-        void createImageBitmap(canvas).then((bitmap) => liveDraft().sendBase(slot.current, key, bitmap, lens)).catch(() => undefined);
+        // Only a base from this full render (not one made from the shown file) is good for drawing the full-quality picture.
+        baseSent = createImageBitmap(canvas).then((bitmap) => { liveDraft().sendBase(slot.current, key, bitmap, lens); baseFromRender.current.add(key); return true; }, () => false);
+      }
+      // Then the edit itself in the worker, from exactly these framed pixels (the same picture as drawing it here), once
+      // the worker has been found to draw this kind of edit exactly as the page does.
+      const signature = renderSignature(frame.edit ?? DEFAULT_EDIT);
+      // Switched off: the worker is not trusted with this kind of edit, and nothing is compared (it costs the page nothing).
+      if (baseSent && !workerFinalChosen() && workerVerdict(signature) === undefined) {
+        recordWorkerVerdict(signature, false);
+        measureStep('preview:worker-verify', performance.now(), { same: false, signature, off: true });
+      }
+      if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === undefined) await verifyWorker(canvas, signature);
+      if (cancelled) return;
+      if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === true && await baseSent) {
+        const fromWorker = await renderFinalInWorker();
+        if (fromWorker === 'cancelled') return;
+        if (fromWorker) {
+          showLive(fromWorker);
+          await finishFull(fromWorker, Math.max(fromWorker.width, fromWorker.height));
+          return;
+        }
       }
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
@@ -347,11 +429,50 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       showLive(canvas);
       if (dragging) return;
-      if (variant === 'full') {
-        detailSource.current = { element: source, key: JSON.stringify([draftKey, source.currentSrc || source.src]), renderedLongEdge: Math.max(canvas.width, canvas.height) };
-        setRenderedRevision((count) => count + 1);
-      }
-      const eightBitEdge = Math.max(size.width, size.height) * scale;
+      await finishFull(canvas, Math.max(size.width, size.height) * scale);
+    };
+
+    /**
+     * The first time this kind of edit is drawn (its signature): the page and the worker each apply it to the same small
+     * copy of the framed picture (at most 640 px), and only if every byte matches is the worker trusted with this kind
+     * of edit. The real edit, so every part of the maths it uses is compared; small, so the check costs the page little.
+     */
+    const verifyWorker = async (framed: HTMLCanvasElement, signature: string): Promise<void> => {
+      const started = performance.now();
+      if (!liveDraftSupported()) { recordWorkerVerdict(signature, false); return; }
+      // At an idle moment, in a task of its own: a click or key waiting to be handled always goes first.
+      await new Promise<void>((resolve) => {
+        const whenIdle = (globalThis as { requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
+        if (whenIdle) whenIdle(() => resolve(), { timeout: 1000 }); else setTimeout(resolve, 0);
+      });
+      if (cancelled) return;
+      const edit = frame.edit ?? DEFAULT_EDIT;
+      const scale = Math.min(1, VERIFY_EDGE / Math.max(framed.width, framed.height));
+      const small = document.createElement('canvas');
+      small.width = Math.max(1, Math.round(framed.width * scale)); small.height = Math.max(1, Math.round(framed.height * scale));
+      const context = small.getContext('2d', { willReadFrequently: true });
+      if (!context) { recordWorkerVerdict(signature, false); return; }
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(framed, 0, 0, small.width, small.height);
+      const before = context.getImageData(0, 0, small.width, small.height).data;
+      const inWorker = liveDraft().check(small.width, small.height, before, edit);
+      // Only the graphics-card step is compared: the rest of the edit is the same JavaScript on the page and in the worker,
+      // so from the same pixels it gives the same bytes. That keeps the page's part to a few milliseconds.
+      const onPage = timedStep('preview:verify-page', () => {
+        const usedGpu = renderEditOnGpu(small, edit);
+        return { usedGpu, pixels: context.getImageData(0, 0, small.width, small.height).data };
+      });
+      const answer = await inWorker;
+      // Both sides must take the same path; where neither used its graphics card, both ran the same JavaScript.
+      const same = Boolean(answer) && answer!.usedGpu === onPage.usedGpu && (!onPage.usedGpu || samePixels(onPage.pixels, answer!.pixels));
+      recordWorkerVerdict(signature, same);
+      measureStep('preview:worker-verify', started, { same, signature });
+    };
+
+    /** The 16-bit pass and the one PNG, for a full-quality picture drawn here or in the worker. */
+    const finishFull = async (canvas: HTMLCanvasElement, eightBitEdge: number) => {
+      // A new full-quality picture is on screen: the zoomed-in detail (useDetailRegion) is drawn again for it.
+      if (variant === 'full') setRenderedRevision((count) => count + 1);
       // A redraw of a photo with a 16-bit copy shows the 8-bit picture at once, waits for the slider to be still, then
       // encodes only the 16-bit picture: one PNG per pause, not two.
       const tried16 = hasImage.current && sensor16Ready();
