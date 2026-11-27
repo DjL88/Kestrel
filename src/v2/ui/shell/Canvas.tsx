@@ -36,7 +36,7 @@ import { proposeCrop } from '../../../core/proposeCrop';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
 import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
-import { readAdviceChoice, resolveAdviceShown, writeAdviceChoice, type AdviceChoice } from '../../../core/adviceSetting';
+import { adviceGate, readAdviceChoice, writeAdviceChoice, type AdviceChoice } from '../../../core/adviceSetting';
 import { adviceFocus } from '../utils/adviceFocus';
 import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
@@ -1522,16 +1522,20 @@ export default function Canvas({
   // The camera's AF box is in the shown picture's fractions, so like the mask outline it follows crop, rotation and zoom.
   const cameraFocusArea = showCameraFocus ? photo.cameraFocus?.area : undefined;
   const shownColourAreas = colourAreas?.length ? colourAreas : undefined;
-  // On-image advice: read-only, never while comparing or holding the original, and its hatching only where the picture is
-  // the whole photo (a cropped format shows a different part, so a clipped area would land in the wrong place).
-  const adviceOn = features.onImageAdvice === true && resolveAdviceShown(adviceChoice, assistMode);
-  const adviceShowing = adviceOn && !!advice && !compareMode && !holdingOriginal && canvasLayoutMode === 'single';
+  // On-image advice: read-only, never while comparing or holding the original. The marks are drawn in the shown picture's
+  // own pixels (the same SVG and transform as the mask outline), so they follow crop, turn, zoom and format. The clip
+  // percentage is for the whole framed picture, not only the part a cropped format shows. The eye and subject rings are
+  // found on the whole preview, so they are left out while a crop, turn, straighten or size is set (adviceFocus.ts).
+  const { shown: adviceOn, drawn: adviceShowing } = adviceGate({
+    flag: features.onImageAdvice === true, choice: adviceChoice, mode: assistMode, hasAdvice: !!advice,
+    comparing: compareMode || holdingOriginal, singleLayout: canvasLayoutMode === 'single',
+  });
   const adviceFound = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus.focus : null;
   const renderCanvasMarks = (picture: { width: number; height: number }) => {
     const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
     const adviceMarks = adviceShowing && advice && activeSize.kind === 'photo'
       ? <AdviceLayer picture={picture} advice={advice}
-        focus={(() => { const focus = adviceFocus(photo.cameraFocus?.area, picture, adviceFound); return focus?.kind === 'camera' && cameraFocusArea ? null : focus; })()} />
+        focus={(() => { const focus = adviceFocus(photo.cameraFocus?.area, picture, adviceFound, advice.framingWhole !== false); return focus?.kind === 'camera' && cameraFocusArea ? null : focus; })()} />
       : null;
     if (!cameraFocusArea && !shownColourAreas && !shownCropRect && !adviceMarks) return marks;
     return <>{adviceMarks}{marks}{shownCropRect && !renderPickLayer && <CropSuggestionLayer picture={picture} rect={shownCropRect} />}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}

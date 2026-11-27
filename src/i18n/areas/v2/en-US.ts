@@ -103,10 +103,10 @@ export const enUS: AreaTranslation<typeof source> = {
   },
   onImageAdvice: {
     toggleTitle: "Show or hide advice on the photo: clipped areas, where it focused and a color check",
-    colourKept: "Colors kept",
-    colourAdjusted: "Colors adjusted",
-    colourReview: "Colors: check them",
-    colourUnsure: "Colors not checked",
+    colourKept: "Subject color kept",
+    colourAdjusted: "Subject color adjusted",
+    colourReview: "Subject color: check it",
+    colourUnsure: "Subject color not checked",
     colourLabel: "Color check",
   },
 };

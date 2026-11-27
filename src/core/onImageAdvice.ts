@@ -1,6 +1,7 @@
 import { clippingMap, type ClippingMap } from './clippingMap';
 import { checkSubjectColour, type ColourSenseResult } from './colourSense';
 import type { Pixels } from './colourCheck';
+import { DEFAULT_FRAMING, type PhotoFraming } from './photoFraming';
 
 /**
  * Everything the on-image advice layer draws, measured once from the preview-sized pictures of a photo: where the
@@ -10,10 +11,21 @@ import type { Pixels } from './colourCheck';
 export interface OnImageAdvice {
   clipping: ClippingMap | null;
   colour: ColourSenseResult;
+  /** Whether the photo's framing left the picture whole when this was measured (see `framingIsWhole`); the eye and subject are only placed then. */
+  framingWhole?: boolean;
 }
 
 /** A subject box in fractions of the picture, top-left origin (the shape the subject finder reports). */
 export interface SubjectBox { x: number; y: number; width: number; height: number }
+
+/**
+ * The subject finder reports its box and its eye on the whole preview, so they are only valid while the framing leaves
+ * the picture whole (no ratio, turn, straighten or size). Anything placed from them is dropped otherwise.
+ */
+export const framingIsWhole = (framing: PhotoFraming | undefined): boolean => {
+  const f = framing ?? DEFAULT_FRAMING;
+  return f.ratio === null && f.turns === 0 && f.straighten === 0 && (f.size === undefined || f.size === 1);
+};
 
 /** Weights for `checkSubjectColour`: 1 inside the box, 0 outside. Null when the box is missing or empty. */
 export function subjectWeights(box: SubjectBox | null | undefined, width: number, height: number): Float32Array | null {

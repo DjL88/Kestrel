@@ -24,3 +24,22 @@ export function readAdviceChoice(storage: Pick<Storage, 'getItem'> | null | unde
 export function writeAdviceChoice(choice: AdviceChoice, storage: Pick<Storage, 'setItem'> | null | undefined = typeof localStorage === 'undefined' ? null : localStorage): void {
   try { storage?.setItem(ADVICE_CHOICE_KEY, choice); } catch { /* lasts for this session */ }
 }
+
+export interface AdviceGate {
+  /** The `onImageAdvice` feature (an admin flag or this device's preview switch). */
+  flag: boolean;
+  choice: AdviceChoice | null;
+  mode: 'solo' | 'copilot' | 'autopilot';
+  /** The engine has measured advice for this photo (it is cleared while an edit is changing). */
+  hasAdvice: boolean;
+  /** Comparing before and after, or holding the original: the advice is about the edited picture, so it is hidden. */
+  comparing: boolean;
+  /** One photo on the canvas; the layer is not drawn in the multi-format layouts. */
+  singleLayout: boolean;
+}
+
+/** `shown`: the person wants it (the toggle and its default); `drawn`: it is on screen now. */
+export function adviceGate(gate: AdviceGate): { shown: boolean; drawn: boolean } {
+  const shown = gate.flag && resolveAdviceShown(gate.choice, gate.mode);
+  return { shown, drawn: shown && gate.hasAdvice && !gate.comparing && gate.singleLayout };
+}

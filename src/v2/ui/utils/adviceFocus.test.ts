@@ -22,3 +22,9 @@ test('a portrait picture gets no camera point (the turn is not known), and the c
   assert.equal(adviceFocus(undefined, landscape, { kind: 'centre' }), null);
   assert.equal(adviceFocus(undefined, landscape, null), null);
 });
+
+test('with a crop, turn, straighten or size set, the eye and subject are not ringed (they were found on the whole picture); the camera point is unchanged', () => {
+  assert.equal(adviceFocus(undefined, landscape, { kind: 'eye', x: 0.2, y: 0.3, sure: true }, false), null);
+  assert.equal(adviceFocus(undefined, landscape, { kind: 'subject', box: { x: 0.2, y: 0.2, width: 0.4, height: 0.4 } }, false), null);
+  assert.equal(adviceFocus(area, landscape, null, false)?.kind, 'camera');
+});

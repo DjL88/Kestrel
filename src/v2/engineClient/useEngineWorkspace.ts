@@ -21,6 +21,7 @@ import { histogramOffThread } from '../../providers/pixelAnalysis';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { setAdvice } from './adviceStore';
 import { measureAdviceFor } from './adviceMeasure';
+import { startAdviceRun } from './adviceRun';
 import { lookForZoomFocus } from './eyeZoom';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
@@ -1481,28 +1482,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // On-image advice (a preview, off by default): where the highlights and shadows clip and whether the edit kept the
   // subject's colour, measured from the same small preview as the histogram, once the edit settles (never while a slider
-  // is held), and cleared the moment the edit changes. Read-only: the canvas layer only draws it (adviceStore.ts).
-  const adviceKey = (can('onImageAdvice') || workflowPreviewOn('onImageAdvice')) ? histogramKey : null;
+  // is held), and cleared the moment the edit changes. The clipping is published first; the colour follows once the subject
+  // is found (adviceRun.ts). The key includes the preview's address, so a preview that was not ready, or is replaced by a
+  // better one, is measured when it arrives. Read-only: the canvas layer only draws it (adviceStore.ts).
+  const advicePreview = activeFrame ? urls[activeFrame.id]?.preview ?? '' : '';
+  const adviceKey = (can('onImageAdvice') || workflowPreviewOn('onImageAdvice')) && histogramKey ? `${histogramKey}|${advicePreview}` : null;
   useEffect(() => {
     const frame = activeFrame;
     if (!adviceKey || !frame) return;
-    setAdvice(frame.id, null);
-    let live = true;
-    let stopWaiting: (() => void) | undefined;
-    const run = () => {
-      if (editGestureActive()) { stopWaiting = onEditGestureEnd(() => { stopWaiting?.(); stopWaiting = undefined; if (live) run(); }); return; }
-      void (async () => {
-        const url = await provider.current!.getFullPreviewUrl(frame, 'selected');
-        if (!url || !live) return;
-        const image = histogramSource.current?.url === url ? (await histogramSource.current.picture).element : await loadImage(url);
-        const found = await lookForZoomFocus(frame.id, url).catch(() => null);
-        if (!live) return;
-        const advice = measureAdviceFor(image, frame.edit ?? EMPTY_EDIT, frame.framing, found?.kind === 'ready' ? found.subject : null);
-        if (live && advice) setAdvice(frame.id, advice);
-      })().catch(() => { /* no advice: the layer shows nothing rather than a guess */ });
-    };
-    const timer = window.setTimeout(run, 320);
-    return () => { live = false; window.clearTimeout(timer); stopWaiting?.(); };
+    return startAdviceRun<HTMLImageElement>({
+      photoId: frame.id,
+      getUrl: () => provider.current!.getFullPreviewUrl(frame, 'selected'),
+      loadPicture: async (url) => (histogramSource.current?.url === url ? (await histogramSource.current.picture).element : loadImage(url)),
+      findSubject: async (url) => { const found = await lookForZoomFocus(frame.id, url); return found.kind === 'ready' ? found.subject : null; },
+      measure: (image, subject) => measureAdviceFor(image, frame.edit ?? EMPTY_EDIT, frame.framing, subject),
+      publish: (advice) => setAdvice(frame.id, advice),
+      gestureActive: editGestureActive,
+      onGestureEnd: onEditGestureEnd,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adviceKey]);
 

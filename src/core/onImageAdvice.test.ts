@@ -3,8 +3,9 @@ import test from 'node:test';
 import { clipChips, clippingMap, mergeCells, CLIP_SHOW_FROM } from './clippingMap.ts';
 import { colourBadge } from './colourBadge.ts';
 import { computeHistogram } from './histogram.ts';
-import { measureOnImageAdvice, subjectWeights } from './onImageAdvice.ts';
-import { resolveAdviceShown } from './adviceSetting.ts';
+import { framingIsWhole, measureOnImageAdvice, subjectWeights } from './onImageAdvice.ts';
+import { adviceGate, resolveAdviceShown } from './adviceSetting.ts';
+import { DEFAULT_FRAMING } from './photoFraming.ts';
 import type { ColourSenseResult } from './colourSense.ts';
 
 function picture(width: number, height: number, fill: (x: number, y: number) => [number, number, number]) {
@@ -124,4 +125,25 @@ test('the advice layer is on in Solo and off elsewhere until the person chooses,
   assert.equal(resolveAdviceShown(null, 'autopilot'), false);
   assert.equal(resolveAdviceShown('off', 'solo'), false);
   assert.equal(resolveAdviceShown('on', 'autopilot'), true);
+});
+
+test('the gate: off without the flag, on by default in Solo only, the person’s choice wins, and never while comparing or in a multi-format layout', () => {
+  const base = { flag: true, choice: null, mode: 'solo' as const, hasAdvice: true, comparing: false, singleLayout: true };
+  assert.deepEqual(adviceGate(base), { shown: true, drawn: true });
+  assert.deepEqual(adviceGate({ ...base, flag: false }), { shown: false, drawn: false });
+  assert.equal(adviceGate({ ...base, mode: 'copilot' }).shown, false);
+  assert.equal(adviceGate({ ...base, mode: 'copilot', choice: 'on' }).drawn, true);
+  assert.equal(adviceGate({ ...base, choice: 'off' }).shown, false);
+  assert.deepEqual(adviceGate({ ...base, hasAdvice: false }), { shown: true, drawn: false });
+  assert.equal(adviceGate({ ...base, comparing: true }).drawn, false);
+  assert.equal(adviceGate({ ...base, singleLayout: false }).drawn, false);
+});
+
+test('the framing is whole only with no ratio, turn, straighten or size', () => {
+  assert.equal(framingIsWhole(undefined), true);
+  assert.equal(framingIsWhole({ ...DEFAULT_FRAMING }), true);
+  assert.equal(framingIsWhole({ ...DEFAULT_FRAMING, ratio: 1 }), false);
+  assert.equal(framingIsWhole({ ...DEFAULT_FRAMING, turns: 1 }), false);
+  assert.equal(framingIsWhole({ ...DEFAULT_FRAMING, straighten: 2 }), false);
+  assert.equal(framingIsWhole({ ...DEFAULT_FRAMING, size: 0.8 }), false);
 });

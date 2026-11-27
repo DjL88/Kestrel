@@ -34,19 +34,19 @@ test('the focus ring says what it is in words', () => {
 
 test('the readout always gives a colour verdict, even when all is well, and the chip names the share', () => {
   const markup = renderToStaticMarkup(createElement(AdviceReadout, { advice: advice(), cvdGuidance: false }));
-  assert.match(markup, /Highlights clipped 3%/);
+  assert.match(markup, /Highlights clipped about 3%/);
   assert.match(markup, /data-testid="advice-colour" data-kind="kept" data-shape="tick"/);
-  assert.match(markup, />Colours kept</);
+  assert.match(markup, />Subject colour kept</);
   const clean = renderToStaticMarkup(createElement(AdviceReadout, { advice: advice({ clipping: { highlightShare: 0, shadowShare: 0, highlights: [], shadows: [] } }), cvdGuidance: false }));
   assert.doesNotMatch(clean, /advice-chip/);
-  assert.match(clean, />Colours kept</);
+  assert.match(clean, />Subject colour kept</);
 });
 
 test('each colour verdict has its own words and shape', () => {
   const kinds = [
-    [{ verdict: 'unknown', reason: 'noSubject' }, 'Colours not checked', 'ring'],
-    [{ verdict: 'changed', before: 'blue', after: 'blue', nearGrey: false, hueShift: 0, saturationChange: 0.3, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: ['saturation'] }, 'Colours adjusted', 'diamond'],
-    [{ verdict: 'changed', before: 'blue', after: 'blue', nearGrey: false, hueShift: 0, saturationChange: 0.8, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: ['saturation'] }, 'Colours: check them', 'triangle'],
+    [{ verdict: 'unknown', reason: 'noSubject' }, 'Subject colour not checked', 'ring'],
+    [{ verdict: 'changed', before: 'blue', after: 'blue', nearGrey: false, hueShift: 0, saturationChange: 0.3, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: ['saturation'] }, 'Subject colour adjusted', 'diamond'],
+    [{ verdict: 'changed', before: 'blue', after: 'blue', nearGrey: false, hueShift: 0, saturationChange: 0.8, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: ['saturation'] }, 'Subject colour: check it', 'triangle'],
   ] as const;
   for (const [colour, words, shape] of kinds) {
     const markup = renderToStaticMarkup(createElement(AdviceReadout, { advice: advice({ colour: colour as unknown as OnImageAdvice['colour'] }), cvdGuidance: false }));

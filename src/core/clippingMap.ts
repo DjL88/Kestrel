@@ -2,11 +2,15 @@ import { computeHistogram } from './histogram';
 import type { Pixels } from './colourCheck';
 
 /**
- * Where the highlights and shadows are clipped, from the preview's own pixels, for drawing on the photo.
+ * Where the highlights and shadows are clipped, from a small preview's own pixels, for drawing on the photo.
  *
- * "Clipped" means exactly what the histogram means by it (src/core/histogram.ts): a pixel with any channel at 255
- * (highlights) or at 0 (shadows). The shares are taken from `computeHistogram`, so the number on the photo and the
- * number beside the histogram are always the same measurement. The regions only say where: the picture is cut into a
+ * "Clipped" is counted the way the histogram counts it (src/core/histogram.ts): a pixel with any channel at 255
+ * (highlights) or at 0 (shadows), and the shares come from the same `computeHistogram`. It is NOT always the same
+ * number as the one beside the histogram, and the layer says "about" for that reason: this measures the 8-bit preview
+ * only, at about 256 pixels on the long edge (so isolated clipped pixels average away and it can read low), after the
+ * photo's crop, turn and straighten, while the histogram panel measures the unframed preview and, for a RAW file
+ * that has been developed, replaces its figure with a 16-bit one taken from the sensor data. For a RAW whose preview is
+ * the camera's own picture, the two can differ a lot. The regions only say where: the picture is cut into a
  * coarse grid, a cell counts when enough of it is clipped, and touching cells are merged into a few rectangles
  * (fractions of the picture, top-left origin) so drawing stays cheap. Pure; nothing here edits a photo.
  */
