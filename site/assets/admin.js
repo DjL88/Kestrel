@@ -925,6 +925,7 @@ async function loadSwitches() {
     const li = el('li', undefined, item.on ? 'on' : '');
     const text = el('div', undefined, 'switch-text');
     text.append(el('h3', item.label), el('p', item.note, 'muted'), el('code', item.key, 'tech'));
+    if (item.testOnly) text.append(el('p', item.testOnly, 'test-only'));
     const state = el('div', undefined, 'switch-state');
     const word = !item.configured && !item.on ? 'Not set up yet' : item.on ? 'On' : 'Off';
     state.append(badge(word, item.on ? 'good' : !item.configured ? 'quiet' : undefined));
