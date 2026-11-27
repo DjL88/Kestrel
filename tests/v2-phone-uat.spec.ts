@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 
 test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'Requires the touch-enabled phone project.');
@@ -98,7 +99,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 667, height: 375 }
     await expect(close).toBeInViewport({ ratio: 1 });
     await expect(submit).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByRole('button', { name: /Dropbox|Google Drive|Local NAS/ })).toHaveCount(0);
-    { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
+    await openExportAdvanced(dialog);
     const before = dialog.getByRole('button', { name: /Before: unedited, developed/ });
     await before.tap();
     await expect(before).toHaveAttribute('aria-pressed', 'true');

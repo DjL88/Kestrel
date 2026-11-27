@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import '../tokens.css';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -6,7 +6,7 @@ import type { LastProject, LaunchProfile, WelcomeState } from '../../../core/lau
 import type { LaunchIntent } from '../../launchIntent';
 import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import { slideshowDots, slideshowForProject, slideshowWanted } from '../../../core/welcomeSlideshow';
-import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, loadStoredPreview, useWelcomeSlideshow } from './WelcomeSlideshow';
+import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, loadStoredPreview, useWelcomeSlideshow, type LoadPreview } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import { isSignInServiceError } from '../../../providers/firebaseAuth';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
@@ -62,29 +62,20 @@ function editedOn(iso: string): string {
 }
 
 /** The last project, read from the local snapshot so it never waits for the catalogue. */
-/**
- * Up to three of the project's own photos for its card, from previews already stored on this device (the same ones the
- * welcome slideshow uses). Nothing is shown until each has decoded, and the folder icon stays when there are none.
- */
-function useCardThumbs(projectId: string, count = 3): string[] {
+/** The card's photos, read from previews already on this device after the welcome has painted. None found: the folder stays. */
+function useResumeThumbs(thumbs: LastProject['thumbs'], load: LoadPreview = loadStoredPreview): string[] {
   const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
-    const snapshot = slideshowForProject(readSlideshow(), projectId);
-    if (!snapshot || snapshot.projectId !== projectId) return;
+    if (!thumbs?.keys.length) return;
     let live = true;
     const made: string[] = [];
-    void (async () => {
-      for (const key of snapshot.keys.slice(0, count)) {
-        const blob = await loadStoredPreview(key, snapshot.developVersion, true).catch(() => null);
-        if (!live) return;
-        if (!blob) continue;
-        const url = URL.createObjectURL(blob);
-        made.push(url);
-        setUrls((was) => [...was, url]);
-      }
-    })();
-    return () => { live = false; made.forEach((url) => URL.revokeObjectURL(url)); setUrls([]); };
-  }, [projectId, count]);
+    void Promise.all(thumbs.keys.map((key) => load(key, thumbs.developVersion, true).catch(() => null))).then((blobs) => {
+      if (!live) return;
+      for (const blob of blobs) if (blob && blob.size > 0 && blob.type.startsWith('image/')) made.push(URL.createObjectURL(blob));
+      setUrls(made);
+    });
+    return () => { live = false; for (const url of made) URL.revokeObjectURL(url); };
+  }, [thumbs, load]);
   return urls;
 }
 
@@ -93,7 +84,7 @@ function ProjectCard({ project, highlighted, labelId, onOpen, buttonRef }: {
 }) {
   const nameId = useId();
   const when = editedOn(project.editedAt);
-  const thumbs = useCardThumbs(project.id);
+  const thumbs = useResumeThumbs(project.thumbs);
   return (
     <button ref={buttonRef} type="button" onClick={onOpen} data-testid="welcome-last-project"
       aria-labelledby={labelId ? `${labelId} ${nameId}` : nameId}
@@ -101,7 +92,9 @@ function ProjectCard({ project, highlighted, labelId, onOpen, buttonRef }: {
         highlighted ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'}`}>
       {thumbs.length > 0 ? (
         <span aria-hidden="true" className="flex shrink-0 gap-1" data-testid="welcome-last-project-thumbs">
-          {thumbs.map((url) => <img key={url} src={url} alt="" draggable={false} className="h-11 w-11 rounded-[var(--radius-sm)] object-cover" />)}
+          {thumbs.map((url) => (
+            <img key={url} src={url} alt="" draggable={false} className="h-11 w-11 rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] object-cover" />
+          ))}
         </span>
       ) : (
         <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
@@ -223,9 +216,9 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   if (setup) {
     return (
       <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state="setup"
-        data-v2-theme={light ? 'light' : 'dark'} style={{ '--setup-bar-bg': light ? '#faf7f2' : '#0e1116' } as CSSProperties}
+        data-v2-theme={light ? 'light' : 'dark'}
         className="inflight-v2 relative flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
-        <div className="flex w-full max-w-[24rem] flex-1 flex-col items-center sm:max-w-[36rem]">
+        <div className="flex w-full max-w-[24rem] flex-1 flex-col items-center">
           {setupSignIn && <LaunchSignInPanel online={online} onClose={() => setSetupSignIn(false)} onSignedIn={signedIn} backRef={panelBack} />}
           {/* Kept mounted while signing in, so the answers so far are not lost. */}
           <div hidden={setupSignIn} className="w-full">

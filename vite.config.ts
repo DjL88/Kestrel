@@ -21,6 +21,11 @@ export default defineConfig(({ command }) => {
     // Build the on-device runtime up front. Found only when first used, a dev server can re-bundle it mid-session and the
     // page then fails with "Failed to fetch dynamically imported module".
     optimizeDeps: { include: ['onnxruntime-web/wasm', 'onnxruntime-web/webgpu'] },
+    // Workers are built as ES modules (they are all started with { type: 'module' }), so onnxruntime stays its own chunk
+    // inside a worker too. With the default single-file worker, onnxruntime's thread helpers are started from the
+    // worker's own file (import.meta.url), run the worker's code instead of the runtime's, and never answer: on the
+    // cross-origin isolated desktop app (2-4 threads) every model in a worker then waited for ever at 0% CPU.
+    worker: { format: 'es' },
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

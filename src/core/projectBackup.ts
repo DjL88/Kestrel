@@ -213,7 +213,6 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
     shoot: {
       id, title: `${shoot.title} (restored)`, sourceKind: shoot.sourceKind,
       ...(collage ? { collage } : {}),
-      ...(shoot.tethered === true ? { tethered: true } : {}),
       folderName: shoot.folderName, totalFrames: frames.length, createdAt: shoot.createdAt, lastUpdatedAt: now,
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),

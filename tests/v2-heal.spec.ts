@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -86,6 +87,7 @@ test('a dust spot is covered from nearby pixels, matches in export, and Undo bri
   // The export is made from the same recipe and shows the same pixels.
   const dialog = page.getByRole('dialog', { name: /export/i });
   await root.getByRole('button', { name: /^Export/ }).first().click();
+  await openExportAdvanced(dialog);
   await dialog.getByLabel('File format').selectOption('png');
   const downloaded = page.waitForEvent('download');
   await dialog.getByRole('button', { name: /export bundle/i }).click();

@@ -22,7 +22,7 @@ interface ProjectsHubProps {
   /** First run: pick photos and get an Auto-edited photo ready to export. */
   onQuickStart?: () => void;
   onRenameProject: (projectId: string, name: string) => void;
-  /** An .inflight.json (or older .kestrel.json) backup becomes a new project. */
+  /** A .kestrel.json backup becomes a new project. */
   onRestoreBackup?: (file: File) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted (kept 30 days). */
@@ -344,11 +344,11 @@ export default function ProjectsHub({
             <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
               <fieldset className="space-y-2">
                 <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
-                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
                   {([
                     ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
-                    ['tethered', STRINGS.hub.kindTetheredTitle, STRINGS.hub.kindTetheredBody],
                     ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
+                    ['tethered', STRINGS.hub.kindTetheredTitle, STRINGS.hub.kindTetheredBody],
                   ] as const).map(([kind, title, description]) => {
                     const selected = projectKind === kind;
                     return (
@@ -468,16 +468,15 @@ function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage
   return (
     <svg viewBox="0 0 120 56" aria-hidden="true" className="h-14 w-full rounded-[var(--radius-md)] bg-[var(--bg-input)]" preserveAspectRatio="xMidYMid meet">
       {kind === 'tethered' ? (
-        // A camera linked to a frame that is arriving: photos come in as they are taken.
+        // A camera with a cable to a screen: photos arrive as they are taken.
         <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
-          <rect x="10" y="16" width="30" height="22" rx="3" />
-          <rect x="18" y="12" width="12" height="5" rx="1" />
-          <circle cx="25" cy="27" r="6" />
-          <path d="M44 27 h22" strokeDasharray="3 3" />
-          <path d="M62 23 l5 4 -5 4" />
-          <rect x="72" y="14" width="38" height="26" rx="2" />
-          <path d={`M75 37 l9 -10 7 7 5 -5 11 8`} />
-          <circle cx="100" cy="20" r="2" fill={fill} stroke="none" />
+          <rect x="12" y="18" width="30" height="20" rx="3" />
+          <circle cx="27" cy="28" r="6" />
+          <rect x="18" y="14" width="10" height="4" rx="1" />
+          <path d="M42 30 C56 30 56 40 70 40" strokeDasharray="3 3" />
+          <rect x="70" y="10" width="38" height="32" rx="2" />
+          <rect x="76" y="16" width="26" height="18" rx="1" fill={fill} fillOpacity="0.3" />
+          <path d="M84 48 h10" />
         </g>
       ) : kind === 'photography' ? (
         <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">

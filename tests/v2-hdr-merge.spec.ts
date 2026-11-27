@@ -98,7 +98,7 @@ test('a three-frame bracket becomes one new photo with detail where the middle f
   expect(highlights.sd).toBeGreaterThan(middleHighlights.sd * 3 + 2);
 
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
-  await root.getByTestId('info-tab-technical').click(); // the file's details are on the second tab
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   const info = root.getByTestId('v2-hdr-merge-info');
   await expect(info).toContainText('Made from 3 photos:');
   await expect(info).toContainText(/dawn_1\.png: −2 stops/);

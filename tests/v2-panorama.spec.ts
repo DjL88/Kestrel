@@ -80,7 +80,7 @@ test('three overlapping frames become one new, wider photo cropped to real pixel
   expect(size.height).toBeGreaterThan(H - 30);
 
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
-  await root.getByTestId('info-tab-technical').click(); // the file's details are on the second tab
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   const info = root.getByTestId('v2-panorama-info');
   await expect(info).toContainText('Stitched from 3 photos:');
   for (const name of ['coast_1.png', 'coast_2.png', 'coast_3.png']) await expect(info).toContainText(name);

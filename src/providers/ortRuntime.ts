@@ -1,4 +1,4 @@
-import { ORT_WEBGPU_PREVIEW_KEY, ortPlanFor, readOrtPlan, type OrtPlan } from '../core/ortThreads';
+import { ORT_WEBGPU_PREVIEW_KEY, ortPlanFor, ortWorkerPlanFor, readOrtPlan, type OrtPlan } from '../core/ortThreads';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 
 /**
@@ -16,9 +16,9 @@ function webgpuPreviewOn(): boolean {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(ORT_WEBGPU_PREVIEW_KEY) === '1'; } catch { return false; }
 }
 
-function planHere(runtimes: number): OrtPlan {
+function planHere(runtimes: number, inWorker = false): OrtPlan {
   const scope = globalThis as { crossOriginIsolated?: boolean; navigator?: Navigator & { gpu?: unknown } };
-  return ortPlanFor({
+  return (inWorker ? ortWorkerPlanFor : ortPlanFor)({
     desktop: isDesktopApp() && !isMobileShell(),
     isolated: scope.crossOriginIsolated === true,
     cores: scope.navigator?.hardwareConcurrency ?? Number.NaN,
@@ -31,7 +31,8 @@ let mainPlan: OrtPlan | null = null;
 /** The plan for models running on this thread. */
 export function ortPlanHere(): OrtPlan { return (mainPlan ??= planHere(1)); }
 /** The plan to send to each of `workers` background workers that share the machine. */
-export function ortPlanForWorkers(workers = 1): OrtPlan { return planHere(workers); }
+/** One thread each in the desktop app: a worker there cannot start onnxruntime's own thread workers (ortWorkerPlanFor). */
+export function ortPlanForWorkers(workers = 1): OrtPlan { return planHere(workers, true); }
 
 /** onnxruntime for this plan, set up before its first session (WebGPU build only when the plan asks for it). */
 export async function loadOrt(plan: OrtPlan = ortPlanHere(), retry = false): Promise<Ort> {

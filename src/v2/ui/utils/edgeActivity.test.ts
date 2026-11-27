@@ -51,3 +51,19 @@ test('the Tasks wheel counts photos, not tasks', () => {
     { running: 1, percent: 28, done: 34, total: 120 });
   assert.equal(tasksWheelProgress([task({ total: null, progress: 40 })]).percent, 40);
 });
+
+test('the count beside "Adding 2050 photos" is the import own count, never 2,051 with a thumbnail task on top', () => {
+  const bar = filmstripActivity([
+    task({ id: 'a', kind: 'import', label: 'Adding 2050 photos', total: 2050, done: 2049, status: 'running' }),
+    task({ id: 'b', kind: 'thumbnail', label: 'Preparing 1 thumbnail', total: 1, done: 1, status: 'running' }),
+  ], 0);
+  assert.equal(bar?.label, 'Adding 2050 photos');
+  assert.equal(bar?.total, 2050);
+  assert.equal(bar?.done, 2049);
+});
+
+test('a long time left reads in hours and minutes', async () => {
+  const { STRINGS } = await import('../strings.ts');
+  assert.equal(STRINGS.activityBar.minutesLeft(9), 'About 9 min left');
+  assert.equal(STRINGS.activityBar.minutesLeft(627), 'About 10 h 27 min left');
+});

@@ -13,6 +13,9 @@ import { loadExportSource } from '../providers/browserExport';
 import { storedEditSource } from '../providers/editSource';
 import { raw16Key, raw16Possible, raw16SharpEnough, raw16WorkingFor, raw16Workings } from '../providers/raw16Working';
 import { renderRaw16Screen } from '../providers/raw16Render';
+import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
+import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
+import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
 import React, { useEffect, useRef, useState } from 'react';
@@ -50,10 +53,19 @@ interface FrameImageProps {
   sensor16?: boolean;
   /** The shown picture's pixel size, each time one loads (the interim one included): its shape for format geometry. */
   onPictureSize?: (size: { width: number; height: number }) => void;
+  /** V2 editor: this picture follows the person's edits, so its framed picture is kept ready in the drag worker. */
+  prepareDrag?: boolean;
   /** True while the picture is loading or being redrawn (the interim thumbnail counts as still loading), false once the
    * full picture is shown or it cannot be shown (a low-quality fallback or a placeholder is not "loading"). */
   onBusyChange?: (busy: boolean) => void;
 }
+
+/** The full-size edited view is drawn at most this many pixels on its long edge. */
+const FULL_EDGE = 2200;
+/** A drag's quick picture is drawn at the size it is shown, never smaller than this. */
+const DRAFT_MIN_EDGE = 480;
+/** The 16-bit pass waits until the slider has been still this long. */
+const SENSOR16_SETTLE_MS = 300;
 
 /** A picture that will not load is asked for again this many times, after these waits, before the view settles for less. */
 const RETRY_WAITS_MS = [150, 900, 2500];
@@ -120,6 +132,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   sensor16 = false,
   onPictureSize,
   onBusyChange,
+  prepareDrag = false,
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -221,8 +234,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   const hasImage = useRef(false);
   // While an edit is redrawn, the new picture is drawn straight onto this canvas over the shown one, so a slider step
-  // appears as soon as it is rendered instead of after a PNG encode and decode (about 150 ms at 2,200 px). The PNG
-  // still follows and replaces it, so everything that reads the picture's address works as before.
+  // appears as soon as it is rendered instead of after a PNG encode and decode (about 150 ms at 2,200 px). During a drag
+  // only this canvas changes; once the hand is still, one PNG follows and replaces it, so everything that reads the
+  // picture's address works as before.
   const liveCanvas = useRef<HTMLCanvasElement>(null);
   const [liveFor, setLiveFor] = useState<string | null>(null);
   const previewIsInterim = useRef(false);
@@ -230,6 +244,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   // An interim thumbnail does not count: an edit redraw must still be able to replace it with a full render.
   hasImage.current = Boolean(src) && !preview.interim;
   const renderedUrl = useRef<string | undefined>(undefined);
+  // When a rendered picture's address was handed to the image, so its decode can be measured on load.
+  const shownAt = useRef<number | null>(null);
   // The last rendered picture is only released once a newer one replaces it, or on unmount, so it never goes blank mid-edit.
   const replaceRendered = (next: string | undefined) => {
     const previous = renderedUrl.current;
@@ -238,8 +254,25 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   };
   useEffect(() => () => replaceRendered(undefined), []);
 
+  // The drag worker holds this picture's framed source under this key; any change to what it shows makes a new one.
+  const draftKey = JSON.stringify([identity, frame.originalSha256 ?? null, frame.framing ?? null, developedRev]);
+  const zoomRef = useRef(zoomScale);
+  zoomRef.current = zoomScale;
+  // A quick drag picture was asked for: when the drag ends, the full-quality picture is drawn (settleRev).
+  const draftShown = useRef(false);
+  const [settleRev, setSettleRev] = useState(0);
+  useEffect(() => onEditGestureEnd(() => {
+    if (!draftShown.current) return;
+    draftShown.current = false;
+    setSettleRev((count) => count + 1);
+  }), []);
+  useEffect(() => () => { if (liveDraftSupported()) liveDraft().release(slot.current); }, []);
+
   useEffect(() => {
     if (variant === 'thumb' && !nearViewport && !priority) return;
+    // A filmstrip card keeps its picture while a slider is held and follows once the drag ends, so the interface thread
+    // is free for the picture being edited.
+    if (variant === 'thumb' && hasImage.current && editGestureActive()) { draftShown.current = true; return; }
     let cancelled = false;
     let timer: number | undefined;
     // Keep showing the current picture (an interim thumbnail included) while an edited one is being redrawn.
@@ -251,42 +284,94 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     setLoading(true);
     setErrored(false);
 
+    // While a slider is held, each step is a quick picture at the size it is shown, drawn in a worker where it can be, and
+    // nothing is encoded. The full-quality picture is drawn once the drag ends (onEditGestureEnd below), exactly as it is
+    // drawn without a drag, so dragging never changes what the photo looks like when the hand is still or what exports.
+    const dragging = variant === 'full' && hasImage.current && editGestureActive();
+    // Marked now, not when the quick picture arrives: the hand may let go before it does, and the full picture must follow.
+    if (dragging) draftShown.current = true;
+
+    /** The long edge, in device pixels, the picture is shown at now (zoom included), at most the full 2,200. */
+    const shownEdge = (): number => {
+      const box = containerRef.current?.getBoundingClientRect();
+      if (!box || box.width < 1 || box.height < 1) return FULL_EDGE;
+      return Math.max(DRAFT_MIN_EDGE, Math.min(FULL_EDGE, Math.ceil(Math.max(box.width, box.height) * (window.devicePixelRatio || 1) * Math.max(1, zoomRef.current))));
+    };
+
+    const renderDraft = async (): Promise<boolean> => {
+      // Image layers and a stored AI result are drawn on the page, so a picture that has them keeps the page's own draft.
+      if (!liveDraftSupported() || layersKey !== '[]' || frame.edit?.trueDetailAi) return false;
+      const draft = liveDraft();
+      if (draft.baseKey(slot.current) !== draftKey) return false;
+      const start = performance.now();
+      const edge = shownEdge();
+      const bitmap = await draft.draw(slot.current, draftKey, edge, frame.edit ?? DEFAULT_EDIT);
+      if (cancelled) { bitmap?.close(); return true; }
+      if (!bitmap) return false;
+      measureStep('preview:draft', start, { edge });
+      showLiveBitmap(bitmap);
+      return true;
+    };
+
     const render = async () => {
+      if (dragging && await renderDraft()) return;
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
-      const source = await loadEditSource(frame, previewProvider, variant, priority);
+      const source = await timedWait('preview:source', () => loadEditSource(frame, previewProvider, variant, priority));
       if (cancelled) return;
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
-      const scale = Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height));
-      drawFramedPhoto(source, canvas, framing, { scale });
+      const scale = Math.min(1, (variant === 'thumb' ? 400 : dragging ? shownEdge() : FULL_EDGE) / Math.max(size.width, size.height));
+      timedStep('preview:draw-source', () => drawFramedPhoto(source, canvas, framing, { scale }));
+      const lens = lensCentre(source.naturalWidth, source.naturalHeight, framing);
+      // The framed picture goes to the draft worker before the edit changes it, so the next drag starts at once.
+      if (variant === 'full' && !dragging && prepareDrag && liveDraftSupported()) {
+        const key = draftKey;
+        void createImageBitmap(canvas).then((bitmap) => liveDraft().sendBase(slot.current, key, bitmap, lens)).catch(() => undefined);
+      }
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
       // The stage cache (x-std-stage-cache) keeps the picture after noise reduction, dehaze and the other early stages,
       // so dragging a later slider redraws from there. The key names exactly the pixels just drawn on the canvas.
       const sourceKey = JSON.stringify([identity, frame.originalSha256 ?? null, source.currentSrc || source.src, source.naturalWidth, source.naturalHeight, framing, scale]);
-      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) },
-        { cache: liveStageCache(), sourceKey });
+      timedStep('preview:edit', () => applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lens },
+        { cache: liveStageCache(), sourceKey }), { width: canvas.width, height: canvas.height, dragging });
       await applyFrameLayers(canvas, frame.overlay, false, frame.edit?.masks);
       if (cancelled) return;
       showLive(canvas);
+      if (dragging) return;
+      const eightBitEdge = Math.max(size.width, size.height) * scale;
+      // A redraw of a photo with a 16-bit copy shows the 8-bit picture at once, waits for the slider to be still, then
+      // encodes only the 16-bit picture: one PNG per pause, not two.
+      const tried16 = hasImage.current && sensor16Ready();
+      if (tried16) {
+        if (await drawSensor16(eightBitEdge).catch(() => false)) return;
+        if (cancelled) return;
+      }
+      await encodeShown(canvas);
+      if (cancelled || tried16) return;
+      // Then, when this photo's 16-bit copy is ready, the same picture drawn from it (in a worker, so sliders stay free)
+      // replaces it: only if the edit can be carried at 16 bits and the result is at least as detailed.
+      await drawSensor16(eightBitEdge).catch(() => false);
+    };
+
+    /** Encode the finished picture once, for everything that reads it by its address (the image, its size, readiness). */
+    const encodeShown = async (canvas: HTMLCanvasElement, precision?: 'rgb16') => {
       // A full-size edited view must not suffer a second lossy JPEG pass.
       // Thumbnails stay compact JPEGs; full previews use lossless PNG.
-      const { mime, quality } = framePreviewEncoding(variant);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality));
+      const { mime, quality } = precision ? { mime: 'image/png', quality: undefined } : framePreviewEncoding(variant);
+      const blob = await timedWait('preview:encode', () => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality)), { precision });
       if (cancelled) return;
       if (!blob) throw new Error('Preview unavailable');
       const url = URL.createObjectURL(blob);
       fullShown = true;
+      shownAt.current = performance.now();
       replaceRendered(url);
-      setPreview({ identity, url });
-      // Then, when this photo's 16-bit copy is ready, the same picture drawn from it (in a worker, so sliders stay free)
-      // replaces it: only if the edit can be carried at 16 bits and the result is at least as detailed.
-      await drawSensor16(Math.max(size.width, size.height) * scale).catch(() => undefined);
+      setPreview(precision ? { identity, url, precision } : { identity, url });
     };
 
     // Only a redraw over a picture already shown: the first picture of a photo still arrives through the image.
-    const showLive = (canvas: HTMLCanvasElement) => {
+    const showLive = (canvas: HTMLCanvasElement | ImageBitmap) => {
       const live = liveCanvas.current;
       if (variant !== 'full' || !hasImage.current || !live) return;
       const context = live.getContext('2d');
@@ -296,24 +381,30 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       context.drawImage(canvas, 0, 0);
       setLiveFor(identity);
     };
+    const showLiveBitmap = (bitmap: ImageBitmap) => {
+      try { showLive(bitmap); } finally { bitmap.close(); }
+    };
 
-    const drawSensor16 = async (eightBitLongEdge: number) => {
+    const sensor16Ready = () => Boolean(want16 && raw16Workings.ready(raw16Key(frame)));
+    /** True when the 16-bit picture was drawn and is now the one shown. */
+    const drawSensor16 = async (eightBitLongEdge: number): Promise<boolean> => {
       const working = want16 ? raw16Workings.ready(raw16Key(frame)) : undefined;
-      if (!working) return;
+      if (!working) return false;
+      // Only once the slider has been still for a moment: a pause mid-adjustment does not start a full 16-bit pass.
+      await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, SENSOR16_SETTLE_MS); });
+      if (cancelled) return false;
       const shownUrl = await previewProvider.getFullPreviewUrl(frame, 'selected');
-      if (cancelled || !raw16Possible(frame, previewProvider.pictureSourceOf(shownUrl), canDevelopRaw())) return;
-      const screen = await renderRaw16Screen(slot.current, working, frame.edit ?? DEFAULT_EDIT, frame.framing);
-      if (cancelled || !screen || !raw16SharpEnough(screen, eightBitLongEdge)) return;
+      if (cancelled || !raw16Possible(frame, previewProvider.pictureSourceOf(shownUrl), canDevelopRaw())) return false;
+      const screen = await timedWait('preview:raw16', () => renderRaw16Screen(slot.current, working, frame.edit ?? DEFAULT_EDIT, frame.framing));
+      if (cancelled || !screen || !raw16SharpEnough(screen, eightBitLongEdge)) return false;
       const canvas = document.createElement('canvas');
       canvas.width = screen.width; canvas.height = screen.height;
       canvas.getContext('2d')!.putImageData(new ImageData(screen.rgba, screen.width, screen.height), 0, 0);
       await applyFrameLayers(canvas, frame.overlay, false);
-      if (cancelled) return;
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (cancelled || !blob) return;
-      const url = URL.createObjectURL(blob);
-      replaceRendered(url);
-      setPreview({ identity, url, precision: 'rgb16' });
+      if (cancelled) return false;
+      showLive(canvas);
+      await encodeShown(canvas, 'rgb16');
+      return !cancelled;
     };
 
     // A full-size view never stays an empty dark frame while a large original is verified and developed (a 45 MP RAW
@@ -355,7 +446,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       }
       if (edited || (want16 && raw16Workings.ready(raw16Key(frame)))) {
         // Wait for the edit to settle before redrawing, so dragging a slider does not redraw on every step.
-        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 65 : 0); });
+        // While dragging, the worker takes only the newest step, so each one is sent at once.
+        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, !hasImage.current ? 0 : dragging && liveDraftSupported() ? 0 : 65); });
         if (cancelled) return;
         await render();
         return;
@@ -371,7 +463,20 @@ export const FrameImage: React.FC<FrameImageProps> = ({
         replaceRendered(undefined);
         setPreview({ identity, url });
         setLoading(false);
+        if (url && variant === 'full' && prepareDrag) prepareDraftFrom(url);
       }
+    };
+
+    /** An unedited photo: once it has been shown a moment, its file is decoded and framed in the drag worker (off this
+     * thread), so the first drag on it starts at once. Never a RAW develop: only the picture already on screen. */
+    const prepareDraftFrom = (url: string) => {
+      if (!liveDraftSupported() || liveDraft().baseKey(slot.current) === draftKey) return;
+      const key = draftKey, framing = frame.framing ?? DEFAULT_FRAMING;
+      timer = window.setTimeout(() => {
+        void fetch(url).then((response) => response.blob()).then((blob) => {
+          if (!cancelled) liveDraft().sendBaseFile(slot.current, key, blob, framing, FULL_EDGE);
+        }).catch(() => undefined);
+      }, 400);
     };
 
     void load().catch(() => {
@@ -395,7 +500,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev, raw16Rev, want16, degraded]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev, raw16Rev, want16, degraded, settleRev, draftKey, prepareDrag]);
 
   const tryAgain = () => { retries.current = 0; setErrored(false); setDegraded(false); setSourceRevision((revision) => revision + 1); };
 
@@ -481,6 +586,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             if (width > 0 && height > 0) onPictureSize?.({ width, height });
             // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
             if (preview.interim) return;
+            if (shownAt.current !== null) { measureStep('preview:decode', shownAt.current); shownAt.current = null; }
             setLiveFor(null);
             retries.current = 0;
             // The outline must follow the picture exactly, including a border frame that switches it to object-contain.

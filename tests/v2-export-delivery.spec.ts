@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -28,6 +29,7 @@ test('a real project exports full-resolution and capped PNGs and the exact origi
   const dialog = page.getByRole('dialog', { name: /export/i });
   const open = async () => {
     if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click();
+    await openExportAdvanced(dialog);
   };
   const downloadZip = async () => {
     const downloaded = page.waitForEvent('download');
@@ -37,7 +39,6 @@ test('a real project exports full-resolution and capped PNGs and the exact origi
     return unzipSync(await readFile((await download.path())!));
   };
   await open();
-  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   await expect(dialog.getByRole('slider', { name: 'JPEG quality' })).toHaveCount(0);
   const verifyPngSize = async (width: number, height: number) => {
@@ -52,14 +53,12 @@ test('a real project exports full-resolution and capped PNGs and the exact origi
   await verifyPngSize(360, 140);
 
   await open();
-  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   await dialog.getByRole('combobox', { name: 'Size', exact: true }).selectOption('custom');
   await dialog.getByRole('spinbutton', { name: 'Custom long edge (px)' }).fill('180');
   await verifyPngSize(180, 70);
 
   await open();
-  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
   await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
   const chosen = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');

@@ -15,6 +15,8 @@ import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicatePr
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
+import { measureStep, timedStep } from '../../providers/previewTiming';
+import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
 import { panoramaRecipe, type PanoramaRecipe } from '../../core/panoramaRecipe';
@@ -39,7 +41,7 @@ import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
 import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
-import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
+import { pickResumePhotos, pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -204,7 +206,10 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
+import { createReadAhead, importLanes } from '../../core/importReadAhead';
+import { startNativeResourceSampling } from '../../providers/nativeResourceSample';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -294,7 +299,10 @@ function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): v
     photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
     lastUpdatedAt: project.shoot.lastUpdatedAt,
   });
-  if (last) writeLastProject(last);
+  if (!last) return;
+  // The card shows a few of the project's own photos (owner, 26 Nov: it showed a folder icon), as references only.
+  const keys = pickResumePhotos(project.frames).map(hubPreviewKey);
+  writeLastProject(keys.length ? { ...last, thumbs: { keys, developVersion: DEVELOP_VERSION } } : last);
 }
 
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
@@ -314,6 +322,9 @@ function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBra
 }
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
+  // A real measurement of the machine for the task scheduler (desktop app), so heavy jobs can run side by side when there
+  // is room, instead of one at a time behind whichever is slowest.
+  useEffect(() => startNativeResourceSampling(), []);
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
   // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
@@ -495,8 +506,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       },
     });
   }
+  // While a slider is held, the newest state waits here and is saved once when the drag ends (or when the editor closes):
+  // each save copies the whole project, which on a large project would hold the slider on every step.
+  const heldSave = useRef<{ id: string; state: CullingState } | null>(null);
+  useEffect(() => {
+    const flush = () => {
+      const held = heldSave.current;
+      heldSave.current = null;
+      if (held) saveGuard.current!.submit(held.id, held.state);
+    };
+    const stop = onEditGestureEnd(flush);
+    return () => { stop(); flush(); };
+  }, []);
   useEffect(() => {
     if (!state || screen !== 'editor') return;
+    if (editGestureActive()) { heldSave.current = { id: state.shoot.id, state }; return; }
+    heldSave.current = null;
     saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
   useEffect(() => {
@@ -1120,10 +1145,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice(engineText.workspace.exportStopped);
         });
       } catch (error) {
-        // The desktop shell rejects with plain strings (a folder it may not write to, a full disk): show that reason,
-        // not only "Could not start this export" (Windows beta: Save to a folder failed with no reason given).
-        const reason = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-        setNotice(reason ? `${engineText.workspace.exportNotQueued} ${reason}` : engineText.workspace.exportNotQueued);
+        // The desktop app rejects with plain text, not an Error: show its reason rather than hiding it.
+        setNotice(reasonOf(error) || engineText.workspace.exportNotQueued);
       }
       return;
     }
@@ -1295,24 +1318,45 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
+  // The preview the histogram is measured from, decoded once per address (not once per slider step).
+  // One entry, replaced when the address changes: the loaded preview (the 16-bit pass checks its turn against it) and its
+  // small unedited copy.
+  const histogramSource = useRef<{ url: string; picture: Promise<{ element: HTMLImageElement; naturalWidth: number; naturalHeight: number; small: ImageData }> } | null>(null);
   useEffect(() => {
     if (!histogramKey || !activeFrame) return;
     let live = true;
     const frame = activeFrame;
-    const timer = window.setTimeout(() => {
+    let stopWaiting: (() => void) | undefined;
+    const measure = () => {
+      // Not while a slider is held: the histogram follows once the hand is still.
+      if (editGestureActive()) { stopWaiting = onEditGestureEnd(() => { stopWaiting?.(); stopWaiting = undefined; if (live) measure(); }); return; }
       provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
         if (!url || !live) return;
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
+        if (histogramSource.current?.url !== url) {
+          const picture = loadImage(url).then((element) => {
+            const scale = Math.min(1, 256 / Math.max(element.naturalWidth, element.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(element.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(element.naturalHeight * scale));
+            const context = canvas.getContext('2d', { willReadFrequently: true })!;
+            context.drawImage(element, 0, 0, canvas.width, canvas.height);
+            return { element, naturalWidth: element.naturalWidth, naturalHeight: element.naturalHeight, small: context.getImageData(0, 0, canvas.width, canvas.height) };
+          });
+          histogramSource.current = { url, picture };
+          picture.catch(() => { if (histogramSource.current?.picture === picture) histogramSource.current = null; });
+        }
+        const image = await histogramSource.current.picture;
         // When the file records no size, the shown picture gives the photo its shape. For a plain picture file that is
         // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
         if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
-        const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+        const measureStart = performance.now();
+        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy.
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.width = image.small.width; canvas.height = image.small.height;
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        context.putImageData(image.small, 0, 0);
         applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        measureStep('histogram:measure', measureStart);
         if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
         // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
         // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
@@ -1320,12 +1364,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // Only for a photo the person stays on: browsing past photos never starts a full RAW develop for each one.
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         if (!live) return;
-        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image);
-        const measured = live && working ? histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working) : null;
+        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image.element);
+        const measured = live && working ? timedStep('histogram:raw16', () => histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working)) : null;
         if (live && measured) setHistograms((current) => ({ ...current, [frame.id]: measured }));
       }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
-    }, 160);
-    return () => { live = false; window.clearTimeout(timer); };
+    };
+    const timer = window.setTimeout(measure, 160);
+    return () => { live = false; window.clearTimeout(timer); stopWaiting?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 
@@ -1592,7 +1637,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const connection = can('cloudAssist') ? accountConnection() : null;
     void engineScheduler.submit({
       title: engineText.workspace.denoiseTask(frame.filename),
-      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
+      // One photo the person pressed Denoise on and is watching: it starts beside a running background RAW develop
+      // instead of waiting for that develop's current photo to finish (engineScheduler `interactive`).
+      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local', interactive: true,
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
       itemId: item => item.id, itemLabel: item => item.name,
@@ -2065,6 +2112,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const pendingNames = new Map(additions.map((file) => [pickedKey(file), file.name]));
     recordPendingImport(projectKey, [...pendingNames.values()], true);
     importingInto.current = projectKey;
+    // Several photos are read at once (src/core/importReadAhead.ts) while each is still added in its own turn below.
+    const reads = createReadAhead(additions.length, importLanes(deviceMemoryBudget(), navigator.hardwareConcurrency),
+      async (index) => {
+        // Which project's provider registered this photo's original while it was read (the read may run ahead of its turn).
+        const readIn = provider.current;
+        const result = await loadLocalFileListShoot([additions[index]], sourceProvider, sourceCatalogue,
+          undefined, { allowPartial: true, signal: controller.signal });
+        return { result, readIn };
+      });
     try {
       // An actual scheduler item for each photograph: complete the original
       // fingerprint, preview and catalogue registration before advancing.
@@ -2083,9 +2139,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
         runItem: async (item, _, ctx) => {
           ctx.stage(engineText.workspace.importReadStage);
-          const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
-            undefined, { allowPartial: true, signal: ctx.signal });
+          const { result, readIn } = await reads.take(item.index);
           ctx.checkCancelled();
+          // Read before the project was left and reopened: its original was registered in the provider of the time,
+          // which reopening replaced. Register it in the open project's provider too (from its stored copy or its path),
+          // or the photo would say "Original not connected, preview only". A closed project does this when it opens.
+          if (readIn !== provider.current && provider.current && stateRef.current?.shoot.id === projectKey && result.frames.length) {
+            await rehydrateLocalFramesFromStore(result.frames, provider.current, sourceCatalogue, { checkPaths: false }).catch(() => false);
+            ctx.checkCancelled();
+          }
           if (!result.frames.length) throw new Error(engineText.workspace.importOneFailed(item.file.name));
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its
@@ -2828,7 +2890,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
       const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } }
-        : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, tethered: true } } : withMode;
+        : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, projectType: 'tethered' as const } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -2890,11 +2952,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!added.length) return current;
         const combined = [...current.frames, ...added];
         return { ...current, frames: combined, shoot: { ...current.shoot, totalFrames: combined.length, lastUpdatedAt: Date.now() } };
-      });
-    },
-    setLiveShoot: (on) => {
-      mutate((current) => (current.shoot.tethered === true) === on ? current : {
-        ...current, shoot: { ...current.shoot, tethered: on || undefined, lastUpdatedAt: Date.now() },
       });
     },
     updateCollage: (document) => {
@@ -3873,7 +3930,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     speciesPlace,
     externalEditor: externalEdits.store,
     collage: readCollage(state?.shoot.collage),
-    liveShoot: state?.shoot.tethered === true,
     photos,
     removedPhotos,
     removedOpen,

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 import { mosaic } from './rawFixture';
@@ -42,14 +43,13 @@ async function exportZip(page: Page, root: ReturnType<Page['locator']>, original
   const dialog = page.getByRole('dialog', { name: /export/i });
   await root.getByRole('button', { name: /^Export/ }).first().click();
   await expect(dialog).toBeVisible();
+  await openExportAdvanced(dialog);
   if (original) {
-    { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
     await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
     await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
     const chosen = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
     while (await chosen.count()) await chosen.first().click();
   } else {
-    { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
     await dialog.getByLabel('File format').selectOption('png');
   }
   const downloaded = page.waitForEvent('download', { timeout: 240_000 });

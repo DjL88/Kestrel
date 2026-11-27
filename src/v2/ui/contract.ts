@@ -626,6 +626,8 @@ export interface WorkspaceSettings {
   calmHints: boolean;
   /** Hide the numbers beside sliders. Separate from the preset, because many people find exact values calming. */
   calmReadouts: boolean;
+  /** Focus mode: the filmstrip's row keeps photos, Import and Folder, and the rest sits under More. Unset: on for phones. */
+  filmstripFocus?: boolean;
   touchDensity: 'comfortable' | 'compact';
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
@@ -755,8 +757,6 @@ export interface WorkspaceStore {
   } | null;
   /** Present only when the active project is a collage; normal Photography workspaces remain unchanged. */
   collage?: import('../../core/collage').CollageDocument | null;
-  /** The open project is a tethered (live) shoot. */
-  liveShoot?: boolean;
   photos: Photo[];
   activePhotoId: string | null;
   selectedPhotoIds: string[];
@@ -846,8 +846,6 @@ export interface WorkspaceActions {
   backToProjects: () => void;
   /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
   createProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
-  /** Turn the open project into a tethered (live) shoot, or back: the live-shoot tools show in its filmstrip only then. */
-  setLiveShoot?: (on: boolean) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
@@ -912,9 +910,9 @@ export interface WorkspaceActions {
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;
-  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .inflight.json file. */
+  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .kestrel.json file. */
   saveProjectBackupFile: () => void;
-  /** Make a new project from an .inflight.json (or older .kestrel.json) backup file and open it. The backed-up project is never overwritten. */
+  /** Make a new project from a .kestrel.json backup file and open it. The backed-up project is never overwritten. */
   restoreProjectBackup: (file: File) => void;
   /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
   saveXmpSidecars: (photoIds: string[]) => void;

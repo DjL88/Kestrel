@@ -249,7 +249,11 @@ function TasksWheel({ running, percent, count, active, onClick }: { running: num
             <circle cx="14" cy="14" r="13" fill="none" stroke="var(--brand-accent)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="12 70" opacity="0.7" />
           </svg>
         )}
-        <span className={`relative font-bold tabular-nums text-[var(--text-primary)] ${running > 0 ? 'text-[0.5625rem]' : 'text-[0.6875rem]'}`}>{running > 0 ? `${shown}%` : 0}</span>
+        {/* Fits inside the ring at every value, 100% included (owner, 26 Nov): a smaller number and a smaller % sign. The
+            button's own label says it in words for screen readers. */}
+        <span data-testid="tasks-wheel-value" className={`relative inline-flex items-baseline font-bold leading-none tabular-nums tracking-tighter text-[var(--text-primary)] ${running > 0 ? 'text-[0.5rem]' : 'text-[0.6875rem]'}`}>
+          {running > 0 ? <>{shown}<span className="text-[0.375rem]">%</span></> : 0}
+        </span>
       </span>
       <span className="v2-rail-label tabular-nums">{running > 0 && count ? `${count.done} / ${count.total}` : STRINGS.rail.tasks}</span>
     </button>

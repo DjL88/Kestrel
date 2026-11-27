@@ -24,6 +24,9 @@ address='google_cloud_run_v2_service.control_plane[0]'
 # Likewise the weekly Paddle key renewal job (paddle-key-rotation.tf), once paddle_key_rotation_enabled is on.
 # The daily account deletion job (account-deletions.tf) runs the control-plane image too, so its image moves with it.
 also_allowed='["google_storage_bucket.models","google_storage_bucket.cloud_inputs[0]","google_storage_bucket.gallery[0]","google_storage_bucket.safe_copy[0]","google_cloud_run_v2_job.pricing_review[0]","google_cloud_run_v2_job.paddle_key_rotation[0]","google_cloud_run_v2_job.account_deletion[0]"]'
+# Reviewed one-off deletions (#1782, owner approved 26 Nov 2026): the two old Demo Studio buckets and their three IAM
+# grants. Empty the buckets first (force_destroy is false). Any other delete or replace is still refused.
+removed_ok='["google_storage_bucket.demo_drafts","google_storage_bucket.demo_published","google_storage_bucket_iam_member.demo_public_viewer","google_storage_bucket_iam_member.demo_drafts_service","google_storage_bucket_iam_member.demo_published_service"]'
 for c in git terraform jq tar gcloud curl; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ $sha =~ ^[0-9a-f]{40}$ ]] || fail "SHA must be a full 40-character commit"
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
@@ -50,9 +53,10 @@ plan_for(){ # $1 image, $2 plan file. Allows exactly one in-place update of the 
   [[ $rc == 2 ]] || { [[ $rc == 0 ]] && fail "No change: the service already runs $1"; fail "Plan failed (private output suppressed)"; }
   changes=$(terraform -chdir="$tmp/infra/gcp" show -json "$2" | jq -c '[.resource_changes[]?|select(.change.actions!=["no-op"] and .change.actions!=["read"])|{address,actions:.change.actions}]')
   echo "Planned changes: $changes"
-  jq -e --arg a "$address" --argjson ok "$also_allowed" \
+  jq -e --arg a "$address" --argjson ok "$also_allowed" --argjson gone "$removed_ok" \
     'any(.[]; .address==$a) and all(.[]; (.actions==["update"] and (.address==$a or (.address as $x | $ok | index($x))))
-      or (.actions==["create"] and (.address | startswith("google_secret_manager_secret_iam_member.phase5_paddle["))))' <<<"$changes" >/dev/null \
+      or (.actions==["create"] and (.address | startswith("google_secret_manager_secret_iam_member.phase5_paddle[")))
+      or (.actions==["delete"] and (.address as $x | $gone | index($x))))' <<<"$changes" >/dev/null \
     || fail "Plan changes more than the control plane image (and the reviewed bucket CORS, or Paddle's three secret-reader grants); do not apply"
   sha256sum "$2" | cut -d' ' -f1 >"$2.sha256"
 }

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -29,12 +30,7 @@ async function projectWithPhoto(page: Page, preview: boolean, withLogo = true) {
   });
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const dialog = page.getByRole('dialog', { name: /export/i });
-  // Brand kits sit behind Advanced in the Export dialog, which starts closed each time it opens.
-  const open = async () => {
-    if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click();
-    const box = dialog.getByTestId('export-advanced'); await box.waitFor();
-    const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click();
-  };
+  const open = async () => { if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click(); await openExportAdvanced(dialog); };
   const exportZip = async () => {
     const downloaded = page.waitForEvent('download');
     await dialog.getByRole('button', { name: /export bundle/i }).click();

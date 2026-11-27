@@ -61,10 +61,8 @@ test('?v2 new project types are pictured, named in plain words and marked withou
   await expect(collage).toBeChecked();
   await expect(dialog.getByTestId('project-kind-collage').getByText('Selected')).toBeVisible();
   await expect(dialog.getByTestId('project-kind-photography').getByText('Selected')).toHaveCount(0);
-  // Keyboard still moves between the choices: Tethered shoot sits between the other two.
+  // Keyboard still moves between the two choices.
   await collage.focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect(dialog.getByRole('radio', { name: /Tethered shoot/ })).toBeChecked();
   await page.keyboard.press('ArrowLeft');
   await expect(shoot).toBeChecked();
 });

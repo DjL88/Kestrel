@@ -1,3 +1,4 @@
+import { useSliderValue } from '../utils/useSliderValue';
 import React from 'react';
 import ColourCheckerDialog from '../dialogs/ColourCheckerDialog';
 import type { CheckerFit } from '../../../core/colourChecker';
@@ -35,7 +36,9 @@ interface RowProps {
   reset?: number;
 }
 
-function Row({ id, label, help, value, min, max, calmView, disabled, leftHint, rightHint, onChange, reset = 0 }: RowProps) {
+function Row({ id, label, help, value: workspaceValue, min, max, calmView, disabled, leftHint, rightHint, onChange: commit, reset = 0 }: RowProps) {
+  // The thumb moves at once; the edit follows as a transition, so dragging never waits for the editor.
+  const [value, onChange] = useSliderValue(workspaceValue, commit);
   return (
     <div className={`space-y-1.5 ${disabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">

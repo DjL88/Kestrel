@@ -13,7 +13,6 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import { pictureSourceWords } from '../shell/PictureSourceBadge';
 import { photoTagsText } from '../../../i18n/areas/photoTags';
-import { engineText } from '../../../i18n/areas/engine';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -58,9 +57,9 @@ export default function InfoPanel({
   speciesPlace,
   onSetSpeciesArea,
 }: InfoPanelProps) {
-  const [tab, setTab] = useState<InfoTab>(readInfoTab);
-  const chooseTab = (next: InfoTab) => { setTab(next); try { localStorage.setItem(INFO_TAB_KEY, next); } catch { /* remembered for this visit only */ } };
   const [editingSpecies, setEditingSpecies] = useState(false);
+  // Owner, 26 Nov: the camera and analysis first; the histogram and the file on a second tab. Kept while photos change.
+  const [view, setView] = useState<'details' | 'file'>('details');
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
   const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesName ?? photo?.speciesLabel ?? '');
   useEffect(() => {
@@ -85,59 +84,194 @@ export default function InfoPanel({
       .map((v, idx) => `${((idx / (vals.length - 1)) * 240).toFixed(1)},${(74 - (v / 100) * 68).toFixed(1)}`)
       .join(' ');
 
+  const views = [
+    { id: 'details', label: STRINGS.info.tabDetails },
+    { id: 'file', label: STRINGS.info.tabFile },
+  ] as const;
+  const onTabKey = (event: React.KeyboardEvent) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 'details' : event.key === 'End' ? 'file' : view === 'details' ? 'file' : 'details';
+    setView(next);
+    document.getElementById(`info-tab-${next}`)?.focus();
+  };
+
   return (
     <div className="space-y-4">
-      {/* Two tabs (Windows beta): the photograph first (camera, analysis, histogram), the file's technical details second. */}
-      <div role="tablist" aria-label={STRINGS.info.tabsLabel} className="grid grid-cols-2 gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
-        {(['photo', 'technical'] as const).map((id) => (
-          <button key={id} type="button" role="tab" id={`v2-info-tab-${id}`} aria-controls={`v2-info-tabpanel-${id}`}
-            aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} data-testid={`info-tab-${id}`}
-            onClick={() => chooseTab(id)}
-            onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); const next = id === 'photo' ? 'technical' : 'photo'; chooseTab(next); document.getElementById(`v2-info-tab-${next}`)?.focus(); } }}
-            className="min-h-8 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] aria-selected:bg-[var(--bg-surface-raised)] aria-selected:font-semibold aria-selected:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
-            {id === 'photo' ? STRINGS.info.tabPhoto : STRINGS.info.tabTechnical}
+      <div role="tablist" aria-label={STRINGS.info.tabsLabel} className="flex gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5" onKeyDown={onTabKey}>
+        {views.map((tab) => (
+          <button key={tab.id} id={`info-tab-${tab.id}`} type="button" role="tab" aria-selected={view === tab.id}
+            aria-controls={`info-view-${tab.id}`} tabIndex={view === tab.id ? 0 : -1} onClick={() => setView(tab.id)}
+            className={`h-7 flex-1 rounded-[var(--radius-sm)] px-2 text-xs font-medium ${view === tab.id ? 'bg-[var(--bg-surface-raised)] text-[var(--text-primary)] underline decoration-2 underline-offset-4' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {tab === 'photo' ? (
-      <div role="tabpanel" id="v2-info-tabpanel-photo" aria-labelledby="v2-info-tab-photo" className="space-y-4">
-      {/* Rating & Flag */}
-      <div className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
-        <div className="flex items-center gap-0.5">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-label={STRINGS.panelWords.rateStars(n)}
-              aria-pressed={n === photo.rating}
-              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
-              className="p-1"
-            >
-              <BrandIcon
-                name={n <= photo.rating ? 'star-filled' : 'star-empty'}
-                size={15}
-                className={n <= photo.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-              />
-            </button>
-          ))}
+      {view === 'file' && (
+      <div id="info-view-file" role="tabpanel" aria-labelledby="info-tab-file" className="space-y-4">
+        {/* Live SVG Histogram */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
+            <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
+              {photo.assistCritique.kelvinEstimate}
+            </span>
+          </div>
+          {hist ? (
+            <>
+              <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={STRINGS.panelWords.histogramLabel(pct(hist.shadowClip), pct(hist.highlightClip))}>
+                {HISTOGRAM_LINES.map((line) => (
+                  <polyline key={line.key} data-channel={line.key} fill="none" stroke={line.stroke} strokeWidth={line.width}
+                    strokeDasharray={line.dash} strokeLinecap="round" points={toPolyline(hist[line.key])} />
+                ))}
+              </svg>
+              {/* Each line has its own pattern and a word, so the channels are told apart without relying on colour. */}
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-legend">
+                {HISTOGRAM_LINES.map((line) => (
+                  <li key={line.key} className="inline-flex items-center gap-1">
+                    <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true" focusable="false">
+                      <line x1="1" y1="3" x2="17" y2="3" stroke={line.stroke} strokeWidth={line.width} strokeDasharray={line.dash} strokeLinecap="round" />
+                    </svg>
+                    {STRINGS.panelWords[line.word]}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 flex justify-between text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-clipping">
+                <span>Shadows clipped {pct(hist.shadowClip)}</span>
+                <span>Highlights clipped {pct(hist.highlightClip)}</span>
+              </p>
+              {/* For a RAW, say which picture the measurement came from: the 16-bit develop, or the 8-bit picture on screen. */}
+              {photo.picture?.preview && (
+                <p className="mt-0.5 text-[0.6875rem] text-[var(--text-muted)]" data-testid="histogram-precision" data-precision={hist.precision ?? 'rgb8'}>
+                  {hist.precision === 'rgb16' ? STRINGS.pictureSource.histogram16 : STRINGS.pictureSource.histogram8}
+                </p>
+              )}
+              {clippedChannels.length > 0 && (
+                <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
+                  {clippedChannels.map(({ line, clip }) => (
+                    <li key={line.key}>{STRINGS.panelWords.histogramChannelClip(STRINGS.panelWords[line.word], pct(clip.shadow), pct(clip.highlight))}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.measuring}</p>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => onToggleFlag([photo.id])}
-          className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${
-            flagged
-              ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
-          }`}
-        >
-          <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={13} />
-          <span>{flagged ? 'Flagged' : 'Flag'}</span>
-        </button>
-      </div>
 
+        {/* File & Original Link */}
+        <section className="space-y-1.5">
+          <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
+          <dl className="space-y-1.5 text-xs">
+            <MetaRow label="File" value={photo.filename} mono />
+            {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
+            {photo.externalEdit && <MetaRow label={STRINGS.externalEdit.infoLabel} value={externalEditHistory(photo.externalEdit)} />}
+            <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
+            {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
+            <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
+            <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
+            <MetaRow
+              label="Original"
+              value={
+                photo.originalConnected
+                  ? STRINGS.info.originalStatusConnected
+                  : STRINGS.info.originalStatusOffline
+              }
+            />
+          </dl>
+          {!photo.originalConnected && (
+            <button
+              type="button"
+              onClick={() => onReconnectOriginal(photo.id)}
+              className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
+            >
+              <BrandIcon name="relink" size={14} />
+              <span>{STRINGS.canvas.reconnectOriginal}</span>
+            </button>
+          )}
+          {photo.panorama && (
+            <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-panorama-info">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{panoText.infoTitle}</p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{panoText.infoMadeFrom(photo.panorama.sources.length)}</p>
+              <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
+                {photo.panorama.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
+              </ul>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{panoText.infoHow}</p>
+            </div>
+          )}
+          {photo.focusStack && (
+            <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-focus-stack-info">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{stackText.infoTitle}</p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoMadeFrom(photo.focusStack.sources.length)}</p>
+              <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
+                {photo.focusStack.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
+              </ul>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoHow}</p>
+            </div>
+          )}
+          {photo.hdrMerge && (
+            <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-merge-info">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.infoTitle}</p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoMadeFrom(photo.hdrMerge.sources.length)}</p>
+              <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
+                {photo.hdrMerge.sources.map((source, i) => <li key={`${i}-${source.filename}`} className="break-all">{hdrText.infoExposure(source.filename, stopsLabel(source.ev))}</li>)}
+              </ul>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoHow}</p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
+            </div>
+          )}
+          {photo.bracket && onHdrMerge && !photo.hdrMerge && (
+            <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-bracket-info">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.bracketTitle}</p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">
+                {hdrText.bracketFound(photo.bracket.photoIds.length, photo.bracket.ev.map(stopsLabel).join(', '))}{' '}
+                {photo.bracket.fromCamera ? hdrText.bracketFromCamera : hdrText.bracketFromExposures}
+              </p>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
+              <button type="button" onClick={() => onHdrMerge(photo.bracket!.photoIds)} title={hdrText.menuHint}
+                className="mt-1 inline-flex h-8 w-full items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]">
+                {hdrText.menu(photo.bracket.photoIds.length)}
+              </button>
+            </div>
+          )}
+          {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (
+            <div className="mt-2 space-y-1">
+              <button
+                type="button"
+                onClick={() => onSaveDngCopy(photo.id)}
+                className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
+              >
+                <BrandIcon name="copy" size={14} />
+                <span>{STRINGS.dngCopy.button}</span>
+              </button>
+              <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.dngCopy.help}</p>
+            </div>
+          )}
+          <ExternalEditBlock photo={photo} editor={externalEditor} onSend={onEditInOtherApp} onStop={onStopExternalEdit} />
+        </section>
+
+      </div>
+      )}
+
+      {view === 'details' && (
+      <div id="info-view-details" role="tabpanel" aria-labelledby="info-tab-details" className="space-y-4">
+      {/* The original going missing is never hidden on the other tab. */}
+      {!photo.originalConnected && (
+        <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] p-2" data-testid="info-original-offline">
+          <p role="status" className="text-xs text-[var(--text-primary)]">{STRINGS.info.originalStatusOffline}</p>
+          <button
+            type="button"
+            onClick={() => onReconnectOriginal(photo.id)}
+            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
+          >
+            <BrandIcon name="relink" size={14} />
+            <span>{STRINGS.canvas.reconnectOriginal}</span>
+          </button>
+        </div>
+      )}
       {/* Camera & Capture */}
-      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
+      <section className="space-y-1.5">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cameraSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="Camera" value={photo.exif.camera} />
@@ -211,60 +345,40 @@ export default function InfoPanel({
           <div className="mt-3"><SpeciesPlaceRow place={speciesPlace} onChange={onSetSpeciesArea} /></div>
         )}
       </section>
-
-      {/* Live SVG Histogram */}
-      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
-          {/* The white-balance estimate, only once there is one: "Not measured" here read as if the histogram itself was not
-              measured, right above the line that says it was (Windows beta). */}
-          {photo.assistCritique.kelvinEstimate && photo.assistCritique.kelvinEstimate !== engineText.notMeasured && (
-            <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
-              {photo.assistCritique.kelvinEstimate}
-            </span>
-          )}
+      {/* Rating & Flag */}
+      <div className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-label={STRINGS.panelWords.rateStars(n)}
+              aria-pressed={n === photo.rating}
+              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
+              className="p-1"
+            >
+              <BrandIcon
+                name={n <= photo.rating ? 'star-filled' : 'star-empty'}
+                size={15}
+                className={n <= photo.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
+              />
+            </button>
+          ))}
         </div>
-        {hist ? (
-          <>
-            <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={STRINGS.panelWords.histogramLabel(pct(hist.shadowClip), pct(hist.highlightClip))}>
-              {HISTOGRAM_LINES.map((line) => (
-                <polyline key={line.key} data-channel={line.key} fill="none" stroke={line.stroke} strokeWidth={line.width}
-                  strokeDasharray={line.dash} strokeLinecap="round" points={toPolyline(hist[line.key])} />
-              ))}
-            </svg>
-            {/* Each line has its own pattern and a word, so the channels are told apart without relying on colour. */}
-            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-legend">
-              {HISTOGRAM_LINES.map((line) => (
-                <li key={line.key} className="inline-flex items-center gap-1">
-                  <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true" focusable="false">
-                    <line x1="1" y1="3" x2="17" y2="3" stroke={line.stroke} strokeWidth={line.width} strokeDasharray={line.dash} strokeLinecap="round" />
-                  </svg>
-                  {STRINGS.panelWords[line.word]}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-1 flex justify-between text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-clipping">
-              <span>Shadows clipped {pct(hist.shadowClip)}</span>
-              <span>Highlights clipped {pct(hist.highlightClip)}</span>
-            </p>
-            {/* For a RAW, say which picture the measurement came from: the 16-bit develop, or the 8-bit picture on screen. */}
-            {photo.picture?.preview && (
-              <p className="mt-0.5 text-[0.6875rem] text-[var(--text-muted)]" data-testid="histogram-precision" data-precision={hist.precision ?? 'rgb8'}>
-                {hist.precision === 'rgb16' ? STRINGS.pictureSource.histogram16 : STRINGS.pictureSource.histogram8}
-              </p>
-            )}
-            {clippedChannels.length > 0 && (
-              <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
-                {clippedChannels.map(({ line, clip }) => (
-                  <li key={line.key}>{STRINGS.panelWords.histogramChannelClip(STRINGS.panelWords[line.word], pct(clip.shadow), pct(clip.highlight))}</li>
-                ))}
-              </ul>
-            )}
-          </>
-        ) : (
-          <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.measuring}</p>
-        )}
+        <button
+          type="button"
+          onClick={() => onToggleFlag([photo.id])}
+          className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${
+            flagged
+              ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+          }`}
+        >
+          <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={13} />
+          <span>{flagged ? 'Flagged' : 'Flag'}</span>
+        </button>
       </div>
+
       {photo.photoTags && photo.photoTags.length > 0 && (
         <section aria-label={photoTagsText.foundHeading} data-testid="photo-tags">
           <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{photoTagsText.foundHeading}</h3>
@@ -285,99 +399,6 @@ export default function InfoPanel({
           )}
         </section>
       )}
-      </div>
-      ) : (
-      <div role="tabpanel" id="v2-info-tabpanel-technical" aria-labelledby="v2-info-tab-technical" className="space-y-4">
-      {/* File & Original Link */}
-      <section className="space-y-1.5">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
-        <dl className="space-y-1.5 text-xs">
-          <MetaRow label="File" value={photo.filename} mono />
-          {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
-          {photo.externalEdit && <MetaRow label={STRINGS.externalEdit.infoLabel} value={externalEditHistory(photo.externalEdit)} />}
-          <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${fileFormatWords(photo)} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : fileFormatWords(photo)} />
-          {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
-          <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
-          <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
-          <MetaRow
-            label="Original"
-            value={
-              photo.originalConnected
-                ? STRINGS.info.originalStatusConnected
-                : STRINGS.info.originalStatusOffline
-            }
-          />
-        </dl>
-        {!photo.originalConnected && (
-          <button
-            type="button"
-            onClick={() => onReconnectOriginal(photo.id)}
-            className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
-          >
-            <BrandIcon name="relink" size={14} />
-            <span>{STRINGS.canvas.reconnectOriginal}</span>
-          </button>
-        )}
-        {photo.panorama && (
-          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-panorama-info">
-            <p className="text-xs font-semibold text-[var(--text-primary)]">{panoText.infoTitle}</p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{panoText.infoMadeFrom(photo.panorama.sources.length)}</p>
-            <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
-              {photo.panorama.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
-            </ul>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{panoText.infoHow}</p>
-          </div>
-        )}
-        {photo.focusStack && (
-          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-focus-stack-info">
-            <p className="text-xs font-semibold text-[var(--text-primary)]">{stackText.infoTitle}</p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoMadeFrom(photo.focusStack.sources.length)}</p>
-            <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
-              {photo.focusStack.sources.map((name, i) => <li key={`${i}-${name}`} className="break-all">{name}</li>)}
-            </ul>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{stackText.infoHow}</p>
-          </div>
-        )}
-        {photo.hdrMerge && (
-          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-merge-info">
-            <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.infoTitle}</p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoMadeFrom(photo.hdrMerge.sources.length)}</p>
-            <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
-              {photo.hdrMerge.sources.map((source, i) => <li key={`${i}-${source.filename}`} className="break-all">{hdrText.infoExposure(source.filename, stopsLabel(source.ev))}</li>)}
-            </ul>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoHow}</p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
-          </div>
-        )}
-        {photo.bracket && onHdrMerge && !photo.hdrMerge && (
-          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-bracket-info">
-            <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.bracketTitle}</p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">
-              {hdrText.bracketFound(photo.bracket.photoIds.length, photo.bracket.ev.map(stopsLabel).join(', '))}{' '}
-              {photo.bracket.fromCamera ? hdrText.bracketFromCamera : hdrText.bracketFromExposures}
-            </p>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
-            <button type="button" onClick={() => onHdrMerge(photo.bracket!.photoIds)} title={hdrText.menuHint}
-              className="mt-1 inline-flex h-8 w-full items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]">
-              {hdrText.menu(photo.bracket.photoIds.length)}
-            </button>
-          </div>
-        )}
-        {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (
-          <div className="mt-2 space-y-1">
-            <button
-              type="button"
-              onClick={() => onSaveDngCopy(photo.id)}
-              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
-            >
-              <BrandIcon name="copy" size={14} />
-              <span>{STRINGS.dngCopy.button}</span>
-            </button>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.dngCopy.help}</p>
-          </div>
-        )}
-        <ExternalEditBlock photo={photo} editor={externalEditor} onSend={onEditInOtherApp} onStop={onStopExternalEdit} />
-      </section>
       </div>
       )}
     </div>
@@ -463,22 +484,4 @@ function ExternalEditBlock({ photo, editor, onSend, onStop }: {
       <p className="text-[0.6875rem] text-[var(--text-secondary)]">{words.help}</p>
     </div>
   );
-}
-
-/**
- * The file's own format. A RAW whose picture source is shown on the next row reads "NEF RAW" here, not "NEF Embedded
- * Preview": that row already says whether the picture is the camera's preview or InFlight's develop, and the two rows
- * contradicted each other once the develop arrived (Windows beta).
- */
-function fileFormatWords(photo: Photo): string {
-  const format = photo.exif.fileFormat;
-  const preview = / Embedded Preview$/;
-  return photo.picture?.preview && preview.test(format) ? format.replace(preview, ' RAW') : format;
-}
-
-type InfoTab = 'photo' | 'technical';
-const INFO_TAB_KEY = 'inflight.infoTab.v1';
-/** The tab last chosen on this device; the photograph's own tab the first time. */
-function readInfoTab(): InfoTab {
-  try { return localStorage.getItem(INFO_TAB_KEY) === 'technical' ? 'technical' : 'photo'; } catch { return 'photo'; }
 }

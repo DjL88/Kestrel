@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 /** The editor uses tabs on narrow or short screens, and a toolbar on larger workspaces. */
 const usesSheet = (page: Page) => {
@@ -83,4 +83,14 @@ export async function openV2Settings(page: Page) {
   const root = page.locator('.inflight-v2');
   await root.getByRole('navigation', { name: 'Application menus' }).getByRole('button', { name: 'File', exact: true }).click();
   await root.getByRole('menuitem', { name: 'Settings…' }).click();
+}
+
+/**
+ * The Export dialog keeps versions, file format, quality, size, 16-bit RAW, captions, saved settings and brand kits
+ * under Advanced (owner, 26 Nov). Opens it if it is closed; the device remembers it open after that.
+ */
+export async function openExportAdvanced(scope: Locator) {
+  const advanced = scope.getByTestId('export-advanced').first();
+  await advanced.waitFor();
+  if (!(await advanced.evaluate((details) => (details as HTMLDetailsElement).open))) await advanced.locator(':scope > summary').click();
 }

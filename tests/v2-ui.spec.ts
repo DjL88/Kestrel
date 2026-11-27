@@ -1,4 +1,4 @@
-import { openV2Settings } from './helpers';
+import { openExportAdvanced, openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -436,6 +436,7 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   // Real histogram: it reports what the pixels are, here 100% highlight clipping.
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   await expect(root.getByTestId('histogram-clipping')).toContainText('Highlights clipped 100%', { timeout: 30000 });
   // Zoom: the percentage opens a menu with 100% and Fit to screen.
   const zoom = root.getByTestId('zoom-percent');
@@ -807,7 +808,7 @@ test('?v2 Denoise runs on this device when not signed in and says so', async ({ 
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
   await root.getByRole('button', { name: 'Enhance', exact: true }).first().click();
-  await root.getByRole('button', { name: 'Denoise this photo' }).click();
+  await root.getByRole('button', { name: 'Run TrueDetail on this photo' }).click();
   await expect(root.getByText(/Denoised on this device|Left as it was/).first()).toBeVisible({ timeout: 30000 });
 });
 
@@ -829,11 +830,10 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  await openExportAdvanced(dialog);
   // The wording never passes a developed copy off as the original.
-  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await expect(dialog.getByRole('button', { name: /Before: unedited, developed to JPEG \(not the original file\)/ })).toBeVisible();
   // Original file only.
-  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
   await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
   const original = page.waitForEvent('download', { timeout: 60000 });
@@ -849,7 +849,7 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await page.waitForTimeout(500);
   if (!(await page.getByRole('dialog', { name: /export/i }).isVisible())) await root.getByRole('button', { name: /^Export/ }).first().click();
   const again = page.getByRole('dialog', { name: /export/i });
-  { const box = again.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
+  await openExportAdvanced(again);
   const states = await again.getByRole('button', { name: /Original file: exact copy/ }).getAttribute('aria-pressed');
   if (states === 'true') await again.getByRole('button', { name: /Original file: exact copy/ }).click();
   await again.getByRole('button', { name: /Before: unedited/ }).click();

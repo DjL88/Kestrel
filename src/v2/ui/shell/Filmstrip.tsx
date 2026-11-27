@@ -73,14 +73,14 @@ interface FilmstripProps {
   onCloseShootRoom?: () => void;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
   onTetherCamera?: () => void;
-  /** This project is a tethered (live) shoot: its live-shoot tools sit in this row. Otherwise one "Live shoot" button. */
-  liveShoot?: boolean;
-  onStartLiveShoot?: () => void;
   /** Import and sorting work under way, shown as a thin line along the top edge (absent or null: nothing running). */
   activity?: import('../utils/edgeActivity').EdgeActivity | null;
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
+  /** Focus mode: keep the row to photos, Import and Folder; Auto pick and the Culling Assistant move under More. */
+  focusRow?: boolean;
+  onSetFocusRow?: (on: boolean) => void;
   onExportSelected: () => void;
   /** Two selected photos open side by side. */
   onCompareSelected?: () => void;
@@ -152,12 +152,12 @@ export default function Filmstrip({
   onOpenShootRoom,
   onCloseShootRoom,
   onTetherCamera,
-  liveShoot = true,
-  onStartLiveShoot,
   liveFolder,
   activity = null,
   onRunAutoCull,
   onOpenCullAssistant,
+  focusRow = false,
+  onSetFocusRow,
   onExportSelected,
   onCompareSelected,
   onCreateCollage,
@@ -168,6 +168,17 @@ export default function Filmstrip({
   onChooseFromProject,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
+  const rowMoreRef = useRef<HTMLDetailsElement | null>(null);
+  const closeRowMore = () => { if (rowMoreRef.current) rowMoreRef.current.open = false; };
+  // The tools row scrolls sideways, which clips anything drawn outside it; the menu is placed on the screen instead,
+  // just above the More button (CI, 26 Nov: the canvas took the tap meant for the menu).
+  const [rowMoreAt, setRowMoreAt] = useState<{ left: number; bottom: number } | null>(null);
+  const placeRowMore = () => {
+    const details = rowMoreRef.current;
+    if (!details?.open) { setRowMoreAt(null); return; }
+    const box = details.getBoundingClientRect();
+    setRowMoreAt({ left: Math.max(8, Math.min(box.left, window.innerWidth - 264)), bottom: window.innerHeight - box.top + 4 });
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
@@ -183,8 +194,6 @@ export default function Filmstrip({
     return () => desktop.removeEventListener('change', reset);
   }, []);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
-  // A live session already running always shows, whatever kind of project this is.
-  const showLiveTools = liveShoot || Boolean(liveFolder) || Boolean(shootRoom);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
   const [moving, setMoving] = useState<string[] | null>(null);
@@ -314,7 +323,7 @@ export default function Filmstrip({
   return (
     <section
       aria-label={STRINGS.filmstripLabels.label1}
-      className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
+      className={`v2-filmstrip relative ${rowMoreAt ? 'z-40' : 'z-20'} flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none`}
     >
       <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activityText} edge="top" testId="filmstrip-progress" />
       {/* Top Resize Drag Bar */}
@@ -420,7 +429,7 @@ export default function Filmstrip({
                 {STRINGS.liveShoot.stop}
               </button>
             </span>
-          ) : showLiveTools && onWatchFolder && (
+          ) : onWatchFolder && (
             <button type="button" onClick={onWatchFolder} data-testid="filmstrip-watch-folder"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.watchHint}>
@@ -449,7 +458,7 @@ export default function Filmstrip({
                 {STRINGS.liveShoot.roomClose}
               </button>
             </span>
-          ) : showLiveTools && onOpenShootRoom && (
+          ) : onOpenShootRoom && (
             <button type="button" onClick={onOpenShootRoom} data-testid="filmstrip-open-room"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.roomHint}>
@@ -457,7 +466,7 @@ export default function Filmstrip({
               <span className="v2-compact-label">{STRINGS.liveShoot.room}</span>
             </button>
           )}
-          {showLiveTools && !liveFolder && onTetherCamera && (
+          {!liveFolder && onTetherCamera && (
             <button type="button" onClick={onTetherCamera} data-testid="filmstrip-tether-usb"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.usbHint}>
@@ -465,22 +474,12 @@ export default function Filmstrip({
               <span className="v2-compact-label">{STRINGS.liveShoot.usb}</span>
             </button>
           )}
-          {showLiveTools && !liveFolder && onReceiveFromCamera && (
+          {!liveFolder && onReceiveFromCamera && (
             <button type="button" onClick={onReceiveFromCamera} data-testid="filmstrip-receive-camera"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.liveShoot.receiveHint}>
               <BrandIcon name="camera-settings" size={13} />
               <span className="v2-compact-label">{STRINGS.liveShoot.receive}</span>
-            </button>
-          )}
-          {/* Tethering lives in tethered-shoot projects (Windows beta: it crowded every project's filmstrip). Elsewhere one
-              button turns this project into a live shoot and the tools appear. */}
-          {!showLiveTools && onStartLiveShoot && (onWatchFolder || onOpenShootRoom || onTetherCamera || onReceiveFromCamera) && (
-            <button type="button" onClick={onStartLiveShoot} data-testid="filmstrip-start-live-shoot"
-              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
-              title={STRINGS.liveShoot.startHint}>
-              <BrandIcon name="camera-settings" size={13} />
-              <span className="v2-compact-label">{STRINGS.liveShoot.start}</span>
             </button>
           )}
 
@@ -493,7 +492,7 @@ export default function Filmstrip({
             </button>
           )}
 
-          {!hideAutoCull && !collageMode && (
+          {!hideAutoCull && !collageMode && !focusRow && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -507,11 +506,43 @@ export default function Filmstrip({
             <ProBadge feature="smartCulling" />
           </button>
           )}
-          {onOpenCullAssistant && !hideAutoCull && !collageMode && (
+          {onOpenCullAssistant && !hideAutoCull && !collageMode && !focusRow && (
             <button type="button" onClick={onOpenCullAssistant} data-testid="open-cull-assistant"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap">
               <span>{CULL_ASSISTANT_LABEL}</span>
             </button>
+          )}
+          {onSetFocusRow && !collageMode && (
+            <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more" onToggle={placeRowMore}>
+              <summary aria-label={STRINGS.filmstrip.rowMoreLabel}
+                className="inline-flex h-7 cursor-pointer list-none items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <span aria-hidden="true">⋯</span>
+                <span>{STRINGS.filmstrip.rowMore}</span>
+              </summary>
+              <div style={rowMoreAt ? { left: rowMoreAt.left, bottom: rowMoreAt.bottom } : undefined}
+                className="fixed z-50 flex w-64 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1.5 shadow-[var(--shadow-popover)]">
+                {focusRow && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onRunAutoCull(); }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    <BrandIcon name="find-subject" size={13} />
+                    <span>{STRINGS.filmstrip.autoCull}</span>
+                    <ProBadge feature="smartCulling" />
+                  </button>
+                )}
+                {focusRow && onOpenCullAssistant && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onOpenCullAssistant(); }}
+                    className="inline-flex min-h-9 items-center rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {CULL_ASSISTANT_LABEL}
+                  </button>
+                )}
+                <button type="button" aria-pressed={!focusRow} data-testid="filmstrip-show-all-buttons"
+                  onClick={() => { closeRowMore(); onSetFocusRow(!focusRow); }}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  <BrandIcon name={focusRow ? 'checkbox-empty' : 'checkbox-checked'} size={14} />
+                  <span>{STRINGS.filmstrip.showAllButtons}</span>
+                </button>
+              </div>
+            </details>
           )}
         </div>
 
@@ -702,7 +733,7 @@ export default function Filmstrip({
                         const bounds = event.currentTarget.getBoundingClientRect();
                         setTileMenu({ x: bounds.left, y: bounds.bottom, photoId: photo.id });
                       }}
-                      className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)]/70 text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                      className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
                     >
                       <span aria-hidden="true">⋯</span>
                     </button>
