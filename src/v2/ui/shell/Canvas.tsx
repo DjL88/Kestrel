@@ -359,14 +359,23 @@ export default function Canvas({
     const board = stage.querySelector<HTMLElement>(':scope > [data-stage-margin], :scope > [data-testid="split-composition"], :scope > [data-testid="all-formats-board"]');
     if (!board) return;
     const box = board.getBoundingClientRect();
+    // The margins are the picture's, not the board's: the board also holds the size line above the frame and the
+    // buttons beside it, and margins taken from the board let a zoom-out near a corner scroll the picture past where it
+    // sat at Fit, so it jumped sideways (owner, 27 Nov). Each side gets the picture's Fit margin less what of the board
+    // is on that side of the frame, so scrolled to an edge the picture sits exactly where it did at Fit.
+    const frame = board.querySelector<HTMLElement>('[data-testid="canvas-frame"]');
+    const pic = frame ? anchorRect(frame) : box;
     const base = getComputedStyle(stage);
     const baseX = parseFloat(base.paddingLeft) || 0;
     const baseY = parseFloat(base.paddingTop) || 0;
-    const atFit = { width: box.width / canvasZoom, height: box.height / canvasZoom };
-    const x = Math.max(baseX, (stage.clientWidth - atFit.width) / 2);
-    const y = Math.max(baseY, (stage.clientHeight - atFit.height) / 2);
+    const z = canvasZoom;
+    const side = { left: pic.left - box.left, right: box.right - (pic.left + pic.width), top: pic.top - box.top, bottom: box.bottom - (pic.top + pic.height) };
+    // offsetWidth/Height, as Fit is measured: a scrollbar coming or going must not move the margins either.
+    const fitX = (stage.offsetWidth - box.width / z) / 2;
+    const fitY = (stage.offsetHeight - box.height / z) / 2;
+    const pad = (fit: number, near: number, min: number) => Math.max(min, fit + near / z - near);
     stage.dataset.basePad = `${baseX},${baseY}`;
-    stage.style.padding = `${y}px ${x}px`;
+    stage.style.padding = `${pad(fitY, side.top, baseY)}px ${pad(fitX, side.right, baseX)}px ${pad(fitY, side.bottom, baseY)}px ${pad(fitX, side.left, baseX)}px`;
   }, [canvasZoom, stageEl]);
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -537,12 +546,18 @@ export default function Canvas({
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
-      // The Fit margins added while zoomed in are not less room for the picture: measure inside the stage's own padding.
+      // Measured with any scrollbar counted as room (offsetWidth/Height). Zoom is a multiple of Fit, so when a scrollbar
+      // came and went as the picture crossed the stage's size, Fit shrank, the picture shrank, the scrollbar went, Fit
+      // grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%"). The Fit margins added while zoomed in are
+      // not less room either: measure inside the stage's own padding.
       const el = entry.target as HTMLElement;
       const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
-      if (el.style.padding && Number.isFinite(baseX) && Number.isFinite(baseY)) {
-        setStageSize({ width: el.clientWidth - 2 * baseX, height: el.clientHeight - 2 * baseY });
-      } else setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      const style = getComputedStyle(el);
+      const padX = el.style.padding && Number.isFinite(baseX) ? baseX : parseFloat(style.paddingLeft) || 0;
+      const padY = el.style.padding && Number.isFinite(baseY) ? baseY : parseFloat(style.paddingTop) || 0;
+      const width = Math.max(0, el.offsetWidth - 2 * padX);
+      const height = Math.max(0, el.offsetHeight - 2 * padY);
+      setStageSize((was) => (Math.abs(was.width - width) < 0.5 && Math.abs(was.height - height) < 0.5 ? was : { width, height }));
     });
     observer.observe(stage);
     return () => observer.disconnect();
@@ -1531,8 +1546,8 @@ export default function Canvas({
    * 100%: one picture pixel per screen pixel, centred on where the camera says it focused, else a clear eye, else the
    * subject, else the middle of the picture. Pressed again at 100%, it goes back to Fit.
    */
-  const zoomToActual = () => {
-    const next = keyboardZoomTarget('actual', canvasZoom, fitScale);
+  const zoomToActual = (cameraPointOnly = false) => {
+    const next = cameraPointOnly ? (fitScale ? 1 / fitScale : null) : keyboardZoomTarget('actual', canvasZoom, fitScale);
     if (next === null) return;
     if (next === 1 || !photo) { zoomAroundCentre(next); return; }
     const stage = stageRef.current;
@@ -1540,13 +1555,16 @@ export default function Canvas({
     const picture = frame ? pictureIn(frame) : null;
     const shown = picture ? (picture instanceof HTMLImageElement ? { width: picture.naturalWidth, height: picture.naturalHeight } : { width: picture.width, height: picture.height }) : null;
     const known = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus : null;
-    const focus = chooseActualFocus(activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null, known?.focus ?? null, known?.subject ?? null);
+    const cameraPoint = activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null;
+    // Zoom to focus point: the camera's own AF point and nothing else (Dave, 27 Nov).
+    if (cameraPointOnly && !cameraPoint) return;
+    const focus = cameraPointOnly ? chooseActualFocus(cameraPoint, null, null) : chooseActualFocus(cameraPoint, known?.focus ?? null, known?.subject ?? null);
     const at = frame ? focusOnScreen(frame, focus) : null;
     if (!stage || !at) { zoomAroundCentre(next); return; }
     const frameRect = anchorRect(frame!);
     keepAt.current = {
       fx: (at.clientX - frameRect.left) / frameRect.width, fy: (at.clientY - frameRect.top) / frameRect.height,
-      x: stage.clientWidth / 2, y: stage.clientHeight / 2,
+      x: stage.clientWidth / 2, y: stage.clientHeight / 2, zoom: next, at: performance.now(),
     };
     setEyeTarget((count) => count + 1);
     if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
@@ -1581,7 +1599,7 @@ export default function Canvas({
       view: { width: stage.clientWidth, height: stage.clientHeight },
     });
     setEyeNote({ text: focus.kind === 'eye' ? (focus.sure ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe) : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
-    keepAt.current = point;
+    keepAt.current = { ...point, zoom: target, at: performance.now() };
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
   };
@@ -2246,9 +2264,14 @@ export default function Canvas({
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
                   { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
+                  // The camera's own AF point, read from the file (the same data as "Show where the camera focused").
+                  { id: 'focus-point', label: STRINGS.canvas.zoomFocusPoint, run: () => zoomToActual(true), current: false,
+                    disabled: activeSize.kind !== 'photo' || compareMode || !photo.cameraFocus?.area,
+                    reason: !photo.cameraFocus?.area ? STRINGS.canvas.zoomFocusPointNone : undefined },
                   { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    title={'reason' in item ? item.reason : undefined}
                     data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}
                     className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">

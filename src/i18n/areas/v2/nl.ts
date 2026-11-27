@@ -548,6 +548,8 @@ export const nl: AreaTranslation<typeof source> = {
     zoomFitShort: "Passend",
     zoomActual: "100% (echte pixels)",
     zoomEye: "Zoom naar oog",
+    zoomFocusPoint: "Zoomen naar scherpstelpunt",
+    zoomFocusPointNone: "Dit bestand zegt niet waar de camera scherpstelde.",
     zoomSubject: "Zoom naar onderwerp",
     zoomCentre: "Zoom naar midden",
     zoomCurrent: "Nu",
