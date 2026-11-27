@@ -286,11 +286,11 @@
 .p-hawk2{background:#1f242d url(assets/photos/hawk-hills.jpg) center/cover no-repeat}
     .switch-price{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 24px}.switch-price>div{flex:1 1 240px;border:1px solid rgba(246,196,160,.18);border-radius:14px;padding:16px 18px;background:#171b22;display:grid;gap:4px}
     .switch-price .sp-free{border-color:#e8743c}.switch-price span{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:#9aa1ae}.switch-price b{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-size:1.7rem;font-weight:800}.switch-price small{color:#bfc6d2}
-    .frus{display:grid;max-width:900px}.frus div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;padding:12px 0;border-bottom:1px solid #262c36}.frus i{color:#9aa1ae}
+    .frus{display:grid}.frus div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:12px 0;border-bottom:1px solid #262c36}.frus i{color:#9aa1ae}
     @media(max-width:620px){.frus div{grid-template-columns:1fr;gap:4px}}
         .band+section{margin-top:56px}
         .band .promises{margin-inline:auto;padding:0}
-        #colour,#features,#inside,#switch{margin-top:72px}
+        #colour,#features,#switch,#who{margin-top:72px}
         .carousel{position:relative}
         .car-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 60px)/4);gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:12px;scrollbar-width:thin;overscroll-behavior-x:contain}
         .car-track>*{scroll-snap-align:start;min-width:0}
@@ -309,6 +309,7 @@
         .matrix thead th:not(:first-child),.matrix td{text-align:center}
         .matrix td.pro-only{font-size:.85rem}
         .plan-icon{width:40px;height:40px;border-radius:10px;vertical-align:middle;margin-right:10px}
+        .th-icon{display:block;width:28px;height:28px;border-radius:7px;margin:0 auto 6px}
         .install-link{margin-top:18px}
         /* Home page layout */
         .skip{position:absolute;left:12px;top:-60px;background:var(--ivory);color:var(--canvas);padding:10px 14px;border-radius:8px;z-index:20;font-weight:700}
@@ -622,7 +623,18 @@
 
   <section id="features" class="wrap" aria-labelledby="features-title">
     <div class="car-head"><h2 id="features-title">See it in action</h2><div class="car-btns"><button type="button" data-car="prev" aria-label="Previous" aria-controls="features-track">‹</button><button type="button" data-car="next" aria-label="Next" aria-controls="features-track">›</button></div></div>
-    <div class="carousel"><div class="car-track" id="features-track" tabindex="0" role="region" aria-label="Feature examples, scroll sideways">
+    <div class="carousel"><div class="car-track" id="features-track" tabindex="0" role="region" aria-label="Feature examples, scroll sideways"><article class="step"><div class="ifx ifx-card ifx-run" role="img" aria-label="A burst of three near-identical kingfisher frames is grouped as look-alikes. They open side by side; a box shows where the camera focused, and the pointer marks one frame as the Pick. The others stay, nothing is deleted.">
+  <div class="ifx-a p-kfsplash" style="left:5%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;background-position:40% 50%;background-size:cover"></div>
+  <div class="ifx-a p-kfsplash" style="left:36%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;outline:2px solid #e8743c;outline-offset:2px;background-position:46% 50%;background-size:cover"><span class="ifx-a" style="left:18%;top:26%;width:24%;height:19%;border:2px solid #f4efe8;border-radius:3px;box-shadow:0 0 0 1px #0e1116;animation-name:nxShow2"></span><span class="ifx-a ifx-chip" style="left:6%;bottom:6%;font-size:2.6cqw;animation-name:nxShow3">★ Pick</span></div>
+  <div class="ifx-a p-kfsplash" style="left:67%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;background-position:52% 50%;background-size:cover;filter:blur(.6px)"></div>
+  <span class="ifx-a ifx-chip" style="left:5%;top:82%;font-size:2.8cqw;animation-name:nxShow">Look-alikes · 3 frames</span>
+  <span class="ifx-a ifx-chip ifx-accent" style="left:44%;top:82%;font-size:2.8cqw;animation-name:nxShow4">Others kept, not deleted</span>
+  <div class="ifx-cur" style="animation-name:fmCur"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-6 1.5L10 20z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.5"/></svg></div>
+</div>
+        <h3>Ten frames of the same dive? Pick one.</h3>
+        <p>Look-alike frames are grouped and shown side by side. On recent Nikon Z bodies a box shows where the camera focused. You make the call, and it can be undone.</p>
+      </article>
+
       <article class="step"><div class="ifx ifx-card ifx-run" role="img" aria-label="Two bird photos are checked on the device and named: Atlantic puffin and Kingfisher. A note says that when InFlight is not sure, it says so and keeps the photo for review.">
   <div class="ifx-a ifx-ph real p-puffin" style="left:4%;top:8%;width:56%;height:84%;border-radius:8px">
     <svg style="display:none" class="nx-bird" viewBox="0 0 60 40" style="left:30%;top:22%;width:42%"><ellipse cx="30" cy="24" rx="14" ry="11" fill="#14161b"/><ellipse cx="31" cy="27" rx="9" ry="8" fill="#f4efe8"/><circle cx="40" cy="14" r="7" fill="#14161b"/><circle cx="41" cy="14" r="4.5" fill="#e9e6df"/><path d="M46 12l8 3-8 4z" fill="#e8743c"/><circle cx="41.5" cy="13" r="1.1" fill="#14161b"/></svg>
@@ -741,17 +753,6 @@
     </div></div>
   </section>
 
-  <section id="inside" class="wrap" aria-labelledby="inside-title">
-    <div class="car-head"><h2 id="inside-title" data-i18n="insideTitle">What's inside</h2><div class="car-btns"><button type="button" data-car="prev" aria-label="Previous" aria-controls="inside-track">‹</button><button type="button" data-car="next" aria-label="Next" aria-controls="inside-track">›</button></div></div>
-    <div class="carousel"><div class="car-track" id="inside-track" tabindex="0" role="region" aria-label="What's inside, scroll sideways">
-      <article class="card"><h3 data-i18n="inCullTitle">Smart culling</h3><p data-i18n="inCullBody">Bursts and look-alike frames are grouped so you compare them side by side. On recent Nikon Z bodies it also draws a box on the photo where the camera focused. You make the call, and any pick can be undone.</p></article>
-      <article class="card"><h3 data-i18n="inSubjectTitle">Subject identification</h3><p data-i18n="inSubjectBody">Names bird species and tags aircraft and vehicles, so you can search a shoot by what is in it. When it isn't sure, it says so.</p></article>
-      <article class="card"><h3 data-i18n="inSocialTitle">Social formats</h3><p data-i18n="inSocialBody">Set up the crops and sizes you post at, once. One edit then exports to every format, each with its own crop.</p></article>
-      <article class="card"><h3 data-i18n="inColourTitle">ColourSense</h3><p data-i18n="inColourBody">Colour notes measured from the photo itself, not your screen, and told in plain words. Colour-blind photographers can edit with confidence.</p></article>
-      <article class="card"><h3 data-i18n="inMaskTitle">Masking, before and after, denoise</h3><p data-i18n="inMaskBody">Adjust just part of a photo, compare before and after, and clean up noise. Nothing is generated: no invented pixels.</p></article>
-      <article class="card"><h3 data-i18n="inOverlayTitle">Custom overlays and watermarks</h3><p data-i18n="inOverlayBody">Save your logo, colours and text style as a brand kit, and Export puts them on every photo in one step.</p></article>
-    </div></div>
-  </section>
 
   <section id="switch" class="wrap" aria-labelledby="switch-title">
     <h2 id="switch-title">Ditch the big subscription</h2>
@@ -772,7 +773,6 @@
 
   <section id="who" class="wrap" aria-labelledby="who-title">
     <h2 id="who-title" data-i18n="whoTitle">Who it's for</h2>
-    <p class="lead" data-i18n="whoBody">Anyone: beginners, pros, or just for fun. Every on-device tool is free, with no limit. Signed in, Basic adds 500 photos a month on the cloud runner, and Pro 5,000, with room to grow.</p>
     <ul class="tags" data-i18n-attr="aria-label:whoListLabel" aria-label="Made for">
       <li data-i18n="whoLevels">Beginners and pros</li><li data-i18n="whoColour">Colour-blind photographers</li><li data-i18n="whoNeuro">Neurodivergent photographers</li><li data-i18n="whoWildlife">Wildlife</li><li data-i18n="whoAircraft">Aircraft</li><li data-i18n="whoBoats">Boats</li><li data-i18n="whoVehicles">Vehicles</li><li data-i18n="whoWeddings">Weddings</li><li class="more" data-i18n="whoMore">And more</li>
     </ul>
@@ -833,7 +833,7 @@
     <div class="table-wrap" tabindex="0" role="region" data-i18n-attr="aria-label:matrixCaption" aria-label="Features in InFlight Basic and InFlight Pro">
       <table class="matrix">
         <caption class="sr-only" data-i18n="matrixCaption">Features in InFlight Basic and InFlight Pro</caption>
-        <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col" data-i18n="matrixBasic">Basic (free)</th><th scope="col" data-i18n="matrixPro">Pro</th></tr></thead>
+        <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixBasic">Basic (free)</span></th><th scope="col"><img class="th-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="28" height="28"><span data-i18n="matrixPro">Pro</span></th></tr></thead>
         <tbody>
         <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowCull">Cull and compare by hand: Keep, Reject, side-by-side</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
