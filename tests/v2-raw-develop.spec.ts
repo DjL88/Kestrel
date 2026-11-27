@@ -4,6 +4,33 @@ import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
 import { proveTiff16 } from '../src/core/tiff16Proof';
 import { provePng } from '../src/core/png16';
+
+// When a test here fails, say why in the report: what Tasks shows (a failed export or develop says its reason there),
+// and any notice. CI's page snapshot leaves the Tasks panel closed, so "RAW TIFF export failed. Open Tasks to see why."
+// was all a failure said (27 Nov 2026, intermittent on CI, not reproduced locally in 6 runs).
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  const studio = page.locator('.inflight-v2');
+  const lines: string[] = [];
+  try {
+    const tasks = studio.getByRole('button', { name: /^Tasks/ }).first();
+    if (await tasks.isVisible({ timeout: 2_000 })) {
+      await tasks.click({ timeout: 2_000 });
+      await page.waitForTimeout(500);
+      // Finished work is on its own tab; read both.
+      for (const tab of ['Active', 'Completed']) {
+        const button = studio.getByRole('button', { name: new RegExp(`^${tab}`) }).first();
+        if (await button.isVisible({ timeout: 1_000 }).catch(() => false)) await button.click({ timeout: 1_000 }).catch(() => undefined);
+        lines.push(`== ${tab}`, ...(await studio.getByTestId('task-row').allInnerTexts().catch(() => [] as string[])));
+      }
+    }
+    lines.push('== notices', ...(await page.getByRole('status').allInnerTexts().catch(() => [] as string[])));
+  } catch (problem) {
+    lines.push(`(could not read Tasks: ${problem})`);
+  }
+  await testInfo.attach('tasks-at-failure', { body: lines.join('\n'), contentType: 'text/plain' });
+  console.log(`[${testInfo.title}] tasks at failure:\n${lines.join('\n')}`);
+});
 test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }, testInfo) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
