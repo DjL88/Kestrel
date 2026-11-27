@@ -150,6 +150,8 @@ export interface AppOptions {
   safety?: { service: SafetyService };
   /** Signed compliance documents (risk assessments) in their own private bucket. Absent: the /admin routes answer 503. */
   compliance?: ComplianceDocuments;
+  /** Injected for tests: where the technical overview Markdown is read from. Defaults to docs/TECHNICAL-OVERVIEW.md. */
+  technicalOverviewPath?: string | URL;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
   requireAdminSwitch?: boolean;
 }
