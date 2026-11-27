@@ -21,7 +21,9 @@ interface EnhancePanelProps {
   photo: Photo | null;
   hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
-  onDenoise?: (photoId: string) => void;
+  onDenoise?: (photoId: string, options?: { anyway?: boolean }) => void;
+  /** Why the last Denoise changed nothing: no visible noise (offers "Denoise anyway") or a RAW not developed yet. */
+  denoiseStatus?: { photoId: string; state: 'no-visible-noise' | 'waiting-develop'; text: string };
   /** This photo's TrueDetail job while it waits or runs: shown on the button that started it. */
   trueDetail?: TrueDetailJob | null;
   /** Show the selected format exactly as export will make it, Output scale included. Absent where there is no engine. */
@@ -43,7 +45,7 @@ export default function EnhancePanel({
   photo,
   hideReadouts,
   onUpdateRecipe,
-  onDenoise, onPreviewEnlargement,
+  onDenoise, onPreviewEnlargement, denoiseStatus,
   trueDetail = null,
   cloudEnabled = false,
 }: EnhancePanelProps) {
@@ -52,6 +54,9 @@ export default function EnhancePanel({
   }
 
   const recipe = getActiveGroup(photo).recipe;
+  // A RAW being developed from its sensor data cannot be measured yet: the button says to wait rather than start a job that would only wait.
+  const waitingForDevelop = photo.fullDevelop === 'running';
+  const status = denoiseStatus && denoiseStatus.photoId === photo.id ? denoiseStatus : null;
 
   return (
     <div className="space-y-5">
@@ -68,15 +73,35 @@ export default function EnhancePanel({
               type="button"
               data-testid="truedetail-run"
               onClick={() => onDenoise(photo.id)}
-              disabled={Boolean(trueDetail)}
-              aria-busy={Boolean(trueDetail)}
+              disabled={Boolean(trueDetail) || waitingForDevelop}
+              aria-busy={Boolean(trueDetail) || waitingForDevelop}
               className="relative h-8 w-full overflow-hidden rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)] disabled:cursor-progress disabled:bg-[var(--brand-accent-soft)] disabled:text-[var(--text-primary)]"
             >
               {trueDetail?.state === 'running' && (
                 <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-[var(--brand-accent)] opacity-40" style={{ width: `${trueDetail.percent}%` }} />
               )}
-              <span className="relative">{trueDetail ? (trueDetail.state === 'running' ? STRINGS.enhance.trueDetailRunning(trueDetail.percent) : STRINGS.enhance.trueDetailQueued) : STRINGS.enhance.denoiseNow}</span>
+              <span className="relative">{trueDetail ? (trueDetail.state === 'running' ? STRINGS.enhance.trueDetailRunning(trueDetail.percent) : STRINGS.enhance.trueDetailQueued) : waitingForDevelop ? STRINGS.enhance.denoiseWaitDevelop : STRINGS.enhance.denoiseNow}</span>
             </button>
+            {waitingForDevelop && !trueDetail && <p role="status" data-testid="denoise-wait-develop" className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.enhance.denoiseWaitDevelopNote}</p>}
+            {/* What the last Denoise found, in words (not colour): the measured noise when it saw none, with a gentle way to go on anyway. */}
+            {status && !trueDetail && !waitingForDevelop && (
+              <div className="space-y-1.5" data-testid="denoise-status">
+                <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{status.text}</p>
+                {status.state === 'no-visible-noise' && (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="denoise-anyway"
+                      onClick={() => onDenoise(photo.id, { anyway: true })}
+                      className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-3 text-xs font-medium text-[var(--text-primary)]"
+                    >
+                      {STRINGS.enhance.denoiseAnyway}
+                    </button>
+                    <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.enhance.denoiseAnywayNote}</p>
+                  </>
+                )}
+              </div>
+            )}
             {trueDetail && <p role="status" className="sr-only">{trueDetail.state === 'running' ? STRINGS.enhance.trueDetailRunning(trueDetail.percent) : STRINGS.enhance.trueDetailQueued}</p>}
             <p className="text-[0.6875rem] text-[var(--text-muted)]">
               {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
