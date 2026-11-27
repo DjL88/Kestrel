@@ -157,6 +157,8 @@ export const fr: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Le débruitage n’a pas pu démarrer.',
     suggestionStale: 'La photo a changé après cette suggestion. Attendez une nouvelle vérification.',
     checkTask: (filename) => `Vérification de ${filename} et de sa couleur`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} aurait fait ${w} × ${h} px, moins que son original de ${ew} × ${eh} px : il n’a donc pas été exporté. Le développement en pleine résolution n’était pas disponible ; rien de plus petit n’a été enregistré. Réessayez quand les tâches sont calmes.`,
+    originalCropped: (name, w, h) => `${name} : original exporté en ${w} × ${h} px, la partie de la photo que montre son recadrage d’original.`,
     checkStage: 'Examen de l’exposition, de la couleur et de la scène',
     secondOpinionStage: "Second avis du modèle visuel sur l'appareil",
     checkFailed: 'Impossible de vérifier cette photo. Détails dans Tâches.',

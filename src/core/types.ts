@@ -150,6 +150,11 @@ export interface PhotoFrame {
   speciesScanVersion?: number;
   /** Where the automatic species name was matched against (the project's place when it was named). Absent on older photos: not known. */
   speciesArea?: import('./speciesArea').SpeciesArea;
+  /** The species model's own best guess when it was not sure enough to name the photo alone, kept only at or above
+   * src/core/speciesNearby.ts GUESS_FLOOR. Lets sure shots taken at the same moment confirm it. Never shown as a name by itself. */
+  speciesGuess?: import('./speciesNearby').SpeciesGuess;
+  /** The automatic name came from sure shots taken at the same moment that agreed with this photo's own guess. */
+  speciesNearby?: boolean;
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;

@@ -1,6 +1,7 @@
 import { useConnectivity } from './providers/useConnectivity';
 import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { keepGuess, type SpeciesGuess } from './core/speciesNearby';
 import { familyFallback, gateAgreesWithSpecies, kindCandidates, qualifiesForAutoTag, speciesGroupsForRoute, scanCandidates, scanPatch } from './core/autoTags';
 import { isDesktopApp } from './providers/desktopShell';
 import { SPECIES_MODEL } from './core/speciesModel';
@@ -34,7 +35,7 @@ import type { SpeciesLabel } from './core/speciesMatch';
 import { engineScheduler, personWorkClear } from './core/engineScheduler';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
-type SpeciesPatch = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading; speciesArea?: PhotoFrame['speciesArea'] };
+type SpeciesPatch = ReturnType<typeof scanPatch> & { speciesGuess?: SpeciesGuess; vehicle?: VehicleReading; speciesArea?: PhotoFrame['speciesArea'] };
 export type ScanResult = SpeciesPatch
   /** The kind check on its own (no species model offered): the kind only, never a name. */
   | { kindChecked: true; subjectKind?: PhotoFrame['subjectKind'] };
@@ -229,6 +230,11 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
               if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
               // The place the name was matched against is kept beside it, and shown with it.
               if (patch.tags?.length) patch = { ...patch, speciesArea: usedArea };
+              // Not sure enough to name it alone, and nothing disagreed: keep the model's own guess (unpersonalised) when it is a
+              // fair one, so sure shots taken at the same moment can confirm it (src/core/speciesNearby.ts). A low guess is dropped.
+              const own = agrees && labels.length > 1 && !qualified && !family && permitsAutomaticSpeciesTag(outcome.species) ? rankSpecies(embedding, labels, vectors)[0] : undefined;
+              const guess = !patch.tags?.length && own && kindFor(own.label) === 'wildlife' ? keepGuess({ name: own.label.common, probability: own.probability }) : undefined;
+              if (guess) patch = { ...patch, speciesGuess: guess };
               // While the place is unanswered, a confident match from outside the project's regions raises the one
               // small question "Where were these taken?". Nothing is named from it.
               if (agrees && permitsAutomaticSpeciesTag(outcome.species) && latest.current.checkOutside && latest.current.onOutsideRegion) {

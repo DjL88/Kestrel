@@ -63,3 +63,18 @@ test('the detector uses about half the cores, between one and four workers', () 
   assert.equal(detectorWorkerCount(64), 4);
   assert.equal(detectorWorkerCount(NaN), 1);
 });
+
+test('the sharpness crop is the box with 10% room, kept inside the picture, measured at most 160 px across', async () => {
+  const { sharpnessCrop } = await import('./objectDetection.ts');
+  // The same crop the page used to work out inline before the work moved to the detector's workers.
+  const old = (w: number, h: number, box: { x: number; y: number; w: number; h: number }) => {
+    const pad = 0.1;
+    const x = Math.max(0, box.x - box.w * pad), y = Math.max(0, box.y - box.h * pad);
+    const cw = Math.min(w - x, box.w * (1 + 2 * pad)), ch = Math.min(h - y, box.h * (1 + 2 * pad));
+    const scale = Math.min(1, 160 / Math.max(cw, ch));
+    return { region: { x, y, w: cw, h: ch }, width: Math.max(4, Math.round(cw * scale)), height: Math.max(4, Math.round(ch * scale)) };
+  };
+  for (const [w, h, box] of [[2400, 1600, { x: 800, y: 400, w: 600, h: 500 }], [640, 480, { x: 0, y: 0, w: 40, h: 30 }], [6000, 4000, { x: 5900, y: 3950, w: 100, h: 50 }]] as const) {
+    assert.deepEqual(sharpnessCrop(w, h, box), old(w, h, box));
+  }
+});
