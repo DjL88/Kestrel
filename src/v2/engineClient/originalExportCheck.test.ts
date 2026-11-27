@@ -26,6 +26,8 @@ test('an Original delivered smaller than promised is refused (the owner\'s 4000 
   assert.deepEqual(originalExportCheck(requested, DEFAULT_CROP, { width: 2723, height: 1819 }), { kind: 'short', expected: { width: 4000, height: 2672 } });
   assert.equal(originalExportCheck(requested, DEFAULT_CROP, { width: 4000, height: 2672 }).kind, 'full');
   assert.equal(originalExportCheck(requested, DEFAULT_CROP, { width: 3999, height: 2671 }).kind, 'full', 'one pixel of rounding is the same size');
+  // The owner's real case: a 2740 x 1830 crop (measured on the screen picture) exported at 2723 x 1819 from the sensor.
+  assert.equal(originalExportCheck({ width: 2740, height: 1830 }, DEFAULT_CROP, { width: 2723, height: 1819 }).kind, 'full');
 });
 
 test('an Original smaller only because the person zoomed its crop is allowed, and said', () => {

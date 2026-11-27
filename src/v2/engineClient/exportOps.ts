@@ -57,8 +57,10 @@ export function originalExportCheck(
   produced: { width: number; height: number },
 ): { kind: 'full' } | { kind: 'cropped'; expected: { width: number; height: number } } | { kind: 'short'; expected: { width: number; height: number } } {
   const expected = effectiveOutputSize({ ...requested, crop }, requested);
-  // One pixel of rounding either way is the same size.
-  const fits = (got: number, want: number) => got >= want - 1;
+  // Within 5%: the person's own crop is measured on the screen picture and the export on the sensor picture, which can
+  // differ by a few pixels (a 2740 x 1830 crop exported at 2723 x 1819). A source that was not the full develop is far
+  // smaller (a screen-size develop is half the sensor's width).
+  const fits = (got: number, want: number) => got >= Math.floor(want * 0.95);
   if (!fits(produced.width, expected.width) || !fits(produced.height, expected.height)) return { kind: 'short', expected: { width: expected.width, height: expected.height } };
   return expected.capped ? { kind: 'cropped', expected: { width: expected.width, height: expected.height } } : { kind: 'full' };
 }
