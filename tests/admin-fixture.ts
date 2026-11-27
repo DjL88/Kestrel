@@ -1,5 +1,21 @@
 import type { Page } from '@playwright/test';
-import { SWITCHES } from '../services/control-plane/src/appShared.ts';
+
+// A copy of the server's switch names (services/control-plane/src/appShared.ts SWITCHES). Not imported: that file pulls
+// in the control plane's own packages, which the root type check does not have.
+const SWITCHES: Array<{ key: string; label: string; note: string; planned?: boolean }> = [
+  { key: 'managed-ai', label: 'Online photo helper', note: 'Lets people ask Google Gemini about one photo at a time, only if they agree. It sends a small copy with no camera or location details. Costs count towards the monthly spending cap.' },
+  { key: 'cloud-processing', label: 'Cloud editing power', note: 'Runs heavy jobs (noise removal, enlarging, masks) in the cloud for Pro. Costs count towards the monthly spending cap.' },
+  { key: 'safe-copy', label: 'Safe copy (backup)', note: 'People can choose to back up to InFlight\'s UK storage. Off stops new backups only; people can always see and delete their copy.' },
+  { key: 'learning-signal', label: 'Share corrections to improve InFlight', note: 'People can choose to share anonymous fixes they make. Off stops sharing; opting out and deleting keep working.' },
+  { key: 'pro-checkout', label: 'Selling Pro', note: 'People can subscribe to Pro, monthly or yearly, through Paddle, which handles the tax. Off stops new sign-ups only; existing subscribers keep Pro.' },
+  { key: 'cloud-top-ups', label: 'Cloud top-ups', note: 'People can add £5, £10 or £20 of cloud credit through Paddle. Off stops new top-ups only; credit already bought still works.' },
+  { key: 'email', label: 'Emails from InFlight', note: 'Sends share invitations, and alerts or news only when a phone alert cannot reach someone. Stays under Google\'s daily limit. No address is stored.' },
+  { key: 'push', label: 'Phone and browser alerts', note: 'Tells people about comments and client feedback on shared projects, where they turned alerts on. Names and counts only, never comment text or photos.' },
+  { key: 'product-news', label: 'News to everyone', note: 'Lets you send InFlight news from Messages: as an alert where people allow it, or by email if they asked for email news.' },
+  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and hand photos over to edit. Off stops new sharing; members can still see past versions.' },
+  { key: 'vertex-learning', label: 'Model training', note: 'Trains InFlight\'s shared models from measurements and decisions people agreed to share, never photos. Runs in batches and refuses any batch that would pass £20 this month.' },
+  { key: 'pro-cloud-storage', planned: true, label: 'Pro cloud storage (not built yet)', note: 'Would keep a project\'s originals in InFlight\'s UK cloud to open anywhere. Cannot be switched on until it is built and you approve the cost.' },
+];
 
 // Synthetic data for the admin console tests: made-up accounts, amounts and messages, nothing real.
 const T = Date.parse('2026-11-27T09:00:00Z');
@@ -37,7 +53,7 @@ export const ADMIN_DATA: Record<string, unknown> = {
   } },
   // The server's own switch names and notes (services/control-plane/src/appShared.ts), so the page is shown as it really reads.
   '/v1/admin/switches': { switches: SWITCHES.map((w) => ({ key: w.key, label: w.label, note: w.note,
-    on: ['managed-ai', 'push', 'email', 'collaboration'].includes(w.key), configured: !('planned' in w) && w.key !== 'learning-signal' })) },
+    on: ['managed-ai', 'push', 'email', 'collaboration'].includes(w.key), configured: !w.planned && w.key !== 'learning-signal' })) },
   '/v1/admin/paddle/key': { rotatedAt: '2026-11-24T03:00:00Z', expiresAt: '2027-02-22T03:00:00Z', activated: true, lastRunAt: '2026-11-24T03:00:00Z', lastRunOk: true, lastRunReason: null },
   '/v1/admin/mail': { on: true, day: '2026-11-27', sent: 3, cap: 450, account: 'gmail', from: null, providerLimit: 500, warn: false },
   '/v1/admin/learning': { on: false, newPhotos: 120, photoThreshold: 1000, lastRunAtMs: null, manualRequested: false, running: false, month: '2026-11', reservedPence: 0, ceilingPence: 2000, runReservePence: 500, runs: [] },
