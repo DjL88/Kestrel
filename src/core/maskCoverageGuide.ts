@@ -14,13 +14,17 @@ export function isHatchStripe(x: number, y: number): boolean {
 /** A bounded, translucent view of the actual local adjustment weights. Independent of slider values:
  * an unedited new mask still shows where it will apply. Hidden/missing masks show no guide.
  * Stronger diagonal stripes over a lighter tint, both scaled by the real weight, so the pattern fades with the effect. */
+/** The hatched area is drawn at most this size; the outline finer, so its line stays smooth when the picture is shown large. */
+export const FILL_EDGE = 384;
+export const OUTLINE_EDGE = 1024;
+
 /** How the guide shows the mask: a line round where it applies (the default), or the hatched area. */
 export type MaskGuideStyle = 'outline' | 'fill';
 
 export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number, style: MaskGuideStyle = 'fill') {
   const mask = masks.find(item => item.id === maskId && !item.hidden);
   if (!mask || !Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) return null;
-  const scale = Math.min(1, 384 / Math.max(sourceWidth, sourceHeight));
+  const scale = Math.min(1, (style === 'outline' ? OUTLINE_EDGE : FILL_EDGE) / Math.max(sourceWidth, sourceHeight));
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
   const weights = effectiveAlpha(mask, masks, width, height, { aspect: sourceHeight / sourceWidth, view: { x: 0, y: 0, w: 1, h: 1 } });
@@ -34,29 +38,57 @@ export function maskCoverageGuide(masks: readonly Mask[], maskId: string, source
   return { width, height, rgba };
 }
 
-/** Where the mask is at least half strength. */
+/** The line follows where the mask is at half strength. */
 const OUTLINE_THRESHOLD = 0.5;
+/** Half the white line's width, and how far outside it the dark ring sits, in guide pixels. */
+const LINE_HALF = 1;
+const RING_CENTRE = 2;
+const RING_ALPHA = 220;
 
 /**
  * A line round the mask: a white core on the mask's edge with a dark ring just outside it, so the line reads on light
  * and dark photographs alike and the picture inside stays untouched. Shape, not colour, carries the meaning.
+ *
+ * Each pixel's distance to the half-strength edge comes from the weight and its slope there, so the line falls between
+ * pixels where the edge does and is drawn with soft sides: a smooth curve, not a staircase of whole pixels.
  */
 function outlineRgba(weights: Float32Array, width: number, height: number, rgba: Uint8ClampedArray): Uint8ClampedArray {
-  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && weights[y * width + x] >= OUTLINE_THRESHOLD;
-  const edge = new Uint8Array(width * height);
+  // A light blur first (two 3 x 3 passes; the half-strength edge stays where it is), so a hard-edged mask (a brush, an
+  // oval with no feather) has a slope to measure on both sides of its edge too.
+  const soft = boxBlur3(boxBlur3(weights, width, height), width, height);
+  const at = (x: number, y: number) => soft[Math.min(height - 1, Math.max(0, y)) * width + Math.min(width - 1, Math.max(0, x))];
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (inside(x, y) && (!inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1))) edge[y * width + x] = 1;
-    }
-  }
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
-      if (edge[i]) { rgba[i * 4] = 255; rgba[i * 4 + 1] = 255; rgba[i * 4 + 2] = 255; rgba[i * 4 + 3] = 255; continue; }
-      if (inside(x, y)) continue;
-      const nearEdge = (x > 0 && edge[i - 1]) || (x < width - 1 && edge[i + 1]) || (y > 0 && edge[i - width]) || (y < height - 1 && edge[i + width]);
-      if (nearEdge) { rgba[i * 4 + 3] = 220; } // black ring (rgb stays 0)
+      const gx = (at(x + 1, y) - at(x - 1, y)) / 2;
+      const gy = (at(x, y + 1) - at(x, y - 1)) / 2;
+      const slope = Math.hypot(gx, gy);
+      if (slope < 1e-4) continue;
+      // Signed distance to the edge in pixels: positive inside, negative outside.
+      const d = (at(x, y) - OUTLINE_THRESHOLD) / slope;
+      if (d > LINE_HALF + 0.5 || d < -(RING_CENTRE + LINE_HALF + 0.5)) continue;
+      const white = clamp01(LINE_HALF + 0.5 - Math.abs(d));
+      // The ring fills everything just outside the line, fading out at its outer side; the white line is laid over it.
+      const dark = d < 0 ? clamp01(RING_CENTRE + LINE_HALF + 0.5 + d) * (RING_ALPHA / 255) : 0;
+      const alpha = white + dark * (1 - white);
+      if (alpha <= 0) continue;
+      const i = (y * width + x) * 4;
+      const grey = Math.round((255 * white) / alpha);
+      rgba[i] = grey; rgba[i + 1] = grey; rgba[i + 2] = grey; rgba[i + 3] = Math.round(alpha * 255);
     }
   }
   return rgba;
+}
+
+function boxBlur3(values: Float32Array, width: number, height: number): Float32Array {
+  const across = new Float32Array(values.length);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const row = y * width;
+    across[row + x] = (values[row + Math.max(0, x - 1)] + values[row + x] + values[row + Math.min(width - 1, x + 1)]) / 3;
+  }
+  const out = new Float32Array(values.length);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    out[y * width + x] = (across[Math.max(0, y - 1) * width + x] + across[y * width + x] + across[Math.min(height - 1, y + 1) * width + x]) / 3;
+  }
+  return out;
 }
