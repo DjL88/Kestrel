@@ -983,6 +983,11 @@ export const da: AreaTranslation<typeof source> = {
     looksHint: 'Hold markøren over en stil for at se den i forhåndsvisning på dit foto.',
     lightToneHeading: 'Lys og toner',
     colourHeading: 'Farve og klarhed',
+    groupColour: "Farve",
+    groupDetail: "Detaljer",
+    groupChanged: "Ændret",
+    groupResetShort: "Nulstil",
+    groupReset: (name) => `Nulstil ${name}`,
     resetPhoto: 'Nulstil foto',
     stopsSuffix: 'EV',
     tooltips: {

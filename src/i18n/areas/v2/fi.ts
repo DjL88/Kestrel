@@ -984,6 +984,11 @@ export const fi: AreaTranslation<typeof source> = {
     looksHint: 'Vie osoitin kuvatyylin päälle nähdäksesi sen kuvassasi.',
     lightToneHeading: 'Valo ja sävy',
     colourHeading: 'Väri ja selkeys',
+    groupColour: "Väri",
+    groupDetail: "Yksityiskohdat",
+    groupChanged: "Muutettu",
+    groupResetShort: "Palauta",
+    groupReset: (name) => `Palauta ${name}`,
     resetPhoto: 'Palauta kuva',
     stopsSuffix: 'EV',
     tooltips: {

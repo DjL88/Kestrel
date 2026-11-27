@@ -983,6 +983,11 @@ export const nb: AreaTranslation<typeof source> = {
     looksHint: 'Hold pekeren over en fotostil for å se den på bildet ditt.',
     lightToneHeading: 'Lys og tone',
     colourHeading: 'Farge og klarhet',
+    groupColour: "Farge",
+    groupDetail: "Detaljer",
+    groupChanged: "Endret",
+    groupResetShort: "Tilbakestill",
+    groupReset: (name) => `Tilbakestill ${name}`,
     resetPhoto: 'Tilbakestill bildet',
     stopsSuffix: 'EV',
     tooltips: {

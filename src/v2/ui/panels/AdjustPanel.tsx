@@ -122,6 +122,9 @@ const ADVANCED_GROUPS: Array<{ id: AdvancedGroup; label: string }> = [
 /** On a phone only one group of sliders shows at a time (the pill tabs choose it); from 768px wide every slider shows, as before. */
 const phoneGroupClass = (active: AdvancedGroup, group: AdvancedGroup) => (active === group ? '' : 'max-md:hidden');
 
+import SliderGroup from './SliderGroup';
+import { groupChanged, groupResetPatch, readClosedGroups, writeClosedGroups, type SliderGroupId } from '../utils/sliderGroups';
+
 export default function AdjustPanel({
   photo,
   selectedPhotoCount,
@@ -143,6 +146,14 @@ export default function AdjustPanel({
 }: AdjustPanelProps) {
   const [activeTab, setActiveTab] = React.useState<'looks' | 'advanced'>('looks');
   const [advancedGroup, setAdvancedGroup] = React.useState<AdvancedGroup>('light');
+  const groupStore = () => { try { return window.localStorage; } catch { return null; } };
+  const [closedGroups, setClosedGroups] = React.useState<Set<SliderGroupId>>(() => readClosedGroups(typeof window === 'undefined' ? null : groupStore()));
+  const toggleGroup = (id: SliderGroupId) => setClosedGroups((was) => {
+    const next = new Set(was);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    writeClosedGroups(groupStore(), next);
+    return next;
+  });
   const previousPhotoId = React.useRef(photo?.id);
   React.useEffect(() => {
     if (previousPhotoId.current !== photo?.id) {
@@ -256,247 +267,244 @@ export default function AdjustPanel({
           <BrandIcon name="restore" size={14} />
         </button>
       </div>
-      {/* Light & Tone (Exposure up to ±5 stops + i hover lightboxes) */}
-      <section aria-labelledby="light-tone-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${advancedGroup === 'light' || advancedGroup === 'tone' ? '' : 'max-md:hidden'}`}>
-        <div className="flex items-center justify-between">
-          <h3 id="light-tone-heading" className="text-xs font-semibold text-[var(--text-primary)]">
-            {STRINGS.adjust.lightToneHeading}
-          </h3>
-          <button
-            type="button"
-            onClick={() => onResetPhoto(photo.id)}
-            className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
-          >
-            <BrandIcon name="restore" size={12} />
-            <span>{STRINGS.adjust.resetPhoto}</span>
-          </button>
-        </div>
-
-        <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
-          id="slider-exposure"
-          label="Exposure"
-          tooltip={STRINGS.adjust.tooltips.exposure}
-          value={recipe.exposure}
-          min={-5}
-          max={5}
-          step={0.1}
-          unit={` ${STRINGS.adjust.stopsSuffix}`}
-          leftHint="-5 EV"
-          rightHint="+5 EV"
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { exposure: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
-          id="slider-highlights"
-          label="Highlights"
-          tooltip={STRINGS.adjust.tooltips.highlights}
-          value={recipe.highlights}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { highlights: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
-          id="slider-shadows"
-          label="Shadows"
-          tooltip={STRINGS.adjust.tooltips.shadows}
-          value={recipe.shadows}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { shadows: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
-          id="slider-contrast"
-          label="Contrast"
-          tooltip={STRINGS.adjust.tooltips.contrast}
-          value={recipe.contrast}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { contrast: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
-          id="slider-whites"
-          label="Whites"
-          tooltip={STRINGS.adjust.tooltips.whites}
-          value={recipe.whites}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { whites: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
-          id="slider-blacks"
-          label="Blacks"
-          tooltip={STRINGS.adjust.tooltips.blacks}
-          value={recipe.blacks}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { blacks: v })}
-        /></div>
-      </section>
-
-      {/* Colour & Clarity */}
-      <section aria-labelledby="colour-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${advancedGroup === 'colour' || advancedGroup === 'detail' ? '' : 'max-md:hidden'}`}>
-        <h3 id="colour-heading" className="text-xs font-semibold text-[var(--text-primary)]">
-          {STRINGS.adjust.colourHeading}
-        </h3>
-
-        <div className={`space-y-1.5 ${phoneGroupClass(advancedGroup, 'colour')}`} data-testid="white-balance-tools">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button type="button" data-testid="wb-as-shot"
-              onClick={() => onUpdateRecipe(photo.id, { temperature: 0, tint: 0, whiteBalance: undefined })}
-              className="rounded border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
-              {STRINGS.adjust.kelvin.reset}
-            </button>
-            {onNeutralWhite && (
-              <button type="button" data-testid="wb-auto" onClick={() => onNeutralWhite(photo.id)}
+      {/* Advanced Edits in groups (Dave, 27 Nov: "group the edit sliders more distinctly"): each a labelled card that
+          opens and closes (remembered on this device), says "Changed" when any of its values is off its default, and
+          resets on its own. The whole-photo reset stays here, above them. Slider maths unchanged. */}
+      <div className="flex justify-end">
+        <button type="button" onClick={() => onResetPhoto(photo.id)}
+          className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
+          <BrandIcon name="restore" size={12} />
+          <span>{STRINGS.adjust.resetPhoto}</span>
+        </button>
+      </div>
+      <div className="space-y-3">
+      <SliderGroup id="adjust-light" title={STRINGS.adjust.lightToneHeading} open={!closedGroups.has('light')} onToggle={() => toggleGroup('light')}
+        changed={groupChanged(recipe, 'light')}
+        onReset={() => onUpdateRecipe(photo.id, groupResetPatch('light'))} className={advancedGroup === 'light' || advancedGroup === 'tone' ? '' : 'max-md:hidden'}>
+          <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
+            id="slider-exposure"
+            label="Exposure"
+            tooltip={STRINGS.adjust.tooltips.exposure}
+            value={recipe.exposure}
+            min={-5}
+            max={5}
+            step={0.1}
+            unit={` ${STRINGS.adjust.stopsSuffix}`}
+            leftHint="-5 EV"
+            rightHint="+5 EV"
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { exposure: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
+            id="slider-contrast"
+            label="Contrast"
+            tooltip={STRINGS.adjust.tooltips.contrast}
+            value={recipe.contrast}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { contrast: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
+            id="slider-highlights"
+            label="Highlights"
+            tooltip={STRINGS.adjust.tooltips.highlights}
+            value={recipe.highlights}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { highlights: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
+            id="slider-shadows"
+            label="Shadows"
+            tooltip={STRINGS.adjust.tooltips.shadows}
+            value={recipe.shadows}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { shadows: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
+            id="slider-whites"
+            label="Whites"
+            tooltip={STRINGS.adjust.tooltips.whites}
+            value={recipe.whites}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { whites: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
+            id="slider-blacks"
+            label="Blacks"
+            tooltip={STRINGS.adjust.tooltips.blacks}
+            value={recipe.blacks}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { blacks: v })}
+          /></div>
+      </SliderGroup>
+      <SliderGroup id="adjust-colour" title={STRINGS.adjust.groupColour} open={!closedGroups.has('colour')} onToggle={() => toggleGroup('colour')}
+        changed={groupChanged(recipe, 'colour')}
+        onReset={() => onUpdateRecipe(photo.id, groupResetPatch('colour'))} className={phoneGroupClass(advancedGroup, 'colour')}>
+          <div className={`space-y-1.5 ${phoneGroupClass(advancedGroup, 'colour')}`} data-testid="white-balance-tools">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button type="button" data-testid="wb-as-shot"
+                onClick={() => onUpdateRecipe(photo.id, { temperature: 0, tint: 0, whiteBalance: undefined })}
                 className="rounded border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
-                {STRINGS.adjust.neutral.auto}
+                {STRINGS.adjust.kelvin.reset}
               </button>
-            )}
-            {onSetWhitePicking && (
-              <button type="button" data-testid="wb-pick" aria-pressed={whitePicking} onClick={() => onSetWhitePicking(!whitePicking)}
-                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[0.6875rem] font-medium ${whitePicking ? 'border-[var(--brand-accent)] bg-[var(--brand-accent)] text-white' : 'border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand-accent)]'}`}>
-                <span aria-hidden="true">{whitePicking ? '✓' : '⊕'}</span>{STRINGS.adjust.neutral.pick}
-              </button>
-            )}
-            <InfoPopover title={STRINGS.adjust.kelvin.label} body={STRINGS.adjust.neutral.help} />
-          </div>
-          {(whitePicking || whiteNote) && (
-            <p role="status" data-testid="wb-note" className="text-[0.6875rem] text-[var(--text-secondary)]">
-              {whitePicking ? STRINGS.adjust.neutral.picking : whiteNote}
-            </p>
-          )}
-        </div>
-        {photo.asShotKelvin && (
-          <div className={phoneGroupClass(advancedGroup, 'colour')}>
-            <KelvinControl recipe={recipe} asShotK={photo.asShotKelvin} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
-          </div>
-        )}
-        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
-          id="slider-temperature"
-          label={photo.asShotKelvin ? STRINGS.adjust.kelvin.warmthLabel : 'Temperature'}
-          tooltip={STRINGS.adjust.tooltips.temperature}
-          value={recipe.temperature}
-          min={-100}
-          max={100}
-          leftHint={cvdGuidance ? 'Cooler (Blue)' : 'Cool'}
-          rightHint={cvdGuidance ? 'Warmer (Amber)' : 'Warm'}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { temperature: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
-          id="slider-tint"
-          label="Tint"
-          tooltip={STRINGS.adjust.tooltips.tint}
-          value={recipe.tint}
-          min={-100}
-          max={100}
-          leftHint={cvdGuidance ? STRINGS.panelWords.greenBias : undefined}
-          rightHint={cvdGuidance ? STRINGS.panelWords.magentaBias : undefined}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { tint: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
-          id="slider-vibrance"
-          label="Vibrance"
-          tooltip={STRINGS.adjust.tooltips.vibrance}
-          value={recipe.vibrance}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { vibrance: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
-          id="slider-saturation"
-          label="Saturation"
-          tooltip={STRINGS.adjust.tooltips.saturation}
-          value={recipe.saturation}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { saturation: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
-          id="slider-clarity"
-          label="Clarity"
-          tooltip={STRINGS.adjust.tooltips.clarity}
-          value={recipe.clarity}
-          min={-100}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { clarity: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
-          id="slider-sharpen"
-          label="Sharpen"
-          tooltip={STRINGS.adjust.tooltips.sharpen}
-          value={recipe.sharpen}
-          min={0}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
-          id="slider-capture-sharpen"
-          label={STRINGS.history.sliders.captureSharpen}
-          tooltip={STRINGS.adjust.tooltips.captureSharpen}
-          value={recipe.captureSharpen ?? 0}
-          min={0}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { captureSharpen: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
-        /></div>
-        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
-          id="slider-deblur"
-          label={STRINGS.history.sliders.deblur}
-          tooltip={STRINGS.adjust.tooltips.deblur}
-          value={recipe.deblur ?? 0}
-          min={0}
-          max={100}
-          hideReadouts={hideReadouts}
-          onChange={(v) => onUpdateRecipe(photo.id, { deblur: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
-        /></div>
-      </section>
-
-      {/* Effects: dehaze, vignette and grain (Detail group on a phone) */}
-      <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
-        <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
-        <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
-        <div className="border-t border-[var(--border-subtle)] pt-3">
-          <LensControls key={photo.id} recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onUseProfile={(download) => onApplyLensProfile(photo.id, download)} />
-        </div>
-        <div className="border-t border-[var(--border-subtle)] pt-3">
-          <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
-        </div>
-      </section>
-
-      {/* Tone curve (Tone group on a phone) and colour mixer (Colour group on a phone) */}
-      <section aria-label={STRINGS.adjust.curve.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'tone')}`}>
-        <ToneCurveControl recipe={recipe} calmView={hideReadouts} channels={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
-      </section>
-      <section aria-label={STRINGS.adjust.mixer.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'colour')}`}>
-        <ColourMixerControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
-      </section>
-      {showAdvanced ? (
-        <details open className={`group border-t border-[var(--border-subtle)] pt-3 ${phoneGroupClass(advancedGroup, 'colour')}`} data-testid="advanced-controls">
-          <summary className="cursor-pointer select-none text-[0.625rem] font-medium uppercase tracking-wide text-[var(--text-muted)]">{STRINGS.adjust.advanced.heading}</summary>
-          <div className="mt-3 space-y-3">
-            <ColourGradeControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
-            <div className="border-t border-[var(--border-subtle)] pt-3">
-              <CalibrationControl recipe={recipe} calmView={hideReadouts} pictureUrl={photo.previewUrl} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+              {onNeutralWhite && (
+                <button type="button" data-testid="wb-auto" onClick={() => onNeutralWhite(photo.id)}
+                  className="rounded border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+                  {STRINGS.adjust.neutral.auto}
+                </button>
+              )}
+              {onSetWhitePicking && (
+                <button type="button" data-testid="wb-pick" aria-pressed={whitePicking} onClick={() => onSetWhitePicking(!whitePicking)}
+                  className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[0.6875rem] font-medium ${whitePicking ? 'border-[var(--brand-accent)] bg-[var(--brand-accent)] text-white' : 'border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand-accent)]'}`}>
+                  <span aria-hidden="true">{whitePicking ? '✓' : '⊕'}</span>{STRINGS.adjust.neutral.pick}
+                </button>
+              )}
+              <InfoPopover title={STRINGS.adjust.kelvin.label} body={STRINGS.adjust.neutral.help} />
             </div>
+            {(whitePicking || whiteNote) && (
+              <p role="status" data-testid="wb-note" className="text-[0.6875rem] text-[var(--text-secondary)]">
+                {whitePicking ? STRINGS.adjust.neutral.picking : whiteNote}
+              </p>
+            )}
           </div>
-        </details>
-      ) : (recipe.colourGrade || recipe.channelCurves || recipe.calibration) && (
-        // Hidden is never discarded: say plainly that hidden adjustments are still on this photo.
-        <p className="border-t border-[var(--border-subtle)] pt-3 text-[0.6875rem] leading-snug text-[var(--text-muted)]" data-testid="advanced-hidden-note">
-          {STRINGS.adjust.advanced.hiddenActive}
-        </p>
-      )}
+          {photo.asShotKelvin && (
+            <div className={phoneGroupClass(advancedGroup, 'colour')}>
+              <KelvinControl recipe={recipe} asShotK={photo.asShotKelvin} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+            </div>
+          )}
+          <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
+            id="slider-temperature"
+            label={photo.asShotKelvin ? STRINGS.adjust.kelvin.warmthLabel : 'Temperature'}
+            tooltip={STRINGS.adjust.tooltips.temperature}
+            value={recipe.temperature}
+            min={-100}
+            max={100}
+            leftHint={cvdGuidance ? 'Cooler (Blue)' : 'Cool'}
+            rightHint={cvdGuidance ? 'Warmer (Amber)' : 'Warm'}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { temperature: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
+            id="slider-tint"
+            label="Tint"
+            tooltip={STRINGS.adjust.tooltips.tint}
+            value={recipe.tint}
+            min={-100}
+            max={100}
+            leftHint={cvdGuidance ? STRINGS.panelWords.greenBias : undefined}
+            rightHint={cvdGuidance ? STRINGS.panelWords.magentaBias : undefined}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { tint: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
+            id="slider-vibrance"
+            label="Vibrance"
+            tooltip={STRINGS.adjust.tooltips.vibrance}
+            value={recipe.vibrance}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { vibrance: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
+            id="slider-saturation"
+            label="Saturation"
+            tooltip={STRINGS.adjust.tooltips.saturation}
+            value={recipe.saturation}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { saturation: v })}
+          /></div>
+      </SliderGroup>
+      <SliderGroup id="adjust-detail" title={STRINGS.adjust.groupDetail} open={!closedGroups.has('detail')} onToggle={() => toggleGroup('detail')}
+        changed={groupChanged(recipe, 'detail')}
+        onReset={() => onUpdateRecipe(photo.id, groupResetPatch('detail'))} className={phoneGroupClass(advancedGroup, 'detail')}>
+          <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+            id="slider-clarity"
+            label="Clarity"
+            tooltip={STRINGS.adjust.tooltips.clarity}
+            value={recipe.clarity}
+            min={-100}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { clarity: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+            id="slider-sharpen"
+            label="Sharpen"
+            tooltip={STRINGS.adjust.tooltips.sharpen}
+            value={recipe.sharpen}
+            min={0}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+            id="slider-capture-sharpen"
+            label={STRINGS.history.sliders.captureSharpen}
+            tooltip={STRINGS.adjust.tooltips.captureSharpen}
+            value={recipe.captureSharpen ?? 0}
+            min={0}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { captureSharpen: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
+          /></div>
+          <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+            id="slider-deblur"
+            label={STRINGS.history.sliders.deblur}
+            tooltip={STRINGS.adjust.tooltips.deblur}
+            value={recipe.deblur ?? 0}
+            min={0}
+            max={100}
+            hideReadouts={hideReadouts}
+            onChange={(v) => onUpdateRecipe(photo.id, { deblur: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
+          /></div>
+      </SliderGroup>
+      <SliderGroup id="adjust-effects" title={STRINGS.adjust.effects.heading} open={!closedGroups.has('effects')} onToggle={() => toggleGroup('effects')}
+        changed={groupChanged(recipe, 'effects')}
+        onReset={() => onUpdateRecipe(photo.id, groupResetPatch('effects'))} className={phoneGroupClass(advancedGroup, 'detail')}>
+          <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+          <div className="border-t border-[var(--border-subtle)] pt-3">
+            <LensControls key={photo.id} recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onUseProfile={(download) => onApplyLensProfile(photo.id, download)} />
+          </div>
+          <div className="border-t border-[var(--border-subtle)] pt-3">
+            <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
+          </div>
+      </SliderGroup>
+      <SliderGroup id="adjust-curve" title={STRINGS.adjust.curve.heading} open={!closedGroups.has('curve')} onToggle={() => toggleGroup('curve')}
+        changed={groupChanged(recipe, 'curve')} className={phoneGroupClass(advancedGroup, 'tone')}>
+          <ToneCurveControl bare recipe={recipe} calmView={hideReadouts} channels={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+      </SliderGroup>
+      <SliderGroup id="adjust-mixer" title={STRINGS.adjust.mixer.heading} open={!closedGroups.has('mixer')} onToggle={() => toggleGroup('mixer')}
+        changed={groupChanged(recipe, 'mixer')} className={phoneGroupClass(advancedGroup, 'colour')}>
+          <ColourMixerControl bare recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+      </SliderGroup>
+        {showAdvanced ? (
+  <SliderGroup id="adjust-grading" title={STRINGS.adjust.grade.heading} open={!closedGroups.has('grading')} onToggle={() => toggleGroup('grading')}
+        changed={groupChanged(recipe, 'grading')}
+        testId="advanced-controls" className={phoneGroupClass(advancedGroup, 'colour')}>
+          <ColourGradeControl bare recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+          <div className="border-t border-[var(--border-subtle)] pt-3">
+            <CalibrationControl recipe={recipe} calmView={hideReadouts} pictureUrl={photo.previewUrl} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+          </div>
+      </SliderGroup>
+        ) : (recipe.colourGrade || recipe.channelCurves || recipe.calibration) && (
+          // Hidden is never discarded: say plainly that hidden adjustments are still on this photo.
+          <p className="pt-1 text-[0.6875rem] leading-snug text-[var(--text-muted)]" data-testid="advanced-hidden-note">
+            {STRINGS.adjust.advanced.hiddenActive}
+          </p>
+        )}
+      </div>
       </div>
     </div>
   );

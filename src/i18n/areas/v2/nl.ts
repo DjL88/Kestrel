@@ -983,6 +983,11 @@ export const nl: AreaTranslation<typeof source> = {
     looksHint: 'Beweeg over een stijl om hem in de voorvertoning op uw foto te zien.',
     lightToneHeading: 'Licht & toon',
     colourHeading: 'Kleur & helderheid',
+    groupColour: "Kleur",
+    groupDetail: "Detail",
+    groupChanged: "Gewijzigd",
+    groupResetShort: "Herstellen",
+    groupReset: (name) => `${name} herstellen`,
     resetPhoto: 'Foto herstellen',
     stopsSuffix: 'EV',
     tooltips: {
