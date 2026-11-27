@@ -72,6 +72,12 @@ test('InFlight’s own online helper is not offered when it is not available to 
   // no "invited testers only" line (owner, 27 Nov 2026). The available state is covered by src/v2/ui/onlineHelperVisibility.test.ts.
   await page.route('**/*.onnx*', (route) => route.abort());
   await page.goto('/?v2');
+  // Settings opens from the File menu, which is there once a project is open.
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Helper hidden');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
   await openV2Settings(page);
   await page.getByRole('tab', { name: /AI/ }).or(page.getByRole('button', { name: /AI providers|AI/ })).first().click();
   const setup = page.getByTestId('v2-ai-setup');
