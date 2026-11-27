@@ -1275,6 +1275,7 @@ export const source = {
   history: {
     byAuto: "Auto",
     byLightroom: "Brought in from Lightroom",
+    byAsShot: "As shot (set by InFlight)",
     whatChanged: "What changed",
     why: "Why",
     undoThis: "Undo this change",

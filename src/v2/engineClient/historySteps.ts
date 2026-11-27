@@ -10,7 +10,7 @@ export interface HistoryStepInfo {
   label: string;
   at: number;
   /** Who made the step when it was not the person slider by slider. */
-  by?: 'auto' | 'lightroom';
+  by?: 'auto' | 'lightroom' | 'as-shot';
   /** What changed, slider by slider, with real values. */
   changes?: HistoryChange[];
   /** Auto's own reasons, in the person's language, as it gave them. */
@@ -54,7 +54,7 @@ export function describeHistory(history: EditHistory | undefined): HistoryInfo |
     steps: history.steps.map((step) => {
       const changes = recipeChanges(step.before.edit, step.after.edit);
       return {
-        label: step.why ? (step.why.by === 'auto' ? STRINGS.history.byAuto : STRINGS.history.byLightroom)
+        label: step.why ? (step.why.by === 'auto' ? STRINGS.history.byAuto : step.why.by === 'as-shot' ? STRINGS.history.byAsShot : STRINGS.history.byLightroom)
           : JSON.stringify(step.before.formatSplits) !== JSON.stringify(step.after.formatSplits)
             ? 'Split or rejoin frames'
             : JSON.stringify(step.before.overlay) !== JSON.stringify(step.after.overlay)

@@ -1233,6 +1233,7 @@ export const pt: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Auto",
     byLightroom: "Trazido do Lightroom",
+    byAsShot: 'Como tirada (definido pelo InFlight)',
     whatChanged: "O que mudou",
     why: "Porquê",
     undoThis: "Anular esta alteração",

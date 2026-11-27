@@ -165,6 +165,9 @@ export interface PhotoFrame {
   /** The camera's as-shot white, estimated by InFlight's RAW decoder from the file's own metadata when it developed the
    * sensor data. Absent for JPEGs and for RAWs developed before this was recorded. Never the camera maker's own figure. */
   asShotWhite?: import('./asShotWhite').AsShotWhite;
+  /** The As shot luminance noise reduction (recipe units, 0 to 2) InFlight set when this RAW was imported; "Reset" goes
+   * back to it (src/core/asShotNoise.ts). Absent for photos imported before it existed, and for low-ISO photos. */
+  asShotLuminance?: number;
   /** How the RAW's sensor data is compressed, read from the file's own headers once it was developed (Nikon HE/HE* or
    * 'other'). Absent when not yet read; then nothing names a codec. Only ever adds words to a label. */
   rawCodec?: import('./pictureSource').RawCodec;

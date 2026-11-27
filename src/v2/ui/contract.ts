@@ -462,7 +462,7 @@ export interface Photo {
   editHistory?: { steps: {
     label: string; at: number;
     /** Made by Auto or brought in from Lightroom, rather than slider by slider. */
-    by?: 'auto' | 'lightroom';
+    by?: 'auto' | 'lightroom' | 'as-shot';
     /** What changed, slider by slider, with real values. */
     changes?: { label: string; from: string; to: string }[];
     /** Auto's own reasons, in the person's language. */

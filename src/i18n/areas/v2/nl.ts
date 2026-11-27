@@ -1233,6 +1233,7 @@ export const nl: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Auto",
     byLightroom: "Uit Lightroom binnengehaald",
+    byAsShot: 'Zoals gemaakt (ingesteld door InFlight)',
     whatChanged: "Wat er veranderde",
     why: "Waarom",
     undoThis: "Deze wijziging ongedaan maken",

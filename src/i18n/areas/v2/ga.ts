@@ -1236,6 +1236,7 @@ export const ga: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Uathoibríoch",
     byLightroom: "Tugtha isteach ó Lightroom",
+    byAsShot: 'Mar a tógadh é (socraithe ag InFlight)',
     whatChanged: "Cad a d’athraigh",
     why: "Cén fáth",
     undoThis: "Cealaigh an t-athrú seo",

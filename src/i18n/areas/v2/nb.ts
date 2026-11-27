@@ -1233,6 +1233,7 @@ export const nb: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Auto",
     byLightroom: "Hentet fra Lightroom",
+    byAsShot: 'Som tatt (satt av InFlight)',
     whatChanged: "Hva som endret seg",
     why: "Hvorfor",
     undoThis: "Angre denne endringen",

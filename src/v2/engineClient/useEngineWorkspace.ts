@@ -206,6 +206,7 @@ import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesN
 import { language } from '../../i18n/messages';
 import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
+import { asShotEdit, withAsShotNoise } from '../../core/asShotNoise';
 import { createReadAhead, importLanes } from '../../core/importReadAhead';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
@@ -2111,13 +2112,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           // Brought back from another editor: where it came from, and the original's capture details (the PNG has none).
           const externalEdit = externalReturns.current.get(pickedKey(item.file));
           const fromFrame = externalEdit ? stateRef.current?.frames.find((candidate) => candidate.id === externalEdit.fromFrameId) : undefined;
-          const frames = result.frames.map(frame => ({
+          const frames = result.frames.map(frame => withAsShotNoise({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
             ...(cloudPhoto ? { cloudPhoto } : {}),
             ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
             ...(attach?.(pickedKey(item.file)) ?? {}),
-          }));
+            // A new RAW's As shot luminance noise reduction, as its first step made by InFlight (src/core/asShotNoise.ts).
+          }, Date.now()));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
           ctx.commitIfCurrent(() => {
@@ -3757,7 +3759,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       updateUserLooks(result.looks);
       setNotice(looksText.imported(result.added, result.replaced) + (result.skipped ? looksText.skipped(result.skipped) : ''));
     },
-    resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
+    // Reset goes back to the photo's As shot recipe (a new RAW's noise reduction), or to no edit at all.
+    resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, (frame) => asShotEdit(frame)); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
     // With no photo open there is nothing to copy: a neutral recipe here would let Paste silently reset another photo.
     copyRecipe: () => { if (activeFrame) setClipboard(editToRecipe(activeFrame.edit)); },
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },

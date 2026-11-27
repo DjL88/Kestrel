@@ -1233,6 +1233,7 @@ export const cy: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Awto",
     byLightroom: "Daeth o Lightroom",
+    byAsShot: 'Fel y’i tynnwyd (gosodwyd gan InFlight)',
     whatChanged: "Beth newidiodd",
     why: "Pam",
     undoThis: "Dadwneud y newid hwn",

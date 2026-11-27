@@ -1234,6 +1234,7 @@ export const gd: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Fèin-obrachail",
     byLightroom: "Air a thoirt a-steach o Lightroom",
+    byAsShot: 'Mar a chaidh a thogail (air a shuidheachadh le InFlight)',
     whatChanged: "Na dh’atharraich",
     why: "Carson",
     undoThis: "Neo-dhèan an t-atharrachadh seo",

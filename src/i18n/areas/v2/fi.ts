@@ -1234,6 +1234,7 @@ export const fi: AreaTranslation<typeof source> = {
   history: {
     byAuto: "Auto",
     byLightroom: "Tuotu Lightroomista",
+    byAsShot: 'Kuten kuvattu (InFlightin asettama)',
     whatChanged: "Mitä muuttui",
     why: "Miksi",
     undoThis: "Kumoa tämä muutos",

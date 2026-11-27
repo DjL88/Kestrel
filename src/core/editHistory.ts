@@ -9,12 +9,13 @@ export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 
 export const MAX_EDIT_HISTORY_STEPS = 60;
 
 /** Who made a step that the person did not make slider by slider, and Auto's own plain-language reasons. Shown in History. */
-export interface EditWhy { by: 'auto' | 'lightroom'; notes?: string[] }
+/** 'as-shot': InFlight's starting recipe for a new RAW (src/core/asShotNoise.ts), not something the person did. */
+export interface EditWhy { by: 'auto' | 'lightroom' | 'as-shot'; notes?: string[] }
 export const MAX_WHY_NOTES = 8;
 export function validWhy(value: unknown): value is EditWhy {
   if (!value || typeof value !== 'object') return false;
   const why = value as Record<string, unknown>;
-  return (why.by === 'auto' || why.by === 'lightroom') && (why.notes === undefined ||
+  return (why.by === 'auto' || why.by === 'lightroom' || why.by === 'as-shot') && (why.notes === undefined ||
     (Array.isArray(why.notes) && why.notes.length <= MAX_WHY_NOTES && why.notes.every((note) => typeof note === 'string' && note.length <= 400)));
 }
 
