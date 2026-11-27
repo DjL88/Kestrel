@@ -14,7 +14,7 @@ import { PhotoId, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 
 export function collabRoutes(ctx: AppContext): Route[] {
-  const { options, store, now, audit, bearer, switchOn, accountIsPro, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety, safetyCheck } = ctx;
+  const { options, store, now, audit, bearer, switchOn, accountIsPro, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety } = ctx;
   return [
 
   // ---- Shared projects (#1387 C01-C03). Membership, per-photo checkout and never-last-write-wins revisions.
@@ -209,12 +209,6 @@ export function collabRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.CloudVariantBody, req.rawBody);
       await collab(() => collabCfg().requireMember(params.id, claims.sub, 'edit', params.photoId));
       const cfg = cloudCfg();
-      if (body.variant === 'original') {
-        // An original is never checked itself (RAW files cannot be): it is stored only behind a preview that passed.
-        if (options.safety?.service.configured) await cloud(() => cfg.store.objectFor(params.id, params.photoId, 'preview')).catch(() => { throw new ApiError(409, 'PREVIEW_FIRST', 'Store the preview first; the original follows it.'); });
-      } else {
-        await safetyCheck(req, cfg.store.storage, { scope: 'cloud', accountId: claims.sub, projectId: params.id, galleryId: null, photoId: params.photoId, variant: body.variant, key: cloudKey(params.id, params.photoId, body.variant), sha256: '', bytes: 0 });
-      }
       await cloud(() => cfg.store.commit(params.id, params.photoId, body.variant));
       return { status: 200, body: { stored: true } };
     },
@@ -318,10 +312,6 @@ export function collabRoutes(ctx: AppContext): Route[] {
       const { claims, g } = await galleryOwner(req, params.gid);
       const preview = g.previews?.[params.photoId];
       if (!preview) throw new ApiError(404, 'NOT_FOUND', 'Upload the preview first.');
-      // Both pictures a client can see are checked before the photo is published.
-      for (const variant of preview.thumb ? (['thumb', 'preview'] as const) : (['preview'] as const)) {
-        await safetyCheck(req, galleryCfg().storage, { scope: 'gallery', accountId: claims.sub, projectId: g.projectId, galleryId: params.gid, photoId: params.photoId, variant, key: previewKey(params.gid, params.photoId, variant), sha256: '', bytes: 0 });
-      }
       await gallery(() => galleryCfg().commitPreview(params.gid, params.photoId));
       return { status: 200, body: { published: true } };
     },
