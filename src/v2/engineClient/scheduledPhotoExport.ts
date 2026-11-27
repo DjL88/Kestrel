@@ -2,6 +2,7 @@ import { engineScheduler, type SchedulerTicket } from '../../core/engineSchedule
 import { isHeifFile, isRawPreviewFile, fullResolutionRasterFormat } from '../../core/rawFormats';
 import { DEFAULT_FRAMING, framedSize } from '../../core/photoFraming';
 import { ORIGINAL_FORMAT_ID } from './formatOps';
+import { engineText } from '../../i18n/areas/engine';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { archiveExports, loadExportSource, loadVerifiedRasterOriginalForExport, saveExportFile } from '../../providers/browserExport';
@@ -11,7 +12,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import type { ExportRequest } from '../ui/contract';
-import { originalExportSize, type ExportJob, type ExportPlan } from './exportOps';
+import { originalExportCheck, originalExportSize, type ExportJob, type ExportPlan } from './exportOps';
 import { createSplitRenderCache } from './splitRenderCache';
 import { master16Blocker } from '../../core/master16';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
@@ -103,7 +104,10 @@ export async function scheduleV2PhotoExports(input: {
     kind: 'export',
     location: 'local',
     resource: 'gpu', // full-resolution canvas / denoise must not allocate concurrently
-    priority: 1,
+    // The person pressed Export and is waiting for the files: ahead of background work (it waited behind Auto pick at
+    // priority 1 on a busy laptop, owner's test: two files in 5 min 13 s), and admitted like other work they started.
+    priority: 20,
+    interactive: true,
     pauseable: units.length > 1,
     items: scheduledUnits,
     snapshot,
@@ -287,6 +291,13 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
       overlay, started, signal, job.sections ?? 1, precise,
     );
     checkCancelled();
+    // Original is the photo's own pixels: it is never delivered smaller than promised without a word. The person's own
+    // crop of it is said in the task; anything else stops the export, and no smaller file is saved.
+    if (job.format.id === ORIGINAL_FORMAT_ID && !upscale && (job.sections ?? 1) === 1) {
+      const check = originalExportCheck(outputSize, job.crop, { width: result.width, height: result.height });
+      if (check.kind === 'short') throw new Error(engineText.workspace.originalTooSmall(frame.filename, result.width, result.height, check.expected.width, check.expected.height));
+      if (check.kind === 'cropped') stage(engineText.workspace.originalCropped(frame.filename, result.width, result.height));
+    }
     return result.sections ?? [result.file];
     } finally {
       guide?.release();

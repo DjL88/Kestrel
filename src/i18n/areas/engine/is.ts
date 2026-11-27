@@ -157,6 +157,8 @@ export const is: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Ekki tókst að hefja suðeyðingu.',
     suggestionStale: 'Myndin breyttist eftir þessa tillögu. Bíddu eftir nýrri athugun.',
     checkTask: (filename) => `Athuga ${filename} og liti hennar`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} hefði orðið ${w} × ${h} px, minna en upprunalega ${ew} × ${eh} px, svo hún var ekki flutt út. Framköllun í fullri upplausn var ekki tiltæk; ekkert minna var vistað. Reyndu aftur þegar Verk eru róleg.`,
+    originalCropped: (name, w, h) => `${name}: upprunaleg flutt út í ${w} × ${h} px, sá hluti myndarinnar sem upprunalega skurðurinn sýnir.`,
     checkStage: 'Skoða lýsingu, lit og senu',
     secondOpinionStage: "Annað álit frá myndlíkaninu í tækinu",
     checkFailed: 'Ekki tókst að athuga þessa mynd. Nánar undir Verk.',

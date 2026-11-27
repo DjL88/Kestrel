@@ -516,7 +516,8 @@ export function createEngineScheduler(options: {
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
-      interactive: definition.interactive === true && items.length === 1,
+      // One photo the person is waiting on; or an export of several, which they asked for and are waiting on too.
+      interactive: definition.interactive === true && (items.length === 1 || definition.kind === 'export'),
       light: definition.light === true,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
