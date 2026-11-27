@@ -164,7 +164,8 @@ async function runWorkflow(page: Page, context: BrowserContext, projectName: str
   await expect(again.getByTestId('decision-filter-flagged')).toHaveText(new RegExp(`Flagged \\(${PICKS}\\)`), { timeout: 60_000 });
   await expect(again.getByTestId('decision-filter-to-review')).toHaveText(new RegExp(`To review \\(${PHOTOS - PICKS}\\)`));
   await again.getByTestId('decision-filter-all').click();
-  await expect(again.getByRole('listbox', { name: 'Project photographs' }).getByRole('option'), `all ${PHOTOS} photos are back`).toHaveCount(PHOTOS);
+  // A big strip draws only the tiles in view; each one says how many there are in all.
+  await expect(again.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').first(), `all ${PHOTOS} photos are back`).toHaveAttribute('aria-setsize', String(PHOTOS));
   await again.getByTestId('decision-filter-flagged').click();
   const picks = again.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
   await expect(picks).toHaveCount(PICKS);

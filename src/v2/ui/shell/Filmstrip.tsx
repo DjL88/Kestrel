@@ -367,6 +367,33 @@ export default function Filmstrip({
     for (const item of items) if (item.type !== 'controls') index.set(item.photo.id, (n += 1));
     return index;
   }, [items]);
+  // The photo being worked on is brought into view when it changes (arrow keys, the canvas, a panel), so a windowed
+  // strip draws its tile and the culler always sees where they are (CI, 27 Nov: arrow keys moved past the drawn tiles).
+  const lastActive = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    const id = activePhoto?.id ?? null;
+    if (!strip || !id || lastActive.current === id) return;
+    lastActive.current = id;
+    let left: number;
+    let width: number;
+    if (layout) {
+      const at = items.findIndex((item) => item.type !== 'controls' && item.photo.id === id);
+      if (at < 0) return;
+      left = layout.lefts[at];
+      width = tileWidth;
+    } else {
+      const tile = strip.querySelector<HTMLElement>(`[data-photo-id="${CSS.escape(id)}"]`);
+      if (!tile) return;
+      left = tile.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
+      width = tile.offsetWidth;
+    }
+    const shownFrom = strip.scrollLeft;
+    const shownTo = strip.scrollLeft + strip.clientWidth;
+    if (left >= shownFrom && left + width <= shownTo) return;
+    strip.scrollLeft = left < shownFrom ? left - STRIP_GAP : left + width - strip.clientWidth + STRIP_GAP;
+    if (layout) setView({ left: strip.scrollLeft, width: strip.clientWidth });
+  }, [activePhoto?.id, layout, items, tileWidth]);
 
   const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
   const setBurstOpen = (groupId: string, open: boolean) => setExpandedBursts((current) => { const next = new Set(current); if (open) next.add(groupId); else next.delete(groupId); return next; });
