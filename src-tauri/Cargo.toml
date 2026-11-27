@@ -23,7 +23,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-http = "2"
+# unsafe-headers: lets a token request send an empty Origin, which the plugin then drops. Microsoft refuses a desktop
+# token request that carries the web view's Origin (AADSTS90023, "invalid_request").
+tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-persisted-scope = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }

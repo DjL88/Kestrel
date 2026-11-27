@@ -27,7 +27,12 @@ export function cloudDriveUnavailableReason(kind: CloudDriveKind): string | null
 
 /** The desktop app's own HTTP client has no cross-origin limits; the browser's fetch is used on the web. */
 async function httpFetch(): Promise<typeof fetch> {
-  if (isDesktopApp()) return (await import('@tauri-apps/plugin-http')).fetch as typeof fetch;
+  if (isDesktopApp()) {
+    // Sent without an Origin (an empty one makes the plugin drop it): Microsoft refuses a desktop token request that
+    // carries the web view's Origin, with invalid_request (AADSTS90023).
+    const native = (await import('@tauri-apps/plugin-http')).fetch as typeof fetch;
+    return (input, init) => { const headers = new Headers(init?.headers); headers.set('Origin', ''); return native(input, { ...init, headers }); };
+  }
   return (input, init) => fetch(input, init);
 }
 

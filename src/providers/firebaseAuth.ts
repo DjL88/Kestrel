@@ -368,7 +368,9 @@ async function signInWithMicrosoftOnDesktop(client: NonNullable<typeof microsoft
   const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
   let response: Response;
   try {
-    response = await tauriFetch(MICROSOFT_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    // No Origin: Microsoft only redeems a code cross-origin for web-page clients, and refuses this desktop one with
+    // invalid_request (AADSTS90023). An empty Origin makes the desktop HTTP plugin leave the header out.
+    response = await tauriFetch(MICROSOFT_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: '' },
       body: microsoftCodeExchangeBody({ clientId: client.clientId, code: answer.code, verifier, redirectUri }) });
   } catch { throw new Error('Could not reach Microsoft. Check your connection.'); }
   const json = await response.json().catch(() => null) as { error?: string } | null;
