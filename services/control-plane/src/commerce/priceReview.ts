@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { openFirestore } from '../openStore.ts';
+import { DEFAULT_PRICING } from '../../../../src/core/pricingMatrix.ts';
 
 export const ECB = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
 const ONS = 'https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt/mm23/data';
@@ -56,6 +57,8 @@ export function proposePrices(
   approved: unknown,
   fxXml: string,
   cpi?: unknown,
+  /** The live UK subscription prices in pence (the price list, Admin → Money → Prices). */
+  bases?: { monthly: number; annual: number },
 ) {
   const settings = settingsSchema.parse(approved);
   const month = reviewMonth(now);
@@ -101,9 +104,25 @@ export function proposePrices(
     const proposedMajor = currency === 'GBP' ? unroundedMajor : Math.max(step, Math.round(unroundedMajor / step) * step);
     return { currency, ratePerGbp, unroundedMajor, proposedMajor, status: 'for-review' as const };
   });
+  // Pro is a subscription (26 Nov 2026): when the live price list's monthly and yearly UK prices are given, each is
+  // reviewed on its own. `gbpProBasePence` (the retired one-off price) then only fills the older top-level fields.
+  const multiplier = inflation ? 1 + inflation.cumulativeInflation : 1;
+  const plans = bases ? Object.fromEntries((['monthly', 'annual'] as const).map(plan => {
+    const basePence = bases[plan];
+    const planGbpPence = Math.max(1, Math.round(basePence * multiplier));
+    return [plan, { basePence, proposedGbpPence: planGbpPence, prices: [...new Set(['GBP', ...settings.currencies])].map(currency => {
+      const ratePerGbp = currency === 'GBP' ? 1 : (rates.get(currency) ?? 0) / rates.get('GBP')!;
+      if (ratePerGbp <= 0 || !Number.isFinite(ratePerGbp)) return { currency, status: 'missing-rate' as const };
+      const unroundedMajor = planGbpPence / 100 * ratePerGbp;
+      if (!Number.isFinite(unroundedMajor)) return { currency, status: 'missing-rate' as const };
+      const step = unroundedMajor >= 40 ? 5 : unroundedMajor >= 10 ? 1 : 0.1;
+      const proposedMajor = currency === 'GBP' ? unroundedMajor : Math.max(step, Math.round(Math.round(unroundedMajor / step) * step * 100) / 100);
+      return { currency, ratePerGbp, unroundedMajor, proposedMajor, status: 'for-review' as const };
+    }) }];
+  })) as Record<'monthly' | 'annual', { basePence: number; proposedGbpPence: number; prices: typeof prices }> : null;
   return {
     month, status: 'pending-approval' as const, approvedBasePence: settings.gbpProBasePence,
-    approvedBaseEffectiveDate: settings.effectiveDate, proposedGbpPence, prices,
+    approvedBaseEffectiveDate: settings.effectiveDate, proposedGbpPence, prices, ...(plans ? { plans } : {}),
     rateDate, rateSource: ECB, inflation, createdAt: now.toISOString(),
   };
 }
@@ -125,7 +144,12 @@ export async function runPriceReview(now = new Date()) {
     const settings = settingsSchema.parse(snapshot.data());
     const fx = await (await get(ECB)).text();
     const cpi = month.endsWith('-04') ? await (await get(ONS)).json() : undefined;
-    const proposal = proposePrices(now, settings, fx, cpi);
+    const matrix = (await db.collection('pricing_settings').doc('matrix').get()).data() as { base?: Record<string, unknown> } | undefined;
+    const base = (item: 'pro.monthly' | 'pro.annual') => {
+      const pence = matrix?.base?.[item];
+      return typeof pence === 'number' && Number.isSafeInteger(pence) && pence > 0 ? pence : DEFAULT_PRICING.base[item];
+    };
+    const proposal = proposePrices(now, settings, fx, cpi, { monthly: base('pro.monthly'), annual: base('pro.annual') });
     await db.runTransaction(async transaction => {
       if ((await transaction.get(document)).exists) return;
       transaction.create(document, proposal);

@@ -29,3 +29,20 @@ export function reasonOf(error: unknown): string {
   if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') return (error as { message: string }).message.trim();
   return '';
 }
+
+/**
+ * Where an export's Save As dialog starts (Dave, 27 Nov: the ZIP's Save As opened in the photo folder, beside the
+ * originals): the folder the last export went to; otherwise Pictures\InFlight Exports when it exists; otherwise
+ * Pictures. Never the originals' folder unless the person chose it last time.
+ */
+export function saveStartFolder(input: { last?: string; pictures?: string; inflightExports?: string; inflightExportsExists?: boolean }): string | undefined {
+  if (input.last) return input.last;
+  if (input.inflightExports && input.inflightExportsExists) return input.inflightExports;
+  return input.pictures || undefined;
+}
+
+/** The folder a saved file went into, so the next export starts there. */
+export function parentFolder(path: string): string | undefined {
+  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return cut > 0 ? path.slice(0, cut) : undefined;
+}

@@ -330,6 +330,14 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/overview', summary: 'Counts for the admin console', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'overview');
+      // For the console's Today summary. A figure that cannot be read is null ("not known"), never zero.
+      const t = now();
+      const month = new Date(t).toISOString().slice(0, 7);
+      const sp = options.spend;
+      const [proSubscribers, spentPence] = await Promise.all([
+        options.proSubscriberCounts ? options.proSubscriberCounts().catch(() => null) : Promise.resolve(null),
+        sp ? sp.guard.spent(t).catch(() => null) : Promise.resolve(null),
+      ]);
       return adminDone(claims, 'overview', '', {
         ...(await store.counts()),
         aiDisabled: (await store.getSetting('ai_disabled')) === '1',
@@ -337,6 +345,8 @@ export function adminRoutes(ctx: AppContext): Route[] {
         store: store.kind,
         licenceIssuing: !!config.licencePrivateKey,
         paymentsConnected: !!options.payments,
+        proSubscribers,
+        spend: sp && spentPence !== null ? { month, spentPence, ceilingPence: sp.ceilingPence } : null,
       });
     },
   },

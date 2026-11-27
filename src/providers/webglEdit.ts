@@ -170,7 +170,7 @@ interface Gpu {
   toneTexture: WebGLTexture;
   framebuffer: WebGLFramebuffer;
   toneSize: [number, number];
-  canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement | OffscreenCanvas;
   gl: WebGL2RenderingContext;
   program: WebGLProgram;
   texture: WebGLTexture;
@@ -189,8 +189,9 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
 
 function setup(): Gpu | null {
   try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
+    // A page canvas on the page; in a worker (the live draft worker), an OffscreenCanvas: the same shaders, the same answer.
+    const canvas: HTMLCanvasElement | OffscreenCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1);
+    const gl = (canvas as HTMLCanvasElement).getContext('webgl2', { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
     if (!gl) return null;
     const program = gl.createProgram()!;
     gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX));
@@ -220,6 +221,14 @@ function setup(): Gpu | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Create the graphics-card context and compile the shaders now, at a quiet moment, instead of on the first edit drawn
+ * on the page: that first use took about 140 ms, and a click made then had to wait for it (owner's laptop and CI, 27 Nov).
+ */
+export function prepareGpu(): void {
+  if (gpu === undefined) gpu = setup();
 }
 
 /** Render an edit on the GPU into the given canvas. Returns false when the CPU path should run instead. */

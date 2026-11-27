@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Portuguese. DRAFT: written without a native speaker's check. */
 export const pt: AreaTranslation<typeof source> = {
-  title: "Correção de manchas",
+  title: "Remover manchas",
   intro: "Cobre pó, um raminho ou um poleiro confuso com píxeis copiados de perto na mesma foto. Nada é inventado e o ficheiro original nunca é alterado.",
   start: "Marcar manchas",
   stop: "Concluído",

@@ -619,9 +619,9 @@ test('?v2 overlay panel: clear on/off toggle that greys the controls until on, p
   await expect(root.getByTestId('composition-grid')).toHaveCount(0);
   await grid.click();
   await expect(root.getByTestId('composition-grid')).toBeVisible();
-  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(4);
+  await expect(root.getByTestId('composition-grid').locator('[data-grid-layer="line"] line')).toHaveCount(4);
   await grid.click();
-  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(6);
+  await expect(root.getByTestId('composition-grid').locator('[data-grid-layer="line"] line')).toHaveCount(6);
   await grid.click();
   await expect(root.getByTestId('composition-grid')).toHaveCount(0);
   // Compact and comfortable looked the same, so the setting is gone.

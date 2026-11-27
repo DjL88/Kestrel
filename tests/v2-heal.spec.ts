@@ -28,7 +28,8 @@ async function openDustyPhoto(page: Page) {
   await (await chooser).setFiles([{ name: 'dust.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   const frame = root.getByTestId('canvas-frame');
   await expect(frame.locator('img').first()).toBeVisible({ timeout: 30000 });
-  await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
+  // Remove spots is in Enhance › Refinements (Dave, 27 Nov); it replaces pixels, so it left Masks.
+  await root.getByRole('button', { name: 'Enhance', exact: true }).first().click();
   return { root, frame };
 }
 
@@ -57,7 +58,8 @@ async function settledPreview(frame: ReturnType<Page['locator']>) {
 test('a dust spot is covered from nearby pixels, matches in export, and Undo brings it back', async ({ page }) => {
   const { root, frame } = await openDustyPhoto(page);
   const heal = root.getByTestId('v2-heal');
-  await expect(heal).toContainText('Spot healing');
+  await expect(heal).toContainText('Remove spots');
+  await expect(root.getByTestId('enhance-refinements')).toContainText('Refinements');
   await expect(heal).toContainText('0 spots');
 
   // Place a spot on the dust.

@@ -75,8 +75,10 @@ test('?v2 Zoom to eye moves the view to a clear eye on a synthetic subject and z
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 30000 });
   const zoom = root.getByTestId('zoom-percent');
   await expect(zoom).not.toHaveText('100%', { timeout: 30000 });
-  await page.waitForTimeout(1500);
   await zoom.click();
+  // Wait for the look-ahead's answer (the menu says Zoom to eye once it found one), not a fixed time: on a slow runner
+  // the subject search can take longer, and clicking before it answered zoomed to the centre.
+  await expect(root.getByTestId('zoom-menu-eye')).toHaveText(/Zoom to eye/, { timeout: 30000 });
   await root.getByTestId('zoom-menu-eye').click();
   const note = root.getByTestId('eye-note');
   await expect(note).toContainText(/Zoomed to/, { timeout: 30000 });

@@ -3,6 +3,9 @@
 # In Google Cloud: gcloud builds submit --config services/cloud-runner/cloudbuild.yaml --substitutions _IMAGE=<repository>/cloud-runner:<tag> .
 FROM node:22-alpine
 WORKDIR /app
+# The shared src/ files are ES modules with extensionless imports. Without this marker Node loads them as CommonJS and
+# the first job crashes with "Cannot find module './naturalChromaDenoise'" (found 27 Nov 2026 before the first deploy).
+RUN echo '{"type":"module"}' > package.json
 COPY src/core ./src/core
 COPY src/engine ./src/engine
 COPY src/providers/cloudJobCodec.ts ./src/providers/cloudJobCodec.ts

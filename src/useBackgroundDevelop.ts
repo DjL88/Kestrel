@@ -46,6 +46,8 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     try {
       const submitted = await engineScheduler.submit({
         title: t.tasks.developingRaw, kind: 'raw', resource: 'cpu', location: 'local',
+        // Each refill of the queue joins the same row while it runs, instead of a new one.
+        group: { key: `raw-develop:${id}`, title: t.tasks.developingRaw },
         priority: 2, pauseable: true, items: queue,
         snapshot: { projectId: id, keys: queue.map(frame => frame.stableKey) },
         itemId: frame => frame.stableKey, itemLabel: frame => frame.filename,
