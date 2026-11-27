@@ -1,4 +1,4 @@
-import { openV2Settings } from './helpers';
+import { openV2Settings, openFlightChecks } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test('Colour-vision support is off by default and, when turned on, names the colours in words', async ({ page }, testInfo) => {
@@ -29,7 +29,7 @@ test('Colour-vision support is off by default and, when turned on, names the col
   }, pixels);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const openPanel = studio.getByRole('button', { name: testInfo.project.name === 'phone' ? 'Flight' : 'Co-pilot', exact: true });
-  if (!await studio.getByRole('button', { name: 'Check photo on this device' }).isVisible()) await openPanel.first().click();
+  await openFlightChecks(studio, openPanel);
   await studio.getByRole('button', { name: 'Check photo on this device' }).click();
   // The explanation sits behind the (i) beside Recommended adjustments (Dave, 27 Nov: action and advice only on this tab).
   await studio.getByTestId('copilot-about').locator('summary').click();
@@ -47,7 +47,7 @@ test('Colour-vision support is off by default and, when turned on, names the col
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('button', { name: 'Close settings' }).click();
 
-  if (!await studio.getByRole('button', { name: 'Check photo on this device' }).isVisible()) await openPanel.first().click();
+  await openFlightChecks(studio, openPanel);
   const words = studio.getByTestId('colour-words').first();
   await expect(words).toBeVisible();
   await expect(words).toContainText('Main colours');

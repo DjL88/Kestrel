@@ -632,6 +632,8 @@ export const sv: AreaTranslation<typeof source> = {
     noGenAiNote: "Inget genereras. Använder bara masker, brusreducering, ton och färgkorrigering.",
     aboutLabel: "Om de här förslagen",
     reviewRunning: "Granskning pågår. Inget tillämpas förrän du väljer.",
+    findingsHeading: "Fynd",
+    moreChecks: "Fler kontroller",
     reviewRunningShort: "Kontrollerar…",
     applyAllSuggestions: 'Använd föreslaget recept',
     applySingle: 'Använd',

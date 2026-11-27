@@ -784,6 +784,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
+            onUndo={editLocked ? undefined : actions.undo}
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}

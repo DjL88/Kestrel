@@ -633,6 +633,8 @@ export const gd: AreaTranslation<typeof source> = {
     noGenAiNote: "Cha tèid dad a chruthachadh. Cha chleachd e ach masgadh, lùghdachadh gràinne, tòna is grèidheadh dhathan.",
     aboutLabel: "Mu na molaidhean seo",
     reviewRunning: "Lèirmheas a’ dol. Cha tèid dad a chur an sàs gus an tagh thu e.",
+    findingsHeading: "Toraidhean",
+    moreChecks: "Barrachd sgrùdaidhean",
     reviewRunningShort: "Ga sgrùdadh…",
     applyAllSuggestions: 'Cuir an reasabaidh a mholar an sàs',
     applySingle: 'Cuir an sàs',

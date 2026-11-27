@@ -632,6 +632,8 @@ export const it: AreaTranslation<typeof source> = {
     noGenAiNote: "Non viene generato nulla. Usa solo maschere, riduzione del rumore, tono e correzione del colore.",
     aboutLabel: "Informazioni su questi suggerimenti",
     reviewRunning: "Revisione in corso. Nulla viene applicato finché non scegli.",
+    findingsHeading: "Risultati",
+    moreChecks: "Altri controlli",
     reviewRunningShort: "Controllo in corso…",
     applyAllSuggestions: 'Applica la ricetta suggerita',
     applySingle: 'Applica',

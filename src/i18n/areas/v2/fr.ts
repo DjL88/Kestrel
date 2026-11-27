@@ -632,6 +632,8 @@ export const fr: AreaTranslation<typeof source> = {
     noGenAiNote: "Rien n’est généré. Utilise seulement masques, réduction du bruit, tonalité et étalonnage des couleurs.",
     aboutLabel: "À propos de ces suggestions",
     reviewRunning: "Analyse en cours. Rien n’est appliqué sans votre choix.",
+    findingsHeading: "Constats",
+    moreChecks: "Plus de vérifications",
     reviewRunningShort: "Vérification…",
     applyAllSuggestions: 'Appliquer la recette suggérée',
     applySingle: 'Appliquer',

@@ -632,6 +632,8 @@ export const nl: AreaTranslation<typeof source> = {
     noGenAiNote: "Er wordt niets gegenereerd. Gebruikt alleen maskers, ruisonderdrukking, toon en kleurcorrectie.",
     aboutLabel: "Over deze suggesties",
     reviewRunning: "Beoordeling bezig. Er wordt niets toegepast tot je kiest.",
+    findingsHeading: "Bevindingen",
+    moreChecks: "Meer controles",
     reviewRunningShort: "Bezig met controleren…",
     applyAllSuggestions: 'Voorgesteld recept toepassen',
     applySingle: 'Toepassen',

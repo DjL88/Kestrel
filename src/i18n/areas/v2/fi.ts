@@ -633,6 +633,8 @@ export const fi: AreaTranslation<typeof source> = {
     noGenAiNote: "Mitään ei luoda. Käyttää vain maskeja, kohinanpoistoa, sävyjä ja värinkorjausta.",
     aboutLabel: "Tietoa näistä ehdotuksista",
     reviewRunning: "Tarkistus käynnissä. Mitään ei käytetä ennen kuin valitset.",
+    findingsHeading: "Havainnot",
+    moreChecks: "Lisää tarkistuksia",
     reviewRunningShort: "Tarkistetaan…",
     applyAllSuggestions: 'Käytä ehdotettua reseptiä',
     applySingle: 'Käytä',
