@@ -12,7 +12,7 @@ import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
 import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 import ColourVisionToggle from './ColourVisionToggle';
-import ColourWordsList from './ColourWordsList';
+import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -21,6 +21,8 @@ interface AdjustPanelProps {
   cvdGuidance: boolean;
   /** Turns Colour-vision support on or off here; it is the same setting as Settings → Assistance. */
   onToggleCvdGuidance?: () => void;
+  /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. */
+  colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
   hideReadouts: boolean;
   /** Settings → Show advanced controls: colour grading and channel curves. */
   showAdvanced?: boolean;
@@ -135,6 +137,7 @@ export default function AdjustPanel({
   looks,
   cvdGuidance,
   onToggleCvdGuidance,
+  colourVerdict,
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
@@ -180,7 +183,9 @@ export default function AdjustPanel({
       {onToggleCvdGuidance && (
         <div className="space-y-2">
           <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
-          {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
+          {cvdGuidance && (
+            <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />
+          )}
         </div>
       )}
       {selectedPhotoCount > 1 && (

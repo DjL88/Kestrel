@@ -5,6 +5,7 @@ import FlightModePicker from './FlightModePicker';
 import { deepReviewAvailable } from '../utils/deepReview';
 import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
+import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
 import ColourSenseLine from './ColourSenseLine';
 import WatchSteps from './WatchSteps';
 import type { CloudRecipeOfferView, EditRecipe } from '../contract';
@@ -30,6 +31,7 @@ interface CoPilotPanelProps {
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
   /** One tap back after an applied suggestion moved the subject's colour warmer or cooler (ColourSense). */
   onNudgeWarmth?: (photoId: string, direction: 'cooler' | 'warmer') => void;
+  colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
   /** Watch: shows a suggestion's steps so far on the photo without applying them. Null clears the preview. */
   onStepPreview?: (delta: Partial<EditRecipe> | null) => void;
@@ -68,6 +70,7 @@ export default function CoPilotPanel({
   onRequestLocalAuto,
   onApplySuggestion,
   onNudgeWarmth,
+  colourVerdict,
   onDismissSuggestion,
   onStepPreview,
   onResetStyle,
@@ -102,6 +105,8 @@ export default function CoPilotPanel({
           {STRINGS.copilot.modeDescriptions[assistMode]}
         </p>
       </div>
+
+      {cvdGuidance && <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} {...colourVerdict} />}
 
       {/* Recommendations first: action and advice (Dave, 27 Nov: "This is very useful to show"). */}
       <div className="space-y-2.5" data-testid="copilot-recommendations">

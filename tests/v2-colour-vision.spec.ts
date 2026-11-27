@@ -58,12 +58,39 @@ test('Colour-vision support is off by default and, when turned on, names the col
   await studio.getByRole('button', { name: 'Adjust', exact: true }).first().click();
   const adjustToggle = studio.getByTestId('cvd-toggle');
   await expect(adjustToggle).toHaveAttribute('aria-checked', 'true');
+  // Dave, a colour-blind user: one plain verdict leads, with at most one action. The detail waits behind More and Show where.
+  const verdict = studio.getByTestId('colour-verdict');
+  await expect(verdict).toHaveText(/Colours look|Red and green areas|Not sure about the colours/);
+  await expect(verdict.getByRole('button')).toHaveCount(await verdict.getByRole('button').count() > 0 ? 1 : 0);
+  await expect(studio.getByTestId('colour-area'), 'no outlines until asked').toHaveCount(0);
+  const where = studio.getByTestId('colour-verdict-where');
+  if (!await where.isVisible()) await studio.getByTestId('colour-verdict-more').locator('summary').click();
+  await where.click();
+  await expect(where).toHaveAttribute('aria-pressed', 'true');
   await expect(studio.getByTestId('colour-area')).toHaveCount(2);
   await expect(studio.getByTestId('colour-area').first()).toHaveAttribute('aria-label', /^1 · /);
+  // Nothing covers the image: no words on the photo; the numbers and names are in the key under the canvas.
+  await expect(studio.getByTestId('colour-area-marks').locator('text')).toHaveCount(0);
+  const key = studio.getByTestId('colour-area-key');
+  await expect(key.getByTestId('colour-area-key-item')).toHaveCount(2);
+  await expect(key.getByTestId('colour-area-key-item').first()).toHaveText(/^1 · /);
+  await expect(studio.getByTestId('canvas-status')).toContainText(/2 · /);
+  if (process.env.KESTREL_SHOTS) await page.screenshot({ path: process.env.KESTREL_SHOTS + '/colour-vision-' + testInfo.project.name + '.png' });
+  // Correct, when the verdict offers it, is one step that says what it did and can be undone from the same line.
+  const correct = studio.getByTestId('colour-verdict-correct').first();
+  if (await correct.isVisible()) {
+    await expect(correct).toHaveAttribute('title', /Changes: (Saturation|Temperature|Tint) [+−]d+/);
+    await correct.click();
+    const did = studio.getByTestId('colour-verdict-did');
+    await expect(did).toHaveText(/(Saturation|Temperature|Tint) [+−]d+/);
+    await did.getByRole('button', { name: 'Undo' }).click();
+    await expect(did).toHaveCount(0);
+  }
   // Turning it off in Adjust turns off the setting too, and the outlines go.
   await adjustToggle.click();
   await expect(adjustToggle).toHaveAttribute('aria-checked', 'false');
   await expect(studio.getByTestId('colour-area')).toHaveCount(0);
+  await expect(studio.getByTestId('colour-area-key')).toHaveCount(0);
   await openV2Settings(page);
   await page.getByRole('tab', { name: 'Assistance' }).or(page.getByRole('button', { name: 'Assistance' })).first().click();
   await expect(page.getByRole('dialog').getByRole('switch', { name: 'Colour-vision support' })).toHaveAttribute('aria-checked', 'false');
