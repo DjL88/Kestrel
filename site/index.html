@@ -1025,10 +1025,22 @@
 </script>
 <script src="assets/contact.js" defer></script>
 <script type="module">
-  // Prices from the one pricing matrix (Admin → Prices), in the currency Paddle charges for the visitor's country.
-  // The £ prices in the page are the matrix's starting prices and stay if /v1/pricing cannot be read.
-  import { loadPricing, currencyFor, priceText } from './assets/pricing.mjs';
+  // Prices in the currency Paddle charges for the visitor's country: first Paddle's own prices for the country our
+  // server finds from the visitor's internet address (/v1/pricing/local; the address is not kept or passed on), else
+  // the pricing matrix (Admin → Prices) in the currency of the browser's language region. The £ prices in the page
+  // are the matrix's starting prices and stay if neither can be read.
+  import { loadPricing, loadLocalPrices, currencyFor, priceText } from './assets/pricing.mjs';
   (async () => {
+    const slotsNow = () => [...document.querySelectorAll('#pro-price-monthly, #pro-price-annual, [data-pro-price]')];
+    const local = await loadLocalPrices();
+    if (local) {
+      for (const node of slotsNow()) {
+        const item = node.dataset.proPrice || (node.id === 'pro-price-monthly' ? 'pro.monthly' : 'pro.annual');
+        node.textContent = item === 'pro.monthly' ? local.monthly : local.annual;
+        node.dataset.currency = local.currency;
+      }
+      return;
+    }
     const pricing = await loadPricing();
     let region = null;
     for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {

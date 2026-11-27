@@ -145,6 +145,17 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
       if (!PADDLE_PRICE_ID.test(id)) throw new Error('Invalid Paddle price ID.');
       return paddlePrice.parse(await raw('/prices/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(body) }));
     },
+    /**
+     * What these prices cost in one country, as Paddle would charge them (POST /pricing-preview). Only the country code
+     * is sent, never a visitor's address. Returns Paddle's `data` for `readPricePreview` (localPricing.ts).
+     */
+    async previewPrices(priceIds: string[], countryCode: string): Promise<unknown> {
+      if (!/^[A-Z]{2}$/.test(countryCode) || priceIds.length === 0 || !priceIds.every((id) => PADDLE_PRICE_ID.test(id))) throw new Error('Invalid pricing preview.');
+      return raw('/pricing-preview', {
+        method: 'POST',
+        body: JSON.stringify({ items: priceIds.map((price_id) => ({ price_id, quantity: 1 })), address: { country_code: countryCode } }),
+      });
+    },
     /** The transaction as Paddle has it now, with the buyer's country. Never trust a webhook body on its own. */
     getTransaction: (id: string) => {
       if (!PADDLE_TRANSACTION_ID.test(id)) throw new Error('Invalid Paddle transaction ID.');
