@@ -26,17 +26,26 @@ function taggedElement(html: string, tag: 'input' | 'button', testId: string): s
   return element;
 }
 
-test('unsupported enhancements are visibly and accessibly disabled in the real editor UI', () => {
+// Dave, 27 Nov: "don't show what we can't do". A control whose feature is not built (its recipe key is in UNMAPPED_KEYS)
+// is not rendered at all. A control that cannot act on this photo right now stays visible, disabled, with its reason.
+test('unbuilt enhancements are not shown at all, and no "unavailable" line is left behind', () => {
   const html = render();
-  for (const [tag, id] of [
-    ['button', 'v2-enhance-raw-ai'],
-    ['button', 'v2-enhance-lens-correction'],
-  ] as const) {
-    const control = taggedElement(html, tag, id);
-    assert.match(control, /disabled(?:="")?/, id + ' should not accept a click');
-    assert.match(control, /aria-describedby="v2-enhance-unavailable"/);
+  for (const id of ['v2-enhance-raw-ai', 'v2-enhance-lens-correction']) {
+    assert.doesNotMatch(html, new RegExp('data-testid="' + id + '"'), id + ' is not built, so it is not shown');
   }
-  assert.match(html, /Unavailable adjustments are disabled/);
+  assert.doesNotMatch(html, /RAW Deep Denoise/);
+  assert.doesNotMatch(html, /Unavailable adjustments are disabled/);
+});
+
+test('a control that cannot act on this photo right now stays visible and is disabled accessibly, with its reason', () => {
+  // TrueDetail is already working on this photo: the button stays, cannot be pressed twice, and says why.
+  const html = renderToStaticMarkup(React.createElement(EnhancePanel, {
+    photo, hideReadouts: false, onUpdateRecipe: () => {}, onDenoise: () => {}, trueDetail: { state: 'running', percent: 40 },
+  }));
+  const button = taggedElement(html, 'button', 'truedetail-run');
+  assert.match(button, /disabled(?:="")?/, 'it does not accept a second press');
+  assert.match(button, /aria-busy="true"/);
+  assert.match(html, /role="status"[^>]*>TrueDetail is working on this photo: 40%/);
 });
 
 test('real texture edit remains enabled and is named honestly', () => {
