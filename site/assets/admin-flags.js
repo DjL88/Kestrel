@@ -6,7 +6,7 @@ export const NEVER_GATED = ['import', 'basicEditing', 'cropAndStraighten', 'expo
 
 /**
  * What each flag the app knows means for people, in plain words. The technical key stays visible, small, beside it.
- * Keys from src/core/features.ts, plus the website's own (sitePlanChoices, proPromo).
+ * Keys from src/core/features.ts, plus the website's own (sitePlanChoices).
  */
 export const FLAG_INFO = {
   accountData: { name: 'Delete my account and export my data', effect: 'People can download everything InFlight holds about them, or delete their account, from Settings.' },
@@ -32,7 +32,6 @@ export const FLAG_INFO = {
   editStyle: { name: 'Learns your style', effect: 'Auto leans towards how you edit, learned on this device only.' },
   brandKits: { name: 'Brand kits', effect: 'A saved logo, colours and text style for exports.' },
   sitePlanChoices: { name: 'Plan choices on the website', effect: 'Shows the monthly and yearly choice on the website.' },
-  proPromo: { name: 'Pro offer', effect: 'Applies the Paddle discount (for example Black Friday) to Pro.' },
   import: { name: 'Import', effect: 'Bring photos in. Always on.' },
   basicEditing: { name: 'Basic editing', effect: 'Light, colour and detail. Always on.' },
   cropAndStraighten: { name: 'Crop and straighten', effect: 'Always on.' },

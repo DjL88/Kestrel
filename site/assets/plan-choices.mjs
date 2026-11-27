@@ -6,10 +6,6 @@
 
 /** The admin flag that shows the plan choices on the home page (off until switched on in Admin → Flags). */
 export const CHOICES_FLAG = 'sitePlanChoices';
-/** The admin flag for a time-limited offer such as Black Friday. Its rule's dates are the offer's dates. */
-export const PROMO_FLAG = 'proPromo';
-
-const DAY = 86_400_000;
 
 function ruleLive(rule, nowMs) {
   if (!rule || typeof rule !== 'object') return false;
@@ -41,14 +37,12 @@ export function publicFlag(document, key, nowMs) {
   return { on: flag.default === true, endsAtMs: null };
 }
 
-/** The offer's last day as yyyy-mm-dd (UTC), from its exclusive end. Null when it runs until stopped. */
-export function lastDay(endsAtMs) {
-  return typeof endsAtMs === 'number' ? new Date(endsAtMs - DAY).toISOString().slice(0, 10) : null;
-}
-
-/** What the page shows: the choices, and the offer banner (only ever inside the choices). */
-export function planChoicesView(document, nowMs) {
+/**
+ * What the page shows: the choices, and the offer banner (only ever inside the choices). The offer is the Paddle
+ * discount as the server reads it from Paddle (/v1/billing/offer): { live, lastDay }. The banner needs a last day.
+ */
+export function planChoicesView(document, nowMs, offer) {
   const choices = publicFlag(document, CHOICES_FLAG, nowMs);
-  const promo = publicFlag(document, PROMO_FLAG, nowMs);
-  return { showChoices: choices.on, showPromo: choices.on && promo.on, promoLastDay: promo.on ? lastDay(promo.endsAtMs) : null };
+  const lastDay = offer && offer.live === true && typeof offer.lastDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(offer.lastDay) ? offer.lastDay : null;
+  return { showChoices: choices.on, showPromo: choices.on && !!lastDay, promoLastDay: choices.on ? lastDay : null };
 }

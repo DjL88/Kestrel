@@ -232,6 +232,9 @@ export default function Canvas({
   const pendingZoom = useRef<{ zoom: number; at: number } | null>(null);
   if (pendingZoom.current && (Math.abs(pendingZoom.current.zoom - canvasZoom) < 0.0006 || performance.now() - pendingZoom.current.at > 1000)) pendingZoom.current = null;
   zoomRef.current = pendingZoom.current ? pendingZoom.current.zoom : canvasZoom;
+  /** The zoom the layout on screen was drawn at; a pinch step measures from it even while a newer zoom is pending. */
+  const shownZoomRef = useRef(canvasZoom);
+  shownZoomRef.current = canvasZoom;
   const photoRef = useRef(photo);
   photoRef.current = photo;
   const neighboursRef = useRef(neighbourPhotos);
@@ -269,6 +272,34 @@ export default function Canvas({
     setEyeTarget((count) => count + 1);
     return true;
   };
+  /**
+   * Zooming out, by any means (Dave, 27 Nov): the picture moves steadily back to where it sits at Fit, in step with the
+   * zoom, and is exactly centred when Fit is reached. Its offset from the Fit position shrinks in proportion to how far
+   * the zoom still is above Fit. Where the picture sits at Fit is worked out the same way as the Fit margins below: inside
+   * the stage's scrollbars (clientWidth/Height), which it always keeps, so nothing there changes as Fit nears.
+   * False when there is nothing to hold (no frame, or not zoomed in past Fit).
+   */
+  const holdTowardsFit = (toZoom: number): boolean => {
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    const board = stage?.querySelector<HTMLElement>(':scope > [data-stage-margin]');
+    const from = shownZoomRef.current;
+    if (!stage || !frame || !board || !(from > 1.0005) || toZoom >= from) return false;
+    const pic = anchorRect(frame);
+    if (!(pic.width > 0 && pic.height > 0)) return false;
+    const box = board.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const fit = {
+      x: (stage.clientWidth - box.width / from) / 2 + (pic.left - box.left + pic.width / 2) / from,
+      y: (stage.clientHeight - box.height / from) / 2 + (pic.top - box.top + pic.height / 2) / from,
+    };
+    const now = { x: pic.left + pic.width / 2 - stageRect.left, y: pic.top + pic.height / 2 - stageRect.top };
+    const share = toZoom <= 1.0005 ? 0 : (toZoom - 1) / (from - 1);
+    heldPoint.current = null;
+    keepAt.current = { fx: 0.5, fy: 0.5, x: fit.x + (now.x - fit.x) * share, y: fit.y + (now.y - fit.y) * share, zoom: toZoom, at: performance.now() };
+    setEyeTarget((count) => count + 1);
+    return true;
+  };
 
   // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
   // Listen non-passively on the whole canvas column (the photo, the margin round it and the bar above it), so a pinch
@@ -294,7 +325,7 @@ export default function Canvas({
       const atX = clamp(event.clientX, rect.left, rect.left + rect.width);
       const atY = clamp(event.clientY, rect.top, rect.top + rect.height);
       pendingZoom.current = { zoom: next, at: performance.now() };
-      if (holdPointAt(atX, atY, next)) { zoomRef.current = next; setZoomRef.current(next); return; }
+      if (next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(atX, atY, next) : holdPointAt(atX, atY, next)) { zoomRef.current = next; setZoomRef.current(next); return; }
       zoomAnchor.current = {
         // A pinch over the bar above the stage anchors on the nearest point of the stage.
         x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
@@ -319,7 +350,8 @@ export default function Canvas({
       const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
       const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
       pendingZoom.current = { zoom: next, at: performance.now() };
-      if (!holdPointAt(rect.left + x, rect.top + y, next)) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
+      const held = next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(rect.left + x, rect.top + y, next) : holdPointAt(rect.left + x, rect.top + y, next);
+      if (!held) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
@@ -371,9 +403,9 @@ export default function Canvas({
     const baseY = parseFloat(base.paddingTop) || 0;
     const z = canvasZoom;
     const side = { left: pic.left - box.left, right: box.right - (pic.left + pic.width), top: pic.top - box.top, bottom: box.bottom - (pic.top + pic.height) };
-    // offsetWidth/Height, as Fit is measured: a scrollbar coming or going must not move the margins either.
-    const fitX = (stage.offsetWidth - box.width / z) / 2;
-    const fitY = (stage.offsetHeight - box.height / z) / 2;
+    // clientWidth/Height, as Fit is measured: the area inside the stage's scrollbars, which it always keeps.
+    const fitX = (stage.clientWidth - box.width / z) / 2;
+    const fitY = (stage.clientHeight - box.height / z) / 2;
     const pad = (fit: number, near: number, min: number) => Math.max(min, fit + near / z - near);
     stage.dataset.basePad = `${baseX},${baseY}`;
     stage.style.padding = `${pad(fitY, side.top, baseY)}px ${pad(fitX, side.right, baseX)}px ${pad(fitY, side.bottom, baseY)}px ${pad(fitX, side.left, baseX)}px`;
@@ -547,17 +579,19 @@ export default function Canvas({
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
-      // Measured with any scrollbar counted as room (offsetWidth/Height). Zoom is a multiple of Fit, so when a scrollbar
-      // came and went as the picture crossed the stage's size, Fit shrank, the picture shrank, the scrollbar went, Fit
-      // grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%"). The Fit margins added while zoomed in are
-      // not less room either: measure inside the stage's own padding.
+      // Zoom is a multiple of Fit, so when a scrollbar came and went as the picture crossed the stage's size, Fit shrank,
+      // the picture shrank, the scrollbar went, Fit grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%").
+      // The stage now always keeps its scrollbars, so the area inside them never changes. The Fit margins added while
+      // zoomed in are not less room either: measure inside the stage's own padding.
       const el = entry.target as HTMLElement;
       const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
       const style = getComputedStyle(el);
       const padX = el.style.padding && Number.isFinite(baseX) ? baseX : parseFloat(style.paddingLeft) || 0;
       const padY = el.style.padding && Number.isFinite(baseY) ? baseY : parseFloat(style.paddingTop) || 0;
-      const width = Math.max(0, el.offsetWidth - 2 * padX);
-      const height = Math.max(0, el.offsetHeight - 2 * padY);
+      // The area inside its scrollbars (clientWidth): the stage always keeps them (overflow: scroll below), so this is the
+      // same at Fit and zoomed in, and Fit is sized for exactly the area the picture is shown in.
+      const width = Math.max(0, el.clientWidth - 2 * padX);
+      const height = Math.max(0, el.clientHeight - 2 * padY);
       setStageSize((was) => (Math.abs(was.width - width) < 0.5 && Math.abs(was.height - height) < 0.5 ? was : { width, height }));
     });
     observer.observe(stage);
@@ -1134,7 +1168,8 @@ export default function Canvas({
             // The same anchoring as a touchpad pinch: the picture point between the fingers stays between them,
             // measured from the real layout (the stage's padding and Fit margins included).
             pendingZoom.current = { zoom: next, at: performance.now() };
-            if (!holdPointAt(centreX, centreY, next)) {
+            const held = next < zoomRef.current ? holdTowardsFit(next) || holdPointAt(centreX, centreY, next) : holdPointAt(centreX, centreY, next);
+            if (!held) {
               const rect = stage.getBoundingClientRect();
               zoomAnchor.current = {
                 x: centreX - rect.left, y: centreY - rect.top,
@@ -1580,11 +1615,27 @@ export default function Canvas({
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
   };
+  /**
+   * A zoom with no pointer to hold (the + and − buttons, the keys, the menu). In (Dave, 27 Nov): the eye stays where it
+   * is if one was found, else the middle of the subject, else the middle of the picture; if that point is out of view,
+   * the middle of the view. Out: steadily back to the Fit position (holdTowardsFit).
+   */
   const zoomAroundCentre = (next: number) => {
     const stage = stageRef.current;
     if (stage) {
       const rect = stage.getBoundingClientRect();
-      if (!holdPointAt(rect.left + stage.clientWidth / 2, rect.top + stage.clientHeight / 2, next)) {
+      const middle = { x: rect.left + stage.clientWidth / 2, y: rect.top + stage.clientHeight / 2 };
+      let held = false;
+      if (next < canvasZoom) held = holdTowardsFit(next);
+      else if (next > canvasZoom) {
+        const frame = stage.querySelector('[data-testid="canvas-frame"]');
+        const known = photo && zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus.focus : null;
+        const focus: ZoomFocus = known && known.kind !== 'camera' ? known : { kind: 'centre' };
+        const at = frame && activeSize.kind === 'photo' && !compareMode ? focusOnScreen(frame, focus) : null;
+        const inView = at && at.clientX >= rect.left && at.clientX <= rect.left + stage.clientWidth && at.clientY >= rect.top && at.clientY <= rect.top + stage.clientHeight;
+        held = inView ? holdPointAt(at.clientX, at.clientY, next) : false;
+      }
+      if (!held && !holdPointAt(middle.x, middle.y, next)) {
         zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
       }
     }
@@ -2241,6 +2292,9 @@ export default function Canvas({
       <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
         ref={attachStage}
+        // Its scrollbars are always there (thin, on a clear track). When they came and went as the zoom crossed Fit, the
+        // area the picture is shown in changed by their width, and zooming out moved the picture sideways near Fit (Dave,
+        // Windows; headless test browsers hide scrollbars, so only a headed run showed it).
         data-testid="canvas-stage"
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
@@ -2251,7 +2305,7 @@ export default function Canvas({
           if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
           if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
         }}
-        className={`relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
+        className={`relative flex flex-1 overflow-scroll inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
         style={{
           // The page itself never pinch-zooms over the photo or its margin: the canvas takes that gesture.
           touchAction: stageGestures ? 'none' : undefined,

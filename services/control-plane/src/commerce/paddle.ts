@@ -91,6 +91,29 @@ const paddlePrice = z.object({
   unit_price_overrides: z.array(z.object({ country_codes: z.array(z.string()), unit_price: priceMoney })).nullable().optional().transform((v) => v ?? []),
 }).passthrough();
 
+/** Paddle discount IDs look like dsc_01h04vsc0qhwtsbsxh3422wjs4. */
+export const PADDLE_DISCOUNT_ID = /^dsc_[a-z0-9]{10,60}$/;
+/**
+ * A discount made in the Paddle dashboard (Catalog, then Discounts). Paddle owns its dates and limits: `expires_at`,
+ * `usage_limit` and `status`. Paddle sets the status to 'expired' or 'used' by itself and refuses a spent discount.
+ */
+const paddleDiscount = z.object({
+  id: z.string().regex(PADDLE_DISCOUNT_ID),
+  status: z.string().max(40),
+  expires_at: z.string().nullable().optional(),
+  usage_limit: z.number().nullable().optional(),
+  times_used: z.number().nullable().optional(),
+}).passthrough();
+export type PaddleDiscount = z.infer<typeof paddleDiscount>;
+
+/** Is a Paddle discount usable now, by Paddle's own status, expiry and usage limit? */
+export function discountLive(d: PaddleDiscount, nowMs: number): boolean {
+  if (d.status !== 'active') return false;
+  if (d.expires_at && !(Date.parse(d.expires_at) > nowMs)) return false;
+  if (typeof d.usage_limit === 'number' && (d.times_used ?? 0) >= d.usage_limit) return false;
+  return true;
+}
+
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
   apiKey: string | (() => Promise<string>);
@@ -131,6 +154,11 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
       const url = created.checkout?.url;
       if (!url || new URL(url).protocol !== 'https:') throw new Error('Paddle did not return a checkout address.');
       return { transactionId: created.id, url };
+    },
+    /** A discount as Paddle has it now (its status, expiry and usage). */
+    async getDiscount(id: string) {
+      if (!PADDLE_DISCOUNT_ID.test(id)) throw new Error('Invalid Paddle discount ID.');
+      return paddleDiscount.parse(await raw('/discounts/' + encodeURIComponent(id)));
     },
     /** One price as Paddle has it: the base amount and the country overrides (the pricing matrix checks these). */
     async getPrice(id: string) {

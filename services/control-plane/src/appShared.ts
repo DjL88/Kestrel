@@ -91,12 +91,14 @@ export interface AppOptions {
    * (the admins and KCP_SANDBOX_TESTERS) may start a checkout, and payments for anyone else are ignored.
    */
   paddleEnvironment?: PaddleEnvironment;
+  /** Where website contact messages are emailed (KCP_CONTACT_NOTIFY_TO). Needs the mailer; its own admin switch. */
+  contactNotify?: { to: string };
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** How many Pro subscriptions are current (Paddle status active or trialing), by plan, for the admin console's Today. */
   proSubscriberCounts?: () => Promise<{ monthly: number; annual: number }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
+  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'> & Partial<Pick<ReturnType<typeof paddleProCheckout>, 'offer'>>;
   /** Server-owned Paddle checkout for cloud top-ups (commerce/topUpCheckout.ts); off until 'cloud-top-ups' is switched on. */
   topUpCheckout?: Pick<ReturnType<typeof import('./commerce/topUpCheckout.ts').paddleTopUps>, 'start' | 'status' | 'amounts'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
@@ -197,6 +199,7 @@ export const SWITCHES = [
   { key: 'learning-signal', label: 'Share corrections to improve InFlight', note: 'People can choose to share anonymous fixes they make. Off stops sharing; opting out and deleting keep working.' },
   { key: 'pro-checkout', label: 'Selling Pro', note: 'People can subscribe to Pro, monthly or yearly, through Paddle, which handles the tax. Off stops new sign-ups only; existing subscribers keep Pro.' },
   { key: 'cloud-top-ups', label: 'Cloud top-ups', note: 'People can add £5, £10 or £20 of cloud credit through Paddle. Off stops new top-ups only; credit already bought still works.' },
+  { key: 'contact-email', label: 'Email me contact form messages', note: 'Each message from the website contact form is also emailed to your own address (contact_notify_to), with Reply-To the sender. Messages are always kept here in Messages either way. Counts towards the daily email limit.' },
   { key: 'email', label: 'Emails from InFlight', note: 'Sends share invitations, and alerts or news only when a phone alert cannot reach someone. Stays under Google\'s daily limit. No address is stored.' },
   { key: 'push', label: 'Phone and browser alerts', note: 'Tells people about comments and client feedback on shared projects, where they turned alerts on. Names and counts only, never comment text or photos.' },
   { key: 'product-news', label: 'News to everyone', note: 'Lets you send InFlight news from Messages: as an alert where people allow it, or by email if they asked for email news.' },

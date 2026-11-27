@@ -290,3 +290,8 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
 @media (prefers-reduced-motion: reduce) {
   .inflight-v2 .v2-strip-tile .v2-strip-tile-more { transition: none; }
 }
+/* The filmstrip's tool row scrolls sideways when it is too wide (a task's status chip can make it so) but never shows a
+   scrollbar: one coming and going changed the row's height, so the photo dock grew, the canvas shrank and the photo
+   moved (Dave: "zoom out moves the picture"). Wheel, trackpad, touch and keyboard focus still scroll it. */
+.inflight-v2 .v2-filmstrip-tools { scrollbar-width: none; }
+.inflight-v2 .v2-filmstrip-tools::-webkit-scrollbar { display: none; }
