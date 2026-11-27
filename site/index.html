@@ -291,6 +291,9 @@
         .band+section{margin-top:56px}
         .band .promises{margin-inline:auto;padding:0}
         #colour,#features,#switch,#who{margin-top:72px}
+        .feat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+        @media(max-width:900px){.feat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:620px){.feat-grid{grid-template-columns:1fr}}
         .carousel{position:relative}
         .car-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 60px)/4);gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:12px;scrollbar-width:thin;overscroll-behavior-x:contain}
         .car-track>*{scroll-snap-align:start;min-width:0}
@@ -312,9 +315,7 @@
         .th-icon{display:block;width:28px;height:28px;border-radius:7px;margin:0 auto 6px}
         #how .steps-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
         #how,#shoots{margin-top:72px}
-        #features .car-track{grid-template-rows:auto auto;grid-auto-columns:calc((100% - 28px)/2);column-gap:28px;row-gap:28px}
-        #features .car-track>*{scroll-snap-align:none}#features .car-track>*:nth-child(4n+1){scroll-snap-align:start}
-        @media(max-width:620px){#how .steps-grid{grid-template-columns:1fr}#features .car-track{grid-template-rows:auto;grid-auto-columns:82%}#features .car-track>*{scroll-snap-align:start}}
+        @media(max-width:620px){#how .steps-grid{grid-template-columns:1fr}}
         .plan-icon-svg{display:inline-grid;place-items:center;background:#1a1f27;border:1px solid #3a404c}.plan-icon-svg svg{width:30px;height:30px}
         .matrix thead th.th-title{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-size:1.5rem;color:var(--ivory);vertical-align:bottom;text-align:left}
         .split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px;align-items:start}
@@ -642,8 +643,8 @@
   </section>
 
   <section id="features" class="wrap" aria-labelledby="features-title">
-    <div class="car-head"><h2 id="features-title">See it in action</h2><div class="car-btns"><button type="button" data-car="prev" aria-label="Previous" aria-controls="features-track">‹</button><button type="button" data-car="next" aria-label="Next" aria-controls="features-track">›</button></div></div>
-    <div class="carousel"><div class="car-track" id="features-track" tabindex="0" role="region" aria-label="Feature examples, scroll sideways"><article class="step"><div class="ifx ifx-card ifx-run" role="img" aria-label="A burst of three near-identical kingfisher frames is grouped as look-alikes. They open side by side; a box shows where the camera focused, and the pointer marks one frame as the Pick. The others stay, nothing is deleted.">
+    <h2 id="features-title">See it in action</h2>
+    <div class="feat-grid"><article class="step"><div class="ifx ifx-card ifx-run" role="img" aria-label="A burst of three near-identical kingfisher frames is grouped as look-alikes. They open side by side; a box shows where the camera focused, and the pointer marks one frame as the Pick. The others stay, nothing is deleted.">
   <div class="ifx-a p-kfsplash" style="left:5%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;background-position:40% 50%;background-size:cover"></div>
   <div class="ifx-a p-kfsplash" style="left:36%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;outline:2px solid #e8743c;outline-offset:2px;background-position:46% 50%;background-size:cover"><span class="ifx-a" style="left:18%;top:26%;width:24%;height:19%;border:2px solid #f4efe8;border-radius:3px;box-shadow:0 0 0 1px #0e1116;animation-name:nxShow2"></span><span class="ifx-a ifx-chip" style="left:6%;bottom:6%;font-size:2.6cqw;animation-name:nxShow3">★ Pick</span></div>
   <div class="ifx-a p-kfsplash" style="left:67%;top:9%;width:28%;aspect-ratio:4/5;border-radius:6px;background-position:52% 50%;background-size:cover;filter:blur(.6px)"></div>
@@ -770,7 +771,7 @@
         <h3>Grainy? Not for long.</h3>
         <p>Clean up high-ISO shots and compare before and after. Nothing is invented.</p>
       </article>
-    </div></div>
+    </div>
   </section>
 
 
