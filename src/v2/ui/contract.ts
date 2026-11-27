@@ -90,6 +90,8 @@ export interface CloudRecipeOfferView {
   alternativeLabel?: string;
   /** Why nothing can be sent, in words. */
   message?: string;
+  /** Said beside the offer when the picture is not InFlight's own smart preview, e.g. a copy of the camera's built-in JPEG. */
+  previewNote?: string;
 }
 
 export type SocialPlatform =
@@ -977,6 +979,10 @@ export interface WorkspaceActions {
   /** The separate opt-in for sending full originals. Returns what is in force afterwards. */
   setCloudRecipeFullFile?: (on: boolean) => boolean;
   cloudRecipeFullFileOn?: () => boolean;
+  /** The remembered answer to "Use InFlight's cloud for this?" (asked once, never pre-ticked). */
+  cloudConsent?: () => import('../../core/cloudConsent').CloudConsentAnswer;
+  /** Remember yes or no, or forget the answer ('ask'). Returns what is in force afterwards. */
+  setCloudConsent?: (answer: 'yes' | 'no' | 'ask') => import('../../core/cloudConsent').CloudConsentAnswer;
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;

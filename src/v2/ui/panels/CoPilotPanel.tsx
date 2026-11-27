@@ -39,6 +39,11 @@ interface CoPilotPanelProps {
     send: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
     setFullFile: (on: boolean) => boolean;
     fullFileOn: () => boolean;
+    /** The remembered answer to "Use InFlight's cloud for this?". */
+    consent?: () => import('../../../core/cloudConsent').CloudConsentAnswer;
+    setConsent?: (answer: 'yes' | 'no' | 'ask') => import('../../../core/cloudConsent').CloudConsentAnswer;
+    /** Opens Settings › Account, where the cloud balance is topped up. */
+    onTopUp?: () => void;
   };
   /** Bring your own AI (real workspace only). Absent: nothing is shown. */
   aiOpinion?: AiSecondOpinionView;
@@ -144,7 +149,8 @@ export default function CoPilotPanel({
 
       {cloudRecipe && (
         <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
-          onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn} />
+          onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn}
+          consent={cloudRecipe.consent} onSetConsent={cloudRecipe.setConsent} onTopUp={cloudRecipe.onTopUp} />
       )}
 
       {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}
