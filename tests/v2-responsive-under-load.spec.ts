@@ -7,9 +7,13 @@ test.beforeEach(({}, testInfo) => {
 type Probe = { events: { name: string; delay: number; duration: number; at: number }[]; longTasks: { at: number; duration: number }[]; frames: string[] };
 type Win = Window & { __probe: Probe; __burners: Worker[] };
 
-/** Served as the desktop app serves it (src-tauri/tauri.conf.json), so model threads and shared memory behave the same. */
+/**
+ * Served as the desktop app serves it (src-tauri/tauri.conf.json), so model threads and shared memory behave the same.
+ * On the whole context, so the workers' own scripts get the headers too (a cross-origin isolated page refuses a worker
+ * whose script lacks them, and the models would then run on the page, which the app never does).
+ */
 async function desktopHeaders(page: Page) {
-  await page.route('**/*', async (route) => {
+  await page.context().route('**/*', async (route) => {
     const response = await route.fetch().catch(() => null);
     if (!response) { await route.continue(); return; }
     await route.fulfill({ response, headers: { ...response.headers(), 'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'require-corp' } });
@@ -88,6 +92,12 @@ async function photos(page: Page, count: number) {
 test('?v2 with the processor saturated and an import running, the editor answers every action at once @stress', async ({ page }) => {
   test.setTimeout(300_000);
   await desktopHeaders(page);
+  // The models must run in their workers, as in the app: a fallback to the page would measure a different program.
+  const fellBack: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (/running (on the main thread|it here instead)/i.test(text)) fellBack.push(text.slice(0, 200));
+  });
   await page.goto('/?v2');
   expect(await page.evaluate(() => crossOriginIsolated), 'served as the desktop app serves it').toBe(true);
   const root = page.locator('.inflight-v2');
@@ -140,6 +150,8 @@ test('?v2 with the processor saturated and an import running, the editor answers
     .map((m) => `${m.name} ${Math.round(m.duration)} ms`));
   if (marks.length) console.log(`InFlight steps over 50 ms (time taken, not all of it on the page): ${marks.join(', ')}`);
   if (probe.frames.length) console.log(`slow frames:\n  ${probe.frames.slice(0, 25).join('\n  ')}`);
+  if (fellBack.length) console.log(`models that fell back to the page:\n  ${fellBack.join('\n  ')}`);
+  expect.soft(fellBack, 'every model ran in its worker, as in the app').toEqual([]);
   const slack = process.env.CI ? 2 : 1;
   expect.soft(probe.events.filter((e) => e.delay > 100 * slack).map((e) => `${e.name} waited ${Math.round(e.delay)} ms`), 'every action is answered within 100 ms').toEqual([]);
   expect.soft(long.filter((d) => d > 150 * slack), 'no task holds the page for more than 150 ms (ratchet; the goal is 50)').toEqual([]);
