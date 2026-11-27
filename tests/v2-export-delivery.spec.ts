@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -28,6 +29,7 @@ test('a real project exports full-resolution and capped PNGs and the exact origi
   const dialog = page.getByRole('dialog', { name: /export/i });
   const open = async () => {
     if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click();
+    await openExportAdvanced(dialog);
   };
   const downloadZip = async () => {
     const downloaded = page.waitForEvent('download');

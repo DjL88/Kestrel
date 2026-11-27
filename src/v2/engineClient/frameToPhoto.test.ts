@@ -15,7 +15,7 @@ test('a photo with no recorded metadata says so rather than inventing values', (
   assert.equal(photo.exif.camera, 'Not recorded');
   assert.equal(photo.exif.aperture, 'Not recorded');
   assert.equal(photo.exif.dimensions, 'Not recorded');
-  assert.equal(photo.exif.fileFormat, 'NEF');
+  assert.equal(photo.exif.fileFormat, 'NEF RAW', 'the format of the file itself, not of the picture on screen');
   assert.equal(photo.speciesLabel, undefined, 'unknown species stays unknown');
   assert.equal(photo.title, 'IMG_0001');
   assert.equal(photo.thumbUrl, BLANK_IMAGE);
@@ -146,7 +146,7 @@ test('Co-pilot shows only rendered alternatives and marks only the matching edit
     findings: [{ id: 'clippedColour', severity: 'warning', share: 0.1, families: ['red'] }] } } as never, dismissed: [] });
   assert.equal(withColour.colourConfidence, 'Species colour not used. Some red areas are too strong to show their detail, so they look flat.');
   assert.deepEqual(withColour.colourCheck?.palette, ['red, strong: about half or more']);
-  assert.equal(shown.kelvinEstimate, 'Not measured');
+  assert.equal(shown.kelvinEstimate, '', 'no colour-temperature claim from the analysis; frameToPhoto adds the as-shot white when known');
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, plan.proposal).suggestions.map(s => [s.id, s.applied]), [['natural', true]]);
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: ['balanced'] }).suggestions.map(s => s.id), ['natural']);
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, { ...plan.base, exposure: -1 }).suggestions, []);
@@ -338,4 +338,25 @@ test('personal style says in plain words how Auto was leaned, and nothing when i
   assert.equal(styleNoteFor([]), undefined);
   const note = styleNoteFor([{ key: 'exposure', multiplier: 0.75, examples: 6, outliers: 0 }, { key: 'shadows', multiplier: 1.2, examples: 9, outliers: 1 }]);
   assert.equal(note, 'Leaned towards your own edits: Exposure 25% less (from 6 photos), Shadows 20% more (from 9 photos). Learnt on this device from what you kept, undid or corrected. Nothing is sent anywhere.');
+});
+
+test('a project is a Tethered shoot when its saved shoot says so; older projects stay photo shoots', () => {
+  const shoot = { id: 'p1', title: 'Studio', sourceKind: 'local-files' as const, totalFrames: 0, createdAt: 0, lastUpdatedAt: 0 };
+  assert.equal(shootToProject({ ...shoot, projectType: 'tethered' as const }, []).kind, 'tethered');
+  assert.equal(shootToProject(shoot, []).kind, 'photography');
+});
+
+test('Info: a RAW\'s Format is its own format, also for older catalogues that stored "Embedded Preview"', async () => {
+  const { shownFileFormat } = await import('../../core/rawFormats');
+  assert.equal(shownFileFormat('_DJL0733.NEF', 'NEF Embedded Preview'), 'NEF RAW');
+  assert.equal(shownFileFormat('_DJL0733.NEF', undefined), 'NEF RAW');
+  assert.equal(shownFileFormat('bird.jpg', 'JPEG'), 'JPEG');
+  assert.equal(shownFileFormat('bird.heic', 'HEIC (iPhone)'), 'HEIC (iPhone)');
+});
+
+test('Info: beside the histogram, the as-shot white when known, otherwise nothing (never "Not measured")', async () => {
+  const { asShotWords } = await import('./frameToPhoto');
+  assert.equal(asShotWords({ asShotWhite: { kelvin: 5612.4, duv: 0.001 } } as never), 'As shot about 5,612 K (estimated)');
+  assert.equal(asShotWords({}), '');
+  assert.equal(asShotWords({ asShotWhite: { kelvin: Number.NaN, duv: 0 } } as never), '');
 });

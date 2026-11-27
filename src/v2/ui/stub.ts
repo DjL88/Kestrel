@@ -825,12 +825,13 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    createProject: (name, _kind, mode) => {
+    createProject: (name, kind, mode) => {
       const clean = name.trim();
       if (!clean) return;
       logAction('createProject', { name: clean, mode });
       const newProject: Project = {
         id: `proj-${Date.now()}`,
+        ...(kind ? { kind } : {}),
         name: clean,
         updatedAt: 'Just now',
         coverUrl: '/v2-sample/glencoe.jpg',

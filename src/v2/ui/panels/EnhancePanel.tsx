@@ -1,3 +1,4 @@
+import { useSliderValue } from '../utils/useSliderValue';
 import React from 'react';
 import type { EditRecipe, Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -5,6 +6,7 @@ import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
 import { UNMAPPED_KEYS } from '../../engineClient/recipeMap';
+import type { TrueDetailJob } from '../utils/trueDetailJob';
 
 /** A displayed Enhance control is enabled only if the real engine can honour its value. */
 const unsupported = (key: keyof EditRecipe): boolean =>
@@ -16,10 +18,21 @@ interface EnhancePanelProps {
   hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDenoise?: (photoId: string) => void;
+  /** This photo's TrueDetail job while it waits or runs: shown on the button that started it. */
+  trueDetail?: TrueDetailJob | null;
   /** Show the selected format exactly as export will make it, Output scale included. Absent where there is no engine. */
   onPreviewEnlargement?: () => void;
   /** Whether this plan includes cloud processing. */
   cloudEnabled?: boolean;
+}
+
+/** A 0 to 100 noise slider whose thumb moves at once; the edit follows as a transition (useSliderValue). */
+function HeldRange({ id, testId, value: workspaceValue, onChange: commit }: { id: string; testId?: string; value: number; onChange: (value: number) => void }) {
+  const [value, onChange] = useSliderValue(workspaceValue, commit);
+  return (
+    <input id={id} type="range" data-testid={testId} min={0} max={100} value={value}
+      onChange={(e) => onChange(Number(e.target.value))} className="inflight-slider" />
+  );
 }
 
 export default function EnhancePanel({
@@ -27,6 +40,7 @@ export default function EnhancePanel({
   hideReadouts,
   onUpdateRecipe,
   onDenoise, onPreviewEnlargement,
+  trueDetail = null,
   cloudEnabled = false,
 }: EnhancePanelProps) {
   if (!photo) {
@@ -48,13 +62,21 @@ export default function EnhancePanel({
 
         {onDenoise && (
           <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
+            {/* Owner, 26 Nov: it only showed in Tasks. While it waits or runs, the button says so and shows how far it has got. */}
             <button
               type="button"
+              data-testid="truedetail-run"
               onClick={() => onDenoise(photo.id)}
-              className="h-8 w-full rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)]"
+              disabled={Boolean(trueDetail)}
+              aria-busy={Boolean(trueDetail)}
+              className="relative h-8 w-full overflow-hidden rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)] disabled:cursor-progress disabled:bg-[var(--brand-accent-soft)] disabled:text-[var(--text-primary)]"
             >
-              {STRINGS.enhance.denoiseNow}
+              {trueDetail?.state === 'running' && (
+                <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-[var(--brand-accent)] opacity-40" style={{ width: `${trueDetail.percent}%` }} />
+              )}
+              <span className="relative">{trueDetail ? (trueDetail.state === 'running' ? STRINGS.enhance.trueDetailRunning(trueDetail.percent) : STRINGS.enhance.trueDetailQueued) : STRINGS.enhance.denoiseNow}</span>
             </button>
+            {trueDetail && <p role="status" className="sr-only">{trueDetail.state === 'running' ? STRINGS.enhance.trueDetailRunning(trueDetail.percent) : STRINGS.enhance.trueDetailQueued}</p>}
             <p className="text-[0.6875rem] text-[var(--text-muted)]">
               {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
             </p>
@@ -119,15 +141,11 @@ export default function EnhancePanel({
               </span>
             )}
           </div>
-          <input
+          <HeldRange
             id="denoise-luma"
-            type="range"
-            data-testid="v2-enhance-luminance"
-            min={0}
-            max={100}
+            testId="v2-enhance-luminance"
             value={recipe.denoiseLuminance}
-            onChange={(e) => onUpdateRecipe(photo.id, { denoiseLuminance: Number(e.target.value) })}
-            className="inflight-slider"
+            onChange={(value) => onUpdateRecipe(photo.id, { denoiseLuminance: value })}
           />
         </div>
 
@@ -146,14 +164,10 @@ export default function EnhancePanel({
               </span>
             )}
           </div>
-          <input
+          <HeldRange
             id="denoise-colour"
-            type="range"
-            min={0}
-            max={100}
             value={recipe.denoiseColour}
-            onChange={(e) => onUpdateRecipe(photo.id, { denoiseColour: Number(e.target.value) })}
-            className="inflight-slider"
+            onChange={(value) => onUpdateRecipe(photo.id, { denoiseColour: value })}
           />
         </div>
       </section>

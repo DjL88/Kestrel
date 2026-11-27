@@ -220,7 +220,7 @@ fn fit_grids(ours: &[[f32; 3]], theirs: &[[f32; 3]], gw: usize, gh: usize) -> Op
     if samples.len() < 64 {
         return None;
     }
-    let curves = [0, 1, 2].map(|c| fit_curve(&samples, c));
+    let curves = steady_white_balance([0, 1, 2].map(|c| fit_curve(&samples, c)));
     let curved: Vec<[f32; 3]> = samples.iter().map(|s| [0, 1, 2].map(|c| curves[c][(s.ours[c] * 65535.0 + 0.5) as usize])).collect();
     let matrix = fit_matrix(&samples, &curved);
     let look = CameraLook { curves, matrix, before: 0.0, after: 0.0 };
@@ -289,6 +289,52 @@ fn fit_curve(samples: &[Sample], c: usize) -> Vec<f32> {
             (curve(x) * (1.0 - MIN_SLOPE_MIX) + x * MIN_SLOPE_MIX).clamp(0.0, 1.0)
         })
         .collect()
+}
+
+/// Coarse points across the curves for `steady_white_balance` (every 64th of the 65,536 entries, and the last).
+const STEADY_POINTS: usize = 1025;
+
+/// Keep one shared tone curve, and let each channel differ from it only by a gentle, steady tint.
+///
+/// Each channel's curve is learned from grid cells binned by brightness, and at any one brightness most cells are
+/// whatever the scene has there: green-brown grass in the mid-tones, blue sky higher up. Fitted on their own, the three
+/// curves picked those colours up as if they were the camera's tone response, and pulled apart and back together across
+/// the range. A neutral grey then changed hue as it got brighter (on the owner's dawn puffin, a grey went from +16 red
+/// at level 160 to -23 blue at level 184), so the smooth shading on a white belly became pink and blue-green blotches the
+/// camera's own JPEG doesn't have.
+///
+/// A camera's white-balance rendering is a steady tint that fades to nothing at black and at white. So each channel's
+/// difference from the shared curve is replaced by the closest curve of that kind, x(1-x)(a + bx) (least squares):
+/// it can be warmer or cooler, more in the shadows or the highlights, but it cannot swing back and forth with the scene.
+fn steady_white_balance(curves: [Vec<f32>; 3]) -> [Vec<f32>; 3] {
+    let n = STEADY_POINTS;
+    let index = |k: usize| (k * 64).min(65535);
+    let x = |k: usize| index(k) as f64 / 65535.0;
+    let mean: Vec<f64> = (0..n).map(|k| (0..3).map(|c| curves[c][index(k)] as f64).sum::<f64>() / 3.0).collect();
+    curves.map(|curve| {
+        // Least squares for difference(x) ~ a * x(1-x) + b * x^2(1-x).
+        let (mut s11, mut s12, mut s22, mut r1, mut r2) = (0f64, 0f64, 0f64, 0f64, 0f64);
+        for k in 0..n {
+            let (u, d) = (x(k), curve[index(k)] as f64 - mean[k]);
+            let (p1, p2) = (u * (1.0 - u), u * u * (1.0 - u));
+            s11 += p1 * p1; s12 += p1 * p2; s22 += p2 * p2; r1 += p1 * d; r2 += p2 * d;
+        }
+        let det = s11 * s22 - s12 * s12;
+        let (a, b) = if det.abs() > 1e-12 { ((r1 * s22 - r2 * s12) / det, (r2 * s11 - r1 * s12) / det) } else { (0.0, 0.0) };
+        let mut coarse: Vec<f32> = (0..n).map(|k| {
+            let u = x(k);
+            (mean[k] + u * (1.0 - u) * (a + b * u)).clamp(0.0, 1.0) as f32
+        }).collect();
+        for k in 1..n {
+            coarse[k] = coarse[k].max(coarse[k - 1]);
+        }
+        (0..65536usize).map(|v| {
+            let at = v as f32 / 64.0;
+            let k = (at as usize).min(n - 2);
+            let t = at - k as f32;
+            coarse[k] * (1.0 - t) + coarse[k + 1] * t
+        }).collect()
+    })
 }
 
 /// Fritsch-Carlson monotone cubic through rising knots (x strictly rising, y never falling).
@@ -390,6 +436,57 @@ fn is_identity(m: &[[f32; 3]; 3]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// How fast a grey's tint changes with brightness: the worst change of R-G or B-G between two greys 24 levels apart
+    /// (8-bit levels). This is what turns smooth shading on a white bird into colour blotches.
+    fn worst_tint_swing(look: &CameraLook) -> f32 {
+        let tint = |v: u32| { let o = look.map([v as f32 / 255.0; 3]); [o[0] - o[1], o[2] - o[1]] };
+        (0..=231u32).map(|v| {
+            let (p, q) = (tint(v), tint(v + 24));
+            ((p[0] - q[0]).abs().max((p[1] - q[1]).abs())) * 255.0
+        }).fold(0.0, f32::max)
+    }
+
+    #[test]
+    fn scene_colours_at_one_brightness_are_not_learned_as_a_hue_shift_of_greys() {
+        // Our develop and the camera's JPEG agree exactly on greys, but the frame is mostly green grass at mid levels
+        // and blue sky at bright levels, which the camera renders a little more saturated. Binned per channel, those
+        // colours used to bend the three curves apart, so greys came out green-tinted in the mid-tones and blue up high.
+        let mut samples = Vec::new();
+        for i in 0..4000 {
+            let v = (i % 200) as f32 / 200.0;
+            let (ours, theirs) = match i % 5 {
+                0 => ([v; 3], [v; 3]), // a little grey everywhere
+                _ if v > 0.3 && v < 0.55 => ([v * 0.8, v, v * 0.7], [v * 0.72, v, v * 0.6]), // grass, more saturated
+                _ if v > 0.65 && v < 0.9 => ([v * 0.85, v * 0.95, v], [v * 0.78, v * 0.93, v]), // sky, more saturated
+                _ => ([v; 3], [v; 3]),
+            };
+            samples.push(Sample { ours, theirs, weight: 1.0 });
+        }
+        let raw_curves = [0, 1, 2].map(|c| fit_curve(&samples, c));
+        let unsteady = CameraLook { curves: raw_curves, matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], before: 0.0, after: 0.0 };
+        let steady = CameraLook { curves: steady_white_balance(unsteady.curves.clone()), ..unsteady.clone() };
+        let (before, after) = (worst_tint_swing(&unsteady), worst_tint_swing(&steady));
+        assert!(before > 6.0, "the per-channel fit alone swings a grey's tint by {before:.1} levels over 24 levels");
+        assert!(after < 3.5 && after < 0.3 * before, "a grey's tint now changes by at most {after:.1} levels over 24 levels (was {before:.1})");
+    }
+
+    #[test]
+    fn a_camera_that_renders_warmer_keeps_its_steady_tint() {
+        // A real white-balance rendering: the camera's JPEG is warmer than our develop at every brightness.
+        let samples: Vec<Sample> = (0..3000).map(|i| {
+            let v = (i % 250) as f32 / 255.0;
+            Sample { ours: [v; 3], theirs: [(v * 1.06).min(1.0), v, v * 0.94], weight: 1.0 }
+        }).collect();
+        let curves = steady_white_balance([0, 1, 2].map(|c| fit_curve(&samples, c)));
+        let look = CameraLook { curves, matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], before: 0.0, after: 0.0 };
+        let mid = look.map([0.5; 3]);
+        assert!(mid[0] - mid[1] > 0.015 && mid[1] - mid[2] > 0.015, "still warmer in the mid-tones: {mid:?}");
+        for v in [0.0f32, 1.0] {
+            let end = look.map([v; 3]);
+            assert!((end[0] - v).abs() < 0.02 && (end[2] - v).abs() < 0.02, "black stays black and white stays white: {end:?}");
+        }
+    }
 
     /// A textured synthetic "develop": smooth gradients and colour patches, 16-bit.
     fn developed(w: u32, h: u32) -> ImageBuffer<Rgb<u16>, Vec<u16>> {

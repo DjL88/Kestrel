@@ -100,7 +100,7 @@ test('Nikon NEF and NRW filenames share the embedded-preview route', () => {
 test('NRW metadata never claims full RAW decoding, including parse failure', async () => {
   const { parseImageExif } = await import('./exifParser');
   const metadata = await parseImageExif(new Blob([new Uint8Array(8)]), 'NIKON.NRW');
-  assert.equal(metadata.formatLabel, 'NRW Embedded Preview');
+  assert.equal(metadata.formatLabel, 'NRW RAW');
   assert.equal(metadata.isEmbeddedPreviewOnly, true);
 });
 
@@ -178,4 +178,15 @@ test('a RAW thumbnail directory never sets the photo size, and quarter-turn orie
   assert.equal(isQuarterTurn(3), false);
   assert.equal(isQuarterTurn('Mirror horizontal and rotate 270 CW'), true);
   assert.equal(isQuarterTurn('Rotate 180'), false);
+});
+
+test('a Nikon Z 8 NEF names its lens (CC0 sample; skipped when the samples are not fetched)', async () => {
+  const { existsSync, readFileSync } = await import('node:fs');
+  const sample = new URL('../../raw-samples/Nikon_Z8_high_efficiency_low.NEF', import.meta.url);
+  if (!existsSync(sample)) return;
+  const head = readFileSync(sample).subarray(0, 1024 * 1024);
+  const { parseImageExif } = await import('./exifParser');
+  const metadata = await parseImageExif(new Blob([head]), 'Nikon_Z8_high_efficiency_low.NEF');
+  assert.equal(metadata.lens, 'NIKKOR Z 14-24mm f/2.8 S', 'read from the same 1 MiB head the import reads');
+  assert.equal(metadata.formatLabel, 'NEF RAW');
 });

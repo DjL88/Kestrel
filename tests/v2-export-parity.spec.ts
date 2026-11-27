@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -44,6 +45,7 @@ async function openExport(page: Page, studio: Locator) {
   const dialog = page.getByRole('dialog', { name: /export/i });
   if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click();
   await expect(dialog).toBeVisible();
+  await openExportAdvanced(dialog);
   return dialog;
 }
 

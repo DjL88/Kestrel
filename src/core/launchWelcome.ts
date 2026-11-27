@@ -2,7 +2,11 @@
 
 export type LaunchProfile = { signedIn: true; displayName: string | null; initial: string | null };
 /** editedAt is an ISO date. */
-export type LastProject = { id: string; name: string; photoCount: number; editedAt: string };
+export type LastProject = {
+  id: string; name: string; photoCount: number; editedAt: string;
+  /** Up to three references to previews already stored on this device, shown on the "pick up" card (never the pictures). */
+  thumbs?: { keys: string[]; developVersion: number };
+};
 export type WelcomeState = 'first' | 'signedIn' | 'guest';
 export type WelcomeInput = {
   profile: LaunchProfile | null;

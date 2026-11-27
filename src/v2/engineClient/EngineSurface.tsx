@@ -15,7 +15,7 @@ export function EngineSurface({ photoId, variant, lookPreview, alt, className, s
     : lookPreview ? { ...frame, edit: previewLookEdit(frame.edit, lookPreview) } : frame;
   return (
     <div className={className} style={style}>
-      <FrameImage frame={shown} previewProvider={provider} variant="full" needsAccess={false} priority refreshOnBackgroundDevelop sensor16 alt={alt} maskGuideId={variant === 'edited' ? maskGuideId : undefined} maskGuideStyle={maskGuideStyle ?? 'outline'}
+      <FrameImage frame={shown} previewProvider={provider} variant="full" needsAccess={false} priority refreshOnBackgroundDevelop sensor16 prepareDrag={variant !== 'original'} alt={alt} maskGuideId={variant === 'edited' ? maskGuideId : undefined} maskGuideStyle={maskGuideStyle ?? 'outline'}
         maskOutline={variant === 'edited' ? maskOutline : undefined}
         onPictureSize={onPictureSize} onBusyChange={onBusyChange} className="h-full w-full" imgClassName="h-full w-full object-cover" />
     </div>

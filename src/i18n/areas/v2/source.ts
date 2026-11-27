@@ -298,6 +298,8 @@ export const source = {
     kindPhotoShootBody: 'Edit some photos: cull, develop and export a set of pictures',
     kindCollageTitle: 'Collage or album',
     kindCollageBody: 'Lay several photos out on pages, posters or posts',
+    kindTetheredTitle: "Tethered shoot",
+    kindTetheredBody: "Photos arrive from the camera as you take them: by cable, camera Wi-Fi or a watched folder",
     kindSelected: 'Selected',
     modeQuestion: 'How much should InFlight help?',
     modeChangeLater: 'You can change this later in the project.',
@@ -307,6 +309,9 @@ export const source = {
   // Filmstrip & Grid
   filmstrip: {
     importPhotos: 'Import',
+    rowMore: "More",
+    rowMoreLabel: "More import and culling tools",
+    showAllButtons: "Show every button in this row",
     autoCull: 'Auto pick & Analyse',
     autoCullRunning: 'Analysing…',
     searchPlaceholder: 'Search filename, camera, species…',
@@ -1175,8 +1180,10 @@ export const source = {
   // Enhance Panel
   enhance: {
     heading: 'Enhance',
-    denoiseHeading: 'Noise Reduction',
-    denoiseNow: 'Denoise this photo',
+    denoiseHeading: "TrueDetail noise reduction",
+    denoiseNow: "Run TrueDetail on this photo",
+    trueDetailRunning: (percent: number) => `TrueDetail is working on this photo: ${percent}%`,
+    trueDetailQueued: "TrueDetail will start in a moment",
     denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: 'Runs on this device. Cloud processing is part of Pro.',
     aiDenoiseInUse: 'AI denoise is in use on the subject. It is stored on this device only.',
@@ -1400,6 +1407,9 @@ export const source = {
     fileSection: 'File & Connection',
     cameraSection: 'Camera & Capture',
     cullSection: 'Analysis Summary',
+    tabsLabel: "Photo information",
+    tabDetails: "Details",
+    tabFile: "File & histogram",
     originalStatusConnected: 'Original connected (16-bit RAW)',
     originalStatusOffline: 'Original not connected — local preview active',
   },
@@ -1482,6 +1492,9 @@ export const source = {
     rawMasterHelp: 'Save one full-size 16-bit file with the photo’s edits and framing. Per-format crops, borders, text and watermarks use the standard export controls.',
     startExport: 'Export bundle',
     captionsHeading: 'Captions and credits',
+    photosHeading: "Photos",
+    advancedHeading: "Advanced",
+    captionsMetadataOnly: "This only updates the file’s metadata (its details, such as caption and credit). Nothing is written on the picture.",
     captionsOn: 'Add captions and credits to each file',
     captionsHelp: 'Saved on this device for every export. Type \\code\\ to put in its text, and {subject}, {date}, {camera}, {lens} or {filename} for the photo’s own details.',
     captionTitle: 'Headline',
@@ -2367,7 +2380,7 @@ export const source = {
   },
   activityBar: {
     photoLoading: 'Loading photo',
-    minutesLeft: (n: number) => `About ${n} min left`,
+    minutesLeft: (n: number) => (n < 60 ? `About ${n} min left` : `About ${Math.floor(n / 60)} h ${n % 60} min left`),
     teaTime: 'Time for a cup of tea',
   },
 };

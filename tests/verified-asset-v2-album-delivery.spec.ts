@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
+import { openExportAdvanced } from './helpers';
 
 test('reopened group recipes produce distinct pixels, and a collage can reuse the source on selected pages', async ({ page }) => {
   await page.goto('/?v2');
@@ -40,6 +41,8 @@ test('reopened group recipes produce distinct pixels, and a collage can reuse th
   let dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Light', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await dialog.getByRole('button', { name: 'Dark', exact: true }).click();
+  // File format is under Advanced (owner, 26 Nov); the edit groups (Photos) are in the main view.
+  await openExportAdvanced(dialog);
   await dialog.getByLabel('File format').selectOption('png');
   const zipOnClick = async (name: RegExp) => {
     const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name }).click()]);

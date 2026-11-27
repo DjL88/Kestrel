@@ -11,7 +11,8 @@ import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
-import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY } from './utils/layoutQueries';
+import { trueDetailJob } from './utils/trueDetailJob';
+import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -373,6 +374,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+  const [isTabletPortrait, setIsTabletPortrait] = useState<boolean>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(TABLET_PORTRAIT_QUERY).matches : false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(TABLET_PORTRAIT_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setIsTabletPortrait(e.matches);
+    setIsTabletPortrait(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -477,7 +489,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // it sits just above the highest of them, measured, because their heights change (a sheet opens, the strip resizes).
   const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
   useEffect(() => {
-    if (!isMobile || !store.lastActionNotice) { setNoticeBottom(null); return; }
+    if (!(isMobile || isTabletPortrait) || !store.lastActionNotice) { setNoticeBottom(null); return; }
     const bottomParts = () => [
       document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip'),
       document.querySelector<HTMLElement>(`.inflight-v2 nav[aria-label="${STRINGS.mobile.toolBar}"]`),
@@ -490,7 +502,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     bottomParts().forEach((el) => observer?.observe(el));
     return () => { window.removeEventListener('resize', place); observer?.disconnect(); };
-  }, [isMobile, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]); // sheetHeight: a tool sheet opened, closed or changed size
+  }, [isMobile, isTabletPortrait, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]); // sheetHeight: a tool sheet opened, closed or changed size
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
@@ -848,6 +860,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             hideReadouts={store.settings.calmReadouts}
             onUpdateRecipe={actions.updateRecipe}
             onDenoise={actions.denoisePhoto}
+            trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
             cloudEnabled={store.features.cloudAssist}
             onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
           />
@@ -928,9 +941,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  const tetheredProject = store.projects.find((project) => project.id === store.activeProjectId)?.kind === 'tethered';
+  // Focus mode: on by default on a phone; the person's own choice (filmstrip More menu) wins everywhere.
+  const filmstripFocus = store.settings.filmstripFocus ?? isMobile;
   // Phone layouts: upright (bottom tool bar and bottom sheet) and sideways (tools on the right, side panels).
   const phoneLandscape = isPhoneLandscape && !composingCollage;
-  const phoneLayout = isMobile || phoneLandscape;
+  // An upright touch tablet uses the phone's bottom tool bar and bottom sheet, with room for more buttons.
+  const tabletPortrait = isTabletPortrait && !isMobile && !composingCollage;
+  const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
@@ -990,7 +1008,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <div
       className="inflight-v2 v2-safe-root fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
-      data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
+      data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
@@ -1118,6 +1136,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
+            importInBar={tabletPortrait && !store.collage}
             onUndo={actions.undo}
             onRedo={actions.redo}
             onCopyRecipe={actions.copyRecipe}
@@ -1140,7 +1159,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
             style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
-            {(!store.collage || collageEditingId) && !phoneLandscape && !canvasOnlyShown && <Rail
+            {(!store.collage || collageEditingId) && !phoneLandscape && !tabletPortrait && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
@@ -1321,13 +1340,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
-                onWatchFolder={actions.watchFolder}
+                // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot
+                // project (owner, 26 Nov). A live session already running elsewhere can still be seen and stopped.
+                onWatchFolder={tetheredProject ? actions.watchFolder : undefined}
                 onStopWatchingFolder={actions.stopWatchingFolder}
-                onReceiveFromCamera={actions.receiveFromCamera}
+                onReceiveFromCamera={tetheredProject ? actions.receiveFromCamera : undefined}
                 shootRoom={store.shootRoom}
-                onOpenShootRoom={actions.openShootRoom}
+                onOpenShootRoom={tetheredProject ? actions.openShootRoom : undefined}
                 onCloseShootRoom={actions.closeShootRoom}
-                onTetherCamera={actions.tetherCamera}
+                onTetherCamera={tetheredProject ? actions.tetherCamera : undefined}
+                focusRow={filmstripFocus}
+                onSetFocusRow={(on) => actions.updateSettings({ filmstripFocus: on })}
                 liveFolder={store.liveFolder}
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
@@ -1401,7 +1424,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'copilot', label: 'Flight', icon: assistModeIconName(store.assistMode) },
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
-                  ...(phoneLandscape ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
+                  ...(phoneLandscape || tabletPortrait ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
+                  // An upright tablet has the width for six; Export stays in its top bar.
+                  ...(tabletPortrait ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
                 ] as const
               ).map((item) => {
                 const active = store.activePanel === item.id && !moreOpen;
@@ -1484,7 +1509,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {phoneLayout && store.activePanel && !composingCollage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
-              : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
+              : tabletPortrait
+                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1665,8 +1692,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onBlur={() => setNoticePaused(false)}
           className={`${phoneLandscape ? '' : 'v2-safe-right '}fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
-          style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
+          } ${isMobile || isTabletPortrait ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
+          style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : (isMobile || isTabletPortrait) && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >
           {noticeSticky && <BrandIcon name="alert" size={14} className="mt-0.5 shrink-0 text-[var(--semantic-warning)]" />}

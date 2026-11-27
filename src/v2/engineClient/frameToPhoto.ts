@@ -31,7 +31,7 @@ import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable }
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
-import { isRawPreviewFile } from '../../core/rawFormats';
+import { isRawPreviewFile, shownFileFormat } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
 import { editorText } from '../../i18n/areas/editor';
@@ -174,7 +174,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
     // The warnings are said in words from the colour check, never as the check's internal codes.
     colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
     colourCheck: run.colour ? colourWords(run.colour) : undefined,
-    kelvinEstimate: engineText.notMeasured,
+    kelvinEstimate: '',
     suggestions,
   };
 }
@@ -182,6 +182,17 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
 export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean; /** The original is there but its compression can't be read yet. */ unsupported?: UnsupportedRawCompression }
 
 const NOT_RECORDED = engineText.notRecorded;
+
+/**
+ * The words beside the histogram's title: the camera's as-shot white when the RAW develop worked it out ("As shot about
+ * 5,600 K (estimated)"), otherwise nothing. It used to say "Not measured" (of the colour temperature) for every photo,
+ * which read as if the histogram itself was not measured, right above "Measured from the 16-bit RAW develop".
+ */
+export function asShotWords(frame: Pick<PhotoFrame, 'asShotWhite'>): string {
+  const kelvin = frame.asShotWhite?.kelvin;
+  return typeof kelvin === 'number' && Number.isFinite(kelvin) && kelvin > 0
+    ? STRINGS.adjust.kelvin.asShot.replace('{k}', Math.round(kelvin).toLocaleString('en-GB')) : '';
+}
 const positive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
 
 /** Only the two known import identity schemes encode the original byte count. */
@@ -332,7 +343,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       iso: positive(exif.iso) ? exif.iso : 0,
       focalLength: exif.focalLengthMm ? `${exif.focalLengthMm}mm` : NOT_RECORDED,
       capturedAt: captured,
-      fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
+      fileFormat: shownFileFormat(frame.filename, exif.formatLabel) ?? extensionOf(frame.filename) ?? NOT_RECORDED,
       fileSizeMb: recordedFileSizeMb(frame.stableKey),
       dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
       // InFlight's RAW develop records the as-shot white only after it has validated the camera's own colour matrix, so that
@@ -376,11 +387,14 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(urls?.unsupported ? {} : extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
-    assistCritique: assist && matchesAutoSource(assist.run, frame)
-      ? assistCritiqueFor(assist, frame.edit)
-      : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
-        ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
-        : assistCritiqueFor(undefined, frame.edit),
+    assistCritique: {
+      ...(assist && matchesAutoSource(assist.run, frame)
+        ? assistCritiqueFor(assist, frame.edit)
+        : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
+          ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
+          : assistCritiqueFor(undefined, frame.edit)),
+      kelvinEstimate: asShotWords(frame),
+    },
   };
 }
 
@@ -388,7 +402,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
   const live = frames.filter((frame) => !frame.removedAt);
   return {
     id: shoot.id,
-    kind: shoot.collage ? 'collage' : 'photography',
+    kind: shoot.collage ? 'collage' : shoot.projectType === 'tethered' ? 'tethered' : 'photography',
     name: shoot.title,
     updatedAt: new Date(shoot.lastUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     coverUrl,

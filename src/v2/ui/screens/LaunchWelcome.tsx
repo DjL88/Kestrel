@@ -6,7 +6,7 @@ import type { LastProject, LaunchProfile, WelcomeState } from '../../../core/lau
 import type { LaunchIntent } from '../../launchIntent';
 import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import { slideshowDots, slideshowForProject, slideshowWanted } from '../../../core/welcomeSlideshow';
-import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow } from './WelcomeSlideshow';
+import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, loadStoredPreview, useWelcomeSlideshow, type LoadPreview } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import { isSignInServiceError } from '../../../providers/firebaseAuth';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
@@ -62,19 +62,45 @@ function editedOn(iso: string): string {
 }
 
 /** The last project, read from the local snapshot so it never waits for the catalogue. */
+/** The card's photos, read from previews already on this device after the welcome has painted. None found: the folder stays. */
+function useResumeThumbs(thumbs: LastProject['thumbs'], load: LoadPreview = loadStoredPreview): string[] {
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    if (!thumbs?.keys.length) return;
+    let live = true;
+    const made: string[] = [];
+    void Promise.all(thumbs.keys.map((key) => load(key, thumbs.developVersion, true).catch(() => null))).then((blobs) => {
+      if (!live) return;
+      for (const blob of blobs) if (blob && blob.size > 0 && blob.type.startsWith('image/')) made.push(URL.createObjectURL(blob));
+      setUrls(made);
+    });
+    return () => { live = false; for (const url of made) URL.revokeObjectURL(url); };
+  }, [thumbs, load]);
+  return urls;
+}
+
 function ProjectCard({ project, highlighted, labelId, onOpen, buttonRef }: {
   project: LastProject; highlighted: boolean; labelId?: string; onOpen: () => void; buttonRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const nameId = useId();
   const when = editedOn(project.editedAt);
+  const thumbs = useResumeThumbs(project.thumbs);
   return (
     <button ref={buttonRef} type="button" onClick={onOpen} data-testid="welcome-last-project"
       aria-labelledby={labelId ? `${labelId} ${nameId}` : nameId}
       className={`flex min-h-16 w-full items-center gap-3 rounded-[var(--radius-lg)] border p-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-accent)] ${
         highlighted ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'}`}>
-      <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
-        <BrandIcon name="folder" size={20} />
-      </span>
+      {thumbs.length > 0 ? (
+        <span aria-hidden="true" className="flex shrink-0 gap-1" data-testid="welcome-last-project-thumbs">
+          {thumbs.map((url) => (
+            <img key={url} src={url} alt="" draggable={false} className="h-11 w-11 rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] object-cover" />
+          ))}
+        </span>
+      ) : (
+        <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
+          <BrandIcon name="folder" size={20} />
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span id={nameId} className="block truncate text-sm font-semibold text-[var(--text-primary)]">{project.name}</span>
         <span className="block text-xs text-[var(--text-muted)]">{STRINGS.hub.photosCount(project.photoCount)}{when ? ` · ${when}` : ''}</span>
