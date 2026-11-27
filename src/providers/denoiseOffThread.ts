@@ -12,7 +12,7 @@ import {
 /**
  * Runs denoise's pixel work (`v2/engineClient/denoiseCompute.ts`) in a Web Worker so the editor keeps responding while it
  * works: web, Tauri desktop (its CSP allows `worker-src 'self'`) and the Vite dev server alike. Where a Worker cannot be
- * started, or it stops, the same functions run on this thread instead and `onMainThread` says so, so the person is told.
+ * started, or it stops, the job stops with a plain message (never on this thread: that froze the editor for minutes).
  * Cancelling stops the worker outright, so a long render does not keep running after Cancel.
  */
 
@@ -57,7 +57,7 @@ type Pending = { resolve: (value: unknown) => void; reject: (reason: unknown) =>
 type Outgoing = DenoiseWorkerRequest extends infer R ? R extends DenoiseWorkerRequest ? Omit<R, 'id'> : never : never;
 type Candidate = { edit: Partial<PhotoEdit>; masks: Mask[]; blend?: LearnedBlend };
 
-export function createDenoiseCompute(options: { createWorker?: () => DenoiseWorkerLike; signal?: AbortSignal } = {}): DenoiseCompute {
+export function createDenoiseCompute(options: { createWorker?: () => DenoiseWorkerLike; signal?: AbortSignal; runOnPage?: boolean } = {}): DenoiseCompute {
   const createWorker = options.createWorker ?? startDenoiseWorker;
   const signal = options.signal;
   const pending = new Map<number, Pending>();
@@ -112,13 +112,17 @@ export function createDenoiseCompute(options: { createWorker?: () => DenoiseWork
     });
   };
 
-  /** Worker first; on this thread only when the worker cannot run. Real errors and cancels pass through. */
+  /**
+   * In the worker only. Where it cannot run, the job stops with a plain message and nothing changes: the same work on
+   * the page froze the editor and Tasks for minutes (owner, 27 Nov). runOnPage exists for tests and is off in the app.
+   */
   const offThread = async <T>(request: Outgoing, here: () => T, transfer?: Transferable[]): Promise<T> => {
     try {
       return await call<T>(request, transfer);
     } catch (error) {
       if (!(error instanceof WorkerUnavailable)) throw error;
       signal?.throwIfAborted();
+      if (!options.runOnPage) throw new Error(engineText.denoise.workerUnavailable);
       onMainThread = true;
       return here();
     }

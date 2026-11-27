@@ -2,7 +2,9 @@
 // (Firebase Hosting forwards /v1/admin/** to Cloud Run). The session lives in memory only: closing the tab signs out.
 // Everything from the server is written with textContent, never as HTML.
 
-import { KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, ruleSummary } from './admin-flags.js';
+import { FLAG_INFO, KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, flagName, ruleSummary } from './admin-flags.js';
+
+import { todaySummary, collapseAudit, auditText, isPageView } from './admin-words.mjs';
 
 import { RULES, SCENARIOS, evaluateSample, rehearseDelivery } from './admin-monitoring.mjs';
 
@@ -79,6 +81,7 @@ async function startConsole(accessToken, who) {
   token = accessToken;
   $('sign-in').hidden = true;
   $('console').hidden = false;
+  $('menu').hidden = false;
   $('sign-out').hidden = false;
   $('who').textContent = who ? 'Signed in as ' + who : 'Signed in';
   say('');
@@ -99,11 +102,14 @@ function signOut(message = '') {
   clearMonitoringRehearsal();
   resetNotificationRehearsal();
   $('console').hidden = true;
+  $('menu').hidden = true;
   $('sign-out').hidden = true;
   $('who').textContent = '';
   $('sign-in').hidden = false;
-  for (const id of ['licence-table', 'usage-table', 'payments-table', 'audit-table', 'flags-table']) $(id).tBodies[0].replaceChildren();
+  for (const id of ['licence-table', 'usage-table', 'payments-table', 'audit-table', 'safety-notices']) $(id).tBodies[0].replaceChildren();
+  for (const id of ['today-list', 'switch-list', 'flag-list']) $(id).replaceChildren();
   flagsState = {};
+  auditEntries = [];
   $('message-list').replaceChildren();
   $('issued').hidden = true;
   $('issued-key').value = '';
@@ -158,29 +164,50 @@ async function refreshAll() {
   if (!token) return;
   renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
-  // On the home list a failed source is already named under "Could not check"; elsewhere say it in the status line.
-  if (failed && viewForHash(location.hash)) say(failed.reason.message);
+  // On Today a failed source is already named under "Could not check"; elsewhere say it in the status line.
+  if (failed && viewForHash(location.hash) !== 'today') say(failed.reason.message);
 }
 act($('refresh-all'), 'click', async () => { await refreshAll(); say(''); });
 
-// ---- Needs you (home) and More ---------------------------------------------------------------------------------
+// ---- Pages, Today and Needs you ---------------------------------------------------------------------------------
 
-$('more-links').replaceChildren(...Object.entries(VIEWS).filter(([name]) => name !== 'refunds').map(([name, view]) => {
-  const item = el('li'); const link = el('a', view.label); link.href = '#' + name; item.append(link); return item;
+const PAGE_INTRO = {
+  today: '',
+  switches: 'Turn InFlight’s online services on or off.',
+  people: 'Give people Pro, see who has a licence, and free or cancel devices.',
+  money: 'What people paid, refunds owed, each month’s figures, and the prices.',
+  messages: 'Messages from the website, reports about shared galleries, and news to everyone.',
+  advanced: 'Technical settings and records. You rarely need these: open one when you do.',
+};
+const dayLong = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+$('menu-list').replaceChildren(...Object.entries(VIEWS).map(([name, view]) => {
+  const item = el('li'); const link = el('a', undefined); link.href = '#' + name; link.dataset.view = name;
+  link.append(el('span', view.label), el('span', '', 'count'));
+  item.append(link); return item;
 }));
 
-/** Home shows only Needs you and More. A view shows its own sections and a way back. */
+/** One page at a time. A link to a section opens its page, unfolds the section if it is folded, and scrolls to it. */
 function showView() {
   const view = viewForHash(location.hash);
-  for (const node of document.querySelectorAll('#console .home')) node.hidden = !!view;
-  $('back').hidden = !view;
   for (const [name, v] of Object.entries(VIEWS)) for (const id of v.sections) $(id).hidden = name !== view;
-  if (view) $('more').open = false;
+  for (const link of document.querySelectorAll('#menu-list a')) {
+    if (link.dataset.view === view) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  }
+  $('page-title').textContent = view === 'today' ? 'Today' : VIEWS[view].label;
+  $('page-intro').textContent = view === 'today' ? dayLong.format(new Date()) : PAGE_INTRO[view];
+  const id = location.hash.replace(/^#/, '');
+  const target = id && !VIEWS[id] ? $(id) : null;
+  if (target && !target.hidden) {
+    if (target.tagName === 'DETAILS') target.open = true;
+    target.scrollIntoView({ block: 'start' });
+  } else scrollTo(0, 0);
 }
-addEventListener('hashchange', () => { showView(); say(''); if (token) $('main').focus(); });
+addEventListener('hashchange', () => { showView(); say(''); if (token) $('main').focus({ preventScroll: true }); });
 showView();
 
-const VIEW_WORD = { refunds: 'Open refunds', safety: 'Open Safety', messages: 'Open messages', money: 'Open money', service: 'Open jobs' };
+/** The button word for each place a chore is done. */
+const VIEW_WORD = { refunds: 'Open refunds', safety: 'Open reports', messages: 'Open messages', payments: 'Open payments', learning: 'Open model training', tax: 'Open tax' };
 function renderNeeds() {
   const { items, unknown } = needsYou(snapshot);
   $('needs-list').replaceChildren(...items.map(item => {
@@ -196,6 +223,33 @@ function renderNeeds() {
   $('needs-unknown').hidden = unknown.length === 0;
   $('needs-unknown').textContent = 'Could not check: ' + unknown.join(', ') + '. This is not the same as all good; check again shortly.';
   $('needs-checked').textContent = 'Checked at ' + new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' }).format(new Date()) + '.';
+  renderToday(items.length, unknown.length > 0);
+  // Words beside the menu, never colour alone: "2 new" messages, "1" thing needing you.
+  const fresh = (snapshot.messages ?? []).filter(m => m.status === 'new').length;
+  const counts = { today: items.length ? String(items.length) : '', messages: fresh ? fresh + ' new' : '' };
+  for (const link of document.querySelectorAll('#menu-list a')) {
+    const text = counts[link.dataset.view] ?? '';
+    const badge = link.querySelector('.count');
+    badge.textContent = text;
+    badge.hidden = !text;
+  }
+}
+
+function renderToday(needs, unknown) {
+  const lines = todaySummary({ overview: snapshot.overview, payments: snapshot.payments, needs, unknown });
+  $('today-list').replaceChildren(...lines.map(line => {
+    const li = el('li', undefined, line.warn ? 'warn' : '');
+    li.dataset.line = line.id;
+    const head = el('div', undefined, 'today-head');
+    head.append(el('span', line.label, 'today-label'));
+    if (line.view !== 'today') { const link = el('a', 'Open', 'quiet-link'); link.href = '#' + line.view; link.setAttribute('aria-label', 'Open ' + VIEWS[line.view].label); head.append(link); }
+    li.append(head, el('p', line.text, 'today-text'));
+    if (typeof line.meter === 'number') {
+      const meter = el('div', undefined, 'meter'); meter.setAttribute('aria-hidden', 'true');
+      const fill = el('span'); fill.style.width = line.meter + '%'; meter.append(fill); li.append(meter);
+    }
+    return li;
+  }));
 }
 
 async function loadRefunds() {
@@ -228,18 +282,20 @@ async function loadRefunds() {
 }
 
 async function loadOverview() {
-  const o = await api('admin/overview');
+  let o;
+  try { o = await api('admin/overview'); } catch (error) { snapshot.overview = null; throw error; }
+  snapshot.overview = o;
   const facts = [
-    ['Accounts', o.accounts], ['Licences', o.licences], ['Active devices', o.activations],
-    ['Issuing keys', o.licenceIssuing ? 'Available' : 'Switched off'],
+    ['Accounts', o.accounts], ['Licences', o.licences], ['Devices with a licence', o.activations],
+    ['Making Pro keys', o.licenceIssuing ? 'Available' : 'Not set up'],
     ['Payments', o.paymentsConnected ? 'Connected' : 'Not connected'],
-    ['Online helper', o.aiDisabled ? 'Switched off' : o.aiProvider ? 'On (' + o.aiProvider + ')' : 'Not set up'],
-    ['Records stored in', o.store === 'firestore' ? 'Firestore' : 'SQLite'],
+    ['Online photo helper', o.aiDisabled ? 'Off' : o.aiProvider ? 'On (' + o.aiProvider + ')' : 'Not set up'],
+    ['Records kept in', o.store === 'firestore' ? 'Firestore' : 'SQLite'],
   ];
   $('overview-list').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('issue-form').querySelector('button').disabled = !o.licenceIssuing;
   $('issue-unavailable').hidden = !!o.licenceIssuing;
-  $('issue-form').querySelector('button').title = o.licenceIssuing ? '' : 'This server does not have the licence-issuing key.';
+  $('issue-form').querySelector('button').title = o.licenceIssuing ? '' : 'This server cannot make keys.';
 }
 
 let licences = [];
@@ -255,31 +311,31 @@ function renderLicensees() {
     const row = document.createElement('tr');
     cell(row, code(l.licenceId));
     const lapsed = l.validUntilMs !== null && l.validUntilMs <= Date.now();
-    cell(row, badge(l.status === 'revoked' ? 'Revoked' : lapsed ? 'Expired' : l.status === 'active' ? 'Active' : l.status, l.status === 'active' && !lapsed ? 'good' : 'bad'));
+    cell(row, badge(l.status === 'revoked' ? 'Cancelled' : lapsed ? 'Ended' : l.status === 'active' ? 'Active' : l.status, l.status === 'active' && !lapsed ? 'good' : 'bad'));
     cell(row, l.accountId ? code(l.accountId) : 'Not linked');
     cell(row, l.note || '—');
-    cell(row, l.validUntilMs ? dateOnly.format(new Date(l.validUntilMs)) : 'No expiry');
+    cell(row, l.validUntilMs ? dateOnly.format(new Date(l.validUntilMs)) : 'Does not end');
     const list = el('ul');
     for (const d of l.devices) {
       const item = el('li');
       item.append(el('span', d.platform + ' · ' + d.appVersion + ' · last seen ' + when(d.lastSeenMs) + ' '),
-        button('Free', 'Free the ' + d.platform + ' device on licence ' + l.licenceId, 'quiet', async () => {
-          if (!confirm('Free this ' + d.platform + ' device? It keeps working offline until its grant lapses, and the key can then be used on another device.')) return;
+        button('Free up', 'Free up the ' + d.platform + ' device on licence ' + l.licenceId, 'quiet', async () => {
+          if (!confirm('Free up this ' + d.platform + ' device? It keeps working offline for up to 30 days, and the licence can then be used on another device.')) return;
           await api('admin/devices/' + encodeURIComponent(d.activationId) + '/deactivate', {});
           await loadLicensees();
-          say('Device freed on licence ' + l.licenceId + '.');
+          say('Device freed up on licence ' + l.licenceId + '.');
         }));
       list.append(item);
     }
     cell(row, l.devices.length ? list : 'None').prepend(el('span', l.devices.length + ' of ' + l.maxDevices + ' ', 'sr-only'));
-    cell(row, l.aiQuota ? l.aiQuota.requestsUsed + ' of ' + l.aiQuota.requestsLimit : l.managedAi ? 'Included, unused' : 'Not included');
+    cell(row, l.aiQuota ? l.aiQuota.requestsUsed + ' of ' + l.aiQuota.requestsLimit : l.managedAi ? 'Included, not used yet' : 'Not included');
     const actions = el('div', undefined, 'row');
     if (l.status !== 'revoked') {
-      actions.append(button('Revoke', 'Revoke licence ' + l.licenceId, 'danger', async () => {
-        if (!confirm('Revoke licence ' + l.licenceId + '? New activations and renewals stop. Nobody loses photos or edits.')) return;
+      actions.append(button('Cancel licence', 'Cancel licence ' + l.licenceId, 'danger', async () => {
+        if (!confirm('Cancel licence ' + l.licenceId + '? No new devices or renewals. Nobody loses photos or edits.')) return;
         await api('admin/licences/' + encodeURIComponent(l.licenceId) + '/revoke', {});
         await loadLicensees();
-        say('Licence ' + l.licenceId + ' revoked.');
+        say('Licence ' + l.licenceId + ' cancelled.');
       }));
     }
     cell(row, actions);
@@ -293,12 +349,12 @@ $('licence-filter').addEventListener('input', renderLicensees);
 act($('revoke-key-form'), 'submit', async () => {
   const form = $('revoke-key-form');
   const licenceKey = form.elements.licenceKey.value.trim();
-  if (!confirm('Revoke this key? Devices using it turn Pro off at their next online check. Nobody loses photos or edits.')) return;
+  if (!confirm('Cancel this key? Devices using it lose Pro when they next check online. Nobody loses photos or edits.')) return;
   // Clear the key from the page whatever happens, so it is not left on screen.
   form.reset();
   const result = await api('admin/licences/revoke-by-key', { licenceKey });
   await Promise.all([loadLicensees(), loadAudit()]);
-  say('Licence ' + result.licenceId + ' revoked' + (result.wasKnown ? '.' : ', before any device used it.'));
+  say('Licence ' + result.licenceId + ' cancelled' + (result.wasKnown ? '.' : ', before any device used it.'));
 });
 
 act($('grant-form'), 'submit', async () => {
@@ -315,8 +371,8 @@ act($('grant-form'), 'submit', async () => {
   if (!session || token !== session) return;
   form.reset();
   const what = body.contributor ? 'Contributor access (free Pro)' : 'Free Pro';
-  const message = !result.created ? (body.contributor ? 'That address is already a contributor for this version.' : 'A Pro grant already exists for that address and version.') :
-    result.attachedNow ? what + ' granted to the existing account.' : what + ' granted. It will attach when the recipient signs in with the verified address.';
+  const message = !result.created ? (body.contributor ? 'That address is already a contributor.' : 'That address already has free Pro.') :
+    result.attachedNow ? what + ' given. It is on their account now.' : what + ' given. It turns on when they sign in with that address.';
   $('grant-result').textContent = message;
   await Promise.allSettled([loadOverview(), loadLicensees(), loadAudit()]);
 });
@@ -344,7 +400,7 @@ act($('copy-key'), 'click', async () => {
 // ---- Monitoring rehearsal (no live connection or sending) -------------------------------------------------------
 function clearMonitoringRehearsal() {
   $('monitoring-rehearsal').reset();
-  $('monitoring-result').textContent = 'No rehearsal run.';
+  $('monitoring-result').textContent = 'Not tried yet.';
   $('monitoring-alerts').replaceChildren();
 }
 $('monitoring-rules').replaceChildren(...RULES.map(rule => {
@@ -360,11 +416,11 @@ act($('monitoring-rehearsal'), 'submit', async () => {
   $('monitoring-alerts').replaceChildren(...rehearseDelivery(result.alerts).map(alert =>
     el('li', alert.severity + ': ' + alert.message + ' ' + alert.delivery)));
   $('monitoring-result').textContent = result.state !== 'evaluated'
-    ? 'Synthetic sample unavailable or incomplete.'
-    : 'Synthetic sample: ' + sample.requests + ' requests in 15 minutes, expected ' + sample.baseline +
-      ', ' + sample.errors + ' server errors, ' + sample.budgetPercent + '% of budget. ' +
-      (result.alerts.length ? result.alerts.length + ' proposed alert(s).' : 'No rule triggered.') +
-      ' No live data or push delivery.';
+    ? 'That example is not available.'
+    : 'Made-up example: ' + sample.requests + ' visits in 15 minutes (usually ' + sample.baseline + '),' +
+      ' ' + sample.errors + ' errors, ' + sample.budgetPercent + '% of the budget spent. ' +
+      (result.alerts.length ? result.alerts.length + ' alert(s) would go off.' : 'Nothing would go off.') +
+      ' Nothing real was looked at or sent.';
 });
 act($('monitoring-clear'), 'click', async () => { clearMonitoringRehearsal(); });
 
@@ -448,17 +504,19 @@ async function loadPaddleKey() {
   snapshot.paddleKey = k;
   const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const parts = [];
-  if (k.expiresAt) parts.push(`Paddle API key renews itself. Last renewed ${date(k.rotatedAt)}; it expires ${date(k.expiresAt)} unless renewed again.`);
-  else parts.push('Paddle API key: not renewed by InFlight yet. The weekly check renews it on its first run.');
-  if (k.lastRunOk === false) parts.push(`Warning: the last weekly check failed (${date(k.lastRunAt)}): ${k.lastRunReason}`);
+  if (k.expiresAt) parts.push(`Paddle's access key renews itself every week. Last renewed ${date(k.rotatedAt)}; it would run out on ${date(k.expiresAt)}.`);
+  else parts.push('Paddle\'s access key has not been renewed by InFlight yet. The weekly check renews it the first time it runs.');
+  if (k.lastRunOk === false) parts.push(`The last weekly renewal failed (${date(k.lastRunAt)}): ${k.lastRunReason}`);
   $('paddle-key-state').textContent = parts.join(' ');
 }
 
 async function loadPayments() {
-  const p = await api('admin/payments');
+  let p;
+  try { p = await api('admin/payments'); } catch (error) { snapshot.payments = null; throw error; }
+  snapshot.payments = p;
   $('payments-state').textContent = p.connected
-    ? 'Paid checkouts recorded after Paddle confirmed them. Amounts are what Paddle pays out; Paddle handles the buyer\'s tax.'
-    : 'Paddle is not connected yet, so there are no payments to show. Refunds will appear here too once checkout is live.';
+    ? 'Payments Paddle has confirmed, newest first. Paddle collects and pays the buyer\'s tax.'
+    : 'Paddle is not connected yet, so there are no payments to show.';
   $('payments-table').tBodies[0].replaceChildren(...p.transactions.map(t => {
     const row = document.createElement('tr');
     cell(row, when(Date.parse(t.paidAt))); cell(row, t.invoiceNumber); cell(row, t.status === 'paid' ? 'Paid' : t.status === 'refunded' ? 'Refunded' : 'Partly refunded');
@@ -709,21 +767,26 @@ async function loadPriceReview() {
     return;
   }
   if (!review) {
-    $('price-review-status').textContent = 'No scheduled review has run yet.';
+    $('price-review-status').textContent = 'No monthly review has run yet.';
     return;
   }
-  $('price-review-status').textContent = `${review.month} · ECB reference rates for ${review.rateDate} · For review. Live prices are unchanged.`
-    + (review.inflation ? ` April UK CPI: ${review.inflation.baseline.date} to ${review.inflation.latest.date}.` : '');
-  for (const price of review.prices) {
+  // Pro is a subscription since 26 Nov 2026. A review made before then was worked out from the old one-off price, so
+  // its figures are shown as out of date rather than as a suggestion.
+  if (!review.plans) {
+    $('price-review-status').textContent = `The ${review.month} review was worked out from the old one-off price of ${gbp.format(review.approvedBasePence / 100)}, so its figures no longer apply. Pro is now a subscription; the next monthly review suggests monthly and yearly prices.`;
+    return;
+  }
+  $('price-review-status').textContent = `${review.month}, using the European Central Bank's rates for ${review.rateDate}. A suggestion only: live prices are unchanged until you change them under Payments and money, then Prices.`
+    + (review.inflation ? ` Includes UK inflation from ${review.inflation.baseline.date} to ${review.inflation.latest.date}.` : '');
+  const annual = new Map(review.plans.annual.prices.map(p => [p.currency, p]));
+  for (const monthly of review.plans.monthly.prices) {
     const row = el('tr');
-    cell(row, price.currency);
-    if (price.status === 'for-review') {
-      const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: price.currency });
-      cell(row, money.format(price.unroundedMajor));
-      cell(row, money.format(price.proposedMajor));
-    } else {
-      cell(row, 'Rate unavailable');
-      cell(row, '—');
+    cell(row, monthly.currency);
+    for (const price of [monthly, annual.get(monthly.currency)]) {
+      if (price?.status === 'for-review') {
+        const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: price.currency });
+        cell(row, money.format(price.proposedMajor) + (price.currency === 'GBP' ? '' : ' (from ' + money.format(price.unroundedMajor) + ')'));
+      } else cell(row, 'No exchange rate');
     }
     $('price-review-rows').append(row);
   }
@@ -751,11 +814,11 @@ async function loadTax() {
   const { settings, turnover, thresholdPence, warningPence } = summary;
   $('turnover').max = thresholdPence / 100;
   $('turnover').value = Math.max(0, turnover.rollingPence / 100);
-  $('turnover-value').textContent = gbp.format(turnover.rollingPence / 100) + ' of ' + gbp.format(thresholdPence / 100);
+  $('turnover-value').textContent = gbp.format(turnover.rollingPence / 100) + ' of the ' + gbp.format(thresholdPence / 100) + ' at which you must register for VAT.';
   const notices = [];
-  if (turnover.state === 'warning') notices.push('Turnover has reached the ' + gbp.format(warningPence / 100) + ' warning level.');
-  if (turnover.backward) notices.push('Month-end breach. Notify HMRC by ' + turnover.backward.notificationDue + '. Effective date ' + turnover.backward.effectiveDate + '.');
-  if (turnover.forward) notices.push('30-day forecast breach. Notify HMRC by ' + turnover.forward.notificationDue + '. Effective date ' + turnover.forward.effectiveDate + '.');
+  if (turnover.state === 'warning') notices.push('Sales have passed ' + gbp.format(warningPence / 100) + ': getting close.');
+  if (turnover.backward) notices.push('You passed the limit at the end of a month. Tell HMRC by ' + turnover.backward.notificationDue + '; VAT starts on ' + turnover.backward.effectiveDate + '.');
+  if (turnover.forward) notices.push('You expect to pass the limit in the next 30 days. Tell HMRC by ' + turnover.forward.notificationDue + '; VAT starts on ' + turnover.forward.effectiveDate + '.');
   $('turnover-state').textContent = notices.join(' ');
   taxForm.elements.ukVatRegistered.checked = settings.ukVatRegistered;
   taxForm.elements.ukVatNumber.value = settings.ukVatNumber ?? '';
@@ -788,11 +851,23 @@ act(ossForm, 'submit', async () => {
 let flagsState = {};
 const flagForm = $('flag-form');
 const ruleRows = $('flag-rule-rows');
-$('never-gated').textContent = NEVER_GATED.join(', ');
-$('flag-names').replaceChildren(...KNOWN_FLAGS.map(name => { const option = document.createElement('option'); option.value = name; return option; }));
+$('never-gated').textContent = NEVER_GATED.map(flagName).join(', ');
+// Known flags by their plain name, then "Another flag…" for a technical name the page does not know.
+const flagPick = $('flag-pick');
+flagPick.replaceChildren(new Option('Choose a feature…', ''), ...KNOWN_FLAGS.filter(k => !NEVER_GATED.includes(k))
+  .sort((a, b) => flagName(a).localeCompare(flagName(b))).map(k => new Option(flagName(k) + ' (' + k + ')', k)), new Option('Another flag…', '__other'));
+function showFlagPick() {
+  const other = flagPick.value === '__other';
+  $('flag-key-label').hidden = !other;
+  $('flag-key').required = other;
+  if (!other) $('flag-key').value = flagPick.value;
+  $('flag-effect').textContent = FLAG_INFO[flagPick.value]?.effect ?? (other ? 'Type the technical name exactly as the app uses it.' : '');
+}
+flagPick.addEventListener('change', showFlagPick);
 
-// ---- Safety -----------------------------------------------------------------------------------------------------
-// Details only. There is deliberately no way to open a held or blocked picture from here.
+// ---- Reports about shared galleries ------------------------------------------------------------------------------
+// Details only. There is deliberately no way to open a reported picture from here. InFlight does not scan photos
+// (#1814): reports come from people with a gallery link, and the only actions are no action, remove or revoke.
 
 function askReason(question) {
   const reason = prompt(question);
@@ -801,33 +876,40 @@ function askReason(question) {
   return reason.trim();
 }
 
+const REPORT_WORDS = { 'no-action': 'No action', 'photo-removed': 'Photo removed', 'gallery-revoked': 'Gallery closed' };
 async function loadSafety() {
   let s;
   try { s = await api('admin/safety'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.safety = null;
-    $('safety-checks').textContent = 'Reports are not set up on this server yet.'; return;
+    $('safety-checks').textContent = 'Reports could not be read: ' + error.message;
+    $('safety-notices').tBodies[0].replaceChildren(); $('safety-empty').hidden = true;
+    return;
   }
-  snapshot.safety = s;
+  // An older server may answer without a notices list: show no reports rather than failing the page.
+  const notices = Array.isArray(s?.notices) ? s.notices : [];
+  snapshot.safety = { notices };
   $('safety-checks').textContent = '';
-  $('safety-notices').tBodies[0].replaceChildren(...s.notices.map(n => {
+  $('safety-empty').hidden = notices.length > 0;
+  $('safety-notices').closest('.scroll').hidden = notices.length === 0;
+  $('safety-notices').tBodies[0].replaceChildren(...notices.map(n => {
     const row = document.createElement('tr');
     cell(row, when(n.atMs));
     cell(row, n.urgent ? badge('Urgent: ' + n.category, 'bad') : n.category);
-    cell(row, 'Gallery ' + n.galleryId.slice(0, 8) + (n.photoId ? ' · photo ' + n.photoId.slice(0, 12) : ' · whole gallery'));
+    cell(row, 'Gallery ' + String(n.galleryId ?? '').slice(0, 8) + (n.photoId ? ', photo ' + n.photoId.slice(0, 12) : ', whole gallery'));
     cell(row, n.explanation);
     cell(row, [n.notifierName, n.notifierEmail].filter(Boolean).join(' · ') || 'Anonymous');
-    cell(row, n.decision ? n.decision.outcome + ': ' + n.decision.reason : 'Open');
+    cell(row, n.decision ? (REPORT_WORDS[n.decision.outcome] ?? n.decision.outcome) + ': ' + n.decision.reason : 'Open');
     const actions = el('div', undefined, 'row');
     if (n.status === 'open') {
-      const decide = (outcome, label, question) => button(label, label + ' for report ' + n.noticeId, outcome === 'no-action' ? '' : 'danger', async () => {
+      const decide = (outcome, label, question) => button(label, label + ' for report ' + n.noticeId, outcome === 'no-action' ? 'quiet' : 'danger', async () => {
         const reason = askReason(question); if (!reason) return;
         await api('admin/safety/notices/' + n.noticeId + '/decide', { outcome, reason });
-        await Promise.all([loadSafety(), loadAudit()]); say('Decided. The reporter and the gallery owner can see the reason.');
+        await Promise.all([loadSafety(), loadAudit()]); renderNeeds(); say('Done. The person who reported it and the gallery owner can see your reason.');
       });
-      actions.append(decide('no-action', 'No action', 'Why no action? The reporter sees this.'));
+      actions.append(decide('no-action', 'No action', 'Why no action? The person who reported it sees this.'));
       if (n.photoId) actions.append(decide('photo-removed', 'Remove photo', 'Why remove it? Both sides see this.'));
-      actions.append(decide('gallery-revoked', 'Revoke gallery', 'Why revoke it? Both sides see this.'));
+      actions.append(decide('gallery-revoked', 'Close gallery', 'Why close it? Both sides see this.'));
     }
     cell(row, actions);
     return row;
@@ -838,24 +920,26 @@ async function loadSafety() {
 
 async function loadSwitches() {
   const { switches } = await api('admin/switches');
-  $('switches-table').tBodies[0].replaceChildren(...switches.map(item => {
-    const row = document.createElement('tr');
-    const name = el('div');
-    name.append(el('strong', item.label), el('div', item.note, 'muted'));
-    cell(row, name);
-    cell(row, badge(item.configured ? 'Yes' : 'Not yet', item.configured ? 'good' : undefined));
-    cell(row, badge(item.on ? 'On' : 'Off', item.on ? 'good' : undefined));
+  $('switches-empty').hidden = switches.length > 0;
+  $('switch-list').replaceChildren(...switches.map(item => {
+    const li = el('li', undefined, item.on ? 'on' : '');
+    const text = el('div', undefined, 'switch-text');
+    text.append(el('h3', item.label), el('p', item.note, 'muted'), el('code', item.key, 'tech'));
+    const state = el('div', undefined, 'switch-state');
+    const word = !item.configured && !item.on ? 'Not set up yet' : item.on ? 'On' : 'Off';
+    state.append(badge(word, item.on ? 'good' : !item.configured ? 'quiet' : undefined));
     const turn = !item.on;
-    const label = (turn ? 'Switch on ' : 'Switch off ') + item.label;
-    const action = button(turn ? 'Switch on' : 'Switch off', label, turn ? '' : 'danger', async () => {
-      if (turn && !confirm('Switch on ' + item.label + '? Metered features can start costing money, within the monthly spending limit.')) return;
+    const action = button(turn ? 'Turn on' : 'Turn off', (turn ? 'Turn on ' : 'Turn off ') + item.label, turn ? '' : 'danger', async () => {
+      if (turn && !confirm('Turn on ' + item.label + '? Anything that costs money stays within the monthly spending cap.')) return;
+      if (!turn && !confirm('Turn off ' + item.label + '? It stops straight away for everyone.')) return;
       await api('admin/switches/set', { key: item.key, on: turn });
       await Promise.all([loadSwitches(), loadAudit()]);
       say(item.label + (turn ? ' is on.' : ' is off.'));
     });
-    if (turn && !item.configured) { action.disabled = true; action.title = 'Not set up on the server yet'; }
-    cell(row, action);
-    return row;
+    if (turn && !item.configured) { action.disabled = true; action.title = 'This needs setting up on the server first.'; }
+    state.append(action);
+    li.append(text, state);
+    return li;
   }));
 }
 
@@ -867,14 +951,14 @@ act(newsForm, 'submit', async (e) => {
   const f = newsForm.elements;
   const body = { title: f.title.value.trim(), body: f.body.value.trim(), dryRun };
   if (f.broadcastId.value.trim()) body.broadcastId = f.broadcastId.value.trim();
-  if (!dryRun && !confirm('Send this news to everyone now? Push first; email only to people who asked for it.')) return;
+  if (!dryRun && !confirm('Send this news to everyone now? As an alert first; by email only to people who asked for it.')) return;
   const r = await api('admin/news/send', body);
   f.broadcastId.value = r.broadcastId;
-  $('news-result').textContent = (dryRun ? 'Dry run, nothing sent: ' : 'Sent: ') + r.audience + ' people in the audience, ' +
-    r.pushed + (dryRun ? ' would be pushed, ' : ' pushed, ') + r.emailed + (dryRun ? ' would be emailed, ' : ' emailed, ') +
-    r.off + ' switched news off, ' + r.unreachable + ' not reachable, ' + r.alreadyReached + ' already reached. ' +
-    (r.emailWaiting ? r.emailWaiting + ' email(s) waiting' + (r.emailLimitReached ? ' because today’s email limit was reached' : '') + ': send again with the same id tomorrow. ' : '') +
-    (r.notTried ? r.notTried + ' not tried in this run: send again with the same id. ' : '') + 'Id ' + r.broadcastId + '.';
+  $('news-result').textContent = (dryRun ? 'Nothing sent. It would reach: ' : 'Sent. ') + r.audience + ' people in all; ' +
+    r.pushed + (dryRun ? ' by alert, ' : ' got an alert, ') + r.emailed + (dryRun ? ' by email. ' : ' got an email. ') +
+    r.off + ' turned news off, ' + r.unreachable + ' cannot be reached, ' + r.alreadyReached + ' already had it. ' +
+    (r.emailWaiting ? r.emailWaiting + ' email(s) waiting' + (r.emailLimitReached ? ' because today’s email limit was reached' : '') + ': send again with the same reference tomorrow. ' : '') +
+    (r.notTried ? r.notTried + ' not tried yet: send again with the same reference. ' : '') + 'Reference ' + r.broadcastId + '.';
 });
 
 // ---- Compliance documents ------------------------------------------------------------------------------------
@@ -933,17 +1017,17 @@ async function loadMail() {
   $('mail-unavailable').hidden = true;
   const facts = [
     ['Switch', m.on ? 'On' : 'Off (see Switches)'],
-    ['Sent today (' + m.day + ', UTC)', m.sent + ' of ' + m.cap],
-    ['Sending account', (m.account === 'gmail' ? 'Personal Gmail' : 'Google Workspace') + (m.from ? ' (from ' + m.from + ')' : '')],
-    [m.account === 'gmail' ? 'Gmail limit' : 'Google Workspace limit', 'About ' + m.providerLimit + ' a day'],
+    ['Sent today (' + m.day + ')', m.sent + ' of ' + m.cap],
+    ['Sent from', (m.account === 'gmail' ? 'Personal Gmail' : 'Google Workspace') + (m.from ? ' (' + m.from + ')' : '')],
+    ["Google's limit", 'About ' + m.providerLimit + ' a day'],
   ];
   $('mail-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('mail-warning').hidden = !m.warn;
 }
 
 const pounds = (pence) => '£' + (pence / 100).toFixed(2);
-const WHY = { count: 'Photo count reached', weekly: 'Weekly', manual: 'Learn now' };
-const RESULT = { reserved: 'Starting', submitted: 'Running', succeeded: 'Finished', failed: 'Failed (cost still counted)', 'not-started': 'Not started (nothing charged)' };
+const WHY = { count: 'Enough new photos', weekly: 'Weekly', manual: 'Train now' };
+const RESULT = { reserved: 'Starting', submitted: 'Running', succeeded: 'Finished', failed: 'Failed (the money set aside still counts)', 'not-started': 'Not started (nothing charged)' };
 async function loadLearning() {
   let s;
   try { s = await api('admin/learning'); } catch (error) {
@@ -955,10 +1039,10 @@ async function loadLearning() {
   $('learning-unavailable').hidden = true;
   const facts = [
     ['Switch', s.on ? 'On' : 'Off (see Switches)'],
-    ['New photos since the last batch', s.newPhotos + ' of ' + s.photoThreshold],
-    ['This month (' + s.month + ')', pounds(s.reservedPence) + ' reserved of ' + pounds(s.ceilingPence)],
-    ['Each batch reserves', pounds(s.runReservePence) + ' (its worst case)'],
-    ['Now', s.running ? 'A batch is running' : s.manualRequested ? 'Learn now is waiting for the next check' : 'Waiting'],
+    ['New photos since the last batch', s.newPhotos + ' of ' + s.photoThreshold + ' needed'],
+    ['This month (' + s.month + ')', pounds(s.reservedPence) + ' of ' + pounds(s.ceilingPence) + ' used'],
+    ['Each batch sets aside', pounds(s.runReservePence) + ' (the most it could cost)'],
+    ['Now', s.running ? 'A batch is running' : s.manualRequested ? 'Train now is waiting for the next hourly check' : 'Waiting'],
   ];
   $('learning-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('learning-run').disabled = !s.on || s.running;
@@ -973,10 +1057,10 @@ async function loadLearning() {
   }));
 }
 act($('learning-run'), 'click', async () => {
-  if (!confirm('Start a learning batch now? It is refused if this month would pass the ceiling.')) return;
+  if (!confirm('Start a training batch now? It is refused if it would pass this month’s limit.')) return;
   const r = await api('admin/learning/run', {});
   await Promise.all([loadLearning(), loadAudit()]);
-  say(r.startedNow ? 'Learning check started. A batch begins if there is something new and it fits within this month’s ceiling.' : 'Learn now is queued for the next hourly check.');
+  say(r.startedNow ? 'Training check started. A batch begins if there is something new and it fits within this month’s limit.' : 'Train now will start at the next hourly check.');
 });
 
 async function loadFlags() {
@@ -985,34 +1069,36 @@ async function loadFlags() {
 }
 
 function renderFlags() {
-  const keys = Object.keys(flagsState).sort();
+  const keys = Object.keys(flagsState).sort((a, b) => flagName(a).localeCompare(flagName(b)));
   $('flags-empty').hidden = keys.length > 0;
-  $('flags-table').tBodies[0].replaceChildren(...keys.map(key => {
+  $('flag-list').replaceChildren(...keys.map(key => {
     const flag = flagsState[key];
-    const row = document.createElement('tr');
-    const name = el('div');
-    name.append(code(key));
-    if (NEVER_GATED.includes(key)) name.append(' ', badge('Never switched off', 'good'));
-    if (flag.kill) name.append(' ', badge('Switched off now', 'bad'));
-    if (flag.minAppVersion) name.append(el('div', 'App ' + flag.minAppVersion + ' or newer', 'muted'));
-    cell(row, name);
-    cell(row, badge(flag.default ? 'On' : 'Off'));
-    const list = el('ul');
-    if (!flag.rules.length) list.append(el('li', 'No rules'));
-    for (const rule of flag.rules) list.append(el('li', ruleSummary(rule)));
-    cell(row, list);
+    const li = el('li');
+    li.dataset.flag = key;
+    const text = el('div', undefined, 'flag-text');
+    const title = el('h3', flagName(key));
+    title.append(' ', el('code', key, 'tech'));
+    text.append(title);
+    if (FLAG_INFO[key]) text.append(el('p', FLAG_INFO[key].effect, 'muted'));
+    const state = el('p', undefined, 'flag-state');
+    state.append(badge(flag.kill ? 'Off for everyone now' : flag.default ? 'On' : 'Off', flag.kill ? 'bad' : flag.default ? 'good' : undefined),
+      ' ', flag.rules.length ? 'unless a rule says otherwise:' : 'for everyone.');
+    if (NEVER_GATED.includes(key)) state.append(' ', badge('Always on in the app', 'good'));
+    text.append(state);
+    if (flag.rules.length) { const list = el('ul', undefined, 'rules'); for (const rule of flag.rules) list.append(el('li', ruleSummary(rule))); text.append(list); }
+    if (flag.minAppVersion) text.append(el('p', 'Only app ' + flag.minAppVersion + ' or newer.', 'muted'));
     const actions = el('div', undefined, 'row');
     actions.append(
-      button('Edit', 'Edit ' + key, 'quiet', async () => editFlag(key)),
-      button('Delete', 'Delete ' + key, 'danger', async () => {
-        if (!confirm('Delete the flag ' + key + '? The app goes back to its built-in setting for it.')) return;
+      button('Change', 'Change ' + flagName(key), 'quiet', async () => editFlag(key)),
+      button('Remove', 'Remove the flag ' + flagName(key), 'danger', async () => {
+        if (!confirm('Remove the flag for ' + flagName(key) + '? The app goes back to its own setting for it.')) return;
         await api('admin/flags/delete', { key });
         await Promise.all([loadFlags(), loadAudit()]);
-        say('Deleted ' + key + '.');
+        say('Removed the flag for ' + flagName(key) + '.');
       }),
     );
-    cell(row, actions);
-    return row;
+    li.append(text, actions);
+    return li;
   }));
 }
 
@@ -1064,26 +1150,30 @@ function addRuleRow(fields = { kind: 'plan', plan: 'basic', text: '', enabled: t
 function resetFlagForm() {
   flagForm.reset();
   ruleRows.replaceChildren();
+  showFlagPick();
   $('flag-form-title').textContent = 'Add or change a flag';
 }
 function editFlag(key) {
   const flag = flagsState[key];
   if (!flag) return;
   resetFlagForm();
-  flagForm.elements.key.value = key;
+  flagPick.value = KNOWN_FLAGS.includes(key) && !NEVER_GATED.includes(key) ? key : '__other';
+  showFlagPick();
+  $('flag-key').value = key;
   flagForm.elements.defaultOn.value = flag.default ? 'on' : 'off';
   flagForm.elements.minAppVersion.value = flag.minAppVersion ?? '';
   flagForm.elements.kill.checked = flag.kill === true;
   for (const rule of flag.rules) addRuleRow(fieldsFromRule(rule));
-  $('flag-form-title').textContent = 'Change ' + key;
+  $('flag-form-title').textContent = 'Change ' + flagName(key);
   flagForm.scrollIntoView();
-  flagForm.elements.key.focus();
+  flagPick.focus();
 }
 
 $('add-rule').addEventListener('click', () => addRuleRow());
 $('flag-reset').addEventListener('click', resetFlagForm);
 act(flagForm, 'submit', async () => {
   const data = new FormData(flagForm);
+  if (!flagPick.value || (flagPick.value === '__other' && !String(data.get('key') ?? '').trim())) throw new Error('Choose a feature first.');
   const result = flagFromForm({
     key: data.get('key'), defaultOn: data.get('defaultOn') === 'on', kill: data.get('kill') === 'on', minAppVersion: data.get('minAppVersion'),
     rules: [...ruleRows.children].map(row => row.readFields()),
@@ -1092,18 +1182,38 @@ act(flagForm, 'submit', async () => {
   await api('admin/flags/set', { key: result.key, flag: result.flag });
   await Promise.all([loadFlags(), loadAudit()]);
   resetFlagForm();
-  say('Saved ' + result.key + '.');
+  say('Saved ' + flagName(result.key) + '.');
 });
+showFlagPick();
 
+// ---- Record of changes (the audit log). Only the view is folded or filtered: every record stays as it is. -----
+let auditEntries = [];
 async function loadAudit() {
-  const { entries } = await api('admin/audit');
-  $('audit-table').tBodies[0].replaceChildren(...entries.map(e => {
+  auditEntries = (await api('admin/audit')).entries;
+  renderAudit();
+}
+function renderAudit() {
+  const showViews = $('audit-show-views').checked;
+  const rows = collapseAudit(auditEntries.filter(e => showViews || !isPageView(e.action)));
+  const timeOnly = new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' });
+  $('audit-empty').hidden = rows.length > 0;
+  $('audit-table').tBodies[0].replaceChildren(...rows.map(e => {
     const row = document.createElement('tr');
-    cell(row, when(e.at_ms)); cell(row, code(e.actor)); cell(row, e.action);
+    const span = e.count > 1
+      ? when(e.oldestMs) + ' to ' + (new Date(e.oldestMs).toDateString() === new Date(e.newestMs).toDateString() ? timeOnly.format(new Date(e.newestMs)) : when(e.newestMs))
+      : when(e.at_ms);
+    cell(row, span);
+    cell(row, code(e.actor));
+    const what = el('div');
+    what.append(el('span', auditText(e.action)));
+    if (e.count > 1) what.append(' ', badge(e.count + ' times'));
+    what.append(el('div', e.action, 'muted tech'));
+    cell(row, what);
     cell(row, badge(e.outcome === 'allowed' ? 'Allowed' : 'Refused', e.outcome === 'allowed' ? '' : 'bad'));
     cell(row, e.detail || '—');
     return row;
   }));
 }
+$('audit-show-views').addEventListener('change', renderAudit);
 
 void setUpSignIn();

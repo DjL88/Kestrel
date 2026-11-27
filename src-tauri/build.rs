@@ -20,6 +20,13 @@ fn main() {
     if let Some(rev) = revision {
         println!("cargo:rustc-env=KESTREL_MENU_REVISION={}", &rev[..rev.len().min(12)]);
     }
+    // The universal Mac app links Microsoft's ONNX Runtime as a library in Contents/Frameworks (scripts/macos/
+    // fetch-onnxruntime.sh, ORT_PREFER_DYNAMIC_LINK=1 in the release build): tell the app where to find it there.
+    println!("cargo:rerun-if-env-changed=ORT_PREFER_DYNAMIC_LINK");
+    let dynamic_ort = std::env::var("ORT_PREFER_DYNAMIC_LINK").map(|v| v == "1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
+    if dynamic_ort && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
+    }
     tauri_build::build()
 }
 

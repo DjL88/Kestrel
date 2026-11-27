@@ -12,19 +12,23 @@
 <script type="module" src="/assets/admin.js"></script>
 </head>
 <body>
-<a class="skip" href="#main">Skip to the console</a>
+<a class="skip" href="#main">Skip to the page</a>
 <header class="top">
   <a class="brand" href="/"><img src="/assets/brand/inflight/svg/logo/inflight-logo-horizontal-dark.svg" alt="InFlight" width="105" height="32"></a>
   <span class="title">Admin</span>
   <span id="who" class="muted"></span>
-  <button type="button" id="sign-out" class="quiet" hidden>Sign out</button>
+  <button type="button" id="sign-out" class="quiet small" hidden>Sign out</button>
 </header>
+
+<div class="frame">
+<nav id="menu" class="menu" aria-label="Admin pages" hidden><ul id="menu-list"></ul></nav>
+
 <main id="main" tabindex="-1">
 <p id="status" role="status" aria-live="polite"></p>
 
-<section id="sign-in" class="panel" aria-labelledby="sign-in-title">
+<section id="sign-in" class="card narrow" aria-labelledby="sign-in-title">
   <h1 id="sign-in-title">Sign in</h1>
-  <p class="muted">Only the owner's Google account can use this page. Every view and change is recorded in the audit log.</p>
+  <p class="muted">Only the owner's Google account can use this page. Everything you look at or change here is recorded.</p>
   <div id="google-button"></div>
   <p id="google-missing" class="muted" hidden>Google sign-in is not set up on this server yet.</p>
   <form id="password-form" hidden>
@@ -36,254 +40,127 @@
 </section>
 
 <div id="console" hidden>
-  <section id="needs" class="panel home" aria-labelledby="needs-title">
-    <h1 id="needs-title">Needs you</h1>
+  <header class="page-head">
+    <h1 id="page-title">Today</h1>
+    <p id="page-intro" class="muted"></p>
+  </header>
+
+  <!-- ===== Today ===== -->
+  <section id="today" class="card" aria-label="Summary">
+    <ul id="today-list" class="today"></ul>
+    <p class="small-print muted"><span id="needs-checked"></span> The page checks again every five minutes while it is open. <button type="button" id="refresh-all" class="quiet small">Check now</button></p>
+  </section>
+
+  <section id="needs" class="card" aria-labelledby="needs-title">
+    <h2 id="needs-title">Needs you</h2>
     <div id="all-good" class="all-good" hidden>
       <p class="big">All good.</p>
-      <p class="muted">Nothing needs you right now. Scheduled jobs (account deletions, storage charges, refunds of Pro purchases, the Paddle key renewal and learning) run by themselves, and anything that needs a person will appear here.</p>
+      <p class="muted">Nothing needs you right now. Regular jobs (account deletions, storage charges, the Paddle key renewal and model training) run by themselves. Anything that needs you will appear here.</p>
     </div>
     <ul id="needs-list" class="needs"></ul>
     <p id="needs-unknown" class="muted" hidden></p>
-    <p class="muted small-print"><span id="needs-checked"></span> This page checks again every five minutes while it is open. <button type="button" id="refresh-all" class="quiet small">Check now</button></p>
   </section>
 
-  <details id="more" class="more home">
-    <summary>More</summary>
-    <p class="muted">Everything else, for when you need it.</p>
-    <nav aria-label="More admin tools"><ul id="more-links" class="more-links"></ul></nav>
-  </details>
-
-  <p id="back" hidden><a href="#">Back to Needs you</a></p>
-
-  <section id="refunds" class="panel" aria-labelledby="refunds-title">
-    <h2 id="refunds-title">Refunds owed</h2>
-    <p class="muted">Unused cloud balance owed back after someone deleted their account. Pay it back in Paddle, then mark it refunded here with Paddle's reference. Marking is safe to repeat.</p>
-    <ul id="refund-list" class="needs"></ul>
-    <p id="refunds-empty" class="muted" hidden>Nothing is owed.</p>
+  <!-- ===== Switches ===== -->
+  <section id="switches" class="card" aria-labelledby="switches-title">
+    <h2 id="switches-title" class="sr-only">Switches</h2>
+    <p class="muted">Changes take effect straight away and are recorded. Switching off never stops people seeing or deleting their own data. Things that cost money count towards the monthly spending cap.</p>
+    <ul id="switch-list" class="switches"></ul>
+    <p id="switches-empty" class="muted" hidden>No switches could be read.</p>
   </section>
 
-  <section id="overview" class="panel" aria-labelledby="overview-title">
-    <h2 id="overview-title">Counts</h2>
-    <dl id="overview-list" class="facts"></dl>
-  </section>
-
-  <section id="licensees" class="panel" aria-labelledby="licensees-title">
-    <h2 id="licensees-title">Licensees and devices</h2>
-    <p class="muted">Revoking a key stops new activations and renewals. It never touches anyone's photos or edits, and a device keeps its offline grant until it lapses (30 days). Freeing a device lets the key be used on another one.</p>
-    <label class="inline">Filter <input id="licence-filter" type="search" placeholder="Licence, account or note"></label>
-    <div class="scroll"><table id="licence-table">
-      <caption class="sr-only">Licences, newest change first</caption>
-      <thead><tr><th scope="col">Licence</th><th scope="col">Status</th><th scope="col">Account</th><th scope="col">Note</th><th scope="col">Valid until</th><th scope="col">Devices</th><th scope="col">AI allowance</th><th scope="col">Actions</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <p id="licence-empty" class="muted" hidden>No licences yet.</p>
-    <form id="revoke-key-form">
-      <h3>Revoke a key by pasting it</h3>
-      <p class="muted">For a key that leaked, including one nobody has used yet (such keys are not in the list above). Only its licence id is kept; the key itself is not stored. Devices that check online turn Pro off; their photos and edits are untouched.</p>
-      <label>Licence key <textarea name="licenceKey" rows="2" required autocomplete="off" spellcheck="false" placeholder="KESTREL1.…"></textarea></label>
-      <button class="danger">Revoke this key</button>
-    </form>
-  </section>
-
-  <section id="grant" class="panel" aria-labelledby="grant-title">
-    <h2 id="grant-title">Grant free Pro access by email</h2>
-    <p class="muted">No licence key or payment is needed. Access attaches to the recipient's verified account when they sign in with this address. Repeating a grant for the same person and major version does not create another licence.</p>
-    <form id="grant-form">
-      <label>Recipient address <input name="email" type="email" maxlength="254" autocomplete="off" required></label>
-      <label>Major version <input name="majorVersion" type="number" min="1" max="99" value="1" required inputmode="numeric"></label>
-      <label>Grant note (optional) <input name="note" maxlength="200" autocomplete="off"></label>
-      <label>Grant expiry (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
-      <label class="check"><input name="managedAi" type="checkbox"> Include the online helper allowance</label>
-      <label class="check"><input name="contributor" type="checkbox"> Make them a contributor (free Pro, plus "Feedback on this" in the app; their feedback arrives in Messages)</label>
-      <button>Grant free Pro</button>
+  <!-- ===== People and licences ===== -->
+  <section id="grant" class="card" aria-labelledby="grant-title">
+    <h2 id="grant-title">Give someone free Pro</h2>
+    <p class="muted">No key or payment needed. Pro turns on when they sign in with this email address. Giving it twice does nothing extra.</p>
+    <form id="grant-form" class="form-grid">
+      <label>Their email address <input name="email" type="email" maxlength="254" autocomplete="off" required></label>
+      <label>Note, only you see this (optional) <input name="note" maxlength="200" autocomplete="off"></label>
+      <label>Ends after this many days (leave empty to keep it) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
+      <label>App version number <input name="majorVersion" type="number" min="1" max="99" value="1" required inputmode="numeric"></label>
+      <label class="check"><input name="managedAi" type="checkbox"> Include the online photo helper</label>
+      <label class="check"><input name="contributor" type="checkbox"> Make them a contributor: free Pro, and a "Feedback on this" button in the app that sends you messages</label>
+      <div class="row"><button>Give free Pro</button></div>
     </form>
     <p id="grant-result" aria-live="polite"></p>
   </section>
 
-  <section id="issue" class="panel" aria-labelledby="issue-title">
-    <h2 id="issue-title">Issue a free Pro tester or gift key</h2>
-    <p id="issue-unavailable" class="muted" hidden>Key issuing is disabled on this server because a licence signing key is not configured. Use Grant free Pro above for account-based access instead.</p>
-    <form id="issue-form">
-      <label>Note (who it is for; only you see this) <input name="note" maxlength="200" autocomplete="off"></label>
-      <label>Expires after (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
-      <label>Devices <input name="maxDevices" type="number" min="1" max="20" value="3" required inputmode="numeric"></label>
-      <label>Account id (optional, starts with acc_; not an email address) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_\\-]+" title="Enter an account ID starting with acc_, or leave this empty."></label>
-      <label class="check"><input type="checkbox" name="managedAi"> Include the online helper (AI allowance)</label>
-      <p class="muted">This is a Pro licence, issued at no charge to a tester or as a gift. Optional expiry is only enforceable when the app checks online; a previously issued signed key can still be used without a connection. Do not issue time-limited keys for access requiring guaranteed offline expiry.</p>
-      <button>Issue key</button>
+  <section id="licensees" class="card" aria-labelledby="licensees-title">
+    <h2 id="licensees-title">Licences and devices</h2>
+    <p class="muted">Cancelling a licence stops new devices and renewals. It never touches anyone's photos or edits, and a device keeps working offline for up to 30 days. Freeing a device lets the licence be used on another one.</p>
+    <label class="inline">Search <input id="licence-filter" type="search" placeholder="Licence, account or note"></label>
+    <div class="scroll"><table id="licence-table">
+      <caption class="sr-only">Licences, most recently changed first</caption>
+      <thead><tr><th scope="col">Licence</th><th scope="col">State</th><th scope="col">Account</th><th scope="col">Note</th><th scope="col">Ends</th><th scope="col">Devices</th><th scope="col">Online helper</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="licence-empty" class="muted" hidden>No licences yet.</p>
+  </section>
+
+  <details id="issue" class="card fold">
+    <summary><span class="fold-name">Make a Pro key to send someone</span><span class="fold-hint">For a tester or a gift. Usually "Give someone free Pro" above is simpler.</span></summary>
+    <p id="issue-unavailable" class="muted" hidden>Making keys is off on this server because the signing key is not set up. Use "Give someone free Pro" instead.</p>
+    <form id="issue-form" class="form-grid">
+      <label>Who it is for, only you see this <input name="note" maxlength="200" autocomplete="off"></label>
+      <label>Ends after this many days (leave empty to keep it) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
+      <label>Number of devices <input name="maxDevices" type="number" min="1" max="20" value="3" required inputmode="numeric"></label>
+      <label>Account ID, starts with acc_ (optional) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_\\-]+" title="An account ID starting with acc_, or leave this empty."></label>
+      <label class="check"><input type="checkbox" name="managedAi"> Include the online photo helper</label>
+      <p class="muted">An end date only works when the app goes online to check. A key can still be used offline after it.</p>
+      <div class="row"><button>Make key</button></div>
     </form>
     <div id="issued" hidden>
       <h3>New key</h3>
-      <p><strong>Copy it now.</strong> InFlight does not keep a copy of the key, only its licence id.</p>
+      <p><strong>Copy it now.</strong> InFlight does not keep a copy of the key.</p>
       <label>Licence key <textarea id="issued-key" rows="3" readonly></textarea></label>
       <button type="button" id="copy-key">Copy key</button>
     </div>
-  </section>
+  </details>
 
-  <section id="safety" class="panel" aria-labelledby="safety-title">
-    <h2 id="safety-title">Safety: gallery reports</h2>
-    <p class="muted">InFlight does not scan photos. Reports come from anyone with a gallery link. For child sexual abuse material: remove it, close the account, and report it by hand to the NCA and the IWF (docs/safety/README.md). Do not keep copies.</p>
-    <p id="safety-checks" class="muted"></p>
-    <h3>Gallery reports</h3>
-    <div class="scroll"><table id="safety-notices">
-      <caption class="sr-only">Gallery reports</caption>
-      <thead><tr><th scope="col">When</th><th scope="col">What is wrong</th><th scope="col">About</th><th scope="col">Explanation</th><th scope="col">Reply to</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-  </section>
-
-  <section id="compliance" class="panel" aria-labelledby="compliance-title">
-    <h2 id="compliance-title">Compliance documents</h2>
-    <p class="muted">Signed copies of the risk assessments, kept in a private UK store. Nothing here can be deleted or replaced: a new upload sits beside the old one. Each upload and download goes in the audit log.</p>
-    <p id="compliance-unavailable" class="muted" hidden>Not set up on this server yet.</p>
-    <div class="scroll"><table id="compliance-table">
-      <caption class="sr-only">Compliance documents, newest first</caption>
-      <thead><tr><th scope="col">Document</th><th scope="col">Uploaded</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <p id="compliance-empty" class="muted" hidden>No documents yet.</p>
-    <form id="compliance-form">
-      <h3>Upload a signed copy</h3>
-      <label>Title <input name="title" required maxlength="120" placeholder="Illegal content risk assessment, signed"></label>
-      <label>File (PDF or Markdown) <input name="file" type="file" accept=".pdf,.md,application/pdf,text/markdown" required></label>
-      <button>Upload</button>
+  <details id="revoke" class="card fold">
+    <summary><span class="fold-name">Cancel a key that leaked</span><span class="fold-hint">Paste the key, even one nobody has used yet.</span></summary>
+    <form id="revoke-key-form">
+      <p class="muted">Only its licence number is kept, never the key. Devices using it lose Pro when they next check online. Their photos and edits are untouched.</p>
+      <label>Licence key <textarea name="licenceKey" rows="2" required autocomplete="off" spellcheck="false" placeholder="KESTREL1.…"></textarea></label>
+      <button class="danger">Cancel this key</button>
     </form>
-  </section>
+  </details>
 
-  <section id="switches" class="panel" aria-labelledby="switches-title">
-    <h2 id="switches-title">Switches</h2>
-    <p class="muted">One on/off switch for each managed feature. New features start <strong>off</strong> and only work once the service is set up for them and you switch them on. Switching off takes effect at once and is written to the audit log. Switching off never stops people reading or deleting their own data. Managed Gemini and cloud processing count against the monthly spending limit.</p>
-    <div class="scroll"><table id="switches-table">
-      <caption class="sr-only">Managed feature switches</caption>
-      <thead><tr><th scope="col">Feature</th><th scope="col">Set up on the server</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-  </section>
-
-  <section id="mail" class="panel" aria-labelledby="mail-title">
-    <h2 id="mail-title">Email sent today</h2>
-    <p class="muted">App email goes through Gmail SMTP: a personal Gmail account (Google allows about 500 recipients a day; InFlight stops at 450) or Google Workspace (about 2,000 a day; InFlight stops at 1,500 at most). Notices and product news are emailed only when push cannot reach someone.</p>
-    <p id="mail-unavailable" class="muted" hidden>Not set up on this server yet.</p>
-    <dl id="mail-facts" class="facts"></dl>
-    <p id="mail-warning" role="status" hidden><strong>Warning:</strong> 80% of today’s email limit is used.</p>
-  </section>
-
-  <section id="learning" class="panel" aria-labelledby="learning-title">
-    <h2 id="learning-title">Learning in Vertex AI</h2>
-    <p class="muted">Shared models learn in batches from consented shadow files only (measurements, masks, decisions and recipes, never photos). A batch starts at the photo count below, weekly when something new has arrived, or when you press Learn now. Before each batch the worst-case cost is reserved, and the batch is refused if this month would pass the ceiling. Nothing is deployed to an always-on endpoint.</p>
-    <p id="learning-unavailable" class="muted" hidden>Not set up on this server yet.</p>
-    <dl id="learning-facts" class="facts"></dl>
-    <p><button type="button" id="learning-run">Learn now</button></p>
-    <div class="scroll"><table id="learning-runs">
-      <caption>Recent batches</caption>
-      <thead><tr><th scope="col">Started</th><th scope="col">Why</th><th scope="col">Photos</th><th scope="col">Reserved</th><th scope="col">Result</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-  </section>
-
-  <section id="flags" class="panel" aria-labelledby="flags-title">
-    <h2 id="flags-title">Feature flags</h2>
-    <p class="muted">Switch a feature on or off for everyone, for a plan, for an organisation or for one person, over a date range. A trial is a rule with a date range; leave the last day empty and it runs until you stop it. The most specific rule wins (one person, then an organisation, then a plan, then everyone), and an off rule beats an on rule at the same level. Changes reach a device the next time it checks in, and are written to the audit log.</p>
-    <p class="muted">These can never be switched off, whatever the rules say: <span id="never-gated"></span>.</p>
-    <div class="scroll"><table id="flags-table">
-      <caption class="sr-only">Feature flags</caption>
-      <thead><tr><th scope="col">Flag</th><th scope="col">Default</th><th scope="col">Rules</th><th scope="col">Actions</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <p id="flags-empty" class="muted" hidden>No flags yet. Every feature uses the app's built-in setting.</p>
-    <form id="flag-form">
-      <h3 id="flag-form-title">Add or change a flag</h3>
-      <label>Flag name <input id="flag-key" name="key" list="flag-names" required maxlength="64" autocomplete="off" spellcheck="false"></label>
-      <datalist id="flag-names"></datalist>
-      <label>When no rule applies
-        <select name="defaultOn"><option value="off">Off</option><option value="on">On</option></select>
-      </label>
-      <label>Minimum app version (optional) <input name="minAppVersion" placeholder="26.11.2" maxlength="20" autocomplete="off"></label>
-      <label class="check"><input type="checkbox" name="kill"> Switch off for everyone now (kill switch)</label>
-      <fieldset id="flag-rules"><legend>Rules</legend><div id="flag-rule-rows"></div>
-        <button type="button" id="add-rule" class="quiet">Add a rule</button>
-      </fieldset>
-      <div class="row"><button>Save flag</button><button type="button" id="flag-reset" class="quiet">Clear the form</button></div>
-    </form>
-  </section>
-
-  <section id="monitoring" class="panel" aria-labelledby="monitoring-title">
-    <h2 id="monitoring-title">Monitoring and alerts</h2>
-    <p><strong>Live monitoring: not connected.</strong> Phone notifications: not configured.</p>
-    <p class="muted">Rehearse proposed alert rules using synthetic examples. This does not query production, send a push notification or record an incident.</p>
-    <div class="scroll"><table>
-      <caption>Proposed starting rules — not active</caption>
-      <thead><tr><th scope="col">Signal</th><th scope="col">Threshold</th></tr></thead>
-      <tbody id="monitoring-rules"></tbody>
-    </table></div>
-    <form id="monitoring-rehearsal">
-      <label>Test scenario
-        <select name="scenario"><option value="normal">Normal traffic</option><option value="surge">Traffic surge</option><option value="outage">API failures</option><option value="budget">Budget exceeded</option></select>
-      </label>
-      <div class="row"><button>Rehearse alert</button><button type="button" id="monitoring-clear" class="quiet">Clear rehearsal</button></div>
-    </form>
-    <p id="monitoring-result" role="status" aria-live="polite">No rehearsal run.</p>
-    <ul id="monitoring-alerts"></ul>
-  </section>
-
-  <section id="notifications" class="panel" aria-labelledby="notification-heading">
-    <h2 id="notification-heading">Notification centre — rehearsal</h2>
-    <p class="muted">Synthetic recipients only. No live delivery, automatic translation or customer data connected.</p>
-    <form id="notification-form">
-      <label>Match inclusion rules <select name="match"><option value="all">All (AND)</option><option value="any">Any (OR)</option></select></label>
-      <label class="check"><input name="allowAll" type="checkbox"> Include all sample devices when no inclusion rule is specified</label>
-      <fieldset><legend>Audience rules — exclusions always win</legend><div id="notification-rules"></div><button type="button" id="notification-add" class="quiet">Add rule</button></fieldset>
-      <p class="muted">Example values: GB, DE, FR, Unknown; Studio A, Studio B, Independent; Pro, Basic; Yes, No; Windows, macOS, iOS, Android, Web; en-GB, de, fr.</p>
-      <label>British English title <input name="sourceTitle" maxlength="120" required></label>
-      <label>British English message <textarea name="sourceBody" maxlength="500" rows="3" required></textarea></label>
-      <label>Preview language <select name="locale"><option value="en-GB">British English</option><option value="en-US">US English</option><option value="en-CA">Canadian English</option><option value="cy">Welsh</option><option value="gd">Scottish Gaelic</option><option value="ga">Irish</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="nl">Dutch</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="da">Danish</option><option value="sv">Swedish</option><option value="nb">Norwegian</option><option value="fi">Finnish</option><option value="is">Icelandic</option></select></label>
-      <label>Translated title (manual draft) <input name="variantTitle" maxlength="120"></label>
-      <label>Translated message (manual draft) <textarea name="variantBody" maxlength="500" rows="3"></textarea></label>
-      <button>Preview sample recipients and message</button>
-    </form>
-    <p id="notification-result" role="status" aria-live="polite">No preview yet.</p>
-    <div id="notification-preview" hidden><h3 id="notification-title"></h3><p id="notification-body"></p></div>
-    <button type="button" disabled>Send notification — not connected</button>
-
-    <h3 id="news-heading">Product news — live</h3>
-    <p class="muted">Sends one message to everyone: pushed to devices where alerts are on and “InFlight news” is kept on; emailed only to people who turned on “Email me InFlight news” and could not be reached by push, within today’s email limit. British English only. The audience rules above are a rehearsal and do not apply here. Check first: “Count who would get it” sends nothing. Needs the Product news switch.</p>
-    <form id="news-form" aria-labelledby="news-heading">
-      <label>Title <input name="title" maxlength="120" required></label>
-      <label>Message <textarea name="body" maxlength="500" rows="3" required></textarea></label>
-      <label>Continue an earlier send (its id; leave empty for new news) <input name="broadcastId" maxlength="64" pattern="[A-Za-z0-9_\-]{8,64}" autocomplete="off"></label>
-      <p><button type="submit" name="dry" value="1">Count who would get it</button> <button type="submit" name="send" value="1">Send now</button></p>
-    </form>
-    <p id="news-result" role="status" aria-live="polite"></p>
-  </section>
-
-  <section id="usage" class="panel" aria-labelledby="usage-title">
-    <h2 id="usage-title">AI usage this period</h2>
+  <details id="usage" class="card fold">
+    <summary><span class="fold-name">Online photo helper use</span><span class="fold-hint">How much of their allowance each account has used.</span></summary>
     <p id="usage-state" class="muted"></p>
     <div class="scroll"><table id="usage-table">
-      <caption class="sr-only">AI allowance used per account</caption>
-      <thead><tr><th scope="col">Account</th><th scope="col">Used</th><th scope="col">Allowance</th><th scope="col">Period ends</th></tr></thead>
+      <caption class="sr-only">Online photo helper allowance used per account</caption>
+      <thead><tr><th scope="col">Account</th><th scope="col">Used</th><th scope="col">Allowance</th><th scope="col">Resets</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <p id="usage-empty" class="muted" hidden>Nobody has used the online helper yet.</p>
-  </section>
+    <p id="usage-empty" class="muted" hidden>Nobody has used the online photo helper yet.</p>
+  </details>
 
-  <section id="payments" class="panel" aria-labelledby="payments-title">
+  <!-- ===== Payments and money ===== -->
+  <section id="payments" class="card" aria-labelledby="payments-title">
     <h2 id="payments-title">Payments</h2>
     <p id="payments-state" class="muted"></p>
     <p id="paddle-key-state" role="status"></p>
     <div class="scroll"><table id="payments-table">
-      <caption class="sr-only">Paid checkouts, newest first</caption>
-      <thead><tr><th scope="col">Paid</th><th scope="col">Invoice</th><th scope="col">Status</th><th scope="col">Country</th><th scope="col">Net</th><th scope="col">Tax</th><th scope="col">Total</th><th scope="col">Account</th></tr></thead>
+      <caption class="sr-only">Payments, newest first</caption>
+      <thead><tr><th scope="col">Paid</th><th scope="col">Invoice</th><th scope="col">State</th><th scope="col">Country</th><th scope="col">Before tax</th><th scope="col">Tax</th><th scope="col">Total</th><th scope="col">Account</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <p id="payments-empty" class="muted" hidden>No payments yet.</p>
   </section>
 
-  <section id="accounts" class="panel" aria-labelledby="accounts-title">
-    <h2 id="accounts-title">Accounts</h2>
-    <p class="muted">Read-only. Income, costs and profit for one month, in pounds. Nothing here changes a record, and a billing file you choose is read on this computer only, never uploaded.</p>
+  <section id="refunds" class="card" aria-labelledby="refunds-title">
+    <h2 id="refunds-title">Refunds owed</h2>
+    <p class="muted">Unused cloud credit to pay back after someone deleted their account. Refund it in Paddle, then mark it refunded here with Paddle's reference.</p>
+    <ul id="refund-list" class="needs"></ul>
+    <p id="refunds-empty" class="muted" hidden>Nothing is owed.</p>
+  </section>
+
+  <details id="accounts" class="card fold">
+    <summary><span class="fold-name">Month by month</span><span class="fold-hint">Income, costs and profit for one month, in pounds. Look only: nothing here changes.</span></summary>
     <p id="accounts-unavailable" class="muted" hidden></p>
-    <form id="accounts-month">
+    <form id="accounts-month" class="row">
       <label>Month <input type="month" name="month" min="2020-01" max="9998-12" required></label>
       <button>Show month</button>
     </form>
@@ -294,7 +171,7 @@
     <p id="accounts-income-notes" class="muted"></p>
     <h3>Costs</h3>
     <p id="accounts-cost-model"></p>
-    <label for="accounts-billing">Google Cloud bill for this month (CSV from Billing, then Reports, then Download CSV)</label>
+    <label for="accounts-billing">Google Cloud bill for this month (a CSV from Billing, then Reports, then Download CSV). It is read on this computer only, never uploaded.</label>
     <input id="accounts-billing" type="file" accept=".csv,text/csv">
     <p id="accounts-billing-state" role="status"></p>
     <div class="scroll" hidden><table id="accounts-billing-table">
@@ -304,91 +181,231 @@
     </table></div>
     <h3>VAT, in plain English</h3>
     <ul id="accounts-vat-help"></ul>
-  </section>
+  </details>
 
-  <section id="messages" class="panel" aria-labelledby="messages-title">
-    <h2 id="messages-title">Messages</h2>
-    <p class="muted">From the website's contact form, and contributors' "Feedback on this" from the app (marked Contributor). Reply from your own email; then mark the message answered.</p>
-    <ol id="message-list" class="messages"></ol>
-    <p id="messages-empty" class="muted" hidden>No messages.</p>
-  </section>
-
-  <section id="pricing" class="panel" aria-labelledby="pricing-title">
-    <h2 id="pricing-title">Prices</h2>
-    <p class="muted">The one price list. The website and the app show these prices within a few minutes of saving. Paddle charges them only after you choose Set Paddle prices; subscriptions already sold keep their price. Basic is always free.</p>
+  <details id="pricing" class="card fold">
+    <summary><span class="fold-name">Prices</span><span class="fold-hint">The one price list for the website, the app and Paddle.</span></summary>
+    <p class="muted">The website and the app show these within a few minutes of saving. Paddle charges them only after you choose "Set Paddle prices". People already subscribed keep their price. Basic is always free.</p>
     <p id="pricing-status" role="status"></p>
     <form id="pricing-form">
-      <h3>UK prices (GBP)</h3>
-      <label>Pro, monthly (£) <input name="base-pro.monthly" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
-      <label>Pro, yearly (£) <input name="base-pro.annual" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+      <h3>UK prices</h3>
+      <div class="form-grid">
+        <label>Pro, monthly (£) <input name="base-pro.monthly" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+        <label>Pro, yearly (£) <input name="base-pro.annual" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+      </div>
       <h3>Other currencies</h3>
       <p id="pricing-rates" class="muted"></p>
-      <p><button type="button" id="pricing-fetch-rates" class="small">Fetch today's ECB rates</button></p>
-      <p class="muted">Each currency is converted from the UK price and rounded. Charm rounding gives prices like 3.99, 35 and 299. Type an override to set a price by hand; an override always wins. Leave it empty to convert.</p>
+      <p><button type="button" id="pricing-fetch-rates" class="small quiet">Get today's exchange rates</button></p>
+      <p class="muted">Each price is worked out from the UK price and rounded ("Charm" gives prices like 3.99, 35 and 299). Type your own price to set one by hand; yours always wins. Leave it empty to work it out.</p>
       <div class="scroll"><table>
         <caption class="sr-only">Prices by currency</caption>
-        <thead><tr><th scope="col">Currency</th><th scope="col">Per £1</th><th scope="col">Rounding</th><th scope="col">Monthly override</th><th scope="col">Yearly override</th><th scope="col">Monthly price</th><th scope="col">Yearly price</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <thead><tr><th scope="col">Currency</th><th scope="col">Per £1</th><th scope="col">Rounding</th><th scope="col">Your monthly price</th><th scope="col">Your yearly price</th><th scope="col">Monthly</th><th scope="col">Yearly</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
         <tbody id="pricing-rows"></tbody>
       </table></div>
-      <p><label>Add a currency <select id="pricing-add"></select></label> <button type="button" id="pricing-add-button" class="small">Add</button></p>
-      <p><button type="button" id="pricing-preview" class="small">Preview prices</button> <button>Save prices</button></p>
+      <p class="row"><label class="inline">Add a currency <select id="pricing-add"></select></label> <button type="button" id="pricing-add-button" class="small quiet">Add</button></p>
+      <p class="row"><button type="button" id="pricing-preview" class="quiet">Preview</button> <button>Save prices</button></p>
     </form>
     <h3>Paddle</h3>
     <p id="pricing-paddle" role="status"></p>
     <ul id="pricing-paddle-list"></ul>
     <p><button type="button" id="pricing-push">Set Paddle prices to match</button></p>
+  </details>
+
+  <!-- ===== Messages ===== -->
+  <section id="messages" class="card" aria-labelledby="messages-title">
+    <h2 id="messages-title">Messages</h2>
+    <p class="muted">From the website's contact form, and from contributors in the app (marked Contributor). Reply from your own email, then mark it answered.</p>
+    <ol id="message-list" class="messages"></ol>
+    <p id="messages-empty" class="muted" hidden>No messages.</p>
   </section>
-  <section id="price-review" class="panel" aria-labelledby="price-review-title">
-    <h2 id="price-review-title">Price review</h2>
-    <p id="price-review-status" class="muted"></p>
-    <div id="price-review-table" class="scroll" hidden>
-      <table>
-        <caption>Pro base price proposals before tax</caption>
-        <thead><tr><th scope="col">Currency</th><th scope="col">Reference conversion</th><th scope="col">Rounded proposal</th></tr></thead>
-        <tbody id="price-review-rows"></tbody>
-      </table>
-    </div>
+
+  <section id="safety" class="card" aria-labelledby="safety-title">
+    <h2 id="safety-title">Reports about shared galleries</h2>
+    <p class="muted">Anyone with a gallery link can report a photo. InFlight does not scan photos. For child sexual abuse material: remove it, close the account, and report it by hand to the NCA and the IWF (see docs/safety/README.md). Do not keep copies.</p>
+    <p id="safety-checks" class="muted"></p>
+    <div class="scroll"><table id="safety-notices">
+      <caption class="sr-only">Gallery reports</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">What is wrong</th><th scope="col">About</th><th scope="col">What they said</th><th scope="col">From</th><th scope="col">State</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="safety-empty" class="muted" hidden>No reports.</p>
   </section>
-  <section id="tax" class="panel" aria-labelledby="tax-title">
-    <h2 id="tax-title">Tax</h2>
+
+  <section id="news" class="card" aria-labelledby="news-heading">
+    <h2 id="news-heading">Send news to everyone</h2>
+    <p class="muted">One message to everyone: as an alert where people allow InFlight news, or by email to people who asked for news by email and could not get an alert. Try "Count who would get it" first; it sends nothing. Needs the "News to everyone" switch.</p>
+    <form id="news-form" aria-labelledby="news-heading">
+      <label>Title <input name="title" maxlength="120" required></label>
+      <label>Message <textarea name="body" maxlength="500" rows="3" required></textarea></label>
+      <label>Finish an earlier send (its reference; leave empty for new news) <input name="broadcastId" maxlength="64" pattern="[A-Za-z0-9_\-]{8,64}" autocomplete="off"></label>
+      <p class="row"><button type="submit" name="dry" value="1" class="quiet">Count who would get it</button> <button type="submit" name="send" value="1">Send now</button></p>
+    </form>
+    <p id="news-result" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ===== Advanced ===== -->
+  <details id="flags" class="card fold">
+    <summary><span class="fold-name">Feature flags</span><span class="fold-hint">Turn single app features on or off, for everyone or for some people.</span></summary>
+    <p class="muted">A rule can be for everyone, a plan, an organisation or one person, and can have dates. The most specific rule wins (one person, then an organisation, then a plan, then everyone). Devices pick up a change the next time they check in.</p>
+    <p class="muted">These are always on, whatever the rules say: <span id="never-gated"></span>.</p>
+    <ul id="flag-list" class="flag-list"></ul>
+    <p id="flags-empty" class="muted" hidden>No flags yet. Every feature uses the app's own setting.</p>
+    <form id="flag-form">
+      <h3 id="flag-form-title">Add or change a flag</h3>
+      <label for="flag-pick">Feature</label>
+      <select id="flag-pick" name="pick"></select>
+      <p id="flag-effect" class="muted"></p>
+      <label id="flag-key-label" hidden>Technical name of another flag <input id="flag-key" name="key" maxlength="64" autocomplete="off" spellcheck="false"></label>
+      <label>When no rule applies
+        <select name="defaultOn"><option value="off">Off</option><option value="on">On</option></select>
+      </label>
+      <label>Only app version … or newer (optional) <input name="minAppVersion" placeholder="26.11.2" maxlength="20" autocomplete="off"></label>
+      <label class="check"><input type="checkbox" name="kill"> Turn off for everyone now, whatever the rules say</label>
+      <fieldset id="flag-rules"><legend>Rules</legend><div id="flag-rule-rows"></div>
+        <button type="button" id="add-rule" class="quiet small">Add a rule</button>
+      </fieldset>
+      <div class="row"><button>Save flag</button><button type="button" id="flag-reset" class="quiet">Clear</button></div>
+    </form>
+  </details>
+
+  <details id="audit" class="card fold">
+    <summary><span class="fold-name">Record of changes</span><span class="fold-hint">Who did what, and when. Nothing can edit or delete it.</span></summary>
+    <p class="muted">The 200 most recent entries. The same thing repeated one after another is shown once, with how many times.</p>
+    <label class="check"><input type="checkbox" id="audit-show-views"> Also show this page looking things up</label>
+    <div class="scroll"><table id="audit-table">
+      <caption class="sr-only">Record of changes, newest first</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="audit-empty" class="muted" hidden>Nothing to show.</p>
+  </details>
+
+  <details id="tax" class="card fold">
+    <summary><span class="fold-name">Tax</span><span class="fold-hint">UK VAT registration and the EU tax summary.</span></summary>
     <p id="tax-unavailable" class="muted" hidden></p>
     <div id="tax-body">
       <h3>UK VAT registration</h3>
-      <label for="turnover">UK taxable turnover over the last 12 months</label>
+      <label for="turnover">UK sales over the last 12 months</label>
       <progress id="turnover" max="90000" value="0"></progress>
       <p id="turnover-value"></p>
       <p id="turnover-state"></p>
       <form id="tax-settings">
         <h3>Tax settings</h3>
         <label class="check"><input type="checkbox" name="ukVatRegistered"> Charge UK VAT</label>
-        <label>HMRC VAT registration number <input name="ukVatNumber" autocomplete="off" maxlength="22"></label>
-        <label>Consumer price
+        <label>HMRC VAT number <input name="ukVatNumber" autocomplete="off" maxlength="22"></label>
+        <label>Pro prices for the public
           <select name="b2cPricing">
-            <option value="exclusive">Add VAT and sales tax to the £29 base</option>
-            <option value="inclusive">Include tax in the £29 total</option>
+            <option value="inclusive">Tax included: people pay the listed monthly or yearly price</option>
+            <option value="exclusive">Tax on top: VAT or sales tax is added to the listed price</option>
           </select>
         </label>
-        <button>Save settings</button>
+        <button>Save tax settings</button>
       </form>
       <form id="oss">
-        <h3>EU Non-Union OSS</h3>
-        <label>Year <input type="number" name="year" min="2020" max="9998" required></label>
-        <label>Quarter <select name="quarter"><option value="1">January to March</option><option value="2">April to June</option><option value="3">July to September</option><option value="4">October to December</option></select></label>
-        <button>Download GBP summary</button>
+        <h3>EU tax summary (Non-Union OSS)</h3>
+        <div class="row">
+          <label>Year <input type="number" name="year" min="2020" max="9998" required></label>
+          <label>Quarter <select name="quarter"><option value="1">January to March</option><option value="2">April to June</option><option value="3">July to September</option><option value="4">October to December</option></select></label>
+        </div>
+        <button class="quiet">Download summary</button>
       </form>
     </div>
-  </section>
+  </details>
 
-  <section id="audit" class="panel" aria-labelledby="audit-title">
-    <h2 id="audit-title">Audit log</h2>
-    <p class="muted">The 200 most recent entries, allowed and refused. Nothing can edit or delete them.</p>
-    <div class="scroll"><table id="audit-table">
-      <caption class="sr-only">Audit log, newest first</caption>
-      <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Outcome</th><th scope="col">Detail</th></tr></thead>
+  <details id="price-review" class="card fold">
+    <summary><span class="fold-name">Price review</span><span class="fold-hint">A monthly suggestion for prices in other currencies. Nothing changes by itself.</span></summary>
+    <p id="price-review-status" class="muted"></p>
+    <div id="price-review-table" class="scroll" hidden>
+      <table>
+        <caption>Suggested Pro prices before tax</caption>
+        <thead><tr><th scope="col">Currency</th><th scope="col">Monthly</th><th scope="col">Yearly</th></tr></thead>
+        <tbody id="price-review-rows"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <details id="monitoring" class="card fold">
+    <summary><span class="fold-name">Monitoring</span><span class="fold-hint">Not connected yet. Try out the proposed alerts with made-up examples.</span></summary>
+    <p><strong>Live monitoring: not connected.</strong> Phone alerts for you: not set up.</p>
+    <p class="muted">This uses made-up examples only. It does not look at the live service or send anything.</p>
+    <div class="scroll"><table>
+      <caption>Proposed alerts (not active)</caption>
+      <thead><tr><th scope="col">What</th><th scope="col">When it would alert</th></tr></thead>
+      <tbody id="monitoring-rules"></tbody>
+    </table></div>
+    <form id="monitoring-rehearsal">
+      <label>Example
+        <select name="scenario"><option value="normal">Normal day</option><option value="surge">Sudden rush of visitors</option><option value="outage">Service errors</option><option value="budget">Spending over budget</option></select>
+      </label>
+      <div class="row"><button class="quiet">Try it</button><button type="button" id="monitoring-clear" class="quiet">Clear</button></div>
+    </form>
+    <p id="monitoring-result" role="status" aria-live="polite">Not tried yet.</p>
+    <ul id="monitoring-alerts"></ul>
+  </details>
+
+  <details id="mail" class="card fold">
+    <summary><span class="fold-name">Emails sent today</span><span class="fold-hint">Against Google's daily limit.</span></summary>
+    <p class="muted">InFlight emails only when it has to, and stops below Google's daily limit (about 500 a day for personal Gmail, 2,000 for Google Workspace).</p>
+    <p id="mail-unavailable" class="muted" hidden>Not set up on this server yet.</p>
+    <dl id="mail-facts" class="facts"></dl>
+    <p id="mail-warning" role="status" hidden><strong>Heads up:</strong> 80% of today's email limit is used.</p>
+  </details>
+
+  <details id="learning" class="card fold">
+    <summary><span class="fold-name">Model training</span><span class="fold-hint">Improves InFlight's shared models in batches, within £20 a month.</span></summary>
+    <p class="muted">Uses only measurements and decisions people agreed to share, never photos. A batch starts when enough new photos have come in, once a week if anything is new, or when you press "Train now". A batch that would pass this month's limit is refused.</p>
+    <p id="learning-unavailable" class="muted" hidden>Not set up on this server yet.</p>
+    <dl id="learning-facts" class="facts"></dl>
+    <p><button type="button" id="learning-run" class="quiet">Train now</button></p>
+    <div class="scroll"><table id="learning-runs">
+      <caption>Recent batches</caption>
+      <thead><tr><th scope="col">Started</th><th scope="col">Why</th><th scope="col">Photos</th><th scope="col">Set aside</th><th scope="col">Result</th></tr></thead>
       <tbody></tbody>
     </table></div>
-  </section>
+  </details>
+
+  <details id="compliance" class="card fold">
+    <summary><span class="fold-name">Signed safety documents</span><span class="fold-hint">Your signed risk assessments, kept privately in the UK.</span></summary>
+    <p class="muted">Nothing here can be deleted or replaced: a new upload sits beside the old one. Every upload and download is recorded.</p>
+    <p id="compliance-unavailable" class="muted" hidden>Not set up on this server yet.</p>
+    <div class="scroll"><table id="compliance-table">
+      <caption class="sr-only">Signed documents, newest first</caption>
+      <thead><tr><th scope="col">Document</th><th scope="col">Uploaded</th><th scope="col">Size</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="compliance-empty" class="muted" hidden>No documents yet.</p>
+    <form id="compliance-form">
+      <h3>Upload a signed copy</h3>
+      <label>Title <input name="title" required maxlength="120" placeholder="Illegal content risk assessment, signed"></label>
+      <label>File (PDF or Markdown) <input name="file" type="file" accept=".pdf,.md,application/pdf,text/markdown" required></label>
+      <button class="quiet">Upload</button>
+    </form>
+  </details>
+
+  <details id="overview" class="card fold">
+    <summary><span class="fold-name">Counts and server set-up</span><span class="fold-hint">Accounts, licences, devices, and what this server has set up.</span></summary>
+    <dl id="overview-list" class="facts"></dl>
+  </details>
+
+  <details id="notifications" class="card fold">
+    <summary><span class="fold-name">Practise a targeted alert</span><span class="fold-hint">Made-up people only. Nothing is sent.</span></summary>
+    <form id="notification-form">
+      <label>People must match <select name="match"><option value="all">all the "include" rules</option><option value="any">any "include" rule</option></select></label>
+      <label class="check"><input name="allowAll" type="checkbox"> With no "include" rule, include every example device</label>
+      <fieldset><legend>Who it is for ("exclude" always wins)</legend><div id="notification-rules"></div><button type="button" id="notification-add" class="quiet small">Add a rule</button></fieldset>
+      <p class="muted">Example values: GB, DE, FR, Unknown; Studio A, Studio B, Independent; Pro, Basic; Yes, No; Windows, macOS, iOS, Android, Web; en-GB, de, fr.</p>
+      <label>Title (British English) <input name="sourceTitle" maxlength="120" required></label>
+      <label>Message (British English) <textarea name="sourceBody" maxlength="500" rows="3" required></textarea></label>
+      <label>Preview language <select name="locale"><option value="en-GB">British English</option><option value="en-US">US English</option><option value="en-CA">Canadian English</option><option value="cy">Welsh</option><option value="gd">Scottish Gaelic</option><option value="ga">Irish</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="nl">Dutch</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="da">Danish</option><option value="sv">Swedish</option><option value="nb">Norwegian</option><option value="fi">Finnish</option><option value="is">Icelandic</option></select></label>
+      <label>Translated title (your own draft) <input name="variantTitle" maxlength="120"></label>
+      <label>Translated message (your own draft) <textarea name="variantBody" maxlength="500" rows="3"></textarea></label>
+      <button class="quiet">Preview</button>
+    </form>
+    <p id="notification-result" role="status" aria-live="polite">No preview yet.</p>
+    <div id="notification-preview" hidden><h3 id="notification-title"></h3><p id="notification-body"></p></div>
+  </details>
 </div>
 </main>
+</div>
 </body>
 </html>

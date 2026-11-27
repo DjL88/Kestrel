@@ -50,6 +50,8 @@ export const it: AreaTranslation<typeof source> = {
     global: 'Nessun contorno del soggetto era affidabile, quindi la riduzione del rumore è stata applicata in modo uniforme a tutta la foto.',
     failedCheck: 'Il risultato non ha superato il controllo di qualità. Le tue modifiche sono state mantenute.',
     mainThread: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
+    workerUnavailable: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi non è stato cambiato nulla (farlo qui bloccherebbe InFlight). Riprova dopo aver riavviato InFlight.',
+    learnedNoWorker: 'La riduzione del rumore con IA non ha potuto funzionare in background su questo dispositivo, quindi è stata confrontata solo quella integrata.',
     learnedLostDetail: 'A grandezza piena, la riduzione del rumore IA ha smussato dettagli reali del soggetto, quindi è stata usata la riduzione del rumore integrata.',
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
   },

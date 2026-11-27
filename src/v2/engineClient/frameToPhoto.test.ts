@@ -53,6 +53,13 @@ test('tile state follows the picture: importing until a thumbnail exists, unavai
   assert.equal(frameToPhoto(frame(), { failed: true }).originalConnected, false);
 });
 
+test('a photo in a reopened project whose thumbnail is still on its way never says Importing', () => {
+  assert.equal(tileStateFor(undefined, false), 'ready');
+  assert.equal(frameToPhoto(frame(), undefined, { beingImported: false }).state, 'ready');
+  assert.equal(frameToPhoto(frame(), undefined, { beingImported: true }).state, 'importing', 'only the import now running says it');
+  assert.equal(tileStateFor({ failed: true }, false), 'unavailable', 'a failed thumbnail still says so');
+});
+
 test('a photo whose compression cannot be read yet says so, and is not called missing or offered a develop', () => {
   assert.equal(tileStateFor({ unsupported: 'jpeg-xl' }), 'unsupported');
   assert.equal(tileStateFor({ thumb: 'blob:t', unsupported: 'jpeg-xl', failed: true }), 'unsupported');

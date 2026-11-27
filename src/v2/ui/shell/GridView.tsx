@@ -135,6 +135,7 @@ export default function GridView({
               return (
                 <article
                   key={photo.id}
+                  data-thumb-id={photo.id}
                   className={`group flex flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
                     selected
                       ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)]'

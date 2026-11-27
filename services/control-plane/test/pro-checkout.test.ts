@@ -245,7 +245,7 @@ test('production: checkout stays off until the admin switches it on; the checkou
     assert.equal(off.body.error.code, 'CHECKOUT_DISABLED');
     const switches = await h.call('GET', '/v1/admin/switches', { token: h.adminToken });
     const sw = switches.body.switches.find((s: { key: string }) => s.key === 'pro-checkout');
-    assert.equal(sw.label, 'Pro checkout (Paddle)');
+    assert.equal(sw.label, 'Selling Pro');
     assert.equal(sw.on, false);
     assert.equal(switches.body.switches.some((s: { key: string }) => s.key === 'pro-checkout-eu'), false, 'no EU switch: Paddle handles EU VAT');
     assert.equal((await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key: 'pro-checkout', on: true } })).status, 200);

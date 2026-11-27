@@ -14,7 +14,7 @@ import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
-import { engineScheduler } from '../../core/engineScheduler';
+import { engineScheduler, type ScheduledContext, type SchedulerTicket } from '../../core/engineScheduler';
 import { measureStep, timedStep } from '../../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
@@ -419,6 +419,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const lastAutoRequest = useRef(0);
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
+  // The photos the import now running has added: only these say Importing while they have no thumbnail yet. A reopened
+  // project's photos whose thumbnail is still on its way say nothing (owner, 27 Nov).
+  const importingIds = useRef(new Set<string>());
   const [removedOpen, setRemovedOpen] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
@@ -701,6 +704,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[],
     active: 0, ticket: null as import('../../core/engineScheduler').SchedulerTicket | null,
   });
+  // One photo's thumbnail, for the background fill and for a tile on screen alike.
+  const makeThumbnail = useCallback(async (frame: PhotoFrame, ctx: ScheduledContext, generation: number, sourceProvider: BrowserPreviewProvider) => {
+    ctx.stage(engineText.workspace.thumbnailStage);
+    const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
+    ctx.checkCancelled();
+    if (generation !== thumbs.current.generation) return;
+    // A DNG shown only by its camera preview (or not at all) may be one whose compression can't be read yet (JPEG
+    // XL): then say that, never "original unavailable", which would be untrue.
+    const unsupported = !thumb || sourceProvider.pictureSourceOf(thumb) === 'camera-preview'
+      ? await sourceProvider.unsupportedCompression(frame) : null;
+    if (unsupported) {
+      ctx.commitIfCurrent(() => setUrls(current =>
+        ({ ...current, [frame.id]: { ...current[frame.id], unsupported } })));
+    }
+    if (!thumb) {
+      if (!unsupported) {
+        ctx.commitIfCurrent(() => setUrls(current =>
+          ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+      }
+      throw new Error(unsupported ? engineText.workspace.rawJpegXl : engineText.workspace.thumbnailFailed(frame.filename));
+    }
+    ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
+      : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
+  }, []);
   const pumpThumbnails = useCallback(() => {
     const book = thumbs.current;
     if (book.active || !book.queue.length) return;
@@ -713,29 +740,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       priority: 1, pauseable: frames.length > 1, items: frames,
       snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
       itemId: frame => frame.id, itemLabel: frame => frame.filename,
-      runItem: async (frame, _, ctx) => {
-        ctx.stage(engineText.workspace.thumbnailStage);
-        const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
-        ctx.checkCancelled();
-        if (generation !== thumbs.current.generation) return;
-        // A DNG shown only by its camera preview (or not at all) may be one whose compression can't be read yet (JPEG
-        // XL): then say that, never "original unavailable", which would be untrue.
-        const unsupported = !thumb || sourceProvider.pictureSourceOf(thumb) === 'camera-preview'
-          ? await sourceProvider.unsupportedCompression(frame) : null;
-        if (unsupported) {
-          ctx.commitIfCurrent(() => setUrls(current =>
-            ({ ...current, [frame.id]: { ...current[frame.id], unsupported } })));
-        }
-        if (!thumb) {
-          if (!unsupported) {
-            ctx.commitIfCurrent(() => setUrls(current =>
-              ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
-          }
-          throw new Error(unsupported ? engineText.workspace.rawJpegXl : engineText.workspace.thumbnailFailed(frame.filename));
-        }
-        ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
-          : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
-      },
+      runItem: (frame, _, ctx) => makeThumbnail(frame, ctx, generation, sourceProvider),
     }).then(ticket => {
       book.ticket = ticket;
       return ticket.finished;
@@ -760,6 +765,45 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
     pumpThumbnails();
   }, [projectId, frameCount, pumpThumbnails]);
+
+  // The tiles on screen come first (owner, 27 Nov: "we display 5-10 in the filmstrip at a time"): each one the person
+  // can see that has no thumbnail yet gets its own small job, admitted whatever the load and ahead of develops and
+  // analysis, so they appear one by one. A tile that scrolls away before its turn is dropped from the queue; the
+  // background fill above still gets to it later, at the lowest priority.
+  const urlsNow = useRef(urls);
+  urlsNow.current = urls;
+  const onScreenThumbs = useRef(new Map<string, SchedulerTicket | null>());
+  const thumbnailsOnScreen = useCallback((ids: readonly string[]) => {
+    const jobs = onScreenThumbs.current;
+    const shown = new Set(ids);
+    for (const [id, ticket] of jobs) {
+      if (shown.has(id) || !ticket) continue;
+      if (engineScheduler.list().find((task) => task.id === ticket.taskId)?.state !== 'queued') continue;
+      ticket.cancel();
+      jobs.delete(id);
+    }
+    const frames = stateRef.current?.frames ?? [];
+    const sourceProvider = provider.current;
+    if (!sourceProvider) return;
+    const generation = thumbs.current.generation;
+    for (const id of ids) {
+      const known = urlsNow.current[id];
+      if (jobs.has(id) || known?.thumb || known?.failed || known?.unsupported) continue;
+      const frame = frames.find((candidate) => candidate.id === id && !candidate.removedAt);
+      if (!frame) continue;
+      jobs.set(id, null);
+      void engineScheduler.submit({
+        title: engineText.workspace.thumbnailsTask(1), kind: 'thumbnail', resource: 'io', light: true,
+        priority: 500, pauseable: false, items: [frame],
+        snapshot: { generation, keys: [frame.stableKey] },
+        itemId: (item) => item.id, itemLabel: (item) => item.filename,
+        runItem: (item, _, ctx) => makeThumbnail(item, ctx, generation, sourceProvider),
+      }).then((ticket) => {
+        if (jobs.get(id) === null) jobs.set(id, ticket);
+        return ticket.finished.finally(() => { if (jobs.get(id) === ticket) jobs.delete(id); });
+      }).catch(() => { if (jobs.get(id) === null) jobs.delete(id); });
+    }
+  }, [makeThumbnail]);
 
   // The photo on the canvas gets the larger preview, ahead of the queue.
   const activeId = state?.selectedFrameId ?? state?.frames.find((frame) => !frame.removedAt)?.id ?? null;
@@ -2177,6 +2221,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.commitIfCurrent(() => {
             if (ctx.signal.aborted) return;
             importedFrames.push(...frames);
+            for (const frame of frames) importingIds.current.add(frame.id);
             // To the project, wherever it is: on screen, closed (written to its catalogue) or reopening (held).
             // Failed-only retry can happen long after the initial batch finished; recompute burst relationships
             // for that newly added photograph, but not for every file in a 300-photo import.
@@ -2216,6 +2261,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (importingInto.current === projectKey) importingInto.current = null;
       if (importController.current === controller) importController.current = null;
       setImporting(false);
+      importingIds.current.clear();
     }
   }, []);
 
@@ -3174,6 +3220,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     };
     }),
     importPhotos: () => { void importPhotos(); },
+    thumbnailsOnScreen,
     importFolder: () => { void pickFolderPhotos(setNotice).then((chosen) => { if (chosen) void importPhotos(chosen.picks); }); },
     watchFolder: () => {
       if (!canWatchFolder()) { setNotice(V2_STRINGS.liveShoot.notHere); return; }
@@ -3909,6 +3956,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
+    const beingImported = importingIds.current.has(frame.id);
     const originalConnected = frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true;
     const sources = { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) };
     const verifiedOriginalSize = verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`];
@@ -3916,19 +3964,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // to rebuild all of them, a long task each time (the lead's stress test, 27 Nov).
     const inputs: unknown[] = [frame, urls[frame.id], assist, autoUnavailable[frame.id], watermarkAuto[frame.id], histograms[frame.id],
       pixelSizes[frame.id], verifiedOriginalSize, originalConnected, JSON.stringify(sources), fullDeveloping[frame.stableKey],
-      speciesNamesVersion, pairedJpeg, tier, bracket ? JSON.stringify(bracket) : undefined];
+      speciesNamesVersion, pairedJpeg, tier, bracket ? JSON.stringify(bracket) : undefined, beingImported];
     const cached = photoCache.current.get(frame.id);
     if (cached && cached.inputs.length === inputs.length && cached.inputs.every((value, index) => value === inputs[index])) {
       nextCache.set(frame.id, cached);
       return cached.photo;
     }
-    const built = withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize, originalConnected, sources, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
+    const built = withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { beingImported, assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize, originalConnected, sources, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
     nextCache.set(frame.id, { inputs, photo: built });
     return built;
   }));
   photoCache.current = nextCache;
   return counted;
-  }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
+  }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping, importing]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.

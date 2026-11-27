@@ -48,6 +48,8 @@ function FilmstripTile({ photo, stack, active, selected, quietBadges, collageMod
       aria-posinset={posInSet}
       aria-setsize={setSize}
       data-photo-id={photo.id}
+      // Tiles on screen get their thumbnails first (useThumbnailsOnScreen); it watches tiles as the strip draws them.
+      data-thumb-id={photo.id}
       style={style}
       draggable={collageMode}
       onDragStart={collageMode ? (event) => {
