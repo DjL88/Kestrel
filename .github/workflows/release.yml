@@ -188,6 +188,24 @@ jobs:
             if [ "$target" = x86_64-apple-darwin ]; then arch=x86_64; else arch=arm64; fi
             DYLD_LIBRARY_PATH="$ORT_LIB_LOCATION" arch "-$arch" "$bin" src/assets/models/u2netp.onnx
           done
+      - name: The release has the app's public configuration
+        shell: bash
+        env:
+          CP: ${{ vars.VITE_KESTREL_CONTROL_PLANE_URL }}
+          FB: ${{ vars.VITE_FIREBASE_API_KEY }}
+          FBP: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          GID: ${{ vars.VITE_GOOGLE_SIGNIN_CLIENT_ID }}
+        run: |
+          missing=()
+          [ -n "$CP" ] || missing+=(VITE_KESTREL_CONTROL_PLANE_URL)
+          [ -n "$FB" ] || missing+=(VITE_FIREBASE_API_KEY)
+          [ -n "$FBP" ] || missing+=(VITE_FIREBASE_PROJECT_ID)
+          [ -n "$GID" ] || missing+=(VITE_GOOGLE_SIGNIN_CLIENT_ID)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Repository variables missing: ${missing[*]}. A release without them has no sign-in, Pro or cloud. Set them (Settings > Secrets and variables > Actions > Variables) from .env.local; see docs/DESKTOP.md."
+            exit 1
+          fi
+          echo "Public app configuration present."
       - uses: tauri-apps/tauri-action@v0
         with:
           # The action picks bun when it sees bun.lock, and bun is not installed on the runners; build with npm like CI.
@@ -201,6 +219,27 @@ jobs:
           args: ${{ matrix.args }} ${{ steps.signing.outputs.args }} ${{ steps.ort.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The app's public configuration (web identifiers and public keys, not secrets), from repository variables, so a
+          # release has the same sign-in, server and model settings as the owner's local build (.env.local). Without them
+          # the app builds with no sign-in, no Pro, no cloud. The check step below refuses a release that is missing them.
+          VITE_KESTREL_CONTROL_PLANE_URL: ${{ vars.VITE_KESTREL_CONTROL_PLANE_URL }}
+          VITE_KESTREL_GRANT_KEYS: ${{ vars.VITE_KESTREL_GRANT_KEYS }}
+          VITE_KESTREL_MODEL_BASE_URL: ${{ vars.VITE_KESTREL_MODEL_BASE_URL }}
+          VITE_KESTREL_MODEL_KEYS: ${{ vars.VITE_KESTREL_MODEL_KEYS }}
+          VITE_KESTREL_SITE_URL: ${{ vars.VITE_KESTREL_SITE_URL }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_GOOGLE_SIGNIN_CLIENT_ID: ${{ vars.VITE_GOOGLE_SIGNIN_CLIENT_ID }}
+          # Google's installed-app client secret is not confidential by Google's own rules, but it is kept as a secret anyway.
+          VITE_GOOGLE_SIGNIN_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_SIGNIN_CLIENT_SECRET }}
+          VITE_DROPBOX_APP_KEY: ${{ vars.VITE_DROPBOX_APP_KEY }}
+          VITE_ONEDRIVE_CLIENT_ID: ${{ vars.VITE_ONEDRIVE_CLIENT_ID }}
+          VITE_GOOGLE_DRIVE_CLIENT_ID: ${{ vars.VITE_GOOGLE_DRIVE_CLIENT_ID }}
+          VITE_MICROSOFT_SIGN_IN: ${{ vars.VITE_MICROSOFT_SIGN_IN }}
+          VITE_MICROSOFT_DESKTOP_SIGNIN: ${{ vars.VITE_MICROSOFT_DESKTOP_SIGNIN }}
       # The app itself carries the library in Contents/Frameworks, finds it there, and that copy runs on both kinds of Mac.
       - name: The Mac app carries ONNX Runtime and finds it
         if: matrix.os == 'macos-latest'
