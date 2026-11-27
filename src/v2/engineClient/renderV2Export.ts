@@ -304,6 +304,28 @@ function drawOverlay(canvas: HTMLCanvasElement, input: OverlayDraw) {
 }
 
 /**
+ * The overlay on a clear sheet the size of the whole output. The canvas draws the text and watermark once, inside the
+ * LAST panel of a split, sized and placed by that panel's own width (Canvas.tsx: the overlay layer is that pane's). So
+ * the export lays it out in a frame the size of the last section and puts it there. It used to be laid out across the
+ * whole stitched picture: twice the size on two panels, and cut in half by the join (Dave, 27 Nov).
+ */
+function overlaySheet(layout: { width: number; height: number; sections: readonly { x: number; width: number; height: number }[] }, input: OverlayDraw): HTMLCanvasElement {
+  const sheet = document.createElement('canvas');
+  sheet.width = layout.width; sheet.height = layout.height;
+  const last = layout.sections[layout.sections.length - 1];
+  if (layout.sections.length <= 1 || !last) { drawOverlay(sheet, input); return sheet; }
+  const panel = document.createElement('canvas');
+  try {
+    panel.width = last.width; panel.height = last.height;
+    drawOverlay(panel, input);
+    sheet.getContext('2d')?.drawImage(panel, last.x, 0);
+  } finally {
+    panel.width = 0; panel.height = 0;
+  }
+  return sheet;
+}
+
+/**
  * Draw one V2 export: the edited picture placed the way the canvas shows it (cover, zoom, pan, flips, rotation, edge insets),
  * then the overlay from the same description. The edit is applied to the whole framed picture first, so masks stay in place
  * whatever the crop. The output is never larger than the picture can fill (the size cap), and the result reports that.
@@ -349,10 +371,8 @@ export async function renderV2Export(
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
       // Text and watermark on a clear sheet, then laid over the 16-bit picture: only the pixels they cover change.
-      const sheet = document.createElement('canvas');
+      const sheet = overlaySheet(layout, overlay);
       try {
-        sheet.width = layout.width; sheet.height = layout.height;
-        drawOverlay(sheet, overlay);
         const context = sheet.getContext('2d', { willReadFrequently: true });
         if (!context) throw new Error('Canvas unavailable');
         overlayRgba8OnRgb16(output16, context.getImageData(0, 0, sheet.width, sheet.height).data);
@@ -410,7 +430,12 @@ export async function renderV2Export(
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
-      drawOverlay(output, overlay);
+      // One panel: straight onto the output. A split: laid out in the last panel's frame (overlaySheet).
+      if (layout.sections.length <= 1) drawOverlay(output, overlay);
+      else {
+        const sheet = overlaySheet(layout, overlay);
+        try { output.getContext('2d')?.drawImage(sheet, 0, 0); } finally { sheet.width = 0; sheet.height = 0; }
+      }
     }
     // Every section is cut from this SAME fully edited canvas. Never develop or
     // crop the photograph separately for each side of the seam.
