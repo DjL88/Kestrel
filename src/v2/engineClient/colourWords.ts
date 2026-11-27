@@ -1,4 +1,4 @@
-import type { ColourFamily, ColourFinding, ColourReport } from '../../core/colourCheck';
+import type { ColourArea, ColourFamily, ColourFinding, ColourReport } from '../../core/colourCheck';
 import { COLOUR_SENSE_TOLERANCE, type ChannelName, type ColourSenseResult } from '../../core/colourSense';
 import type { ColourMatchResult } from '../../core/colourMatch';
 import { colourText as t } from '../../i18n/areas/colour';
@@ -21,8 +21,20 @@ export function describeColourMatch(result: ColourMatchResult | null | undefined
   return { kept: result.verdict === 'matches', label: t.matchLabel(result.subject), text: sentences.join(' ') };
 }
 
-/** ColourSense for one suggestion: whether the subject keeps its colour, in words. */
-export interface ColourSenseNote { kept: boolean; label: string; text: string }
+/** ColourSense for one suggestion: whether the subject keeps its colour, in words. `fix` is the one-tap way back when
+ * the subject's colour moved warmer or cooler: 'cooler' when it moved warmer, 'warmer' when it moved cooler. */
+export interface ColourSenseNote { kept: boolean; label: string; text: string; fix?: 'cooler' | 'warmer' }
+
+/** How warm each colour name reads, from blue (coolest) to orange (warmest). Greys, black and white have no warmth. */
+const WARMTH: Partial<Record<ColourFamily, number>> = { blue: 0, teal: 1, purple: 1, green: 2, lime: 3, pink: 3, yellow: 4, brown: 4, red: 4, orange: 5 };
+
+/** Which way to nudge the warmth back after the subject's colour name moved, or nothing when it didn't move warmer or cooler. */
+export function warmthFix(before: ColourFamily, after: ColourFamily): ColourSenseNote['fix'] {
+  const from = WARMTH[before];
+  const to = WARMTH[after];
+  if (from === undefined || to === undefined || from === to) return undefined;
+  return to > from ? 'cooler' : 'warmer';
+}
 
 const channelList = (channels: ChannelName[]) => {
   const words = channels.map((channel) => t.family[channel]);
@@ -53,7 +65,8 @@ export function describeColourSense(result: ColourSenseResult | undefined): Colo
     const clipped = (['red', 'green', 'blue'] as const).filter((channel) => result.newlyClipped[channel] >= COLOUR_SENSE_TOLERANCE.clipping);
     if (clipped.length) parts.push(t.senseClipped(channelList(clipped)));
   }
-  return { kept: false, label: t.senseLabel, text: parts.join(' ') };
+  const fix = result.outside.includes('hue') ? warmthFix(result.before, result.after) : undefined;
+  return { kept: false, label: t.senseLabel, text: parts.join(' '), ...(fix ? { fix } : {}) };
 }
 
 /** One colour-check finding as a sentence, with its kind said in a word as well as an icon, never by colour alone. */
@@ -90,4 +103,11 @@ export function colourWords(report: ColourReport): ColourWords {
 /** Sentences for the check's warnings, for the Colour confidence summary that everyone sees. */
 export function colourWarningSentences(report: ColourReport | undefined): string[] {
   return report ? report.findings.filter((finding) => finding.severity === 'warning').map(describeColourFinding) : [];
+}
+
+/** Red and green look-alike areas for the photo, numbered so the outline is told apart by its number and name, never by colour. */
+export function colourAreas(report: ColourReport): Array<{ label: string; area: ColourArea }> {
+  const finding = report.findings.find((entry) => entry.id === 'redGreenAlike');
+  if (!finding || finding.id !== 'redGreenAlike' || !finding.areas) return [];
+  return finding.areas.map((area, index) => ({ label: `${index + 1} · ${t.family[finding.families[index]]}`, area }));
 }

@@ -14,6 +14,8 @@ interface CloudJob {
   inputKind?: 'smart-preview' | 'original';
   /** Told the job's id as soon as the control plane gives one, so the result can be matched to this job. */
   onJobId?: (id: string) => void;
+  /** Told, once the job has ended, whether the service confirmed it deleted its copy of the upload. */
+  onFinished?: (inputDeleted: boolean) => void;
   /** Capability-specific bytes prepared for the upload the user just approved. */
   input: Blob;
   userConsent: boolean;
@@ -177,6 +179,11 @@ async function runCloudJobSteps(connection: CloudJobConnection, job: CloudJob): 
     }
   } finally {
     // Use a separate bounded deadline so even a cancelled upload can be cleaned up.
-    await request(`${path}/finish`, 'POST', AbortSignal.timeout(CLEANUP_TIMEOUT_MS)).catch(() => undefined);
+    const finished = await request(`${path}/finish`, 'POST', AbortSignal.timeout(CLEANUP_TIMEOUT_MS)).catch(() => undefined);
+    let inputDeleted = false;
+    if (finished?.ok) {
+      try { inputDeleted = object(await finished.json()).inputDeleted === true; } catch { /* not confirmed */ }
+    }
+    job.onFinished?.(inputDeleted);
   }
 }

@@ -52,6 +52,15 @@ export function pricingRoutes(ctx: AppContext): Route[] {
 
   return [
     {
+      method: 'GET', path: '/v1/pricing/local', summary: "Pro prices in the currency Paddle charges for the visitor's country (public). The address is looked up here and dropped; Paddle gets only the country", auth: 'none',
+      handler: async (req) => {
+        const prices = options.localPrices ? await options.localPrices(req) : null;
+        if (!prices) throw new ApiError(503, 'LOCAL_PRICES_UNAVAILABLE', 'Local prices are not available; the website shows its own.');
+        // Private: the answer depends on the visitor's address, so no shared cache may keep it.
+        return { status: 200, body: prices, headers: { 'cache-control': 'private, max-age=3600', vary: 'x-forwarded-for' } };
+      },
+    },
+    {
       method: 'GET', path: '/v1/pricing', summary: 'Every price on offer from the pricing matrix, by plan and currency, and which countries pay in which currency (public)', auth: 'none',
       handler: async () => {
         if (!cached || now() - cached.atMs > PUBLIC_CACHE_MS) cached = { atMs: now(), body: publicPricing(await current()) };

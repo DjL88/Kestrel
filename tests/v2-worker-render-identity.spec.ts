@@ -23,6 +23,20 @@ async function settled(page: Page) {
   await expect(frame.getByTestId('live-picture')).toBeHidden({ timeout: 60_000 });
 }
 
+const shownSrc = (page: Page) => page.locator('[data-testid="canvas-frame"] img[data-preview-quality="full"]').first().getAttribute('src');
+
+/**
+ * One slider step, then the picture for it: each full-quality picture is a new file, so the step is waited for until the
+ * one shown is not the one before it. settled() alone can pass in the moment before the new drawing starts, and then the
+ * previous step's picture was read (on CI, 27 Nov: contrast 19's picture compared with contrast 18's).
+ */
+async function step(page: Page, slider: ReturnType<Page['locator']>, value: string) {
+  const before = await shownSrc(page);
+  await slider.fill(value);
+  await expect.poll(() => shownSrc(page), { timeout: 60_000 }).not.toBe(before);
+  await settled(page);
+}
+
 /**
  * The full-quality picture is drawn in a background worker (its tone on the graphics card there, as on the page) so a
  * slider let go never holds the page, but only for a kind of edit the worker has already drawn byte for byte as the
@@ -66,23 +80,17 @@ test('?v2 the full-quality picture drawn in the worker is pixel-identical to the
   if (!await advanced.isVisible()) await root.getByRole('button', { name: 'Adjust' }).first().click();
   await advanced.click();
   // Tone on the graphics card (exposure, contrast, saturation) and an early stage (dehaze).
-  await root.getByRole('slider', { name: 'Exposure' }).fill('0.4');
-  await settled(page);
-  await root.getByRole('slider', { name: 'Contrast' }).fill('18');
-  await settled(page);
-  await root.getByRole('slider', { name: 'Saturation', exact: true }).first().fill('-12');
-  await settled(page);
-  await root.locator('#slider-dehaze').fill('20');
-  await settled(page);
+  await step(page, root.getByRole('slider', { name: 'Exposure' }), '0.4');
+  await step(page, root.getByRole('slider', { name: 'Contrast' }), '18');
+  await step(page, root.getByRole('slider', { name: 'Saturation', exact: true }).first(), '-12');
+  await step(page, root.locator('#slider-dehaze'), '20');
   // That edit was drawn on the page and, once, in the worker too; only if every byte matched is the worker trusted with
   // this kind of edit. A step away and back (the same kind of edit) is then drawn by whichever is trusted.
   await expect.poll(() => page.evaluate(() => performance.getEntriesByName('inflight:preview:worker-verify').length), { timeout: 30_000 }).toBeGreaterThan(0);
   const contrastStep = root.getByRole('slider', { name: 'Contrast' });
   const before = await page.evaluate(() => performance.getEntriesByName('inflight:preview:edit-worker').length);
-  await contrastStep.fill('19');
-  await settled(page);
-  await contrastStep.fill('18');
-  await settled(page);
+  await step(page, contrastStep, '19');
+  await step(page, contrastStep, '18');
   const { usedWorker, workerMatches } = await page.evaluate((count) => {
     const verifies = performance.getEntriesByName('inflight:preview:worker-verify') as PerformanceMeasure[];
     return {
@@ -98,10 +106,8 @@ test('?v2 the full-quality picture drawn in the worker is pixel-identical to the
   // The same edit drawn on the page: switch to the page renderer and step one slider away and back.
   await page.evaluate(() => localStorage.setItem('inflight.debug.page-render', '1'));
   const contrast = root.getByRole('slider', { name: 'Contrast' });
-  await contrast.fill('19');
-  await settled(page);
-  await contrast.fill('18');
-  await settled(page);
+  await step(page, contrast, '19');
+  await step(page, contrast, '18');
   const fromPage = await shown(page);
   expect(fromWorker).toBe(fromPage);
 });

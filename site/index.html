@@ -10,6 +10,9 @@
   <meta name="keywords" content="photo editor for beginners, easy photo editing software, colour blind friendly photo editor, colorblind accessible photo app, colour vision deficiency, deuteranopia protanopia tritanopia, ADHD friendly software, autism friendly app, neurodivergent friendly design, sensory friendly interface, accessible photo editing, UK photo software, made in Britain, made in the UK, European software, GDPR, privacy-first photo editor, offline photo editor, no account photo editing, bring your own cloud storage, bring your own AI key, choose your own storage provider, data sovereignty, own your data, bird identification app, bird ID software, red kite, kestrel, merlin, wildlife photography software, RAW photo editor Nikon">
   <!-- InFlight's own downloads (infra/gcp); the bucket/endpoint stay as "kestrel" for backward compatibility — see docs/brand/inflight/. -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
+  <!-- The public web editor's address (owner decision 24 Nov 2026: the site opens the V2 editor). Empty until it has a
+       public route: Sign in then points at the downloads. /V2Proto is the private test site and must not go here. -->
+  <meta name="inflight-web-app" content="">
   <meta property="og:site_name" content="InFlight">
   <meta property="og:title" content="InFlight — Cull, edit and share a shoot, even offline.">
   <meta property="og:description" content="Cull, edit and share a shoot, even with no signal. No generated pixels, your originals are never changed, and Basic is free to keep.">
@@ -39,6 +42,7 @@
   </script>
 
   <style>
+    [hidden]{display:none!important}
     @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
@@ -378,7 +382,7 @@
   <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#how" data-i18n="navHow">How it works</a><a href="#shoots" data-i18n="navShoot">On a shoot</a><a href="#pricing" data-i18n="navPlans">Plans</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
   <div class="bar-end">
     <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
-    <a class="cta small" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
+    <a class="cta small" data-web-app="signin" data-web-app-word="signIn" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
   </div>
 </div></header>
 <main id="top">
@@ -425,10 +429,11 @@
     <div class="welcome">
       <h2 data-i18n="welcomeTitle">Welcome to InFlight</h2>
       <p class="invite" data-i18n="inviteOnly">By invitation only while we test.</p>
-      <a class="cta block" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
-      <a class="ghost block" data-web-app="signup" href="/V2Proto/" data-i18n="signUp">Create an account</a>
-      <a class="ghost block" data-web-app="guest" href="/V2Proto/" data-i18n="guestTry">Try it as a guest</a>
-      <p class="fine" data-i18n="guestNote">As a guest you edit your own photos in this browser, but nothing is kept once you close the tab. Signed in, your web projects live in InFlight's cloud.</p>
+      <a class="cta block" data-web-app="signin" data-web-app-word="signIn" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
+      <a class="ghost block" data-web-app="signup" href="#downloads" data-i18n="signUp" hidden>Create an account</a>
+      <a class="ghost block" data-web-app="guest" href="#downloads" data-i18n="guestTry" hidden>Try it as a guest</a>
+      <p class="fine" data-web-app-closed data-i18n="webAppSoon">The web editor isn’t open to everyone yet. Download InFlight for your computer or phone: it works offline, with no account.</p>
+      <p class="fine" data-web-app-open data-i18n="guestNote" hidden>As a guest you edit your own photos in this browser, but nothing is kept once you close the tab. Signed in, your web projects live in InFlight's cloud.</p>
       <a class="centre-link" href="#contact" data-i18n="requestInvite">Request an invitation</a>
     </div>
   </section>
@@ -438,7 +443,7 @@
       <li><strong data-i18n="promiseAiTitle">No generated pixels.</strong><span data-i18n="promiseAiBody">InFlight never invents or replaces what’s in your photo, and never writes model-made content into your files’ metadata. Your originals are never changed. Models measure and suggest (subject, focus, species, noise). Noise reduction and sharpening work from your photo’s own pixels; the optional learned noise reduction only cleans the pixels already there, and is used only when a check shows real detail survived. The one exception is Spot healing, which copies from elsewhere in your own photo, and only where you place it yourself.</span></li>
       <li><strong data-i18n="promiseYoursTitle">Your photos stay yours.</strong><span data-i18n="promiseYoursBody">Originals are never changed or moved, and nothing is uploaded unless you choose to share.</span></li>
       <li><strong data-i18n="promiseSocialTitle">Share to social with ease.</strong><span data-i18n="promiseSocialBody">One edit exports every crop and size you post at, ready for each platform.</span></li>
-      <li><strong data-i18n="promiseCollabTitle">Collaborate, with Pro.</strong><span data-i18n="promiseCollabBody">Send clients a private gallery, collect their picks and feedback, and edit a project together without losing anyone's changes.</span></li>
+      <li><strong data-i18n="promiseCollabTitle">Cloud help, when you want it.</strong><span data-i18n="promiseCollabBody">Send photos for cloud edits when your device needs a hand: 500 a month on Basic, 5,000 on Pro, then 0.3p each from Cloud Credit. The copy sent is deleted after each run. Pro also keeps 2.5 GB of chosen photos in the cloud, to open on your other devices.</span></li>
     </ul>
   </section>
 
@@ -531,7 +536,7 @@
   <div class="ifx-cur" style="animation-name:ifxXCur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
 </div>
         <h3 data-i18n="how4Title">4. Export and share</h3>
-        <p data-i18n="how4Body">Full-size exports, ready for print, the web or a client gallery.</p>
+        <p data-i18n="how4Body">Full-size exports, ready for print, the web or social media.</p>
       </article>
     </div>
   </section>
@@ -831,7 +836,7 @@
           <li data-i18n-html="basicOwn"><strong>Download it and it's yours.</strong> Basic never expires and needs no account</li>
           <li data-i18n="basicOffline">Import, cull, edit and export, fully offline</li>
           <li data-i18n="basicModels">Every on-device model and tool, including species ID and smart culling</li>
-          <li data-i18n="basicCloud">Cloud runner: 500 photos a month when signed in</li>
+          <li data-i18n="basicCloud">Cloud edits: 500 photos a month when signed in</li>
         </ul>
       </article>
       <article class="card featured"><p class="pro-hook">More than 500 photos a month through the cloud? <strong>Switch to Pro: 5,000 a month.</strong></p><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="40" height="40"><span data-i18n="proTitle">Pro</span> </h3>
@@ -840,12 +845,12 @@
         <p class="price-tax" data-i18n="priceTax">UK prices, including VAT. Paddle shows the price in your currency, with any tax for your country, before you pay.</p>
         <ul class="ticks">
           <li data-i18n="proEverything">Everything in Basic</li>
-          <li data-i18n="proCloud">Cloud runner: 5,000 photos a month, plus larger checks</li>
-          <li data-i18n="proStorage">2.5 GB cloud storage for the web app's cloud projects</li>
+          <li data-i18n="proCloud">Cloud edits: 5,000 photos a month, plus larger checks</li>
+          <li data-i18n="proStorage">2.5 GB of cloud storage, to open and edit chosen photos on your other devices</li>
         </ul>
       </article>
       <article class="card"><h3><span class="plan-icon plan-icon-svg" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 28h17a6 6 0 0 0 .6-12A9 9 0 0 0 12.4 18 5 5 0 0 0 12 28z" fill="none" stroke="#f4efe8" stroke-width="2.2" stroke-linejoin="round"/><path d="M20.5 19v8M16.5 23h8" stroke="#e8743c" stroke-width="2.4" stroke-linecap="round"/></svg></span><span data-i18n="creditTitle">Pay as you go Cloud Storage</span></h3>
-        <p data-i18n="creditBody">Collaborate across platforms and with friends, with cloud storage. Pay only for what you use beyond what's included. Top up from £5, or let it top up automatically when your balance runs low. Credit rolls over and can be refunded at any time.</p>
+        <p data-i18n="creditBody">Keep more photos in the cloud for your other devices, and send more for cloud edits. Pay only for what you use beyond what's included. Top up from £5, or let it top up automatically when your balance runs low. Credit rolls over and can be refunded at any time.</p>
       </article>
     </div>
   </section>
@@ -866,9 +871,9 @@
         <tr><th scope="row" data-i18n="matrixRowKeys">Keyboard shortcuts and macro-pad support</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-yes data-i18n="matrixYes">Included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row">Tethered and camera Wi-Fi (FTP) live import, in the desktop app</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Show a shoot live on a client's iPad or a studio screen, on your own network</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Social formats: one edit, every crop and size you post at</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Brand kit: logo, colours and text on every export</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Colour-vision support and ColourSense notes</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Private client galleries and editing a project together</th><td data-no>Not included</td><td data-yes>Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud runner photos, when signed in: heavier checks run in the cloud, taking pressure off your device</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage for the web app's projects</th><td data-no data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
+        <tr><th scope="row">Tethered and camera Wi-Fi (FTP) live import, in the desktop app</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Show a shoot live on a client's iPad or a studio screen, on your own network</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Social formats: one edit, every crop and size you post at</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Brand kit: logo, colours and text on every export</th><td data-yes>Included</td><td data-yes>Included</td></tr><tr><th scope="row">Colour-vision support and ColourSense notes</th><td data-yes>Included</td><td data-yes>Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud edits, when signed in: heavy work runs in the cloud, and the copy sent is deleted after each run</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage, to open your photos on your other devices</th><td data-no data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
         <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-no data-i18n="matrixNo">Not included</td><td data-yes data-i18n="matrixYes">Included</td></tr>
         </tbody>
       </table>
@@ -1026,10 +1031,22 @@
 </script>
 <script src="assets/contact.js" defer></script>
 <script type="module">
-  // Prices from the one pricing matrix (Admin → Prices), in the currency Paddle charges for the visitor's country.
-  // The £ prices in the page are the matrix's starting prices and stay if /v1/pricing cannot be read.
-  import { loadPricing, currencyFor, priceText } from './assets/pricing.mjs';
+  // Prices in the currency Paddle charges for the visitor's country: first Paddle's own prices for the country our
+  // server finds from the visitor's internet address (/v1/pricing/local; the address is not kept or passed on), else
+  // the pricing matrix (Admin → Prices) in the currency of the browser's language region. The £ prices in the page
+  // are the matrix's starting prices and stay if neither can be read.
+  import { loadPricing, loadLocalPrices, currencyFor, priceText } from './assets/pricing.mjs';
   (async () => {
+    const slotsNow = () => [...document.querySelectorAll('#pro-price-monthly, #pro-price-annual, [data-pro-price]')];
+    const local = await loadLocalPrices();
+    if (local) {
+      for (const node of slotsNow()) {
+        const item = node.dataset.proPrice || (node.id === 'pro-price-monthly' ? 'pro.monthly' : 'pro.annual');
+        node.textContent = item === 'pro.monthly' ? local.monthly : local.annual;
+        node.dataset.currency = local.currency;
+      }
+      return;
+    }
     const pricing = await loadPricing();
     let region = null;
     for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
@@ -1074,14 +1091,21 @@
   })();
 </script>
 <script>
-  // Sign in, Create an account and Try it as a guest open the web app. The address is one setting: the meta tag below.
+  // Sign in, Create an account and Try it as a guest open the web editor at its public address: one setting, the
+  // inflight-web-app meta tag in <head>. While it is empty there is no public web editor (/V2Proto is the private test
+  // site), so the page offers the downloads instead and says the web editor is not open yet.
   (function webAppLinks() {
-    const base = document.querySelector('meta[name="inflight-web-app"]')?.content || '/V2Proto/';
+    const base = document.querySelector('meta[name="inflight-web-app"]')?.content.trim();
+    if (!base) return;
     for (const link of document.querySelectorAll('[data-web-app]')) {
       const url = new URL(base, location.href);
       url.hash = link.dataset.webApp;
       link.href = url.pathname + url.search + url.hash;
+      link.hidden = false;
+      if (link.dataset.webAppWord) window.KestrelI18n?.bind(link, link.dataset.webAppWord);
     }
+    for (const note of document.querySelectorAll('[data-web-app-closed]')) note.hidden = true;
+    for (const note of document.querySelectorAll('[data-web-app-open]')) note.hidden = false;
   })();
 </script>
 <script>

@@ -82,6 +82,16 @@ export type FeatureKey =
   /** Preview: HDR merge of a bracketed burst (off by default). */
   | 'hdrMerge';
 
+/** What a cloud edit-settings job did, shown on its card (Dave, 27 Nov: make the cloud's work visible). */
+export interface CloudRecipeResultView {
+  /** What happened, in words. */
+  message: string;
+  /** What changed, e.g. ["Exposure +0.3", "Highlights −20"]. Present when settings were applied. */
+  changes?: string[];
+  /** The changed settings at their old values, to show the photo as it was while "Hold to compare" is held. */
+  before?: Partial<EditRecipe>;
+}
+
 /** What a cloud edit-settings job would send, shown before anything is sent. */
 export interface CloudRecipeOfferView {
   status: 'ready' | 'unavailable';
@@ -518,6 +528,9 @@ export interface Photo {
     colourConfidence: string;
     /** The colour check in words (main colours and findings). Shown only with the Colour-vision support setting on. */
     colourCheck?: ColourWords;
+    /** Red and green areas that look alike to many colour-blind viewers, numbered and named, in the picture's fractions.
+     * Outlined on the photo only with Colour-vision support on. */
+    colourAreas?: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }>;
     kelvinEstimate: string;
     suggestions: AssistSuggestion[];
   };
@@ -982,7 +995,7 @@ export interface WorkspaceActions {
   /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */
   prepareCloudRecipe?: (photoId: string) => Promise<CloudRecipeOfferView>;
   /** Sends the option the person pressed and applies the settings that come back as one undoable step. Returns what happened, in words. */
-  sendCloudRecipe?: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+  sendCloudRecipe?: (photoId: string, choice: 'send' | 'alternative') => Promise<CloudRecipeResultView>;
   /** The separate opt-in for sending full originals. Returns what is in force afterwards. */
   setCloudRecipeFullFile?: (on: boolean) => boolean;
   cloudRecipeFullFileOn?: () => boolean;

@@ -11,6 +11,8 @@ interface AssistPanelProps {
   cvdGuidance?: boolean;
   onRefreshReview: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
+  /** One tap back after an applied suggestion moved the subject's colour warmer or cooler (ColourSense). */
+  onNudgeWarmth?: (photoId: string, direction: 'cooler' | 'warmer') => void;
 }
 
 export default function AssistPanel({
@@ -18,6 +20,7 @@ export default function AssistPanel({
   cvdGuidance = false,
   onRefreshReview,
   onApplySuggestion,
+  onNudgeWarmth,
 }: AssistPanelProps) {
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAssist}</p>;
@@ -70,7 +73,8 @@ export default function AssistPanel({
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-[var(--text-primary)]">{sug.title}</p>
               <p className="truncate font-mono text-[0.625rem] text-[var(--text-muted)]">{sug.colourReadout}</p>
-              <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
+              <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance}
+                onFix={sug.applied && onNudgeWarmth ? (direction) => onNudgeWarmth(photo.id, direction) : undefined} />
               <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
               <ColourSenseLine note={sug.secondOpinion} cvdGuidance={cvdGuidance} testId="second-opinion" />
             </div>

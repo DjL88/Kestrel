@@ -75,9 +75,13 @@ test('wrong types, fake PDFs, binary "Markdown", unknown ids and oversize files 
 test('without the bucket the routes say it is not set up', async () => {
   const { h, admin } = await harness(false);
   try {
+    // Looking is a normal answer (the admin page asks every five minutes); trying to upload is still refused.
     const r = await admin('GET', '/v1/admin/compliance/documents');
-    assert.equal(r.status, 503);
-    assert.equal(r.body.error?.code ?? r.body.code, 'COMPLIANCE_NOT_CONFIGURED');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.configured, false);
+    const upload = await admin('POST', '/v1/admin/compliance/documents', { title: 'Risk assessment', fileName: 'r.md', contentType: 'text/markdown', base64: Buffer.from('# r').toString('base64') });
+    assert.equal(upload.status, 503);
+    assert.equal(upload.body.error?.code ?? upload.body.code, 'COMPLIANCE_NOT_CONFIGURED');
   } finally { await h.close(); }
 });
 
