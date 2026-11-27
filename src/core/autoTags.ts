@@ -14,7 +14,8 @@ const has = (list: readonly string[] | undefined, name: string) => (list ?? []).
  * The wildlife quick-add words (Bird, Mammal, In flight, Perched...). They say what kind of photo it is, not which
  * animal, so a photo tagged only "Bird" (by hand, or from Lightroom keywords) still gets its species looked up.
  */
-const kindWords = (tags: readonly string[] | undefined) => (tags ?? []).every((tag) => has(STARTER_TAGS.wildlife, tag));
+/** Only kind words such as "Bird" or "Perched" (or no tags): no name of the person's own yet. */
+export const kindWords = (tags: readonly string[] | undefined) => (tags ?? []).every((tag) => has(STARTER_TAGS.wildlife, tag));
 
 /**
  * Only a photo with no tags of its own yet (the wildlife quick-add words aside) is tagged automatically, and never with
@@ -132,8 +133,9 @@ export function qualifiesForAutoTag(
  * The species scan's version, stored on each photo it reports on. Raised when the scan has improved enough that photos it
  * looked at without finding anything deserve one more look. 2: the scan wakes for new photos and judges wildlife on the
  * whole family (#1818); before that a clear puffin was "checked" with no kind and no name, and never looked at again.
+ * 3: the scan keeps a fair guess it was not sure of, so sure shots taken at the same moment can confirm it (speciesNearby.ts).
  */
-export const SPECIES_SCAN_VERSION = 2;
+export const SPECIES_SCAN_VERSION = 3;
 
 interface ScanState { speciesChecked?: boolean; speciesScanVersion?: number; autoTags?: readonly string[]; declinedTags?: readonly string[]; vehicle?: unknown }
 
