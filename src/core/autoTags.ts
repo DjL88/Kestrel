@@ -75,7 +75,8 @@ export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (gro
 export function speciesGroupsForRoute(categoryId: string | null | undefined): SpeciesLabel['group'][] | null {
   switch (categoryId) {
     case 'bird': case 'bird-of-prey': case 'waterbird': return ['bird'];
-    case 'mammal': return ['mammal'];
+    // The mammal list (Mammal Diversity Database) includes seals, whales and dolphins.
+    case 'mammal': case 'marine-mammal': return ['mammal'];
     case 'reptile': return ['reptile', 'amphibian'];
     case 'insect': return ['insect'];
     default: return null;
@@ -140,6 +141,19 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
   return frames.filter((frame) => frame.removedAt == null && !frame.speciesChecked &&
     (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
     kindWords(frame.tags) && !(frame.subjectNames?.length));
+}
+
+/**
+ * Photos the built-in kind check can look at when no species model is offered (the desktop app ships the kind check,
+ * "Checks the kind of subject", but not always a species model): still in the library, no kind yet, never kind-checked,
+ * no species name looked for, and nothing of the person's own on them. Looking at them sets only the kind (Wildlife,
+ * Aircraft...), never a name, and never marks the species as checked, so a species model added later still names them.
+ */
+export function kindCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; kindChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+  frames: readonly T[],
+): T[] {
+  return frames.filter((frame) => frame.removedAt == null && !frame.subjectKind && !frame.kindChecked && !frame.speciesChecked &&
+    !(frame.tags?.length) && !(frame.subjectNames?.length));
 }
 
 /**

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { GATE_MASS, ROUTER_THRESHOLDS, routeSubject, routeWording, speciesGate, type Taxonomy } from './subjectRouter';
 import { SUBJECT_CLASSES } from './objectDetection';
+import { gateOutcome } from './categoryGate';
 import { SUBJECT_KINDS } from './subjectTags';
 
 const taxonomy = JSON.parse(readFileSync('src/assets/subject/taxonomy.json', 'utf8')) as Taxonomy;
@@ -183,4 +184,24 @@ test('a picture split between reptile and insect names no category, so its speci
   const result = routeSubject(picture({ reptile: 1, insect: 1 }), vectors, categories);
   assert.equal(result.confident, false);
   assert.equal(result.category, null, 'no group is chosen for it, so naming is not narrowed (and insects keep their 0.95 bar)');
+});
+
+test('a bird split across sibling categories is still confidently wildlife, without claiming any one sub-kind', () => {
+  // The shape of a real puffin close-up: bird 0.41, marine mammal 0.25, waterbird 0.19, a little coast.
+  const result = routeSubject(picture({ bird: 1, 'marine-mammal': 0.99, waterbird: 0.985, coast: 0.98 }), vectors, categories);
+  assert.equal(result.confident, false, 'no single category clears the bar');
+  assert.equal(result.category, null, 'so no sub-kind (bird, waterbird...) is claimed');
+  assert.ok(result.wildlifeProbability > 0.8);
+  assert.equal(result.wildlifeConfident, true, 'the wild-animal categories together do');
+  assert.equal(speciesGate(result), 'allow', 'marine mammals count towards the species list (the mammal list has seals and whales)');
+  assert.deepEqual(gateOutcome(result, undefined), { kind: 'wildlife', species: 'allow' });
+});
+
+test('the family sum never turns a pet, or a bird-or-helicopter toss-up, into wildlife', () => {
+  const pets = routeSubject(picture({ dog: 1, cat: 1 }), vectors, categories);
+  assert.equal(pets.wildlifeConfident, false);
+  assert.equal(gateOutcome(pets, undefined).kind, undefined);
+  const tossUp = routeSubject(picture({ bird: 1, helicopter: 1 }), vectors, categories);
+  assert.equal(tossUp.wildlifeConfident, false, 'half wild animal, half vehicle: no margin');
+  assert.equal(gateOutcome(tossUp, undefined).kind, undefined);
 });

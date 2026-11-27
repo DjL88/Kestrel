@@ -143,6 +143,9 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /** The built-in kind check has looked at this photo (used when no species model is offered; src/core/autoTags.ts
+   * kindCandidates). Says nothing about a species name. */
+  kindChecked?: boolean;
   /** Where the automatic species name was matched against (the project's place when it was named). Absent on older photos: not known. */
   speciesArea?: import('./speciesArea').SpeciesArea;
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
