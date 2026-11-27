@@ -1,7 +1,7 @@
 # InFlight: illegal content risk assessment (UK Online Safety Act 2023)
 
-> **DRAFT for a solicitor's review. Not legal advice. Not yet signed.**
-> Written on 26 November 2026 by a Claude session from what the code on `main` (commit `aadaa2d3`) does. The owner must check every statement, fill in the blanks marked **[OWNER]**, and sign it before shared projects, client galleries or cloud storage open to UK users.
+> **DRAFT for the owner to check and sign. Not legal advice.**
+> Written on 26 November 2026 and updated on 27 November 2026 (no image scanning; accounts 18+) by a Claude session from what the code on `main` does. The owner must check every statement, fill in the blanks marked **[OWNER]**, and sign it before shared projects, client galleries or cloud storage open to UK users.
 >
 > How to read the markings:
 > - **Code:** `path/to/file.ts` — the file that implements the statement. Checked by reading the code, not by running the live service.
@@ -17,7 +17,7 @@
 | Provider | David Leitch, sole trader trading as InFlight, 7 High Street, Kington, HR5 3AX, United Kingdom (from `site/terms.html` §1) |
 | Person responsible for this assessment and for online safety compliance | David Leitch **[OWNER: confirm]** |
 | Date carried out | **[OWNER: date signed]** |
-| Version | 0.1 draft |
+| Version | 0.2 draft, 27 November 2026 |
 | Next review | See section 7 |
 | Method | Ofcom's four steps for the illegal content risk assessment: (1) understand the kinds of illegal content to assess, (2) assess the risk of harm, (3) decide and put in place measures, record them, (4) report, review and update. **LAW: CHECK** against Ofcom's current Risk Assessment Guidance and Risk Profiles. |
 
@@ -75,13 +75,13 @@ What the service does **not** have (checked by reading the route list in `servic
 | UK monthly active users of the user-to-user features | **ASSUMPTION — [OWNER: fill in]**. Before launch this is close to zero. Give an estimate for the first 12 months. |
 | Total UK users of the app (including local-only users, who are out of scope) | **ASSUMPTION — [OWNER]** |
 | Expected galleries published per month | **ASSUMPTION — [OWNER]** |
-| Expected images checked per month (gallery and cloud previews) | **ASSUMPTION — [OWNER]**. This also sets the SafeSearch cost: about $1.50 per 1,000 images after the first 1,000 a month (owner's figure, 26 Nov 2026). |
+| Expected images shared per month (gallery and cloud previews) | **ASSUMPTION — [OWNER]**. InFlight does not scan them (see section 3). |
 | Staff | 1 (sole trader) **[OWNER: confirm]** |
 | Is the service "large" under Ofcom's codes (more than 7 million UK monthly users)? | No, on any realistic estimate. **LAW: CHECK** threshold. |
 
 ### 1.4 Who uses it
 
-Photographers (amateur and professional) and the clients, colleagues and friends they invite or send gallery links to. Accounts are allowed from age 13 (`site/terms.html` §6, `site/privacy.html` "Children"). There is **no age check in the code** (searched `src/`, `services/control-plane/src/` and `site/` on 26 Nov 2026: the only mentions of age are the policy pages). Gallery visitors can be any age. See `childrens-access-assessment.md`.
+Photographers (amateur and professional) and the clients, colleagues and friends they invite or send gallery links to. Accounts, sharing and cloud storage are for people aged 18 or over (`site/terms.html` §6, `site/privacy.html` "Children", from 27 Nov 2026). Sharing happens only when a user chooses to share a project or publish a gallery. There is **no age check in the code** (searched `src/`, `services/control-plane/src/` and `site/` on 26 Nov 2026: the only mentions of age are the policy pages). Gallery visitors can be any age. See `childrens-access-assessment.md`.
 
 ## 2. Step 1 (continued) and step 2: each kind of illegal content, likelihood and impact
 
@@ -118,9 +118,9 @@ Evidence available: the code, the feature design, and Ofcom's published view of 
 
 **1. Image-based CSAM.** The risk is not from the core purpose (photo editing) but from the online features being usable as storage and distribution. Shareable gallery links that need no account are the main concern. The cloud store is limited to invited members, which lowers but does not remove the risk. Impact: the gravest of any harm here; each viewing re-victimises the child.
 
-**3. Grooming.** The design removes the usual paths (stranger contact, discovery, private messaging). The remaining path is an adult inviting a child they already know into a project and using photo comments. Because the terms allow 13–17 year olds to hold accounts and there is no age check, the service cannot tell which members are children.
+**3. Grooming.** The design removes the usual paths (stranger contact, discovery, private messaging). The remaining path is an adult inviting a child they already know into a project and using photo comments. The terms now require account holders to be 18 or over (27 Nov 2026). There is no age check, so a child could still join by lying about their age.
 
-**4. Intimate image abuse.** InFlight cannot tell consent from an image. The SafeSearch classifier (section 3) holds explicit adult content back from sharing for review, which reduces quick non-consensual sharing but will also hold lawful boudoir and art work. A report form category `intimate-image-abuse` exists and marks the report urgent.
+**4. Intimate image abuse.** InFlight cannot tell consent from an image, and it does not scan images. A report form category `intimate-image-abuse` exists and marks the report urgent.
 
 **10. Fraud.** Gallery pages carry the photographer's chosen name. **UNVERIFIED** whether gallery names or invitation emails are checked for impersonation or for links. Rate limits exist on gallery and report routes (`galleryLimiter`, `reportLimiter` in `app.ts`).
 
@@ -128,26 +128,23 @@ Evidence available: the code, the feature design, and Ofcom's published view of 
 
 Each line says what the code does and where. "Live?" says whether it is switched on in production today.
 
+**InFlight does not scan photos (owner, 27 Nov 2026).** Automated hash matching (PhotoDNA, IWF hash list), the AI classifier (Cloud Vision SafeSearch), automatic NCMEC CyberTipline reporting and evidence keeping were removed from the code and infrastructure, because InFlight did not qualify for access to the hash lists. Illegal content reaches a person only through reports.
+
 | Measure | What it does | Code | Live? |
 |---|---|---|---|
-| **Only shared and cloud photos are checked** | Gallery previews and cloud previews and filmstrip pictures are checked before anyone else can see them. Local photos and safe copy (a person's own private backup) are never checked. | `services/control-plane/src/contentSafety.ts` (`SafetyService.check`); called from `app.ts` `safetyCheck()` at the gallery commit and cloud commit routes | Code is built. |
-| **Fails closed in production** | In production, publishing to galleries and cloud is refused with `SAFETY_NOT_CONFIGURED` until at least one hash checker is set up. If a checker cannot answer, nothing is published and the person can retry (`SAFETY_CHECK_UNAVAILABLE`). | `app.ts` `safetyCheck()` (`requireAdminSwitch`), `contentSafety.ts` `check()`; tested in `services/control-plane/test/content-safety.test.ts` | Yes: sharing cannot open unscanned. |
-| **Hash matching for known CSAM: PhotoDNA** | Each picture is sent to Microsoft PhotoDNA Cloud Service. A match blocks it. Catches resized and lightly altered copies. Pictures over 4 MB are refused with a plain message. | `contentSafety.ts` `PhotoDnaMatcher`; wired in `services/control-plane/src/wiring.ts` `buildSafety()` from `KCP_PHOTODNA_KEY_SECRET` | **No.** Needs the Microsoft application (see `photodna-application-draft.md`). |
-| **Hash matching: exact-hash list (for example IWF)** | MD5, SHA-1 or SHA-256 list match. Catches only identical files. | `contentSafety.ts` `ExactHashListMatcher`; `wiring.ts` from `KCP_SAFETY_HASH_LIST_FILE` | **No.** Optional; needs IWF membership. |
-| **On a hash match** | The shared copy is deleted; the bytes move to a private evidence key (`evidence/<case>`) kept one year; the account is suspended; that gallery is taken down; a CyberTipline report is filed if the connection is set up, otherwise the case waits for a manual report; UK cases are marked "NCA manual". | `contentSafety.ts` `check()`, `openCase()`, `report()`; `app.ts` `safetyCheck()` (suspension via `store.setAccountStatus`, gallery hold via `setHold`) | Only once a hash checker is live. |
-| **Suspended accounts are locked out** | A suspended account fails sign-in checks on the service, and every client gallery it created stops serving. | `app.ts` (checks of `account.status !== 'active'`; `ownerSuspended`); `gallery.ts` `open()` | Yes (galleries: from #1734). |
-| **AI classifier: Google Cloud Vision SafeSearch** | Explicit adult content (LIKELY or more) or graphic violence (VERY_LIKELY) is held back from sharing and opens a review case. "Racy" alone never flags. Never reported, never suspends. Uploader sees the reason and can appeal. | `contentSafety.ts` `CloudVisionSafeSearch`, `safeSearchVerdict`; `wiring.ts` (`KCP_SAFESEARCH_ENABLED=1`) | **No.** Owner approved the cost on 26 Nov 2026. Steps in `safesearch-switch-on.md`. |
-| **Nobody views flagged pictures** | Admin sees metadata only. No route signs a link to a held picture or to evidence. | `contentSafety.ts` `caseSummary()`; `/v1/admin/safety` in `app.ts` | Yes (by design of the routes). |
-| **Report a gallery (user reporting and complaints)** | Every gallery page has *Report this gallery*. No account needed. Categories: child-sexual-abuse, intimate-image-abuse, terrorism-or-violence, harassment-or-privacy, copyright, other-illegal, policy-breach. Reporter gets a reference and a receipt to check the outcome. Rate limited. | `/v1/gallery/report`, `/v1/gallery/report/status` in `app.ts`; `contentSafety.ts` `addNotice()`, `noticeStatus()`; `site/gallery.html` | Yes, once galleries are switched on. |
-| **Urgent handling** | Child-sexual-abuse, intimate-image-abuse and terrorism-or-violence reports are marked urgent and sorted first. A child-sexual-abuse report takes the gallery down at once until reviewed. | `contentSafety.ts` `addNotice()` (`urgent`), `notices()` sort; `app.ts` `/v1/gallery/report` (`setHold`) | Yes, with galleries. |
-| **Decisions with reasons (statement of reasons)** | Admin chooses no action, remove photo or revoke gallery, with a reason the reporter and owner both see. AI-flag decisions are recorded with a reason; uploader can appeal. | `contentSafety.ts` `decideNotice()`, `decide()`, `appeal()`, `statementFor()`; `/v1/admin/safety/*` and `/v1/me/safety*` in `app.ts` | Yes, with galleries. The app does not show the uploader's safety list yet (`docs/SAFETY-SETUP.md` "Not done yet"). |
-| **Audit log** | Hash matches, AI flags and reports are written to the audit log. | `app.ts` `audit(...)` calls in `safetyCheck()` and `/v1/gallery/report` | Yes. |
+| **No automated image scanning** | Shared and cloud pictures are published without any image check. Local photos and safe copy are never seen by InFlight. | `services/control-plane/src/routesCollab.ts` gallery and cloud commit routes; `services/control-plane/test/content-safety.test.ts` | Yes. |
+| **Report a gallery (user reporting and complaints)** | Every gallery page has *Report this gallery*. No account needed. Categories: child-sexual-abuse, intimate-image-abuse, terrorism-or-violence, harassment-or-privacy, copyright, other-illegal, policy-breach. Reporter gets a reference and a receipt to check the outcome. Rate limited. | `/v1/gallery/report`, `/v1/gallery/report/status` in `routesGeneral.ts`; `contentSafety.ts` `addNotice()`, `noticeStatus()`; `site/gallery.html` | Yes, once galleries are switched on. |
+| **Urgent handling** | Child-sexual-abuse, intimate-image-abuse and terrorism-or-violence reports are marked urgent and sorted first. A child-sexual-abuse report takes the gallery down at once until reviewed. | `contentSafety.ts` `addNotice()` (`urgent`), `notices()` sort; `/v1/gallery/report` (`setHold`) | Yes, with galleries. |
+| **CSAM handling on a report** | The admin removes the photo or revokes the gallery, suspends the account, and reports by hand to the NCA and the IWF. No copy is kept unless they ask. Admins see report details only; no route signs a link for them to view a reported picture. | `/v1/admin/safety/notices/:id/decide` in `routesAdmin.ts`; `site/admin.html` Safety panel; `docs/safety/README.md` | Manual process. **Not yet written down as a step-by-step procedure [OWNER].** |
+| **Suspended accounts are locked out** | A suspended account fails sign-in checks on the service, and every client gallery it created stops serving. | `ownerSuspended` in `appContext.ts`; `gallery.ts` `open()` | Yes. |
+| **Decisions with reasons (statement of reasons)** | Admin chooses no action, remove photo or revoke gallery, with a reason the reporter and owner both see. | `contentSafety.ts` `decideNotice()`; `/v1/admin/safety/*` and `/v1/me/safety` | Yes, with galleries. The app does not show the owner's list yet. |
+| **Audit log** | Report decisions are written to the audit log. | `adminDone(...)` in `routesAdmin.ts`; `/v1/gallery/report` | Yes. |
 | **Invite-only projects** | No stranger contact, no discovery. | `collaboration.ts` | Yes. |
 | **Gallery limits** | Link is unguessable, only its hash is stored; optional password; expires in at most 90 days; previews deleted on revoke or expiry; bucket deletes gallery files older than 90 days. | `gallery.ts` header and constants; `infra/gcp/gallery.tf` | Yes, with galleries. |
-| **Originals stored only behind a checked preview** | RAW originals cannot be hashed; an original is accepted only after its preview passed. | `app.ts` cloud commit route (`PREVIEW_FIRST`) | Yes, once a hash checker is live. |
-| **Terms and acceptable use policy** | Prohibit CSAM, intimate image abuse, terrorist content, harassment, impersonation, spam and phishing. Explain checks, reporting and suspension. | `site/acceptable-use.html`, `site/terms.html` §10–11 | Published as pre-release drafts. |
-| **Point of contact** | hello@inflight.studio for users and authorities. | `site/acceptable-use.html` | Yes. **Suggest** a dedicated safety address. |
-| **Rate limits** | On gallery open, feedback, report and report status. | `app.ts` `galleryLimiter`, `reportLimiter` | Yes. |
+| **Accounts are 18+** | Terms and privacy notice require account holders, sharers and buyers to be 18 or over. No age check. | `site/terms.html` §6, `site/privacy.html` | Published as pre-release drafts. |
+| **Terms and acceptable use policy** | Prohibit CSAM, intimate image abuse, terrorist content, harassment, impersonation, spam and phishing. Explain reporting, removal and suspension. | `site/acceptable-use.html`, `site/terms.html` §10–11 | Published as pre-release drafts. |
+| **Point of contact** | hello@inflight.studio for users and authorities. | `site/acceptable-use.html` | Yes, once PR #1791 merges. |
+| **Rate limits** | On gallery open, feedback, report and report status. | `galleryLimiter`, `reportLimiter` | Yes. |
 
 ### 3.1 Ofcom codes of practice: how the measures map
 
@@ -155,10 +152,10 @@ Each line says what the code does and where. "Live?" says whether it is switched
 
 - a named person accountable for illegal content duties (governance) — the owner;
 - content moderation that can take down illegal content swiftly — admin safety page and gallery hold;
-- easy-to-find, easy-to-use reporting and complaints, with appeals — gallery report form, receipts, appeals for AI flags;
+- easy-to-find, easy-to-use reporting and complaints, with appeals — gallery report form and receipts; there is no appeal route yet (see gaps);
 - terms of service that explain how users are protected — acceptable use policy;
-- removing accounts of proscribed organisations, and blocking accounts that share CSAM — suspension on hash match;
-- **hash matching for CSAM on file-storage and file-sharing services at risk of image-based CSAM** — PhotoDNA (not live yet; see gaps). **LAW: CHECK** whether the size threshold in the code applies to InFlight; it is the right measure either way and the owner has chosen to require it;
+- removing accounts of proscribed organisations, and blocking accounts that share CSAM — suspension by an admin after a report;
+- **hash matching for CSAM on file-storage and file-sharing services at risk of image-based CSAM** — **not done**: InFlight did not qualify for hash list access and does not scan. **LAW: CHECK** whether this code measure applies to InFlight at its size and risk level, and if so what Ofcom expects instead;
 - CSAM URL detection — **not built** (see gaps);
 - default settings protecting child users from strangers — invite-only design meets the aim; there is no age check.
 
@@ -166,32 +163,23 @@ Each line says what the code does and where. "Live?" says whether it is switched
 
 | # | Gap | Risk it leaves | Proposed action | Owner |
 |---|---|---|---|---|
-| G1 | **No hash checker is live.** PhotoDNA and NCMEC are not set up. | Sharing stays closed in production (fails closed), so no exposure yet, but sharing cannot open. | Apply to Microsoft (`photodna-application-draft.md`) and NCMEC (`ncmec-esp-registration-draft.md`). | Owner |
-| G2 | **NCMEC client never run against NCMEC.** | A real case might not be reported automatically. | Run one report against NCMEC's test service before production (`docs/SAFETY-SETUP.md` step 2). Until then, report by hand from /admin → Safety. | Claude worker after NCMEC credentials |
-| G3 | **Closed by #1734.** It used to be that no Terraform variable set SafeSearch, PhotoDNA or NCMEC, so a value set by hand would be removed by the next apply. `infra/gcp/safety.tf` now has `safesearch_enabled`, `photodna_key_secret_id` and the `ncmec_*` variables, all off by default. They reach the control plane through `local.safety_env` in `infra/gcp/control-plane.tf` and are allowed in `infra/gcp/switch-features.sh`. `vision.googleapis.com` is enabled only with `safesearch_enabled`. `terraform validate` was not run; the owner's scripts validate before planning. The exact-hash list (`KCP_SAFETY_HASH_LIST_FILE`) still has no switch: it needs a mounted secret file, and waits for IWF membership. | The hash list only. | Deploy from `main`, then switch on (`safesearch-switch-on.md`). | Owner |
-| G4 | **NCA reporting is manual.** UK hash-match cases are marked "NCA manual". | Missed or late NCA report. | Solicitor to confirm whether OSA section 66 reporting regulations are in force and what they require. Until a direct route exists, report by hand and press *NCA report made*. | Owner / solicitor |
-| G5 | **Holding CSAM evidence in the UK.** Evidence is kept one year in a UK bucket, matching US law (18 U.S.C. 2258A). Possessing or copying indecent images of children is an offence in England and Wales, with narrow defences. | Legal exposure for the owner. | **Solicitor must advise** whether keeping evidence and uploading it to NCMEC is lawful for a UK sole trader, and on what basis; change retention if needed. | Solicitor |
-| G6 | **Closed by #1734.** It used to be that only the gallery where the match happened was taken down. `GalleryStore.open()` and `feedback()` in `services/control-plane/src/gallery.ts` now refuse (451 `GALLERY_UNAVAILABLE`, reason not shown to the visitor) every gallery whose creator's account is suspended, using the account status from `app.ts` (`ownerSuspended`). Tested in `services/control-plane/test/content-safety.test.ts`. Merged accounts keep their galleries. During an account merge the old account is briefly suspended, so its galleries pause while the move runs. | — | — | — |
-| G7 | **No reporting form for shared projects.** Members can only report by email. | Harder for a project member (possibly a child) to report grooming or harassment. | Add *Report* to shared projects and comments, using the same notice flow. | Frontend + backend lanes |
-| G8 | **Text is not checked.** Comments and gallery visitor feedback are not scanned for CSAM URLs, grooming or threats. | CSAM URLs and grooming through comments. | Proportionate first step: CSAM URL list check on comment text (IWF URL list needs membership), and a report button on comments. | Later |
-| G9 | **No age check.** Terms allow 13+; nothing in the code checks age. | Cannot apply extra protection to child users. | Decide 13+ or 18+ (`childrens-access-assessment.md`). | Owner |
-| G10 | **Closed by #1734.** `site/subprocessors.html` and `site/privacy.html` now name Microsoft PhotoDNA Cloud Service and Google Cloud Vision SafeSearch as used only when sharing or cloud photos are used. They are also in the privacy notice's international transfers. | PhotoDNA's processing region is still a fill-in on the subprocessors page. | Owner adds the region Microsoft confirms on approval; the solicitor checks the lawful basis wording. | Owner / solicitor |
-| G11 | **No email to reporter or uploader.** Outcomes are only on the receipt page or `/v1/me/safety`; the app does not show that list yet. | People may not learn of decisions. | Show the safety list in the app; email outcomes. | Frontend lane |
-| G12 | **SafeSearch cost is not under the spend guard.** **UNVERIFIED**: `services/control-plane/src/spendGuard.ts` has no mention of safety or Vision. | Unexpected cost if uploads spike. | Watch the Google budget alert; consider a monthly cap. | Owner / backend lane |
-| G13 | **One-person moderation.** All reports and cases are handled by the owner. | Slow response when the owner is away. | Set and publish a target response time (for example urgent reports within 24 hours) **[OWNER]**; arrange cover or pause galleries during absence. | Owner |
-| G14 | **Evidence is in the gallery bucket, not a locked-retention bucket.** | Evidence could be deleted by mistake. | Separate bucket with locked retention (`docs/SAFETY-SETUP.md` "Not done yet"). Depends on G5. | Backend lane |
-| G15 | **Live service not tested end to end.** Nothing in this assessment was checked on the live service. | Measures may behave differently live. | Run the checks in `docs/SAFETY-SETUP.md` "Checking it works once set up" and record the results here. | Owner + Claude worker |
+| G1 | **No automated detection of CSAM.** Hash matching and the AI classifier were removed (27 Nov 2026). | Known CSAM can be shared until someone reports it. | **Solicitor to confirm** whether Ofcom's hash-matching measure applies to InFlight. Register with the IWF and ask what they offer a small UK service. Consider keeping galleries invite-only or password-only at launch. | Owner / solicitor |
+| G2 | **NCA and IWF reporting is by hand.** | Missed or late report. | Write a short step-by-step for a CSAM report (remove, suspend, report to the NCA and IWF, keep no copies) and keep it with this assessment. Solicitor to confirm whether OSA section 66 reporting regulations are in force and what they require. | Owner / solicitor |
+| G3 | **No reporting form for shared projects.** Members can only report by email. | Harder for a project member to report grooming or harassment. | Add *Report* to shared projects and comments, using the same notice flow. | Frontend + backend lanes |
+| G4 | **Text is not checked.** Comments and gallery visitor feedback are not checked for CSAM URLs, grooming or threats. | CSAM URLs and grooming through comments. | A report button on comments. | Later |
+| G5 | **No age check.** Accounts are 18+ in the terms; nothing in the code checks age. | A child could join by lying about their age. | Solicitor to advise whether self-declaration is enough (`childrens-access-assessment.md`). | Owner / solicitor |
+| G6 | **No appeal route for gallery owners.** Owners see the decision and reason at `/v1/me/safety`, but cannot ask for another look except by email. | Unfair removals are harder to put right. | Add an appeal button; show the list in the app; email outcomes. | Frontend lane |
+| G7 | **One-person moderation.** All reports are handled by the owner. | Slow response when the owner is away. | Set and publish a target response time (for example urgent reports within 24 hours) **[OWNER]**; arrange cover or pause galleries during absence. | Owner |
+| G8 | **Live service not tested end to end.** Nothing in this assessment was checked on the live service. | Measures may behave differently live. | Make a test gallery, report it, and decide the report from /admin → Safety; record the result here. | Owner + Claude worker |
 
 ## 5. Overall risk level
 
-Before the gaps above are closed, the service is **high risk for image-based CSAM** and **medium to high risk for intimate image abuse**, and **medium or lower** for the other harms. It is not open: production refuses to publish shared or cloud photos until a hash checker is configured (`app.ts` `safetyCheck()`).
-
-With PhotoDNA, NCMEC reporting and SafeSearch live (G1–G3), and the report form in place, the residual risk is judged **medium for CSAM** and **medium for intimate image abuse**, mainly because new (unhashed) material and text-based harms are not detected automatically. **[OWNER/solicitor: agree or change.]**
+Without automated detection, the service is judged **medium risk for image-based CSAM and intimate image abuse** once galleries open, and **low** for the other harms. It is a small service run by one person: sharing happens only when a user chooses it, accounts are 18+, projects are invite-only, gallery links are unguessable and expire within 90 days, and there is no public feed, search, profiles or messaging between strangers. The main controls are invite-only projects, unguessable expiring gallery links, the report form that takes a gallery down at once on a CSAM report, and account suspension. **[OWNER/solicitor: agree or change, and decide whether galleries may open on this basis.]**
 
 ## 6. Step 4: reporting and governance
 
-- Accountable person: **[OWNER name]**. Reviews this assessment and every open safety case.
-- Where cases are handled: /admin → Safety (`/v1/admin/safety` in `app.ts`), metadata only.
+- Accountable person: **[OWNER name]**. Reviews this assessment and every open report.
+- Where reports are handled: /admin → Safety (`/v1/admin/safety`), details only.
 - Records: this file in the repository (version history in Git) plus a signed copy kept by the owner **[OWNER: where]**.
 - Target response times: **[OWNER: fill in]**, for example urgent reports within 24 hours, others within 5 working days.
 
@@ -202,7 +190,7 @@ Review this assessment:
 - **before** shared projects, client galleries or cloud storage open to the public;
 - within **3 months** of opening, using real report and case data;
 - then at least **every 12 months** (**[OWNER: first annual date]**);
-- and **before** any significant change, including: messaging between users; public galleries, profiles or search; video; raising or lowering the minimum age; switching a checker off; passing 50,000 UK monthly users of the online features **[OWNER: pick a threshold]**; or Ofcom publishing new codes or guidance. **LAW: CHECK** Ofcom's rule on reassessing before a significant change.
+- and **before** any significant change, including: messaging between users; public galleries, profiles or search; video; changing the minimum age; adding any automated check; passing 50,000 UK monthly users of the online features **[OWNER: pick a threshold]**; or Ofcom publishing new codes or guidance. **LAW: CHECK** Ofcom's rule on reassessing before a significant change.
 
 ## 8. Sign-off
 

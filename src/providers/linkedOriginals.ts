@@ -104,6 +104,13 @@ export interface LinkedRange {
   blob: RangeBlob;
   /** True when the file still has the size and modified time it had when opened (it did not change while being read). */
   verify(): Promise<boolean>;
+  /**
+   * The same check with the app's own fingerprint only (one native read at the drive's speed): null when the app cannot
+   * fingerprint here, so a caller that only wants the cheap route can read the file the usual way instead.
+   */
+  verifyNatively?(): Promise<boolean | null>;
+  /** True while the file keeps the size and modified time it had when opened (a stat, no read). */
+  unchanged?(): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -119,9 +126,20 @@ export function linkedRangeOpener(path: string, expectedSize: number | undefined
       throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
     }
     const range = await openLinkedRange(path, before.size);
+    const unchanged = (after: { size: number; mtime: Date | null }) => after.size === before.size &&
+      !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
     return {
       blob: range.blob,
       close: range.close,
+      unchanged: async () => { try { return unchanged(await fs.stat(path)); } catch { return false; } },
+      verifyNatively: async () => {
+        try {
+          if (!unchanged(await fs.stat(path))) return false;
+          const actual = await nativeFingerprint(path, before.size);
+          if (!actual) return null;
+          return isSameOriginalBytes(expectedOriginalSha256, actual) && unchanged(await fs.stat(path));
+        } catch { return false; }
+      },
       verify: async () => {
         const after = await fs.stat(path);
         if (after.size !== before.size ||

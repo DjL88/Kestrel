@@ -132,8 +132,8 @@ export interface AppOptions {
   accountMerge?: import('./accountMerge.ts').AccountMerges;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
-  /** Acceptable-use checks on shared and cloud photos, and the report-a-gallery queue (contentSafety.ts). */
-  safety?: { service: SafetyService; countryOf?: (req: Request) => string | null };
+  /** The report-a-gallery queue (contentSafety.ts). InFlight does not scan photos. */
+  safety?: { service: SafetyService };
   /** Signed compliance documents (risk assessments) in their own private bucket. Absent: the /admin routes answer 503. */
   compliance?: ComplianceDocuments;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -240,15 +240,12 @@ export const Schemas = {
     goodFaith: z.literal(true).describe('The notifier confirms the report is accurate and made in good faith (EU DSA Art. 16)'),
   }).strict(),
   GalleryReportStatus: z.object({ noticeId: z.string().regex(/^ntc_[A-Za-z0-9_-]{6,40}$/), receipt: z.string().min(16).max(64) }).strict(),
-  SafetyDecide: z.object({ outcome: z.enum(['released', 'upheld']), reason: z.string().trim().min(3).max(1000) }).strict(),
   ComplianceUpload: z.object({
     title: z.string().trim().min(1).max(120), fileName: z.string().trim().min(1).max(120),
     contentType: z.enum(Object.keys(COMPLIANCE_TYPES) as [keyof typeof COMPLIANCE_TYPES, ...(keyof typeof COMPLIANCE_TYPES)[]]),
     base64: z.string().min(4).max(Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4).regex(/^[A-Za-z0-9+/]+={0,2}$/),
   }).strict(),
-  SafetyManualReport: z.object({ ncmecReportId: z.string().trim().min(1).max(40).optional(), ncaDone: z.boolean().optional() }).strict(),
   SafetyNoticeDecide: z.object({ outcome: z.enum(['no-action', 'photo-removed', 'gallery-revoked']), reason: z.string().trim().min(3).max(1000) }).strict(),
-  SafetyAppeal: z.object({ text: z.string().trim().min(3).max(2000) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
   PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),

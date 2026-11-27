@@ -4,7 +4,7 @@ import { needsYou, viewForHash, VIEWS } from '../../site/assets/admin-needs.mjs'
 
 const NOW = Date.parse('2026-11-26T09:00:00Z');
 const quiet = {
-  refunds: [], messages: [{ status: 'answered' }], safety: { cases: [{ kind: 'ai-flag', status: 'released' }], notices: [{ status: 'decided' }] },
+  refunds: [], messages: [{ status: 'answered' }], safety: { notices: [{ status: 'decided' }] },
   paddleKey: { lastRunOk: true, expiresAt: '2027-02-01T00:00:00Z' }, learning: { runs: [{ status: 'succeeded' }] }, mail: { warn: false },
   tax: { turnover: { state: 'ok' } },
 };
@@ -18,13 +18,13 @@ test('each kind of chore appears once, urgent first', () => {
     ...quiet,
     refunds: [{ pence: 412 }, { pence: 88 }],
     messages: [{ status: 'new' }, { status: 'read' }],
-    safety: { cases: [{ kind: 'ai-flag', status: 'review' }, { kind: 'hash-match', status: 'held', ncmec: { error: '503' } }], notices: [{ status: 'open', urgent: false }] },
+    safety: { notices: [{ status: 'open', urgent: false }] },
     paddleKey: { lastRunOk: false, lastRunReason: 'Paddle answered 503' },
     learning: { runs: [{ status: 'failed' }, { status: 'failed' }] },
   }, NOW);
-  assert.deepEqual(items.map(i => i.id), ['safety-report', 'paddle-key', 'refunds', 'safety-held', 'safety-notices', 'messages', 'learning']);
+  assert.deepEqual(items.map(i => i.id), ['paddle-key', 'refunds', 'safety-notices', 'messages', 'learning']);
   assert.match(items.find(i => i.id === 'refunds').detail, /£5\.00/);
-  assert.match(items[0].detail, /failed for 1/);
+  assert.match(items[0].detail, /Paddle answered 503/);
 });
 
 test('things that sort themselves out stay off the list', () => {

@@ -9,7 +9,6 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { verifyGoogleIdToken } from './googleIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { COMPLIANCE_MAX_BYTES } from './complianceDocs.ts';
-import { caseSummary } from './contentSafety.ts';
 import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth } from './vertexLearning.ts';
 import { ApiError, parseJson, send } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './appShared.ts';
@@ -37,47 +36,15 @@ export function adminRoutes(ctx: AppContext): Route[] {
       return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
     },
   },
-  // ---- Safety review. Admins see details only: no route ever returns a held or blocked picture.
+  // ---- Reports about shared content. InFlight does not scan photos.
   {
-    method: 'GET', path: '/v1/admin/safety', summary: 'Safety cases and gallery reports, as metadata only (never the pictures)', auth: 'admin',
+    method: 'GET', path: '/v1/admin/safety', summary: 'Gallery reports, as metadata only (never the pictures)', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'safety.read');
       const service = options.safety?.service;
-      const checks = service ? { hashMatchers: service.checks.hashMatchers.map((m) => m.name), classifier: service.checks.classifier?.name ?? null, reporter: service.checks.reporter !== null } : null;
       return adminDone(claims, 'safety.read', '', {
-        checks, publishingRefused: !!options.requireAdminSwitch && !service?.configured,
-        cases: service ? (await service.cases()).map(caseSummary) : [],
         notices: service ? (await service.notices()).map(({ receiptHash: _r, ...n }) => n) : [],
       });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/decide', summary: 'Release or uphold a picture held by the AI check, from its details only', auth: 'admin', body: Schemas.SafetyDecide,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.decide');
-      const body = parseJson(Schemas.SafetyDecide, req.rawBody);
-      const c = await safety(() => safetyCfg().decide(params.id, claims.sub, body.outcome, body.reason));
-      return adminDone(claims, 'safety.decide', `${c.caseId} ${c.status}`, { case: caseSummary(c) });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/report', summary: 'Send (or retry) the CyberTipline report for a hash match', auth: 'admin',
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.report');
-      const storage = options.gallery?.storage;
-      if (!storage?.read || !storage.copy) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'The evidence store is not set up on this server.');
-      const scannable = { read: storage.read.bind(storage), copy: storage.copy.bind(storage), delete: storage.delete.bind(storage) };
-      const c = await safety(() => safetyCfg().report(params.id, scannable));
-      return adminDone(claims, 'safety.report', `${c.caseId} ${c.ncmec?.reportId ?? ''}`, { case: caseSummary(c) });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/manual-report', summary: 'Record a report made by hand to NCMEC or the NCA', auth: 'admin', body: Schemas.SafetyManualReport,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.manual-report');
-      const body = parseJson(Schemas.SafetyManualReport, req.rawBody);
-      const c = await safety(() => safetyCfg().recordManualReport(params.id, claims.sub, body));
-      return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
     },
   },
   // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.

@@ -21,7 +21,7 @@ import type { NoticeContacts } from './noticeContacts.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, type GalleryStore } from './gallery.ts';
 import { ComplianceRefusal, type ComplianceDocuments } from './complianceDocs.ts';
-import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, type CheckInput, type SafetyService } from './contentSafety.ts';
+import { SafetyRefusal, type SafetyService } from './contentSafety.ts';
 import { SAFE_COPY_LEVELS } from './safeCopy.ts';
 import { ApiError, parseJson, type Reply, type Request, type Route } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, REFRESH_TTL_MS, DEVICE_RELEASES_PER_YEAR, YEAR_MS, SWAP_IDLE_DAYS, CollabApiError, SwitchKey, isPlanned, Schemas, RateLimiter, decodeImage, type AppOptions } from './appShared.ts';
@@ -413,29 +413,6 @@ export function createContext(options: AppOptions) {
       throw error;
     }
   }
-  /**
-   * The acceptable-use check on one stored picture, before it is shared (site/acceptable-use.html). Production never
-   * publishes unchecked: without a hash checker it refuses. Development and tests without checks publish as before.
-   */
-  async function safetyCheck(req: Request, storage: import('./safeCopy.ts').SafeCopyStorage, input: Omit<CheckInput, 'country'>): Promise<void> {
-    const service = options.safety?.service;
-    if (!service?.configured || !storage.read || !storage.copy) {
-      if (options.requireAdminSwitch) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Sharing is not open yet: the safety checks are not set up on this server. Everything on your devices keeps working.');
-      return;
-    }
-    const scannable = { read: storage.read.bind(storage), copy: storage.copy.bind(storage), delete: storage.delete.bind(storage) };
-    const result = await safety(() => service.check(scannable, { ...input, country: options.safety?.countryOf?.(req) ?? null }, async (c) => {
-      await store.setAccountStatus(c.accountId, 'suspended');
-      if (c.galleryId && options.gallery) await options.gallery.setHold(c.galleryId, true).catch(() => undefined);
-      await audit('system', 'safety.hash-match', 'denied', `${c.caseId} account suspended`);
-    }));
-    if (result.outcome === 'blocked') throw new ApiError(403, 'CONTENT_BLOCKED', BLOCKED_MESSAGE);
-    if (result.outcome === 'held') {
-      await audit(input.accountId, 'safety.ai-flag', 'denied', result.caseId);
-      throw new ApiError(409, 'CONTENT_HELD', HELD_MESSAGE);
-    }
-  }
-
   function safeCopyCfg() {
     if (!options.safeCopy) throw new ApiError(503, 'SAFE_COPY_NOT_CONFIGURED', 'Safe copy is not set up on this server.');
     return options.safeCopy;
@@ -566,7 +543,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safetyCheck, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

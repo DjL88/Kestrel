@@ -194,7 +194,7 @@ import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './sch
 import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
-import type { ExportRequest } from '../ui/contract';
+import type { ExportRequest, Photo } from '../ui/contract';
 import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
@@ -208,6 +208,7 @@ import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesN
 import { language } from '../../i18n/messages';
 import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
+import { shootTiers } from '../../core/shootTiers';
 import { createReadAhead, importLanes } from '../../core/importReadAhead';
 import { startNativeResourceSampling } from '../../providers/nativeResourceSample';
 
@@ -320,6 +321,9 @@ function userLookPreset(look: UserLook): LookPreset {
 function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBracket | undefined): import('../ui/contract').Photo {
   return bracket ? { ...photo, bracket: { photoIds: bracket.frameIds, ev: bracket.ev, fromCamera: bracket.fromCamera } } : photo;
 }
+
+/** The photo with its rank within the shoot, when Auto pick ranked it. */
+const withTier = (tier: Photo['tier'] | undefined, photo: Photo): Photo => (tier ? { ...photo, tier } : photo);
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   // A real measurement of the machine for the task scheduler (desktop app), so heavy jobs can run side by side when there
@@ -3891,12 +3895,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
     // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
     const brackets = bracketsByFrame(shown);
+    // Rank within the shoot from Auto pick's scores (src/core/shootTiers.ts); unscored photos stay unranked.
+    const tiers = shootTiers(shown);
     return recountBursts(shown.map((frame) => {
     const bracket = brackets.get(frame.id);
+    const tier = tiers.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withBracket(withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined })), bracket);
+    return withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
   }));
   }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo

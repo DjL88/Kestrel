@@ -10,7 +10,6 @@ import { licenceIsUsable, newLicence } from './store.ts';
 import { isContributorLicence } from './entitlement.ts';
 import { accountCopy, parseSetupAnswers } from '../../../src/core/quickSetup.ts';
 import { PADDLE_TRANSACTION_ID } from './commerce/paddle.ts';
-import { caseForUploader } from './contentSafety.ts';
 import { ApiError, parseJson } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
@@ -376,25 +375,15 @@ export function meRoutes(ctx: AppContext): Route[] {
       return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
     },
   },
-  // ---- The uploader's side: what was held or acted on, why, and asking for another look (EU DSA Art. 17 and 20).
+  // ---- The gallery owner's side: actions taken on my galleries after a report, with the reasons (EU DSA Art. 17).
   {
-    method: 'GET', path: '/v1/me/safety', summary: 'Pictures held back from sharing, and actions on my galleries, with the reasons', auth: 'user',
+    method: 'GET', path: '/v1/me/safety', summary: 'Actions on my galleries after a report, with the reasons', auth: 'user',
     handler: async (req) => {
       const claims = await bearer(req);
       const service = safetyCfg();
       const actions = (await service.notices()).filter((n) => n.ownerAccountId === claims.sub && n.decision && n.decision.outcome !== 'no-action')
         .map((n) => ({ noticeId: n.noticeId, galleryId: n.galleryId, photoId: n.photoId, category: n.category, outcome: n.decision!.outcome, reason: n.decision!.reason, atMs: n.decision!.atMs }));
-      return { status: 200, body: { cases: (await service.cases({ accountId: claims.sub })).map(caseForUploader), actions } };
-    },
-  },
-  {
-    method: 'POST', path: '/v1/me/safety/:id/appeal', summary: 'Ask for another look at a picture held by an automatic check', auth: 'user', body: Schemas.SafetyAppeal,
-    handler: async (req, params) => {
-      const claims = await bearer(req);
-      const body = parseJson(Schemas.SafetyAppeal, req.rawBody);
-      const c = await safety(() => safetyCfg().appeal(params.id, claims.sub, body.text));
-      await audit(claims.sub, 'safety.appeal', 'allowed', c.caseId);
-      return { status: 200, body: { case: caseForUploader(c) } };
+      return { status: 200, body: { actions } };
     },
   },
 
