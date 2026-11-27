@@ -632,7 +632,7 @@ export const is: AreaTranslation<typeof source> = {
     noGenAiNote: "Ekkert er búið til. Notar aðeins grímur, suðeyðingu, tóna og litaleiðréttingu.",
     aboutLabel: "Um þessar tillögur",
     reviewRunning: "Yfirferð í gangi. Ekkert er notað fyrr en þú velur.",
-    reviewUnavailable: "Ekki í boði í þessari áskrift eða án nettengingar.",
+    reviewRunningShort: "Athuga…",
     applyAllSuggestions: 'Nota tillögu að uppskrift',
     applySingle: 'Nota',
     applied: 'Notað',

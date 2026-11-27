@@ -632,7 +632,7 @@ export const cy: AreaTranslation<typeof source> = {
     noGenAiNote: "Does dim byd yn cael ei greu. Yn defnyddio masgio, lleihau sŵn, tôn a graddio lliw yn unig.",
     aboutLabel: "Am yr awgrymiadau hyn",
     reviewRunning: "Adolygiad ar y gweill. Does dim yn cael ei gymhwyso nes i chi ddewis.",
-    reviewUnavailable: "Ddim ar gael ar y cynllun hwn nac all-lein.",
+    reviewRunningShort: "Wrthi’n gwirio…",
     applyAllSuggestions: 'Defnyddio’r rysáit a awgrymir',
     applySingle: 'Defnyddio',
     applied: 'Wedi’i ddefnyddio',

@@ -632,7 +632,7 @@ export const de: AreaTranslation<typeof source> = {
     noGenAiNote: "Nichts wird generiert. Nutzt nur Masken, Rauschreduzierung, Tonwerte und Farbkorrektur.",
     aboutLabel: "Über diese Vorschläge",
     reviewRunning: "Prüfung läuft. Nichts wird angewendet, bevor du es auswählst.",
-    reviewUnavailable: "In diesem Tarif oder offline nicht verfügbar.",
+    reviewRunningShort: "Wird geprüft…",
     applyAllSuggestions: 'Vorgeschlagenes Rezept anwenden',
     applySingle: 'Anwenden',
     applied: 'Angewendet',

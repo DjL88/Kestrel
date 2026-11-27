@@ -632,7 +632,7 @@ export const da: AreaTranslation<typeof source> = {
     noGenAiNote: "Intet genereres. Bruger kun masker, støjreduktion, toner og farvekorrektion.",
     aboutLabel: "Om disse forslag",
     reviewRunning: "Gennemgang i gang. Intet anvendes, før du vælger det.",
-    reviewUnavailable: "Ikke tilgængelig med dette abonnement eller offline.",
+    reviewRunningShort: "Tjekker…",
     applyAllSuggestions: 'Anvend foreslået opskrift',
     applySingle: 'Anvend',
     applied: 'Anvendt',

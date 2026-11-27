@@ -137,6 +137,7 @@ import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
+import { deepReviewFailure } from '../ui/utils/deepReview';
 import { agreeManagedAi, aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
 import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
 import { consentFor } from '../../providers/aiProviders';
@@ -2011,6 +2012,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // via deepVisionReview.ts. Result is shown as a plain-text notice for now, not yet an AssistSuggestion.
   const deepVisionInFlight = useRef(new Set<string>());
   const [reviewingIds, setReviewingIds] = useState<string[]>([]);
+  const failedBecause = useRef(new Map<string, string>());
   const runDeepVisionReviewAction = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
     if (!frame || deepVisionInFlight.current.has(photoId)) return;
@@ -2025,7 +2027,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.deepStage);
         // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
-        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
+        let result: Awaited<ReturnType<typeof runDeepVisionReview>>;
+        try {
+          result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
+        } catch (error) {
+          // Say why (the subject finder not installed, say), not only that it failed.
+          if (!ctx.signal.aborted) failedBecause.current.set(photoId, deepReviewFailure(error, engineText.workspace.deepFailed));
+          throw error;
+        }
         ctx.checkCancelled();
         if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
@@ -2035,9 +2044,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ctx.commitIfCurrent(() => setNotice(result.summary));
       },
     }).then(ticket => ticket.finished).then(result => {
-      if (result === 'failed') setNotice(engineText.workspace.deepFailed);
+      if (result === 'failed') setNotice(failedBecause.current.get(photoId) ?? engineText.workspace.deepFailed);
     }).catch(error => setNotice(error instanceof Error ? error.message : engineText.workspace.deepNotQueued))
       .finally(() => {
+        failedBecause.current.delete(photoId);
         deepVisionInFlight.current.delete(photoId);
         setReviewingIds(current => current.filter(id => id !== photoId));
       });

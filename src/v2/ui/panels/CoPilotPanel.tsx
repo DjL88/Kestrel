@@ -2,7 +2,7 @@ import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import FlightModePicker from './FlightModePicker';
-import ProBadge, { useProHidden } from '../shell/ProBadge';
+import { deepReviewAvailable } from '../utils/deepReview';
 import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourSenseLine from './ColourSenseLine';
@@ -75,19 +75,16 @@ export default function CoPilotPanel({
   onApplyAssistantSuggestions,
   onDismissAssistantSuggestions,
 }: CoPilotPanelProps) {
-  const hiddenOnline = useProHidden('onlineAi');
   // Which suggestion is being watched step by step. A different photo stops watching.
   const [watchingId, setWatchingId] = React.useState<string | null>(null);
   React.useEffect(() => setWatchingId(null), [photo?.id]);
   const clearPreview = React.useCallback((delta: Partial<EditRecipe> | null) => onStepPreview?.(delta), [onStepPreview]);
-  const hiddenCloud = useProHidden('cloudAssist');
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAnalyse}</p>;
   }
 
-  const reviewAvailable = features.onlineAi || features.cloudAssist;
-  // The person asked not to see Pro features and online review is one this account does not have: leave the whole block out.
-  const hideReview = !reviewAvailable && hiddenOnline && hiddenCloud;
+  // On this device, so on every plan and offline too (utils/deepReview.ts). It used to be gated on the online Pro switches.
+  const reviewAvailable = deepReviewAvailable({ features, online: typeof navigator === 'undefined' || navigator.onLine !== false });
   const reviewPending = reviewing;
   const suggestions = photo.assistCritique.suggestions;
 
@@ -232,8 +229,6 @@ export default function CoPilotPanel({
             {STRINGS.copilot.localReviewButton}
           </button>
         )}
-        {!hideReview && (
-        <>
         <button
           type="button"
           disabled={!reviewAvailable || reviewPending}
@@ -243,9 +238,9 @@ export default function CoPilotPanel({
           className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3.5 py-2.5 text-left text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
         >
           <span className="flex items-center gap-2">
-            <BrandIcon name="cloud-assist" size={17} />
+            <BrandIcon name="assist" size={17} />
             <span>
-              <span className="flex items-center gap-1.5 text-xs font-semibold">{reviewPending ? 'Review in progress…' : STRINGS.copilot.runReviewButton}<ProBadge feature="onlineAi" /></span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold">{reviewPending ? STRINGS.copilot.reviewRunningShort : STRINGS.copilot.runReviewButton}</span>
               <span className="block text-[0.625rem] opacity-85">{STRINGS.copilot.runReviewSub}</span>
             </span>
           </span>
@@ -253,10 +248,8 @@ export default function CoPilotPanel({
         </button>
 
         <p id="copilot-review-status" role="status" aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">
-          {reviewPending ? STRINGS.copilot.reviewRunning : !reviewAvailable ? STRINGS.copilot.reviewUnavailable : ''}
+          {reviewPending ? STRINGS.copilot.reviewRunning : ''}
         </p>
-        </>
-        )}
       </div>
 
       {cloudRecipe && (

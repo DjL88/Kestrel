@@ -632,7 +632,7 @@ export const pt: AreaTranslation<typeof source> = {
     noGenAiNote: "Nada é gerado. Usa apenas máscaras, redução de ruído, tom e gradação de cor.",
     aboutLabel: "Sobre estas sugestões",
     reviewRunning: "Revisão em curso. Nada é aplicado até escolher.",
-    reviewUnavailable: "Indisponível neste plano ou sem ligação.",
+    reviewRunningShort: "A verificar…",
     applyAllSuggestions: 'Aplicar a receita sugerida',
     applySingle: 'Aplicar',
     applied: 'Aplicado',

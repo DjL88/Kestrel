@@ -279,7 +279,7 @@ test('?v2 Auto pick runs on the Basic plan: on-device culling is never Pro (owne
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
 });
 
-test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmarked', async ({ page }) => {
+test('?v2 leaves Basic features, the on-device checks included, without the Pro badge', async ({ page }) => {
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
@@ -287,12 +287,12 @@ test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmar
   await expect(root.getByRole('button', { name: /Auto pick/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Import is Basic: no badge.
   await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
-  // Deep Vision (online AI) is Pro too.
+  // Deep Vision Review runs on this device (the subject finder and the Look rules), so it is Basic too: no badge, and it
+  // can be pressed (Dave, 27 Nov: a Pro account online was told it was not on the plan).
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   const deepVision = root.getByRole('button', { name: /Deep Vision Review/ });
-  await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(1);
-  // Dark and light versions of the brand badge are both in the page; the theme shows one.
-  await expect(deepVision.locator('img.v2-pro-dark, img.v2-pro-light')).toHaveCount(2);
+  await expect(deepVision).toBeEnabled();
+  await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(0);
 });
 
 test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
