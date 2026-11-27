@@ -2068,6 +2068,8 @@ export const nl: AreaTranslation<typeof source> = {
     reading: "De foto wordt eenmaal gelezen voor Tik om te selecteren. Dat kan een halve minuut duren; Ovaal en Verloop werken intussen gewoon.",
     ready: "Tik op het onderwerp in de foto. In de modus Verwijderen (of met Alt) haalt een tik een deel weg.",
     working: "Selectie bijwerken…",
+    refining: "Rand verfijnen… De selectie is al gemaakt; de omtrek wordt fijner zodra dit klaar is.",
+    refineSkipped: "De fijnere rand is weggelaten: er is nu niet genoeg vrij geheugen. De selectie blijft zoals ze is.",
     addMode: "Deel toevoegen",
     removeMode: "Deel verwijderen",
     newSubject: "Nieuw onderwerp",

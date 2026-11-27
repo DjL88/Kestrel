@@ -2069,6 +2069,8 @@ export const gd: AreaTranslation<typeof source> = {
     reading: "A’ leughadh an deilbh aon turas airson taghadh le gnogag. Faodaidh seo mu leth-mhionaid a thoirt; obraichidh Ugh is Caiseadh fhathast.",
     ready: "Thoir gnogag air a’ chuspair air an dealbh. Ann am modh Thoir air falbh (no le Alt) bheir gnogag pàirt air falbh.",
     working: "Ag ùrachadh an taghaidh…",
+    refining: "A’ grinneachadh na h-oir… Tha an taghadh deiseil mu thràth; fàsaidh an oir-loidhne nas grinne nuair a bhios seo deiseil.",
+    refineSkipped: "Chaidh an oir nas grinne fhàgail às: chan eil cuimhne shaor gu leòr ann an-dràsta. Mairidh an taghadh mar a tha e.",
     addMode: "Cuir pàirt ris",
     removeMode: "Thoir pàirt air falbh",
     newSubject: "Cuspair ùr",

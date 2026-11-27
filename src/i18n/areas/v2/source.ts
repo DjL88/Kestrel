@@ -2153,6 +2153,8 @@ export const source = {
     reading: "Reading the photo once for tap to select. This can take about half a minute; Oval and Gradient still work meanwhile.",
     ready: "Tap the subject on the photo. In Remove mode (or with Alt held) a tap takes a part away.",
     working: "Updating the selection…",
+    refining: "Refining the edge… The selection is already made; its outline gets finer when this is done.",
+    refineSkipped: "The finer edge was left out: there is not enough free memory right now. The selection is kept as it is.",
     addMode: "Add part",
     removeMode: "Remove part",
     newSubject: "New subject",

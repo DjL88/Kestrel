@@ -2068,6 +2068,8 @@ export const pt: AreaTranslation<typeof source> = {
     reading: "A ler a foto uma vez para Tocar para selecionar. Pode demorar cerca de meio minuto; Oval e Gradiente continuam a funcionar.",
     ready: "Toque no motivo na foto. No modo Remover (ou com Alt) um toque retira uma parte.",
     working: "A atualizar a seleção…",
+    refining: "A refinar o contorno… A seleção já está feita; o contorno fica mais fino quando isto terminar.",
+    refineSkipped: "O contorno mais fino foi deixado de fora: agora não há memória livre suficiente. A seleção mantém-se como está.",
     addMode: "Adicionar parte",
     removeMode: "Remover parte",
     newSubject: "Novo motivo",

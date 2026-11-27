@@ -17,6 +17,8 @@ export interface OffThreadSession {
   /** Where it runs, for tests and diagnostics. */
   readonly where: 'worker' | 'main';
   run(feeds: Record<string, ModelInput>): Promise<Record<string, ModelTensor>>;
+  /** Let the model go (its worker is ended, so all of its memory comes back). Runs after this are refused. */
+  release(): void;
 }
 
 export interface OffThreadOptions {
@@ -32,6 +34,11 @@ export interface OffThreadOptions {
    * shape). Each named output must be present and float32; others are not checked. Default: every output.
    */
   outputs?: readonly string[];
+  /**
+   * False for a model too heavy to run on the page at all (it would hold the interface for a minute): when no worker
+   * can run it, creating the session fails instead of falling back to this thread. Default true.
+   */
+  onThisThreadFallback?: boolean;
 }
 
 const copyOf = (data: Float32Array | BigInt64Array) => (data instanceof BigInt64Array ? new BigInt64Array(data) : new Float32Array(data));
@@ -44,9 +51,11 @@ export async function createOffThreadSession(id: string, bytes: Uint8Array, opti
     try {
       return await inWorker(id, bytes, startWorker, options.onLost, options.outputs);
     } catch (problem) {
+      if (options.onThisThreadFallback === false) throw problem;
       console.warn(`The ${id} model could not start in the background; running it here instead.`, problem);
     }
   }
+  if (options.onThisThreadFallback === false) throw new Error(`The ${id} model can only run in the background, and that is not possible here.`);
   return onThisThread(id, bytes);
 }
 
@@ -109,6 +118,12 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker
   return {
     ...names,
     where: 'worker',
+    release: () => {
+      if (lost) return;
+      // Ended on purpose: callers waiting are told, and onLost is not called (nothing went wrong).
+      loaded = false;
+      lose(new Error(`The ${id} model was let go.`));
+    },
     run: (feeds) => new Promise((resolve, reject) => {
       if (lost) { reject(lost); return; }
       const runId = nextId++;
@@ -133,6 +148,7 @@ async function onThisThread(id: string, bytes: Uint8Array): Promise<OffThreadSes
     inputNames: session.inputNames,
     outputNames: session.outputNames,
     where: 'main',
+    release: () => { void session.release().catch(() => undefined); },
     run: async (feeds) => {
       const tensors: Record<string, import('onnxruntime-web/wasm').Tensor> = {};
       for (const [name, tensor] of Object.entries(feeds)) {

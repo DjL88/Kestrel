@@ -101,3 +101,22 @@ test('int64 inputs cross to the worker as int64, and only the outputs the caller
   assert.ok(sent[0].feeds!.size.data instanceof BigInt64Array, 'the size stays int64');
   assert.deepEqual([...size], [480n, 640n], 'the caller keeps its own array');
 });
+
+test('a model too heavy for the page is never run here: no worker means no session, not a fallback to this thread', async () => {
+  const worker = new FakeWorker(true);
+  await assert.rejects(createOffThreadSession('test-heavy', new Uint8Array([1]), { startWorker: () => worker as unknown as Worker, onThisThreadFallback: false }), /bad model/);
+  assert.equal(worker.terminated, true);
+  await assert.rejects(createOffThreadSession('test-heavy-none', new Uint8Array([1]), { startWorker: null, onThisThreadFallback: false }), /only run in the background/);
+});
+
+test('letting a model go ends its worker (its memory comes back), refuses later runs, and is not reported as a loss', async () => {
+  const worker = new FakeWorker();
+  let lost = 0;
+  const session = await createOffThreadSession('test-release', new Uint8Array([1]), { startWorker: () => worker as unknown as Worker, onLost: () => { lost += 1; } });
+  const answer = await session.run({ input: { data: new Float32Array([2]), dims: [1, 1] } });
+  assert.deepEqual([...answer.output.data], [4]);
+  session.release();
+  assert.equal(worker.terminated, true);
+  assert.equal(lost, 0);
+  await assert.rejects(session.run({ input: { data: new Float32Array([1]), dims: [1, 1] } }), /let go/);
+});

@@ -2068,6 +2068,8 @@ export const es: AreaTranslation<typeof source> = {
     reading: "Leyendo la foto una vez para Tocar para seleccionar. Puede tardar medio minuto; Óvalo y Degradado siguen funcionando.",
     ready: "Toque el sujeto en la foto. En modo Quitar (o con Alt) un toque quita una parte.",
     working: "Actualizando la selección…",
+    refining: "Afinando el borde… La selección ya está hecha; su contorno será más fino cuando esto termine.",
+    refineSkipped: "Se omitió el borde más fino: ahora no hay suficiente memoria libre. La selección se mantiene como está.",
     addMode: "Añadir parte",
     removeMode: "Quitar parte",
     newSubject: "Nuevo sujeto",

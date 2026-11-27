@@ -2068,6 +2068,8 @@ export const nb: AreaTranslation<typeof source> = {
     reading: "Bildet leses én gang for Trykk for å velge. Det kan ta et halvt minutt; Oval og Overgang virker i mellomtiden.",
     ready: "Trykk på motivet i bildet. I modusen Fjern (eller med Alt) fjerner et trykk en del.",
     working: "Oppdaterer markeringen…",
+    refining: "Finjusterer kanten… Markeringen er allerede laget; omrisset blir finere når dette er ferdig.",
+    refineSkipped: "Den finere kanten ble utelatt: det er ikke nok ledig minne akkurat nå. Markeringen beholdes som den er.",
     addMode: "Legg til del",
     removeMode: "Fjern del",
     newSubject: "Nytt motiv",

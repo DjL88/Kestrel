@@ -2068,6 +2068,8 @@ export const cy: AreaTranslation<typeof source> = {
     reading: "Yn darllen y llun unwaith ar gyfer tapio i ddewis. Gall gymryd tua hanner munud; mae Hirgrwn a Graddiant yn dal i weithio.",
     ready: "Tapiwch y gwrthrych ar y llun. Yn y modd Tynnu (neu gydag Alt) mae tap yn tynnu rhan i ffwrdd.",
     working: "Yn diweddaru’r dewis…",
+    refining: "Yn mireinio’r ymyl… Mae’r dewis wedi’i wneud yn barod; bydd ei amlinell yn fanylach pan fydd hyn wedi gorffen.",
+    refineSkipped: "Gadawyd yr ymyl fanylach allan: does dim digon o gof rhydd ar hyn o bryd. Mae’r dewis yn aros fel y mae.",
     addMode: "Ychwanegu rhan",
     removeMode: "Tynnu rhan",
     newSubject: "Gwrthrych newydd",

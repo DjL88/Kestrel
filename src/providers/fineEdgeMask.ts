@@ -2,21 +2,36 @@ import { BIREFNET_LITE, optionalModelFitsDevice } from '../core/optionalModels';
 import { BIREFNET_INPUT, birefnetInput, birefnetMask, compareSubjectMasks, preferFineMask, type MaskComparison, type SoftMask } from '../core/birefnet';
 import type { SubjectDetail, SubjectGrid } from '../core/maskTypes';
 import { detailSizeFor } from '../core/subjectModel';
-import { createTimedSession } from './modelTiming';
+import { createOffThreadSession, type OffThreadSession } from './offThreadSession';
+import { freeMemoryBytes } from './nativeResourceSample';
+import { measureStep } from './previewTiming';
 import { samMaskSize } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
-import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * Fine-edge subject masks with BiRefNet-lite: a desktop "fine detail" pack (it needs several GB of memory at
  * 1024 px, so it is never offered on a phone or in a browser tab). Without it, the built-in U²-Netp subject mask
  * stays exactly as it is.
+ *
+ * It runs only in a background worker, never on the page: on the page one refinement held every click for over a
+ * minute (owner's Windows test, 27 Nov). The model's input is fixed at 1024 px, so its working memory cannot be made
+ * smaller; instead it starts only when that much memory is free, runs one refinement at a time, and its worker is ended
+ * as soon as the answer is back, so the memory comes straight back to the machine.
  */
-type Ort = typeof import('onnxruntime-web/wasm');
-interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
-let loading: Promise<Loaded> | null = null;
+/** About what one refinement uses at its peak (measured near 5 GB in the app), plus room for everything else. */
+export const FINE_EDGE_FREE_MEMORY_BYTES = 6 * 1024 ** 3;
+let loading: Promise<Uint8Array> | null = null;
+let queue: Promise<unknown> = Promise.resolve();
+
+/** Unknown free memory (no measurement: an older desktop build) runs as before; a measured shortage never starts it. */
+export const fineEdgeMayRun = (freeBytes: number | null) => freeBytes === null || freeBytes >= FINE_EDGE_FREE_MEMORY_BYTES;
+
+/** Why a refinement did not run, so the caller can say so in plain words. */
+export class FineEdgeSkipped extends Error {
+  constructor(readonly reason: 'memory') { super('Not enough free memory for the fine-edge mask right now.'); }
+}
 
 const offeredHere = () => optionalModelFitsDevice(BIREFNET_LITE, isDesktopApp() && !isMobileShell() ? 'desktop' : 'phone');
 
@@ -29,13 +44,9 @@ export async function downloadFineEdge(onProgress: (fraction: number) => void, s
 }
 export async function removeFineEdge(): Promise<void> { loading = null; await removeOptionalModel(BIREFNET_LITE); }
 
-function load(): Promise<Loaded> {
-  loading ??= (async () => {
-    const bytes = await readOptionalModelFile(BIREFNET_LITE, 'model');
-    const ort = await loadOrt();
-    const session = await createTimedSession(ort, BIREFNET_LITE.id, bytes, ortOptions());
-    return { ort, session };
-  })().catch((error) => {
+/** The model file, read once per session of the app (about 90 MB); the model itself is started fresh for each run. */
+function load(): Promise<Uint8Array> {
+  loading ??= readOptionalModelFile(BIREFNET_LITE, 'model').catch((error) => {
     loading = null;
     console.warn('Fine-edge mask model failed to load', error);
     throw new Error(friendlyToolError(error, 'fine-edge mask model'));
@@ -46,10 +57,23 @@ function load(): Promise<Loaded> {
 type Source = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
 const dims = (source: Source) => source instanceof HTMLImageElement ? { w: source.naturalWidth, h: source.naturalHeight } : { w: source.width, h: source.height };
 
-/** A soft subject mask at the photo's shape (long edge at most 1024), or null when the pack is not ready here. */
-export async function fineEdgeMask(source: Source, signal?: AbortSignal): Promise<SoftMask | null> {
+/**
+ * A soft subject mask at the photo's shape (long edge at most 1024), or null when the pack is not ready here. Throws
+ * FineEdgeSkipped when there is not enough free memory to run it now. One at a time.
+ */
+export function fineEdgeMask(source: Source, signal?: AbortSignal, free: () => Promise<number | null> = freeMemoryBytes): Promise<SoftMask | null> {
+  const run = () => fineEdgeMaskNow(source, signal, free);
+  const result = queue.then(run, run);
+  queue = result.catch(() => undefined);
+  return result;
+}
+
+async function fineEdgeMaskNow(source: Source, signal: AbortSignal | undefined, free: () => Promise<number | null>): Promise<SoftMask | null> {
   if (await fineEdgeStatus() !== 'ready') return null;
-  const { ort, session } = await load();
+  signal?.throwIfAborted();
+  const memory = await free();
+  if (!fineEdgeMayRun(memory)) throw new FineEdgeSkipped('memory');
+  const bytes = await load();
   signal?.throwIfAborted();
   const { w, h } = dims(source);
   const size = samMaskSize(w, h);
@@ -61,9 +85,20 @@ export async function fineEdgeMask(source: Source, signal?: AbortSignal): Promis
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, 0, 0, w, h, 0, 0, BIREFNET_INPUT, BIREFNET_INPUT);
   const input = birefnetInput(context.getImageData(0, 0, BIREFNET_INPUT, BIREFNET_INPUT).data);
-  const out = await session.run({ input_image: new ort.Tensor('float32', input, [1, 3, BIREFNET_INPUT, BIREFNET_INPUT]) });
-  signal?.throwIfAborted();
-  return birefnetMask(out.output_image.data as Float32Array, size.w, size.h);
+  const started = performance.now();
+  let session: OffThreadSession | null = null;
+  try {
+    // Worker only: never on the page, whatever happens.
+    session = await createOffThreadSession(BIREFNET_LITE.id, bytes, { onThisThreadFallback: false });
+    signal?.throwIfAborted();
+    const out = await session.run({ input_image: { data: input, dims: [1, 3, BIREFNET_INPUT, BIREFNET_INPUT] } });
+    signal?.throwIfAborted();
+    if (!out.output_image) throw new Error('The fine-edge mask model returned an unexpected result.');
+    return birefnetMask(out.output_image.data as Float32Array, size.w, size.h);
+  } finally {
+    session?.release();
+    measureStep('fine-edge:run', started, { memoryBefore: memory });
+  }
 }
 
 const decodeGrid = (grid: SubjectGrid): Uint8Array => Uint8Array.from(atob(grid.data), (c) => c.charCodeAt(0));

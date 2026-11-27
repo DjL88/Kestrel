@@ -2068,6 +2068,8 @@ export const sv: AreaTranslation<typeof source> = {
     reading: "Fotot läses en gång för Tryck för att välja. Det kan ta en halv minut; Oval och Övertoning fungerar under tiden.",
     ready: "Tryck på motivet i fotot. I läget Ta bort (eller med Alt) tar ett tryck bort en del.",
     working: "Uppdaterar markeringen…",
+    refining: "Förfinar kanten… Markeringen är redan gjord; konturen blir finare när detta är klart.",
+    refineSkipped: "Den finare kanten utelämnades: det finns inte tillräckligt med ledigt minne just nu. Markeringen behålls som den är.",
     addMode: "Lägg till del",
     removeMode: "Ta bort del",
     newSubject: "Nytt motiv",
