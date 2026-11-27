@@ -1,6 +1,6 @@
 # InFlight: illegal content risk assessment (UK Online Safety Act 2023)
 
-> **DRAFT for the owner to check and sign. Not legal advice.**
+> **Signed by the owner on 27 November 2026 (section 8). Not legal advice; not reviewed by a solicitor.**
 > Written on 26 November 2026 and updated on 27 November 2026 (no image scanning; accounts 18+) by a Claude session from what the code on `main` does. The estimates are the session's proposals for the owner to confirm. The owner must check every statement and sign it before shared projects, client galleries or cloud storage open to UK users.
 >
 > How to read the markings:
@@ -17,7 +17,7 @@
 | Provider | David Leitch, sole trader trading as InFlight, 7 High Street, Kington, HR5 3AX, United Kingdom (from `site/terms.html` §1) |
 | Person responsible for this assessment and for online safety compliance | David Leitch |
 | Date carried out | The date in section 8 |
-| Version | 0.2 draft, 27 November 2026 |
+| Version | 1.0, signed 27 November 2026 |
 | Next review | See section 7 |
 | Method | Ofcom's four steps for the illegal content risk assessment: (1) understand the kinds of illegal content to assess, (2) assess the risk of harm, (3) decide and put in place measures, record them, (4) report, review and update. **LAW: CHECK** against Ofcom's current Risk Assessment Guidance and Risk Profiles. |
 
@@ -198,6 +198,6 @@ Review this assessment:
 |---|---|
 | Name | David Leitch |
 | Role | Sole trader, trading as InFlight; person accountable for online safety |
-| Signature | ______________________ |
+| Signature | David Leitch (electronic signature, typed at the owner's written instruction in the InFlight project on 27 November 2026 at 17:56 GMT: "please accept this as signing. Put my name and date", then "signed") |
 | Date | 27 November 2026 |
 | Solicitor reviewed (name, firm, date) | ______________________ |
