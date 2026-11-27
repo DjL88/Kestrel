@@ -77,8 +77,9 @@ test('touching cells merge, separate blocks stay separate', () => {
   assert.deepEqual(rects, [{ col: 0, row: 0, cols: 2, rows: 2 }, { col: 3, row: 1, cols: 1, rows: 2 }]);
 });
 
-const kept: ColourSenseResult = { verdict: 'kept', before: 'blue', after: 'blue', nearGrey: false, hueShift: 2, saturationChange: 0.05, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: [] };
-const changed = (over: Partial<Extract<ColourSenseResult, { verdict: 'changed' }>>): ColourSenseResult => ({ ...kept, verdict: 'changed', outside: ['saturation'], saturationChange: 0.3, ...over } as ColourSenseResult);
+type Measured = Exclude<ColourSenseResult, { verdict: 'unknown' }>;
+const kept: Measured = { verdict: 'kept', before: 'blue', after: 'blue', nearGrey: false, hueShift: 2, saturationChange: 0.05, newlyClipped: { red: 0, green: 0, blue: 0 }, outside: [] };
+const changed = (over: Partial<Measured>): ColourSenseResult => ({ ...kept, verdict: 'changed', outside: ['saturation'], saturationChange: 0.3, ...over });
 
 test('the colour badge names kept, a small move, a big move and not-judged, each with its own shape', () => {
   assert.deepEqual(colourBadge(kept), { kind: 'kept', shape: 'tick', aspects: [] });

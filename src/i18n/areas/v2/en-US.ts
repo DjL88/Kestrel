@@ -101,4 +101,12 @@ export const enUS: AreaTranslation<typeof source> = {
   welcome: {
     guestBody: "Sign in to back up your catalog and use Pro on this device.",
   },
+  onImageAdvice: {
+    toggleTitle: "Show or hide advice on the photo: clipped areas, where it focused and a color check",
+    colourKept: "Colors kept",
+    colourAdjusted: "Colors adjusted",
+    colourReview: "Colors: check them",
+    colourUnsure: "Colors not checked",
+    colourLabel: "Color check",
+  },
 };

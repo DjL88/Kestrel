@@ -13,6 +13,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   editStyle: 'kestrel.preview.edit-style.v1',
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   usbTether: 'kestrel.preview.usb-tether.v1',
+  /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
+  onImageAdvice: 'kestrel.preview.on-image-advice.v1',
 } as const;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;
