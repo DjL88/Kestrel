@@ -632,7 +632,7 @@ export const nl: AreaTranslation<typeof source> = {
     noGenAiNote: "Er wordt niets gegenereerd. Gebruikt alleen maskers, ruisonderdrukking, toon en kleurcorrectie.",
     aboutLabel: "Over deze suggesties",
     reviewRunning: "Beoordeling bezig. Er wordt niets toegepast tot je kiest.",
-    reviewUnavailable: "Niet beschikbaar met dit abonnement of offline.",
+    reviewRunningShort: "Bezig met controleren…",
     applyAllSuggestions: 'Voorgesteld recept toepassen',
     applySingle: 'Toepassen',
     applied: 'Toegepast',
