@@ -158,6 +158,8 @@ export interface CollabClient {
   cloudUpload(projectId: string, photoKey: string, variant: CloudVariant, blob: Blob, name: string): Promise<void>;
   /** Downloads one cloud file. Counted against the project owner's allowance; the content is checked against its fingerprint. */
   cloudDownload(projectId: string, photoKey: string, variant: CloudVariant): Promise<Blob>;
+  /** Takes a photo's cloud copy (every variant) out of the cloud. The photo on this device is untouched. */
+  cloudRemove(projectId: string, photoKey: string): Promise<void>;
   usage(): Promise<CloudUsage>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
@@ -277,6 +279,7 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
       if (typeof signed.sha256 === 'string' && (await sha256Hex(blob)) !== signed.sha256) throw new CollabError('refused', 'CLOUD_MISMATCH', 'A downloaded photo did not match what was stored, so it was not used.');
       return blob;
     },
+    cloudRemove: async (id, key) => { await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/cloud/remove`, {}); },
     usage: async () => (await call('GET', '/v1/me/usage')) as unknown as CloudUsage,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
     notices: async () => { const r = await call('GET', '/v1/collab/notices'); return { notices: (r.notices ?? []) as Notice[], unread: Number(r.unread ?? 0) }; },

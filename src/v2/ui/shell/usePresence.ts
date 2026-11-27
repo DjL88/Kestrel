@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { screenToPhoto, type Peer } from '../../../core/editingSequence';
 import type { CollabClient } from '../../../providers/collabClient';
-import { readSharedLink } from '../dialogs/sharedLinks';
+import { readCollabLink } from '../dialogs/sharedLinks';
 
 export const frameElement = () => document.querySelector<HTMLElement>('.inflight-v2 [data-testid="canvas-frame"]');
 
@@ -16,7 +16,7 @@ export function usePresence(client: CollabClient, localProjectId: string | null,
   photo.current = photoId;
 
   useEffect(() => {
-    const shared = localProjectId ? readSharedLink(localProjectId) : null;
+    const shared = localProjectId ? readCollabLink(localProjectId) : null;
     if (!shared || !client.configured) { setPeers([]); return; }
     let closed = false;
     let close: (() => void) | null = null;

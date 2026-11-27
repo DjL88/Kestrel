@@ -9,6 +9,7 @@ import { saveExportFile } from '../../../providers/browserExport';
 import GalleryFeedbackPanel from './GalleryFeedbackPanel';
 import CloudPhotosPanel, { type LocalCloudPhoto } from './CloudPhotosPanel';
 import { readSharedLink, writeSharedLink } from './sharedLinks';
+import { COLLABORATION_UI } from '../../../core/storeInCloud';
 
 interface ShareDialogProps {
   open: boolean;
@@ -36,6 +37,8 @@ interface ShareDialogProps {
   onFlagPhoto?: (photoId: string) => void;
   /** Opens Settings › Account, where the cloud balance is topped up. Offered when cloud storage is full. */
   onTopUp?: () => void;
+  /** Only the offline portfolio (File › Save a portfolio): no account, nothing asked of the server. */
+  portfolioOnly?: boolean;
   onClose: () => void;
 }
 
@@ -45,7 +48,7 @@ const INVITE_ROLES: Exclude<CollabRole, 'owner'>[] = ['editor', 'commenter', 'vi
  * Share a project with named people (#1387 C01). Opt-in: nothing is contacted until this dialog opens, and a project
  * that is never shared keeps working offline. For now only the project name and the people are shared; the dialog says so.
  */
-export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, photoDecision, onFlagPhoto, onTopUp, onClose }: ShareDialogProps) {
+export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, photoDecision, onFlagPhoto, onTopUp, portfolioOnly = false, onClose }: ShareDialogProps) {
   const t = STRINGS.share;
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState<CollabProjectView | null>(null);
@@ -81,13 +84,15 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   useEffect(() => {
     if (!open) return;
     setView(null); setInvites([]); setProblem(null); setNote(null); setGalleryLink(null); setPortfolioNote(null);
+    // The offline portfolio needs no account and asks the server nothing.
+    if (portfolioOnly) return;
     if (!client.configured) { setProblem(t.notConfigured); return; }
     const linked = localProjectId ? readSharedLink(localProjectId) : null;
     void run(async () => {
       const [mine, waiting] = await Promise.all([linked ? client.project(linked) : Promise.resolve(null), client.invites()]);
       setView(mine); setInvites(waiting);
     });
-  }, [open, client, localProjectId, run, t]);
+  }, [open, client, localProjectId, run, t, portfolioOnly]);
 
   useEffect(() => {
     if (!open) return;
@@ -181,10 +186,10 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
       <section role="dialog" aria-modal="true" aria-labelledby="v2-share-title" data-testid="share-dialog"
         className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="v2-share-title" className="text-base font-semibold">{t.heading}</h2>
+          <h2 id="v2-share-title" className="text-base font-semibold">{portfolioOnly ? t.portfolioHeading : t.heading}</h2>
           <button ref={closeButton} type="button" onClick={onClose} className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">{t.close}</button>
         </div>
-        <p className="mb-3 text-sm text-[var(--text-secondary)]">{t.intro}</p>
+        {!portfolioOnly && <p className="mb-3 text-sm text-[var(--text-secondary)]">{t.intro}</p>}
         {problem && (
           <div role="alert" data-testid="share-problem" className="mb-3 space-y-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] p-2.5 text-sm">
             <p>{problem}</p>
@@ -216,7 +221,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
           </form>
         )}
 
-        {invites.length > 0 && (
+        {!portfolioOnly && invites.length > 0 && (
           <div className="mb-4">
             <h3 className="mb-1.5 text-xs font-semibold">{t.yourInvites}</h3>
             <ul className="space-y-1 text-sm">
@@ -230,12 +235,12 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
           </div>
         )}
 
-        {!view && client.configured && (
+        {!portfolioOnly && COLLABORATION_UI && !view && client.configured && (
           <button type="button" disabled={busy} onClick={start}
             className="min-h-10 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-sm font-semibold text-[var(--text-on-accent)] disabled:opacity-50">{t.start}</button>
         )}
 
-        {view && (
+        {!portfolioOnly && view && (
           <>
             <h3 className="mb-1.5 text-xs font-semibold">{t.people}</h3>
             <ul className="mb-3 max-h-48 space-y-1 overflow-y-auto text-sm">
@@ -253,7 +258,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
                 </li>
               ))}
             </ul>
-            {canInvite && (
+            {canInvite && COLLABORATION_UI && (
               <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void invite(); }}>
                 <h3 className="text-xs font-semibold">{t.inviteHeading}</h3>
                 <label className="block text-xs">{t.email}
