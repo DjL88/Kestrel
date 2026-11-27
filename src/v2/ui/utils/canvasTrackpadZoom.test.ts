@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isMouseWheelNotch, mouseWheelZoom, nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
+import { isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
 
 test('pinch apart zooms in, pinch together zooms out, normal zero delta is unchanged', () => {
   assert.ok(nextCanvasZoom(1, -30) > 1);
@@ -76,4 +76,15 @@ test('a mouse wheel notch zooms by the zoom bar step, within 0.25 to 8', () => {
   assert.equal(mouseWheelZoom(7.9, -100), 8);
   assert.equal(mouseWheelZoom(0.26, 100), 0.25);
   assert.equal(mouseWheelZoom(2, 0), 2);
+});
+
+test('the zoom limit always reaches 100% of the photo, and 400% past it, never less than 8× Fit', () => {
+  // A 45 MP Z8 photo (8,256 px across) fitted 507 px wide needs about 16.3× Fit for 100%.
+  const fit = 505 / 8256;
+  assert.ok(maxCanvasZoom(fit) >= 1 / fit);
+  assert.equal(maxCanvasZoom(fit), 4 / fit);
+  assert.equal(maxCanvasZoom(0.9), 8);
+  assert.equal(maxCanvasZoom(null), 8);
+  assert.equal(nextCanvasZoom(15, -120, 0, maxCanvasZoom(fit)) > 16, true);
+  assert.equal(keyboardZoomTarget('in', 40, fit, maxCanvasZoom(fit)), 50);
 });

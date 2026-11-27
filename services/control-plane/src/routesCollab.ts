@@ -1,6 +1,5 @@
 /** Shared-project routes (/v1/collab/*). */
 import type { Route } from './http.ts';
-import { freeStorageFor, storageAllowsUpload } from './cloudStorageBilling.ts';
 import { licenceIsUsable, type Store } from './store.ts';
 import { emailHashOf } from './entitlement.ts';
 import { MAX_RECIPE_BYTES } from './collaboration.ts';
@@ -14,7 +13,7 @@ import { PhotoId, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 
 export function collabRoutes(ctx: AppContext): Route[] {
-  const { options, store, now, audit, bearer, switchOn, accountIsPro, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety } = ctx;
+  const { options, store, now, audit, bearer, switchOn, collabCfg, collabWritable, collab, storageGate, cloudCfg, cloud, notify, galleryCfg, gallery, galleryOwner, safety } = ctx;
   return [
 
   // ---- Shared projects (#1387 C01-C03). Membership, per-photo checkout and never-last-write-wins revisions.
@@ -194,11 +193,7 @@ export function collabRoutes(ctx: AppContext): Route[] {
       await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
       const cfg = cloudCfg();
       // Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance. Nothing stored is ever removed.
-      const payer = await collab(() => c.payerOf(params.id));
-      await settleStorage(payer);
-      if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes, freeStorageFor(await accountIsPro(payer))))) {
-        throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner needs cloud balance for more storage (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
-      }
+      await storageGate(params.id, body.bytes);
       return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
     },
   },
@@ -302,7 +297,9 @@ export function collabRoutes(ctx: AppContext): Route[] {
     method: 'POST', path: '/v1/collab/galleries/:gid/photos/:photoId/upload-url', summary: 'A short-lived signed URL to upload one sized JPEG preview', auth: 'user', body: Schemas.GalleryPreview,
     handler: async (req, params) => {
       const body = parseJson(Schemas.GalleryPreview, req.rawBody);
-      await galleryOwner(req, params.gid);
+      const { g } = await galleryOwner(req, params.gid);
+      // Gallery previews count towards the same storage as cloud photos (Pro 2.5 GB for shared projects and galleries).
+      await storageGate(g.projectId, body.bytes);
       return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes, body.variant)) } };
     },
   },

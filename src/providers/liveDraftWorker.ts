@@ -7,7 +7,8 @@
  *
  * Started by liveDraft.ts.
  */
-import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyCanvasPhotoEdit, setGpuRenderer } from '../core/canvasEdit';
+import { renderEditOnGpu } from './webglEdit';
 import { fullContext } from '../core/masks';
 import { drawFramedPhoto, lensCentre, type PhotoFraming } from '../core/photoFraming';
 import { createStageCache } from '../core/stageCache';
@@ -21,6 +22,9 @@ interface Slot {
   lens: LensCentre;
   sized?: { edge: number; pixels: ImageData };
 }
+
+// The same tone renderer as the page (WebGL on an OffscreenCanvas), so a picture drawn here matches one drawn there.
+setGpuRenderer(renderEditOnGpu);
 
 const slots = new Map<string, Slot>();
 /** Each picture's full-resolution photo for zoomed-in detail, decoded here once. */
@@ -112,6 +116,16 @@ scope.onmessage = (event) => {
           .finally(() => { if (decoding.get(request.slot) === done) decoding.delete(request.slot); });
         decoding.set(request.slot, done);
         await done;
+        return;
+      }
+      if (request.type === 'check') {
+        const canvas = new OffscreenCanvas(request.width, request.height);
+        const context = canvas.getContext('2d', { willReadFrequently: true })!;
+        context.putImageData(new ImageData(request.data as Uint8ClampedArray<ArrayBuffer>, request.width, request.height), 0, 0);
+        // Only the graphics-card step: everything else is the same JavaScript here as on the page, so it gives the same bytes.
+        const usedGpu = renderEditOnGpu(canvas as unknown as HTMLCanvasElement, request.edit);
+        const pixels = context.getImageData(0, 0, request.width, request.height).data;
+        scope.postMessage({ id: request.id, pixels, usedGpu }, [pixels.buffer]);
         return;
       }
       if (request.type === 'detail-source') {

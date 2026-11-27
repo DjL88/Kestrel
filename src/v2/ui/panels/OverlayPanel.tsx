@@ -362,6 +362,11 @@ export default function OverlayPanel({
                   onListDeviceFonts={onListDeviceFonts}
                   onHasDeviceFont={onHasDeviceFont}
                 />
+                <label className="mt-2 flex items-center gap-2 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="overlay-raw-camera-names">
+                  <input type="checkbox" checked={overlay.rawCameraNames === true}
+                    onChange={(e) => onUpdateOverlay(photo.id, { rawCameraNames: e.target.checked })} />
+                  {STRINGS.overlays.rawCameraNames}
+                </label>
               </div>
 
               {/* Per-image place on the 9-point grid, and how the rows line up */}

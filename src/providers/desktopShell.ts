@@ -14,12 +14,21 @@ const extensionOf = (name: string) => name.includes('.') ? name.slice(name.lastI
  * Ask where to save with the system's own dialog, then write the file there. Returns false if the person cancelled.
  * The app can write only the place they chose.
  */
-export async function saveWithDialog(blob: Blob, name: string, requireMatchingExtension = false, signal?: AbortSignal): Promise<boolean> {
+export async function saveWithDialog(blob: Blob, name: string, requireMatchingExtension = false, signal?: AbortSignal, options: { startInExports?: boolean } = {}): Promise<boolean> {
   const [{ save }, { open, remove }] = await Promise.all([import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs')]);
   const extension = extensionOf(name);
-  const path = await save({ defaultPath: name, filters: extension ? [{ name: extension.toUpperCase(), extensions: [extension] }] : undefined });
+  // An export starts where the last export went, else Pictures\InFlight Exports, else Pictures: never in whichever
+  // folder the system last browsed, which was often the originals' own (Dave, 27 Nov: a ZIP offered D:\Photos\...).
+  const start = options.startInExports ? await exportStartFolder() : undefined;
+  const defaultPath = start ? await import('@tauri-apps/api/path').then(({ join }) => join(start, name)).catch(() => name) : name;
+  const path = await save({ defaultPath, filters: extension ? [{ name: extension.toUpperCase(), extensions: [extension] }] : undefined });
   signal?.throwIfAborted();
   if (!path) return false;
+  if (options.startInExports) {
+    const { parentFolder, rememberExportFolder } = await import('../core/exportFolderChoice');
+    const folder = parentFolder(path);
+    if (folder) rememberExportFolder(typeof localStorage === 'undefined' ? null : localStorage, folder);
+  }
   if (requireMatchingExtension && extensionOf(path.split(/[\\/]/).at(-1) ?? '') !== extension) {
     throw new Error(`Choose a filename ending in .${extension}.`);
   }
@@ -40,6 +49,22 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
   return true;
 }
 
+
+/** Where an export's Save As starts: see saveStartFolder. Undefined leaves it to the system. */
+async function exportStartFolder(): Promise<string | undefined> {
+  try {
+    const { lastExportFolder, saveStartFolder } = await import('../core/exportFolderChoice');
+    const last = lastExportFolder(typeof localStorage === 'undefined' ? null : localStorage);
+    if (last) return last;
+    const { pictureDir, join } = await import('@tauri-apps/api/path');
+    const pictures = await pictureDir();
+    const inflightExports = await join(pictures, 'InFlight Exports');
+    const inflightExportsExists = await import('@tauri-apps/plugin-fs').then(({ exists }) => exists(inflightExports)).catch(() => false);
+    return saveStartFolder({ pictures, inflightExports, inflightExportsExists });
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * An explicitly selected local desktop folder. A unique run folder makes

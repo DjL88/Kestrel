@@ -29,6 +29,23 @@ function timing(task: TaskInfo, clock: number) {
 
 const controlStyle = 'inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40';
 export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCompleted, cloudUsage }: TasksPanelProps) {
+  // A running card only grows, never shrinks, until its task finishes: its tallest height so far is kept as its minimum,
+  // so the list does not move as a task's words get shorter (owner, 27 Nov: "make the box size static to the largest entry").
+  const tallest = useRef(new Map<string, number>());
+  const growOnly = (id: string, running: boolean) => (element: HTMLElement | null) => {
+    if (!element) return;
+    if (!running) { tallest.current.delete(id); element.style.minHeight = ''; return; }
+    const keep = () => {
+      const height = Math.max(element.getBoundingClientRect().height, tallest.current.get(id) ?? 0);
+      tallest.current.set(id, height);
+      element.style.minHeight = `${height}px`;
+    };
+    keep();
+    if (typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(keep);
+    watch.observe(element);
+    return () => watch.disconnect();
+  };
   const [tab, setTab] = useState<'active' | 'completed'>('active');
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
@@ -110,7 +127,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         const seconds = timing(task, clock);
         const queueIndex = queuedOrder.indexOf(taskId);
         return (
-          <article key={task.id} data-testid="task-row" data-task-id={task.id} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
+          <article key={task.id} ref={growOnly(task.id, active(task.status))} data-testid="task-row" data-task-id={task.id} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="break-words text-xs font-semibold text-[var(--text-primary)]">{task.label}</p>
@@ -123,12 +140,20 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
               <progress aria-label={STRINGS.taskControls.progressLabel(task.label)} max={100} value={task.progress} className="block h-2 w-full" />
             </div>
             {task.total !== undefined && task.total !== null && (
-              <p className="text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.processed(task.done ?? 0, task.total)}</p>
+              <p className="text-xs tabular-nums text-[var(--text-secondary)]">{STRINGS.taskControls.processed(task.done ?? 0, task.total)}</p>
             )}
-            {task.stage && <p className="break-words text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.stage(task.stage)}</p>}
+            {/* While it runs, the stage and the detail each keep two lines (the rest is in the tooltip), so the card does not
+                jump as their words change (owner, 27 Nov). */}
+            {active(task.status)
+              ? <p className="line-clamp-2 min-h-8 break-words text-xs tabular-nums text-[var(--text-secondary)]" title={task.stage ? STRINGS.taskControls.stage(task.stage) : undefined} data-testid="task-stage">{task.stage ? STRINGS.taskControls.stage(task.stage) : null}</p>
+              : task.stage && <p className="break-words text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.stage(task.stage)}</p>}
             {(() => { const cost = cloudTaskCost(task, cloudUsage); return cost && <p data-testid="task-cloud-cost" className="break-words text-xs text-[var(--text-secondary)]">{cost}</p>; })()}
-            {task.detail && <p role={task.status === 'failed' ? 'alert' : undefined} className="break-words text-xs text-[var(--text-secondary)]">{task.detail}</p>}
-            {seconds && <p className="text-xs tabular-nums text-[var(--text-muted)]">{seconds}</p>}
+            {active(task.status)
+              ? <p className="line-clamp-2 min-h-8 break-words text-xs tabular-nums text-[var(--text-secondary)]" title={task.detail || undefined}>{task.detail}</p>
+              : task.detail && <p role={task.status === 'failed' ? 'alert' : undefined} className="break-words text-xs text-[var(--text-secondary)]">{task.detail}</p>}
+            {active(task.status)
+              ? <p className="min-h-4 text-xs tabular-nums text-[var(--text-muted)]">{seconds}</p>
+              : seconds && <p className="text-xs tabular-nums text-[var(--text-muted)]">{seconds}</p>}
             {task.items && task.items.length > 0 && (
               <details className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2">
                 <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-[var(--text-primary)]">

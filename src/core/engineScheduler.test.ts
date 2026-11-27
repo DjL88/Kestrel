@@ -559,3 +559,92 @@ test('a single file read starts at once at 100% CPU and little memory, and never
   assert.equal(ran, true);
   assert.doesNotMatch(store.list().find(task => task.id === ticket.taskId)?.detail ?? '', /^Waiting/);
 });
+
+test('an export of several photos the person asked for starts beside Auto pick on a busy computer', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let picking = 0;
+  const autoPick = await scheduler.submit(batch('Auto pick', 3, async () => { picking += 1; await held; }, { priority: 5 }));
+  await until(() => picking === 1, 'Auto pick runs');
+  const exported: number[] = [];
+  const exporting = await scheduler.submit({ ...batch('Exporting 2 photos', 2, async (n) => { exported.push(n); }, { resource: 'gpu', priority: 20, interactive: true }), kind: 'export' });
+  assert.equal(await exporting.finished, 'done', 'not held behind Auto pick or by the load');
+  assert.deepEqual(exported, [1, 2]);
+  release();
+  assert.equal(await autoPick.finished, 'done');
+});
+
+const THUMBS = { key: 'thumbnails:p1', title: 'Preparing thumbnails' };
+
+test('per-photo jobs with one group show as ONE row that counts up, with the photos listed under it', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 } });
+  const gates = Array.from({ length: 3 }, () => { let open!: () => void; const p = new Promise<void>(r => { open = r; }); return { p, open }; });
+  const tickets = await Promise.all(gates.map((gate, i) => scheduler.submit(batch(`Preparing 1 thumbnail`, 1, async () => { await gate.p; },
+    { resource: 'io', light: true, group: THUMBS, itemLabel: () => `DSC_${i}.NEF` }))));
+  assert.equal(new Set(tickets.map(t => t.taskId)).size, 1, 'one row for all three');
+  const row = () => store.list().find(task => task.id === tickets[0].taskId)!;
+  assert.equal(store.list().length, 1, 'no row per photo');
+  assert.equal(row().title, 'Preparing thumbnails');
+  assert.equal(row().total, 3);
+  assert.deepEqual(row().items?.map(item => item.label), ['DSC_0.NEF', 'DSC_1.NEF', 'DSC_2.NEF']);
+  gates[0].open();
+  assert.equal(await tickets[0].finished, 'done');
+  await until(() => row().done === 1, 'counts up as each finishes');
+  assert.match(row().detail ?? '', /1 of 3/);
+  gates[1].open(); gates[2].open();
+  for (const ticket of tickets) assert.equal(await ticket.finished, 'done');
+  await until(() => row().state === 'done', 'the row finishes once every photo is done');
+  assert.equal(row().done, 3);
+  // The next photo starts a new row; the finished one stays as one summary row.
+  const later = await scheduler.submit(batch('Preparing 1 thumbnail', 1, async () => {}, { resource: 'io', light: true, group: THUMBS }));
+  assert.notEqual(later.taskId, tickets[0].taskId);
+  assert.equal(await later.finished, 'done');
+  assert.equal(store.list().length, 2);
+});
+
+test('Cancel and Pause on a grouped row act on all of its photos; one job\'s own cancel stops only that one', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 } });
+  let release!: () => void;
+  const held = new Promise<void>(r => { release = r; });
+  const ran: number[] = [];
+  const blocker = await scheduler.submit(batch('Develop', 1, async () => { await held; }));
+  const jobs = await Promise.all([1, 2, 3].map(n => scheduler.submit(batch('Check', 1, async () => { ran.push(n); }, { group: { key: 'checks:p1', title: 'Checking photos and their colour' } }))));
+  const rowId = jobs[0].taskId;
+  // One job's own cancel (a tile that scrolled away) leaves the others.
+  assert.equal(jobs[0].cancel(), true);
+  assert.equal(await jobs[0].finished, 'cancelled');
+  assert.equal(store.list().find(task => task.id === rowId)?.state !== 'cancelled', true, 'the row carries on');
+  // Pause on the row holds the rest; Resume lets them run.
+  await until(() => ran.length === 0 && jobs.slice(1).every(t => t.queued()), 'the rest are waiting');
+  assert.equal(scheduler.pause(rowId), true);
+  await until(() => store.list().find(task => task.id === rowId)?.state === 'paused', 'the row says paused');
+  assert.equal(scheduler.resume(rowId), true);
+  // Cancel on the row stops everything still in it.
+  assert.equal(store.cancel(rowId), true);
+  assert.equal(await jobs[1].finished, 'cancelled');
+  assert.equal(await jobs[2].finished, 'cancelled');
+  release();
+  assert.equal(await blocker.finished, 'done');
+  assert.deepEqual(ran, [], 'nothing in the cancelled row ran');
+});
+
+test('grouping is only how the row is shown: the tile on screen still runs first', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 } });
+  let release!: () => void;
+  const held = new Promise<void>(r => { release = r; });
+  const order: string[] = [];
+  const reading = await scheduler.submit(batch('Import', 1, async () => { await held; }, { resource: 'io' }));
+  const background = await scheduler.submit(batch('Preparing 2 thumbnails', 2, async (n) => { order.push(`background ${n}`); }, { resource: 'io', priority: 1, group: THUMBS }));
+  release();
+  const onScreen = await scheduler.submit(batch('Preparing 1 thumbnail', 1, async () => { order.push('on screen'); }, { resource: 'io', light: true, priority: 500, group: THUMBS }));
+  assert.equal(onScreen.taskId, background.taskId, 'the same row');
+  assert.equal(await onScreen.finished, 'done');
+  assert.equal(await background.finished, 'done');
+  assert.equal(await reading.finished, 'done');
+  assert.equal(order[0], 'on screen');
+});

@@ -490,7 +490,7 @@ export async function renderExport(
 /** Complete the selected native save or hand the file to the browser download manager. */
 export async function saveExportFile(blob: Blob, name: string, signal: AbortSignal): Promise<boolean> {
   signal.throwIfAborted();
-  if (isDesktopApp()) return saveWithDialog(blob, name, true, signal);
+  if (isDesktopApp()) return saveWithDialog(blob, name, true, signal, { startInExports: true });
   downloadInBrowser(blob, name);
   return true;
 }
@@ -498,7 +498,7 @@ export async function saveExportFile(blob: Blob, name: string, signal: AbortSign
 export function downloadExport(blob: Blob, name: string) {
   if (isDesktopApp()) {
     // The desktop app has no browser download bar, so it asks where to save. If that fails, fall back to a browser download.
-    saveWithDialog(blob, name).catch(() => downloadInBrowser(blob, name));
+    saveWithDialog(blob, name, false, undefined, { startInExports: true }).catch(() => downloadInBrowser(blob, name));
     return;
   }
   downloadInBrowser(blob, name);
