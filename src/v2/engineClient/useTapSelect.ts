@@ -62,21 +62,32 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
   }, []);
 
   /** Read one photo for tap to select (or join a reading already running for it). The same path for a tap and a read-ahead. */
+  /** The stored screen develop, else the picture shown now; null when there is neither. */
+  const screenSizePicture = useCallback(async (frame: PhotoFrame): Promise<HTMLImageElement | null> => {
+    const source = provider.current!;
+    const review = (await source.developedReview(frame).catch(() => null))?.review;
+    if (review) {
+      const url = URL.createObjectURL(review);
+      try { return await loadImage(url); } finally { URL.revokeObjectURL(url); }
+    }
+    const shown = await source.getFullPreviewUrl(frame, 'selected').catch(() => '');
+    return shown ? loadImage(shown).catch(() => null) : null;
+  }, [provider]);
+
   const readPhoto = useCallback(async (frame: PhotoFrame) => {
     const framing = frame.framing ?? DEFAULT_FRAMING;
     const key = keyOf(frame);
-    // A mask needs the photo's shape and content, not export-grade pixels: fall back to the shown preview for RAW/HEIF.
-    const image = await loadExportSource(frame, provider.current!).catch(async (reason) => {
-      const shown = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
-        ? await provider.current!.getFullPreviewUrl(frame, 'selected').catch(() => '') : '';
-      if (!shown) throw reason;
-      return loadImage(shown);
-    });
+    // A mask needs the photo's shape and content at READ_EDGE (2,048 px), not export-grade pixels. For a RAW or HEIF the
+    // stored 2,200 px screen develop, or else the picture already shown, is enough: a full 45 MP develop took most of the
+    // "Reading the photo once" wait. Only when neither exists is the full source developed.
+    const image = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
+      ? await screenSizePicture(frame) ?? await loadExportSource(frame, provider.current!)
+      : await loadExportSource(frame, provider.current!);
     const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
     const framed = document.createElement('canvas');
     drawFramedPhoto(image, framed, framing, { scale: Math.min(1, READ_EDGE / Math.max(width, height)) });
     return { key, size: await encodePhoto(framed, key), framing: framingKey(framing) };
-  }, [provider]);
+  }, [provider, screenSizePicture]);
 
   // Read ahead: the photo open in the editor, once it has stayed there a moment and no other heavy work is running.
   // Not a scheduler job on purpose: with free memory unknown the scheduler runs one heavy job at a time and cannot stop

@@ -2289,7 +2289,7 @@ export const sv: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Läser in foto',
-    minutesLeft: (n: number) => `Ungefär ${n} min kvar`,
+    minutesLeft: (n: number) => (n < 60 ? `Ungefär ${n} min kvar` : `Ungefär ${Math.floor(n / 60)} h ${n % 60} min kvar`),
     teaTime: 'Dags för en kopp te',
   },
 };

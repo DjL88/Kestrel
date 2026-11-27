@@ -55,7 +55,13 @@ function asProject(value: unknown): LastProject | null {
   const v = value as Record<string, unknown>;
   if (typeof v.id !== 'string' || typeof v.name !== 'string' || typeof v.editedAt !== 'string') return null;
   if (typeof v.photoCount !== 'number' || !Number.isFinite(v.photoCount)) return null;
-  return { id: v.id, name: v.name, photoCount: v.photoCount, editedAt: v.editedAt };
+  const project: LastProject = { id: v.id, name: v.name, photoCount: v.photoCount, editedAt: v.editedAt };
+  const thumbs = v.thumbs as { keys?: unknown; developVersion?: unknown } | undefined;
+  if (thumbs && Array.isArray(thumbs.keys) && typeof thumbs.developVersion === 'number') {
+    const keys = thumbs.keys.filter((key): key is string => typeof key === 'string' && key.length > 0).slice(0, 3);
+    if (keys.length) project.thumbs = { keys, developVersion: thumbs.developVersion };
+  }
+  return project;
 }
 
 export function readProfile(s: Partial<LaunchStorages> = defaults()): LaunchProfile | null {

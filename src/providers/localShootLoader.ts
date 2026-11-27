@@ -1,4 +1,5 @@
 import { isHeifFile, PHOTO_EXTENSIONS } from '../core/rawFormats';
+import { nativeFingerprint } from './nativeImportIo';
 import { assignBurstGroups } from '../core/cullingEngine';
 import { spreadPhotoOrder } from '../core/photoProcessingOrder';
 import { completeImportChunk } from '../core/progressiveImportChunk';
@@ -94,7 +95,9 @@ async function importLinkedWithoutFullRead(
     // Fingerprint exact bytes before exposing a linked original or cached preview.
     // RangeBlob hashes in bounded 1 MiB slices and rejects truncated reads.
     try {
-      originalSha256 = await hashOriginalBytes(source);
+      // The app reads it itself when it can: one call at the drive's speed, not a seek and a read per MiB across the
+      // bridge, which made a 2,000-RAW folder import at about 4 photos a minute.
+      originalSha256 = await nativeFingerprint(file.path, file.size) ?? await hashOriginalBytes(source);
     } catch {
       // A failed or short ranged read cannot establish identity; do not register the photo.
       return null;

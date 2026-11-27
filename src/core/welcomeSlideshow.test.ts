@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CROSSFADE_MS, PRELOAD_MS, SLIDE_MS, SLIDESHOW_LIMIT, asSlideshowSnapshot, pickSlideshowPhotos, runSlideshow, slideshowDots, slideshowForProject,
+  CROSSFADE_MS, PRELOAD_MS, SLIDE_MS, SLIDESHOW_LIMIT, asSlideshowSnapshot, pickResumePhotos, pickSlideshowPhotos, runSlideshow, slideshowDots, slideshowForProject,
   slideshowWanted, type SlideshowFrame, type SlideshowView,
 } from './welcomeSlideshow';
 
@@ -164,4 +164,12 @@ test('slideshowDots: one dot per readable photo, the showing one marked', () => 
   const view: SlideshowView = { shown: { index: 3, url: 'u' }, incoming: null, fading: false, missing: [1], moved: true };
   assert.deepEqual(slideshowDots(view, 4), { count: 3, current: 2 });
   assert.deepEqual(slideshowDots({ ...view, shown: null }, 4), { count: 3, current: 0 });
+});
+
+test('pickResumePhotos: flagged first, then the rest in order, never removed or virtual copies, at most three', () => {
+  const frame = (id: string, over: Record<string, unknown> = {}) => ({ id, stableKey: id, decision: 'unreviewed', removedAt: null, virtualCopy: false, ...over });
+  const frames = [frame('a'), frame('b', { decision: 'keep' }), frame('c', { removedAt: 1 }), frame('d', { virtualCopy: true }), frame('e'), frame('f')];
+  assert.deepEqual(pickResumePhotos(frames as never[]).map((f: { id: string }) => f.id), ['b', 'a', 'e']);
+  assert.deepEqual(pickResumePhotos([frame('a')] as never[]).map((f: { id: string }) => f.id), ['a']);
+  assert.deepEqual(pickResumePhotos([]), []);
 });

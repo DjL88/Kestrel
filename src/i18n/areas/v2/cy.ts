@@ -2289,7 +2289,7 @@ export const cy: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Wrthi\'n llwytho\'r llun',
-    minutesLeft: (n: number) => `Tua ${n} munud ar ôl`,
+    minutesLeft: (n: number) => (n < 60 ? `Tua ${n} munud ar ôl` : `Tua ${Math.floor(n / 60)} h ${n % 60} munud ar ôl`),
     teaTime: 'Amser am baned o de',
   },
 };
