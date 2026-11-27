@@ -999,6 +999,10 @@ export const is: AreaTranslation<typeof source> = {
     groupChanged: "Breytt",
     groupResetShort: "Endurstilla",
     groupReset: (name) => `Endurstilla ${name}`,
+    cvdOn: "Kveikt",
+    cvdOff: "Slökkt",
+    cvdOnHint: "Litir eru nefndir með orðum hér, og rauð og græn svæði sem líkjast hvort öðru eru afmörkuð og númeruð á myndinni.",
+    cvdOffHint: "Kveiktu á þessu til að fá litina nefnda með orðum á meðan þú vinnur.",
     resetPhoto: 'Endurstilla mynd',
     stopsSuffix: 'EV',
     tooltips: {

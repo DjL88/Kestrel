@@ -999,6 +999,10 @@ export const it: AreaTranslation<typeof source> = {
     groupChanged: "Modificato",
     groupResetShort: "Ripristina",
     groupReset: (name) => `Ripristina ${name}`,
+    cvdOn: "Attivo",
+    cvdOff: "Disattivo",
+    cvdOnHint: "Qui i colori sono indicati a parole, e le zone rosse e verdi che si somigliano sono contornate e numerate sulla foto.",
+    cvdOffHint: "Attivalo per avere i colori indicati a parole mentre modifichi.",
     resetPhoto: 'Ripristina foto',
     stopsSuffix: 'EV',
     tooltips: {

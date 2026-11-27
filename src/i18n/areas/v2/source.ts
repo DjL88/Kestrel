@@ -156,9 +156,9 @@ export const source = {
     },
     /** One plain line per Flight mode, shown wherever the mode is chosen. Co-pilot is InFlight's own helper, not another company's assistant. */
     assistModeHints: {
-      solo: 'InFlight does nothing until you ask. You cull and edit yourself.',
-      copilot: "InFlight's own helper suggests picks and edits, such as offering to cull after an import. You approve each one.",
-      autopilot: 'InFlight applies the picks and edits it is confident about. Anything uncertain is left for you to review.',
+      solo: 'InFlight does nothing until you ask. You pick and edit your photos yourself.',
+      copilot: "InFlight suggests which photos to keep and how to edit them. Nothing changes until you say yes.",
+      autopilot: 'InFlight makes the picks and edits it is sure of. Anything it is unsure of waits for you.',
     },
     fileActions: {
       newProject: 'New project',
@@ -659,14 +659,14 @@ export const source = {
     modeForProject: 'Flight mode for this project',
     nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
-      solo: 'Solo mode: you stay in manual control. Choose Check photo on this device when you want suggestions.',
-      copilot: 'Co-pilot mode: InFlight checks the open photo on this device and lets you choose any suggested edit.',
-      autopilot: 'Auto-pilot mode: InFlight can apply a checked edit to an untouched photo when you open it.',
+      solo: 'Solo: you are in control. Press Check photo on this device whenever you want ideas.',
+      copilot: 'Co-pilot: InFlight looks at this photo on this device and suggests edits. You choose which to use.',
+      autopilot: 'Auto-pilot: when you open a photo you have not edited yet, InFlight can apply an edit it has checked. Undo takes it back.',
     },
     runReviewButton: 'Deep Vision Review',
     localReviewButton: 'Check photo on this device',
     runReviewSub: "On-device RAW models + your own AI helper, if connected · Nothing generated",
-    ongoingBadge: 'Ongoing analysis active — updates as you adjust sliders',
+    ongoingBadge: 'Checking again as you edit.',
     noGenAiNote: "Nothing is generated. Uses masking, denoise, tone and colour grading only.",
     aboutLabel: "About these suggestions",
     reviewRunning: "Review in progress. Nothing is applied until you choose.",
@@ -840,6 +840,10 @@ export const source = {
     groupChanged: "Changed",
     groupResetShort: "Reset",
     groupReset: (name: string) => `Reset ${name}`,
+    cvdOn: 'On',
+    cvdOff: 'Off',
+    cvdOnHint: 'Colours are named in words here, and red and green areas that look alike are outlined and numbered on the photo.',
+    cvdOffHint: 'Turn on to have colours named in words while you edit.',
     resetPhoto: 'Reset photo',
     stopsSuffix: 'EV',
     tooltips: {
@@ -1283,8 +1287,8 @@ export const source = {
   // Assist Panel (AI Opinion & Colour-Blind Confidence)
   assist: {
     heading: 'Assist Review',
-    subtitle: 'Plain-English guidance designed for low-confidence and colour-blind workflows.',
-    colourConfidenceHeading: 'Colour & Tone Reassurance',
+    subtitle: 'What InFlight sees in this photo, in plain words.',
+    colourConfidenceHeading: 'Colour check',
     opinionHeading: 'Current photo critique',
     refreshReview: 'Re-check current edits',
     applyRecommendation: 'Apply tweak',
