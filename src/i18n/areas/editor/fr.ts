@@ -291,7 +291,7 @@ export const fr: AreaTranslation<typeof source> = {
     tone: 'Tons',
     detail: 'Détail',
     brightnessTitle: 'Régler la luminosité des tons moyens en gardant le noir et le blanc purs ; utilisez Exposition pour la lumière d’ensemble',
-    denoiseTitle: 'Lisse les taches de couleur des photos à ISO élevé ; ne prétend pas restaurer des détails par IA',
+    denoiseTitle: "Lisse les taches de couleur des photos à ISO élevé. N’ajoute aucun détail.",
     denoiseHelp: 'Lisse seulement les taches de couleur. Les contours et la texture fine restent tels quels.',
     exportFocus: 'Point d’intérêt pour l’export',
     cancelPlacement: 'Annuler le placement',

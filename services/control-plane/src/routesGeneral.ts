@@ -18,7 +18,7 @@ import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } f
 import type { AppContext } from './appContext.ts';
 
 export function generalRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
+  const { options, config, store, now, paddleSandbox, mayBuy, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
   return [
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
@@ -484,6 +484,16 @@ export function generalRoutes(ctx: AppContext): Route[] {
       // The body's subscription_id is only a pointer: settlement fetches the transaction and subscription from Paddle.
       if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
         if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+        // Test payments (sandbox), belt and braces beside the checkout gate: a test-card payment for anyone who is not
+        // a tester is acknowledged and ignored, so it never grants Pro or credit.
+        if (paddleSandbox) {
+          const custom = (event.data as { custom_data?: { accountId?: unknown } | null }).custom_data;
+          const accountId = typeof custom?.accountId === 'string' ? custom.accountId : undefined;
+          if (!(await mayBuy(accountId))) {
+            await audit(accountId ?? 'paddle', 'paddle.sandbox.ignored', 'denied', event.data.id!);
+            return { status: 200, body: { received: true, outcome: 'ignored-sandbox-non-tester' } };
+          }
+        }
         const subscriptionId = typeof event.data.subscription_id === 'string' && PADDLE_SUBSCRIPTION_ID.test(event.data.subscription_id) ? event.data.subscription_id : undefined;
         try { await options.settlePaddle(event.data.id!, subscriptionId ? { subscriptionId } : undefined); }
         catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }

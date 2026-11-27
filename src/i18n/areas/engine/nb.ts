@@ -51,8 +51,8 @@ export const nb: AreaTranslation<typeof source> = {
     failedCheck: 'Resultatet besto ikke kvalitetskontrollen. De eksisterende redigeringene dine ble beholdt.',
     mainThread: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
     workerUnavailable: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så ingenting ble endret (å kjøre det her ville fryse InFlight). Prøv igjen etter at du har startet InFlight på nytt.',
-    learnedNoWorker: 'AI-støyfjerningen kunne ikke kjøre i bakgrunnen på denne enheten, så bare den innebygde støyfjerningen ble sammenlignet.',
-    learnedLostDetail: 'I full størrelse glattet KI-støyreduksjonen bort ekte detaljer på motivet, så den innebygde støyreduksjonen ble brukt i stedet.',
+    learnedNoWorker: "Den lærte støyfjerningen kunne ikke kjøre i bakgrunnen på denne enheten, så bare den innebygde støyfjerningen ble sammenlignet.",
+    learnedLostDetail: "I full størrelse glattet den lærte støyreduksjonen bort ekte detaljer på motivet, så den innebygde støyreduksjonen ble brukt i stedet.",
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
   },
   workspace: {

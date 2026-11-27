@@ -46,6 +46,16 @@ export function createContext(options: AppOptions) {
   const firebaseKeys: OidcKeys = options.firebaseKeys ?? oidcKeysFromNetwork(FIREBASE_KEYS_URL);
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
+  /** Test payments: while Paddle is in its sandbox, only these accounts may buy (the admins and KCP_SANDBOX_TESTERS). */
+  const paddleSandbox = options.paddleEnvironment === 'sandbox';
+  const sandboxTesterHashes = new Set([...adminEmailHashes, ...config.sandboxTesters.map((email) => sha256Hex(email))]);
+  /** May this account pay through Paddle now? Always in production; in the sandbox only a tester. */
+  async function mayBuy(accountId: string | undefined): Promise<boolean> {
+    if (!paddleSandbox) return true;
+    if (!accountId) return false;
+    const account = await store.getAccount(accountId).catch(() => undefined);
+    return Boolean(account?.emailHash && sandboxTesterHashes.has(account.emailHash));
+  }
   const activateLimiter = new RateLimiter(20, 60_000);
   const paddleLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
@@ -567,7 +577,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

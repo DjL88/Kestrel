@@ -15,7 +15,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.t
 import type { AppContext } from './appContext.ts';
 
 export function meRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
+  const { options, config, store, now, mayBuy, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
   return [
   // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
   // originals are never on this service, so nothing here can reach them.
@@ -138,7 +138,8 @@ export function meRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await bearer(req);
       const checkout = options.proCheckout;
-      if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
+      // Test payments (sandbox): someone who is not a tester sees the same state as before Pro goes on sale.
+      if (!checkout || !(await switchOn('pro-checkout')) || !(await mayBuy(claims.sub))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
       if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
       const { plan } = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
       const t = now();
@@ -175,7 +176,7 @@ export function meRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await bearer(req);
       const checkout = options.topUpCheckout;
-      if (!checkout || !(await switchOn('cloud-top-ups'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
+      if (!checkout || !(await switchOn('cloud-top-ups')) || !(await mayBuy(claims.sub))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
       if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
       const { pence } = parseJson(Schemas.TopUpCheckoutRequest, req.rawBody);
       if (!checkout.amounts.includes(pence)) throw new ApiError(400, 'TOP_UP_UNAVAILABLE', 'That amount is not on sale.');

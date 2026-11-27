@@ -997,7 +997,7 @@ test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the r
   const path = await saved.path();
   const size = await page.evaluate(async (data) => { const bitmap = await createImageBitmap(await (await fetch(data)).blob()); return { w: bitmap.width, h: bitmap.height }; },
     'data:image/png;base64,' + (await import('node:fs')).readFileSync(path!).toString('base64'));
-  const stage = await root.getByTestId('canvas-frame').evaluate((el) => { const s = el.closest('div.overflow-auto') as HTMLElement; return { w: s.clientWidth, h: s.clientHeight }; });
+  const stage = await root.getByTestId('canvas-frame').evaluate((el) => { const s = el.closest('[data-testid="canvas-stage"]') as HTMLElement; return { w: s.clientWidth, h: s.clientHeight }; });
   expect(size.w).toBeGreaterThanOrEqual(stage.w * 2 - 2);
   expect(size.h).toBeGreaterThanOrEqual(stage.h * 2 - 2);
 

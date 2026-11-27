@@ -291,7 +291,7 @@ export const de: AreaTranslation<typeof source> = {
     tone: 'Tonwerte',
     detail: 'Details',
     brightnessTitle: 'Mitteltöne aufhellen oder abdunkeln, ohne reines Schwarz und Weiß zu verändern; für das gesamte Licht die Belichtung verwenden',
-    denoiseTitle: 'Glättet Farbflecken in Fotos mit hoher ISO; keine KI-Wiederherstellung von Details',
+    denoiseTitle: "Glättet Farbflecken in Fotos mit hoher ISO. Fügt keine Details hinzu.",
     denoiseHelp: 'Glättet nur Farbflecken. Kanten und feine Struktur bleiben, wie sie sind.',
     exportFocus: 'Exportschwerpunkt',
     cancelPlacement: 'Setzen abbrechen',

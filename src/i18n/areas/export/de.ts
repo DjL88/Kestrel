@@ -15,7 +15,7 @@ export const de: AreaTranslation<typeof source> = {
     copyright: "Urheberrecht",
     includeKeywords: "Schlagwörter einschließen",
     keywords: "Schlagwörter (durch Kommas getrennt; leer = bestätigte Tags)",
-    help: "Bestätigte Motive können Titel und Schlagwörter füllen. Unbestätigte KI-Vermutungen werden nie exportiert. Diese Angaben stehen in der Datei, nicht auf dem Foto.",
+    help: "Bestätigte Motive können Titel und Schlagwörter füllen. Unbestätigte Vorschläge von Modellen werden nie exportiert. Diese Angaben stehen in der Datei, nicht auf dem Foto.",
   },
   originals: {
     title: "Kamera-Originaldateien",

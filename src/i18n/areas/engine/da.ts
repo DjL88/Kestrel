@@ -51,8 +51,8 @@ export const da: AreaTranslation<typeof source> = {
     failedCheck: 'Resultatet bestod ikke kvalitetstjekket. Dine eksisterende redigeringer blev bevaret.',
     mainThread: 'Denne enhed kunne ikke fjerne støj i baggrunden, så InFlight kan have stået stille, mens den arbejdede.',
     workerUnavailable: 'Denne enhed kunne ikke fjerne støj i baggrunden, så intet blev ændret (at køre det her ville fryse InFlight). Prøv igen, når du har genstartet InFlight.',
-    learnedNoWorker: 'AI-støjfjernelsen kunne ikke køre i baggrunden på denne enhed, så kun den indbyggede støjfjernelse blev sammenlignet.',
-    learnedLostDetail: 'I fuld størrelse udglattede AI-støjreduktionen ægte detaljer på motivet, så den indbyggede støjreduktion blev brugt i stedet.',
+    learnedNoWorker: "Den lærte støjfjernelse kunne ikke køre i baggrunden på denne enhed, så kun den indbyggede støjfjernelse blev sammenlignet.",
+    learnedLostDetail: "I fuld størrelse udglattede den lærte støjreduktion ægte detaljer på motivet, så den indbyggede støjreduktion blev brugt i stedet.",
     leftAsItWas: (notes) => `Ladt som det var. ${notes}`,
   },
   workspace: {

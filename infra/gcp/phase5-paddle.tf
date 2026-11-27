@@ -51,6 +51,17 @@ variable "phase5_paddle_annual_price_id" {
     error_message = "phase5_paddle_annual_price_id is empty or a Paddle price ID (pri_...)."
   }
 }
+# Test payments: while phase5_paddle_environment is "sandbox", anyone could pay with Paddle's public test card, so only
+# testers may start a checkout: the /admin admins (kcp-admin-emails) plus these sign-in emails. Set them only in the
+# private tfvars (switch-features.sh), never in Git. Ignored in production.
+variable "phase5_paddle_sandbox_testers" {
+  type    = list(string)
+  default = []
+  validation {
+    condition     = alltrue([for e in var.phase5_paddle_sandbox_testers : can(regex("^[^@ ,]+@[^@ ,]+$", e))])
+    error_message = "phase5_paddle_sandbox_testers is a list of email addresses."
+  }
+}
 # Optional offer discount (dsc_..., e.g. Black Friday), made in Paddle → Catalog → Discounts. Not a secret. It applies
 # applies while Paddle says it is active, before its expiry and under its usage limit (set those in Paddle). Empty means no offer.
 variable "phase5_paddle_promo_discount_id" {
