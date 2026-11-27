@@ -355,15 +355,23 @@ export default function Canvas({
     const board = stage.querySelector<HTMLElement>(':scope > [data-stage-margin], :scope > [data-testid="split-composition"], :scope > [data-testid="all-formats-board"]');
     if (!board) return;
     const box = board.getBoundingClientRect();
+    // The margins are the picture's, not the board's: the board also holds the size line above the frame and the
+    // buttons beside it, and margins taken from the board let a zoom-out near a corner scroll the picture past where it
+    // sat at Fit, so it jumped sideways (owner, 27 Nov). Each side gets the picture's Fit margin less what of the board
+    // is on that side of the frame, so scrolled to an edge the picture sits exactly where it did at Fit.
+    const frame = board.querySelector<HTMLElement>('[data-testid="canvas-frame"]');
+    const pic = frame ? anchorRect(frame) : box;
     const base = getComputedStyle(stage);
     const baseX = parseFloat(base.paddingLeft) || 0;
     const baseY = parseFloat(base.paddingTop) || 0;
-    const atFit = { width: box.width / canvasZoom, height: box.height / canvasZoom };
+    const z = canvasZoom;
+    const side = { left: pic.left - box.left, right: box.right - (pic.left + pic.width), top: pic.top - box.top, bottom: box.bottom - (pic.top + pic.height) };
     // offsetWidth/Height, as Fit is measured: a scrollbar coming or going must not move the margins either.
-    const x = Math.max(baseX, (stage.offsetWidth - atFit.width) / 2);
-    const y = Math.max(baseY, (stage.offsetHeight - atFit.height) / 2);
+    const fitX = (stage.offsetWidth - box.width / z) / 2;
+    const fitY = (stage.offsetHeight - box.height / z) / 2;
+    const pad = (fit: number, near: number, min: number) => Math.max(min, fit + near / z - near);
     stage.dataset.basePad = `${baseX},${baseY}`;
-    stage.style.padding = `${y}px ${x}px`;
+    stage.style.padding = `${pad(fitY, side.top, baseY)}px ${pad(fitX, side.right, baseX)}px ${pad(fitY, side.bottom, baseY)}px ${pad(fitX, side.left, baseX)}px`;
   }, [canvasZoom, stageEl]);
   useLayoutEffect(() => {
     const stage = stageRef.current;
