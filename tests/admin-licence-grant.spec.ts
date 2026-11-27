@@ -39,7 +39,7 @@ async function signIn(page: Page, grantStatus = 200) {
     }
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
-  await page.goto(origin + '/admin.html#licences');
+  await page.goto(origin + '/admin.html#issue');
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -49,26 +49,26 @@ async function signIn(page: Page, grantStatus = 200) {
 
 test('admin can grant free Pro by verified email even when signed key issuing is disabled', async ({ page }) => {
   const grants = await signIn(page);
-  await expect(page.getByRole('button', { name: 'Issue key', exact: true })).toBeDisabled();
-  const submit = page.getByRole('button', { name: 'Grant free Pro', exact: true });
+  await expect(page.getByRole('button', { name: 'Make key', exact: true })).toBeDisabled();
+  const submit = page.getByRole('button', { name: 'Give free Pro', exact: true });
   await expect(submit).toBeEnabled();
-  await page.getByLabel('Recipient address').fill('tester@example.test');
-  await page.getByLabel('Include the online helper allowance', { exact: true }).check();
+  await page.getByLabel('Their email address').fill('tester@example.test');
+  await page.locator('#grant-form').getByLabel('Include the online photo helper').check();
   await submit.click();
-  await expect(page.locator('#grant-result')).toContainText('Free Pro granted. It will attach');
+  await expect(page.locator('#grant-result')).toContainText('Free Pro given. It turns on when they sign in');
   expect(grants).toEqual([{ email: 'tester@example.test', plan: 'paid', majorVersion: 1, managedAi: true }]);
-  await page.getByLabel('Recipient address').fill('tester@example.test');
+  await page.getByLabel('Their email address').fill('tester@example.test');
   await submit.click();
-  await expect(page.locator('#grant-result')).toContainText('already exists');
-  await expect(page.getByRole('button', { name: 'Issue key', exact: true })).toBeDisabled();
+  await expect(page.locator('#grant-result')).toContainText('already has free Pro');
+  await expect(page.getByRole('button', { name: 'Make key', exact: true })).toBeDisabled();
 });
 
 test('failed grant preserves recipient and never claims success', async ({ page }) => {
   const grants = await signIn(page, 503);
-  await page.getByLabel('Recipient address').fill('tester@example.test');
-  await page.getByRole('button', { name: 'Grant free Pro', exact: true }).click();
+  await page.getByLabel('Their email address').fill('tester@example.test');
+  await page.getByRole('button', { name: 'Give free Pro', exact: true }).click();
   await expect(page.locator('#status')).toContainText('Grant unavailable on this server.');
   await expect(page.locator('#grant-result')).toBeEmpty();
-  await expect(page.getByLabel('Recipient address')).toHaveValue('tester@example.test');
+  await expect(page.getByLabel('Their email address')).toHaveValue('tester@example.test');
   expect(grants).toHaveLength(1);
 });

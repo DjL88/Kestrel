@@ -65,6 +65,23 @@ function kindFor(status: number, code: string): CollabErrorKind {
   return 'refused';
 }
 
+/**
+ * Who a Firebase ID token is for (its `user_id`, else `sub`), read without checking the signature: it only decides
+ * whether a cached session still belongs to the same person, so Firebase's hourly new ID token does not mean a new
+ * sign-in. Anything unreadable falls back to the whole token, the old behaviour.
+ */
+export function identityOf(credential: string): string {
+  try {
+    const part = credential.split('.')[1] ?? '';
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64)) as Record<string, unknown>;
+    const uid = typeof payload.user_id === 'string' && payload.user_id ? payload.user_id : payload.sub;
+    return typeof uid === 'string' && uid ? 'uid:' + uid : credential;
+  } catch {
+    return credential;
+  }
+}
+
 async function request(url: string, fetcher: typeof fetch, method: 'GET' | 'POST', body?: Json, token?: string): Promise<Json> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
@@ -152,26 +169,42 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
   // The session from one exchange is reused, in memory only, while the same Firebase ID token is current and until a
   // minute before it expires. Exchanging for every action signed in again each time, and the control plane allows
   // 10 sign-ins a minute, so publishing a gallery of four or more photos was refused with "Too many attempts".
-  let cached: { credential: string; session: Promise<string>; untilMs: number } | null = null;
+  // When the session nears its end it is renewed with its single-use refresh token (/v1/auth/refresh), not by signing in
+  // again: the 2-minute inbox poll used to sign in afresh every time the 15-minute session ended, and each full sign-in
+  // is an audited `user.signin`. A refresh that is refused falls back to one ordinary sign-in.
+  type CachedSession = { identity: string; session: Promise<string>; untilMs: number; refreshToken: string | null };
+  let cached: CachedSession | null = null;
+  function settle(entry: CachedSession, signedIn: Json): string {
+    const token = signedIn.accessToken;
+    if (typeof token !== 'string' || !token || token.length > 8192) throw new CollabError('sign-in');
+    const seconds = typeof signedIn.expiresIn === 'number' && signedIn.expiresIn > 0 ? signedIn.expiresIn : 300;
+    if (entry === cached) {
+      entry.untilMs = Date.now() + Math.max(0, seconds - 60) * 1000;
+      entry.refreshToken = typeof signedIn.refreshToken === 'string' && signedIn.refreshToken.length <= 512 ? signedIn.refreshToken : null;
+    }
+    return token;
+  }
   function sessionFor(credential: string): Promise<string> {
-    if (cached && cached.credential === credential && Date.now() < cached.untilMs) return cached.session;
-    const session = request(origin + '/v1/auth/firebase', fetcher, 'POST', { credential }).then((signedIn) => {
-      const token = signedIn.accessToken;
-      if (typeof token !== 'string' || !token || token.length > 8192) throw new CollabError('sign-in');
-      const seconds = typeof signedIn.expiresIn === 'number' && signedIn.expiresIn > 0 ? signedIn.expiresIn : 300;
-      if (entry === cached) entry.untilMs = Date.now() + Math.max(0, seconds - 60) * 1000;
-      return token;
-    });
-    const entry = { credential, session, untilMs: Infinity };
+    const identity = identityOf(credential);
+    if (cached && cached.identity === identity && Date.now() < cached.untilMs) return cached.session;
+    const refreshToken = cached && cached.identity === identity ? cached.refreshToken : null;
+    const signIn = () => request(origin + '/v1/auth/firebase', fetcher, 'POST', { credential });
+    const exchange = refreshToken
+      ? request(origin + '/v1/auth/refresh', fetcher, 'POST', { refreshToken }).catch((error) => {
+        if (error instanceof CollabError && error.kind === 'network') throw error;
+        return signIn();
+      })
+      : signIn();
+    const entry: CachedSession = { identity, session: exchange.then((signedIn) => settle(entry, signedIn)), untilMs: Infinity, refreshToken: null };
     cached = entry;
-    session.catch(() => { if (cached === entry) cached = null; });
-    return session;
+    entry.session.catch(() => { if (cached === entry) cached = null; });
+    return entry.session;
   }
   async function call(method: 'GET' | 'POST', path: string, body?: Json): Promise<Json> {
     if (!origin) throw new CollabError('not-configured');
     const credential = await idToken().catch(() => null);
     if (!credential?.trim()) throw new CollabError('sign-in');
-    const reused = cached?.credential === credential && Date.now() < cached.untilMs;
+    const reused = cached?.identity === identityOf(credential) && Date.now() < cached.untilMs;
     try {
       return await request(origin + path, fetcher, method, body, await sessionFor(credential));
     } catch (error) {

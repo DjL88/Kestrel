@@ -53,7 +53,7 @@ test('the whole form becomes the body the server expects', () => {
 });
 
 test('the never-switched-off list matches the app', () => {
-  assert.deepEqual([...NEVER_GATED].sort(), ['basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup']);
+  assert.deepEqual([...NEVER_GATED].sort(), ['basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'overlayText', 'watermarkCustom']);
 });
 
 
