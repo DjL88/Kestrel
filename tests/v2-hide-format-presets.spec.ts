@@ -11,7 +11,10 @@ test('?v2 a format hidden in Settings leaves the Formats panel, and Show all bri
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   const formats = async () => {
-    await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+    // The rail button toggles its panel, so open Formats only when it is shut.
+    const tab = root.getByRole('button', { name: 'Formats', exact: true }).first();
+    if ((await tab.getAttribute('aria-pressed')) !== 'true') await tab.click();
+    await expect(tab).toHaveAttribute('aria-pressed', 'true');
     return root.getByRole('button', { name: 'Include Instagram / TikTok Story', exact: true });
   };
   await expect(await formats()).toHaveCount(1);
