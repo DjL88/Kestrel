@@ -407,5 +407,15 @@
 </div>
 </main>
 </div>
+<!-- In-page questions instead of confirm() and prompt(), which embedded browsers (app panes, webviews) cancel silently.
+     A modal dialog keeps keyboard focus inside it, and Escape or "Go back" cancels. -->
+<dialog id="ask" class="ask" aria-labelledby="ask-text">
+  <div id="ask-body">
+    <p id="ask-text"></p>
+    <label id="ask-field-label" hidden><span id="ask-field-name"></span> <input id="ask-field" autocomplete="off" spellcheck="false" maxlength="200"></label>
+    <p id="ask-error" class="ask-error" role="alert"></p>
+    <div class="row ask-buttons"><button type="button" id="ask-cancel" class="quiet">Go back</button><button type="button" id="ask-ok">Yes</button></div>
+  </div>
+</dialog>
 </body>
 </html>
