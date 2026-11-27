@@ -36,7 +36,7 @@ interface CoPilotPanelProps {
   /** Cloud edit settings, present only while that preview feature is on. */
   cloudRecipe?: {
     prepare: (photoId: string) => Promise<CloudRecipeOfferView>;
-    send: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+    send: (photoId: string, choice: 'send' | 'alternative') => Promise<import('../contract').CloudRecipeResultView>;
     setFullFile: (on: boolean) => boolean;
     fullFileOn: () => boolean;
     /** The remembered answer to "Use InFlight's cloud for this?". */
@@ -262,7 +262,8 @@ export default function CoPilotPanel({
       {cloudRecipe && (
         <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
           onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn}
-          consent={cloudRecipe.consent} onSetConsent={cloudRecipe.setConsent} onTopUp={cloudRecipe.onTopUp} />
+          consent={cloudRecipe.consent} onSetConsent={cloudRecipe.setConsent} onTopUp={cloudRecipe.onTopUp}
+          onPreview={onStepPreview ? clearPreview : undefined} />
       )}
 
       {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}

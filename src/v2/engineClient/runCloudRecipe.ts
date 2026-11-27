@@ -80,10 +80,11 @@ export async function prepareCloudRecipe(
   return { offer, blobs, previewSource };
 }
 
+/** inputDeleted: the service confirmed it deleted its copy of the picture when the job ended. */
 export type CloudRecipeOutcome =
-  | { status: 'ready'; recipe: CloudRecipe; sent: RecipeUploadOption; previewSource?: PreviewSource }
-  | { status: 'refused'; sent: RecipeUploadOption }
-  | { status: 'empty'; sent: RecipeUploadOption };
+  | { status: 'ready'; recipe: CloudRecipe; sent: RecipeUploadOption; previewSource?: PreviewSource; inputDeleted?: boolean }
+  | { status: 'refused'; sent: RecipeUploadOption; inputDeleted?: boolean }
+  | { status: 'empty'; sent: RecipeUploadOption; inputDeleted?: boolean };
 
 /**
  * Send the option the person chose. The full original can be chosen only when the offer included it, which needs the
@@ -101,9 +102,10 @@ export async function sendCloudRecipe(
   if (!blob || blob.size !== option.bytes) throw new Error('The picture changed after its size was shown. Nothing was sent.');
   const answer = await service.run({ input: blob, inputKind: option.kind, userConsent: true, signal });
   const recipe = parseCloudRecipe(answer.bytes, { jobId: answer.jobId, input: option.kind });
-  if (!recipe) return { status: 'refused', sent: option };
-  if (recipeIsEmpty(recipe)) return { status: 'empty', sent: option };
-  return { status: 'ready', recipe, sent: option, previewSource: prepared.previewSource };
+  const inputDeleted = answer.inputDeleted === true;
+  if (!recipe) return { status: 'refused', sent: option, inputDeleted };
+  if (recipeIsEmpty(recipe)) return { status: 'empty', sent: option, inputDeleted };
+  return { status: 'ready', recipe, sent: option, previewSource: prepared.previewSource, inputDeleted };
 }
 
 /** The photo's edit with the recipe's settings in place. Everything the recipe does not name is kept as it was. */

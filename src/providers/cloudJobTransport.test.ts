@@ -53,3 +53,25 @@ test('a cancel by the person stays a cancel', async () => {
   }) as typeof fetch;
   await assert.rejects(runCloudJob({ baseUrl: base, session: 's', fetch: fetcher }, { ...job, signal: controller.signal }), (error: unknown) => !(error instanceof CloudJobError));
 });
+
+test('the job reports whether the service confirmed it deleted its copy, so "copy deleted" is never assumed', async () => {
+  const id = 'job-2';
+  const upload = `https://storage.googleapis.com/kestrel-cloud/inputs/${id}?X-Goog-Signature=x`;
+  const run = async (finishReply: () => Response) => {
+    let confirmed: boolean | undefined;
+    const fetcher = (async (url: string | URL, init?: RequestInit) => {
+      const u = String(url);
+      if (u.endsWith('/v1/cloud/jobs') && init?.method === 'POST') return json(200, { jobId: id, uploadUrl: upload, expiresAtMs: 0 });
+      if (u.startsWith('https://storage.googleapis.com/')) return new Response(null, { status: 200 });
+      if (u.endsWith('/start')) return json(200, { jobId: id, status: 'running' });
+      if (u.endsWith('/finish')) return finishReply();
+      return json(200, { jobId: id, status: 'failed', kind: 'recipe', failure: 'CLOUD_JOB_FAILED' });
+    }) as typeof fetch;
+    await runCloudJob({ baseUrl: base, session: 's', fetch: fetcher, pollIntervalMs: 1 }, { ...job, onFinished: (deleted) => { confirmed = deleted; } }).catch(() => undefined);
+    return confirmed;
+  };
+  assert.equal(await run(() => json(200, { jobId: id, inputDeleted: true })), true);
+  assert.equal(await run(() => json(200, { jobId: id })), false, 'not said: not confirmed');
+  assert.equal(await run(() => json(500, {})), false, 'a failed finish: not confirmed');
+  assert.equal(await run(() => new Response('not json', { status: 200 })), false);
+});
