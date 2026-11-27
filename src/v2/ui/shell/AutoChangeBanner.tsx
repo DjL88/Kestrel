@@ -19,7 +19,7 @@ interface AutoChangeBannerProps {
 }
 
 /**
- * Over the canvas after Auto (the button), Co-pilot or Auto-pilot changed this photo: what it changed, in words, and why,
+ * Laid over the top edge of the canvas (so it never moves or resizes the photo) after Auto (the button), Co-pilot or Auto-pilot changed this photo: what it changed, in words, and why,
  * with Undo and Before / After. It stays until it is dismissed, undone or the photo is edited further, so a change made
  * while the person was looking elsewhere is never a surprise (it is not shown again for an edit from an earlier session). When an automatic check left the photo alone, a one-line
  * "Looked good, left alone" shows briefly instead. Words, an icon and a text label carry every state, never colour alone.
@@ -42,7 +42,7 @@ export default function AutoChangeBanner({ photo, status, comparing, dismissed, 
   if (model.kind === 'left-alone') {
     return (
       <div role="status" data-testid="auto-banner" data-kind="left-alone"
-        className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)] shadow-sm">
         <BrandIcon name="check" size={14} />
         <span>{model.text}</span>
       </div>
@@ -53,7 +53,7 @@ export default function AutoChangeBanner({ photo, status, comparing, dismissed, 
   const [firstReason, ...moreReasons] = model.why;
   return (
     <section role="status" aria-label={t.bannerLabel} data-testid="auto-banner" data-kind="applied" data-who={model.who}
-      className="flex shrink-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+      className="absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)] shadow-sm">
       <BrandIcon name="assist" size={16} className="mt-0.5 shrink-0 text-[var(--brand-accent)]" />
       <div className="min-w-0 flex-1 basis-60 space-y-1 leading-snug">
         <p data-testid="auto-banner-changed"><span className="font-semibold text-[var(--text-primary)]">{t.changed(who, list)}</span></p>
