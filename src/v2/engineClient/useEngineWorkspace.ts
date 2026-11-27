@@ -3971,20 +3971,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
   const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
   useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
+  const photoCache = useRef(new Map<string, { inputs: unknown[]; photo: Photo }>());
   const photos = useMemo(() => {
     const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
     // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
     const brackets = bracketsByFrame(shown);
     // Rank within the shoot from Auto pick's scores (src/core/shootTiers.ts); unscored photos stay unranked.
     const tiers = shootTiers(shown);
-    return recountBursts(shown.map((frame) => {
+    const nextCache = new Map<string, { inputs: unknown[]; photo: Photo }>();
+    const counted = recountBursts(shown.map((frame) => {
     const bracket = brackets.get(frame.id);
     const tier = tiers.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { beingImported: importingIds.current.has(frame.id), assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
+    const beingImported = importingIds.current.has(frame.id);
+    const originalConnected = frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true;
+    const sources = { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) };
+    const verifiedOriginalSize = verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`];
+    // One photo is built again only when something of its own changed: a thumbnail arriving for one photo of 2,048 used
+    // to rebuild all of them, a long task each time (the lead's stress test, 27 Nov).
+    const inputs: unknown[] = [frame, urls[frame.id], assist, autoUnavailable[frame.id], watermarkAuto[frame.id], histograms[frame.id],
+      pixelSizes[frame.id], verifiedOriginalSize, originalConnected, JSON.stringify(sources), fullDeveloping[frame.stableKey],
+      speciesNamesVersion, pairedJpeg, tier, bracket ? JSON.stringify(bracket) : undefined, beingImported];
+    const cached = photoCache.current.get(frame.id);
+    if (cached && cached.inputs.length === inputs.length && cached.inputs.every((value, index) => value === inputs[index])) {
+      nextCache.set(frame.id, cached);
+      return cached.photo;
+    }
+    const built = withBracket(withPairedJpeg(pairedJpeg, withTier(tier, frameToPhoto(frame, urls[frame.id], { beingImported, assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize, originalConnected, sources, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }))), bracket);
+    nextCache.set(frame.id, { inputs, photo: built });
+    return built;
   }));
+  photoCache.current = nextCache;
+  return counted;
   }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping, importing]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
