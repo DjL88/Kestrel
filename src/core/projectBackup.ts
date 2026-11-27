@@ -107,6 +107,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 24 || !value.tags.every(text))) return false;
   if (value.speciesChecked !== undefined && typeof value.speciesChecked !== 'boolean') return false;
   if (value.kindChecked !== undefined && typeof value.kindChecked !== 'boolean') return false;
+  if (value.speciesScanVersion !== undefined && (typeof value.speciesScanVersion !== 'number' || !Number.isFinite(value.speciesScanVersion))) return false;
   if (value.speciesArea !== undefined && !parseSpeciesArea(value.speciesArea)) return false;
   if (value.subjectDisputed !== undefined && typeof value.subjectDisputed !== 'boolean') return false;
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;

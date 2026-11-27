@@ -128,8 +128,30 @@ export function qualifiesForAutoTag(
   return strongest?.index === suggested.index && shouldAutoTag(strongest.probability, minimum);
 }
 
-/** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */
-export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+/**
+ * The species scan's version, stored on each photo it reports on. Raised when the scan has improved enough that photos it
+ * looked at without finding anything deserve one more look. 2: the scan wakes for new photos and judges wildlife on the
+ * whole family (#1818); before that a clear puffin was "checked" with no kind and no name, and never looked at again.
+ */
+export const SPECIES_SCAN_VERSION = 2;
+
+interface ScanState { speciesChecked?: boolean; speciesScanVersion?: number; autoTags?: readonly string[]; declinedTags?: readonly string[]; vehicle?: unknown }
+
+/**
+ * Whether the species scan should look at this photo: never checked, or checked by an older scan that found nothing (no
+ * name of the app's own, no vehicle reading, no name the person turned down). Names of the person's own are ruled out by
+ * scanCandidates itself.
+ */
+export function speciesScanDue(frame: ScanState): boolean {
+  if (!frame.speciesChecked) return true;
+  return (frame.speciesScanVersion ?? 1) < SPECIES_SCAN_VERSION && !(frame.autoTags?.length) && !frame.vehicle && !(frame.declinedTags?.length);
+}
+
+/**
+ * Photos the species model should look at: still in the library, never checked (or checked by an older scan that found
+ * nothing, speciesScanDue), and with nothing of the user's own on them.
+ */
+export function scanCandidates<T extends ScanState & { id: string; removedAt?: number; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
   frames: readonly T[],
   { includeUnclassified = false }: { includeUnclassified?: boolean } = {},
 ): T[] {
@@ -138,7 +160,7 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
   // never infers "wildlife" from its own guess. The opted-in online helper is open-world (it answers "not an animal"
   // and sets the kind itself), so it may also look at photos nobody has classified yet. Photos classified as people,
   // landscape or other are never scanned.
-  return frames.filter((frame) => frame.removedAt == null && !frame.speciesChecked &&
+  return frames.filter((frame) => frame.removedAt == null && speciesScanDue(frame) &&
     (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
     kindWords(frame.tags) && !(frame.subjectNames?.length));
 }

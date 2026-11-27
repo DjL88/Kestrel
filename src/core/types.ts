@@ -146,6 +146,8 @@ export interface PhotoFrame {
   /** The built-in kind check has looked at this photo (used when no species model is offered; src/core/autoTags.ts
    * kindCandidates). Says nothing about a species name. */
   kindChecked?: boolean;
+  /** Which version of the species scan last reported on this photo (src/core/autoTags.ts SPECIES_SCAN_VERSION). */
+  speciesScanVersion?: number;
   /** Where the automatic species name was matched against (the project's place when it was named). Absent on older photos: not known. */
   speciesArea?: import('./speciesArea').SpeciesArea;
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).

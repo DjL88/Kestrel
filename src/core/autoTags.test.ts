@@ -49,8 +49,8 @@ test('personal preferences cannot turn a close species match into an automatic t
 });
 
 test('only photos nobody has looked at, and with no tags of their own, are scanned', async () => {
-  const { scanCandidates } = await import('./autoTags');
-  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'removed-at-zero', subjectKind: 'wildlife', removedAt: 0 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
+  const { SPECIES_SCAN_VERSION, scanCandidates } = await import('./autoTags');
+  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true, speciesScanVersion: SPECIES_SCAN_VERSION }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'removed-at-zero', subjectKind: 'wildlife', removedAt: 0 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
   assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['a', 'f']);
 });
 
