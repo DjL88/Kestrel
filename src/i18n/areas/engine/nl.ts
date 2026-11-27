@@ -55,6 +55,10 @@ export const nl: AreaTranslation<typeof source> = {
     learnedNoWorker: "De aangeleerde ruisonderdrukking kon op dit apparaat niet op de achtergrond draaien, dus alleen de ingebouwde ruisonderdrukking is vergeleken.",
     learnedLostDetail: "Op volle grootte streek de aangeleerde ruisreductie echte details van het onderwerp weg, dus is de ingebouwde ruisreductie gebruikt.",
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
+    measured: (m, n, iso) => `Gemeten ruis: ${m}${iso ? ` bij ISO ${iso}` : ''}. Het begint zichtbaar te worden vanaf ${n}.`,
+    anyway: (m, s, iso) => `Toch ruis verwijderd, met een zachte sterkte (${s}). Gemeten ruis: ${m}${iso ? ` bij ISO ${iso}` : ''}, onder het punt waarop het zichtbaar wordt.`,
+    notDeveloped: (f) => `${f} is nog niet ontwikkeld uit de sensorgegevens van de RAW, dus de ruis kan niet worden gemeten. Wacht tot het ontwikkelen klaar is en voer ruisonderdrukking dan opnieuw uit. Er is niets veranderd.`,
+    measuredStage: (m, s) => `Ruis gemeten ${m}, sterkte ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight kon de sjabloon niet op dit apparaat opslaan.',

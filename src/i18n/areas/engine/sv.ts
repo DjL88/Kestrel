@@ -55,6 +55,10 @@ export const sv: AreaTranslation<typeof source> = {
     learnedNoWorker: "Den inlärda brusreduceringen kunde inte köras i bakgrunden på den här enheten, så bara den inbyggda brusreduceringen jämfördes.",
     learnedLostDetail: "I full storlek jämnade den inlärda brusreduceringen ut verkliga detaljer på motivet, så den inbyggda brusreduceringen användes i stället.",
     leftAsItWas: (notes) => `Lämnat som det var. ${notes}`,
+    measured: (m, n, iso) => `Uppmätt brus: ${m}${iso ? ` vid ISO ${iso}` : ''}. Det börjar synas från ${n}.`,
+    anyway: (m, s, iso) => `Brusreducerat ändå, med mild styrka (${s}). Uppmätt brus: ${m}${iso ? ` vid ISO ${iso}` : ''}, under nivån där det börjar synas.`,
+    notDeveloped: (f) => `${f} har ännu inte framkallats från RAW-filens sensordata, så bruset kan inte mätas. Vänta tills framkallningen är klar och kör sedan brusreducering igen. Inget ändrades.`,
+    measuredStage: (m, s) => `Brus uppmätt ${m}, styrka ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight kunde inte spara mallen på den här enheten.',

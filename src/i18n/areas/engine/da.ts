@@ -55,6 +55,10 @@ export const da: AreaTranslation<typeof source> = {
     learnedNoWorker: "Den lærte støjfjernelse kunne ikke køre i baggrunden på denne enhed, så kun den indbyggede støjfjernelse blev sammenlignet.",
     learnedLostDetail: "I fuld størrelse udglattede den lærte støjreduktion ægte detaljer på motivet, så den indbyggede støjreduktion blev brugt i stedet.",
     leftAsItWas: (notes) => `Ladt som det var. ${notes}`,
+    measured: (m, n, iso) => `Målt støj: ${m}${iso ? ` ved ISO ${iso}` : ''}. Den begynder at kunne ses fra ${n}.`,
+    anyway: (m, s, iso) => `Støj fjernet alligevel med en mild styrke (${s}). Målt støj: ${m}${iso ? ` ved ISO ${iso}` : ''}, under det niveau, hvor den begynder at kunne ses.`,
+    notDeveloped: (f) => `${f} er endnu ikke fremkaldt fra RAW-filens sensordata, så støjen kan ikke måles. Vent til fremkaldelsen er færdig, og kør derefter støjreduktion igen. Intet blev ændret.`,
+    measuredStage: (m, s) => `Støj målt ${m}, styrke ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight kunne ikke gemme skabelonen på denne enhed.',

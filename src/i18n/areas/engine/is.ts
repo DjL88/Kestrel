@@ -55,6 +55,10 @@ export const is: AreaTranslation<typeof source> = {
     learnedNoWorker: "Lærða suðhreinsunin gat ekki keyrt í bakgrunni á þessu tæki, svo aðeins innbyggða suðhreinsunin var borin saman.",
     learnedLostDetail: "Í fullri stærð slétti lærða suðeyðingin út raunveruleg smáatriði á myndefninu, svo innbyggða suðeyðingin var notuð í staðinn.",
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
+    measured: (m, n, iso) => `Mælt suð: ${m}${iso ? ` við ISO ${iso}` : ''}. Það fer að sjást frá ${n}.`,
+    anyway: (m, s, iso) => `Suð fjarlægt engu að síður með vægum styrk (${s}). Mælt suð: ${m}${iso ? ` við ISO ${iso}` : ''}, undir því marki þar sem það fer að sjást.`,
+    notDeveloped: (f) => `${f} hefur ekki enn verið framkölluð úr skynjaragögnum RAW-skrárinnar, svo ekki er hægt að mæla suðið. Bíddu þar til framköllun lýkur og keyrðu suðeyðingu aftur. Engu var breytt.`,
+    measuredStage: (m, s) => `Suð mælt ${m}, styrkur ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight gat ekki vistað sniðmátið á þessu tæki.',

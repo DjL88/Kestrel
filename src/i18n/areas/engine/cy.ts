@@ -55,6 +55,10 @@ export const cy: AreaTranslation<typeof source> = {
     learnedNoWorker: "Ni allai’r lleihau sŵn dysgedig redeg yn y cefndir ar y ddyfais hon, felly dim ond y lleihau sŵn adeiledig a gymharwyd.",
     learnedLostDetail: "Ar faint llawn, fe wnaeth y dad-sŵn dysgedig lyfnhau manylion go iawn ar y gwrthrych, felly defnyddiwyd y dad-sŵn adeiledig yn lle hynny.",
     leftAsItWas: (notes) => `Gadawyd fel yr oedd. ${notes}`,
+    measured: (m, n, iso) => `Sŵn wedi’i fesur: ${m}${iso ? ` ar ISO ${iso}` : ''}. Mae’n dechrau dangos o ${n}.`,
+    anyway: (m, s, iso) => `Lleihawyd sŵn beth bynnag ar nerth ysgafn (${s}). Sŵn wedi’i fesur: ${m}${iso ? ` ar ISO ${iso}` : ''}, o dan y lefel lle mae’n dechrau dangos.`,
+    notDeveloped: (f) => `Nid yw ${f} wedi’i ddatblygu o ddata synhwyrydd y RAW eto, felly ni ellir mesur ei sŵn. Arhoswch i’r datblygu orffen, yna rhedwch Lleihau sŵn eto. Ni newidiwyd dim.`,
+    measuredStage: (m, s) => `Sŵn wedi’i fesur ${m}, nerth ${s}`,
   },
   workspace: {
     templateNotSaved: 'Doedd InFlight ddim yn gallu cadw’r templed ar y ddyfais hon.',

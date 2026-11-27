@@ -55,6 +55,10 @@ export const es: AreaTranslation<typeof source> = {
     learnedNoWorker: "La reducción de ruido aprendida no pudo ejecutarse en segundo plano en este dispositivo, así que solo se comparó la reducción de ruido integrada.",
     learnedLostDetail: "A tamaño completo, la reducción de ruido aprendida suavizó detalles reales del sujeto, así que se usó la reducción de ruido integrada.",
     leftAsItWas: (notes) => `Se dejó como estaba. ${notes}`,
+    measured: (m, n, iso) => `Ruido medido: ${m}${iso ? ` a ISO ${iso}` : ''}. Empieza a notarse desde ${n}.`,
+    anyway: (m, s, iso) => `Se redujo el ruido de todos modos, con una intensidad suave (${s}). Ruido medido: ${m}${iso ? ` a ISO ${iso}` : ''}, por debajo de donde empieza a notarse.`,
+    notDeveloped: (f) => `${f} todavía no se ha revelado a partir de los datos del sensor del RAW, así que no se puede medir su ruido. Espere a que termine el revelado y vuelva a ejecutar la reducción de ruido. No se cambió nada.`,
+    measuredStage: (m, s) => `Ruido medido ${m}, intensidad ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight no pudo guardar la plantilla en este dispositivo.',

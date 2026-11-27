@@ -55,6 +55,10 @@ export const ga: AreaTranslation<typeof source> = {
     learnedNoWorker: "Níorbh fhéidir an laghdú torainn foghlamtha a rith sa chúlra ar an ngléas seo, mar sin níor cuireadh ach an laghdú torainn ionsuite i gcomparáid.",
     learnedLostDetail: "Ag lánmhéid, shlíoc an laghdú torainn foghlamtha fíormhionsonraí den ábhar, mar sin úsáideadh an laghdú torainn ionsuite ina ionad.",
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
+    measured: (m, n, iso) => `Torann tomhaiste: ${m}${iso ? ` ag ISO ${iso}` : ''}. Tosaíonn sé ag taispeáint ó ${n}.`,
+    anyway: (m, s, iso) => `Laghdaíodh an torann ar aon nós ar neart séimh (${s}). Torann tomhaiste: ${m}${iso ? ` ag ISO ${iso}` : ''}, faoi bhun an leibhéil ónar tosaíonn sé ag taispeáint.`,
+    notDeveloped: (f) => `Níor forbraíodh ${f} ó shonraí braiteora an RAW fós, mar sin ní féidir a thorann a thomhas. Fan go gcríochnóidh an fhorbairt, ansin rith laghdú torainn arís. Níor athraíodh aon rud.`,
+    measuredStage: (m, s) => `Torann tomhaiste ${m}, neart ${s}`,
   },
   workspace: {
     templateNotSaved: 'Níorbh fhéidir le InFlight an teimpléad a shábháil ar an ngléas seo.',

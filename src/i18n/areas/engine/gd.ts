@@ -55,6 +55,10 @@ export const gd: AreaTranslation<typeof source> = {
     learnedNoWorker: "Cha b’ urrainn dhan lùghdachadh gràinne ionnsaichte ruith sa chùlaibh air an uidheam seo, mar sin cha deach ach an lùghdachadh gràinne togte a choimeas.",
     learnedLostDetail: "Aig làn-mheud, rinn an lùghdachadh gràinne ionnsaichte fìor mhion-fhiosrachadh air a’ chuspair rèidh, mar sin chaidh an lùghdachadh gràinne a-staigh a chleachdadh na àite.",
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
+    measured: (m, n, iso) => `Gràinne air a thomhas: ${m}${iso ? ` aig ISO ${iso}` : ''}. Tòisichidh e a’ nochdadh o ${n}.`,
+    anyway: (m, s, iso) => `Chaidh a’ ghràinne a lùghdachadh co-dhiù aig neart socair (${s}). Gràinne air a thomhas: ${m}${iso ? ` aig ISO ${iso}` : ''}, fo far an tòisich e a’ nochdadh.`,
+    notDeveloped: (f) => `Cha deach ${f} a leasachadh o dhàta an sensor RAW fhathast, mar sin chan urrainnear a ghràinne a thomhas. Fuirich gus an tig an leasachadh gu crìch, an uairsin ruith lùghdachadh gràinne a-rithist. Cha deach dad atharrachadh.`,
+    measuredStage: (m, s) => `Gràinne air a thomhas ${m}, neart ${s}`,
   },
   workspace: {
     templateNotSaved: 'Cha b’ urrainn do InFlight an teamplaid a shàbhaladh air an uidheam seo.',
