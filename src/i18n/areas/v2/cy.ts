@@ -1304,6 +1304,8 @@ export const cy: AreaTranslation<typeof source> = {
     consentNo: "Na, cadw ar y ddyfais hon",
     keptOnDevice: "Dewisoch gadw hyn ar eich dyfais.",
     askAgain: "Gofyn eto",
+    autoOn: 'Mae’r cwmwl ymlaen ar gyfer eich cynllun. Dim ond rhagolygon o’ch lluniau a anfonir, byth eich gwreiddiolion, a chânt eu dileu wedyn. Gallwch ei ddiffodd yn y Gosodiadau.',
+    agreeFailed: 'Methwyd troi cynorthwyydd cwmwl InFlight ymlaen ar gyfer eich cyfrif. Mae’ch lluniau’n aros ar y ddyfais hon.',
     running: "Yn rhedeg…",
     run: (n: number) => `Rhedeg golygiadau cwmwl ar gyfer ${n} llun`,
     topUp: "Ychwanegu credyd",
@@ -1775,6 +1777,8 @@ export const cy: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Defnydd cwmwl',
+    cloudSwitch: 'Defnyddio cwmwl InFlight ar gyfer fy lluniau.',
+    cloudSwitchBody: 'Dim ond rhagolygon (byth eich gwreiddiolion) a anfonir, a chânt eu dileu wedyn. Diffoddwch i gadw popeth ar y ddyfais hon.',
     intro: 'Wedi’i gynnwys bob mis i bawb sy’n mewngofnodi. Nid yw golygu ar y ddyfais hon byth yn defnyddio dim o hyn.',
     photos: 'Lluniau cwmwl',
     storage: 'Storfa gwmwl',

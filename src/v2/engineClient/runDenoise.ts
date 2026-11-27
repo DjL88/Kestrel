@@ -276,6 +276,7 @@ async function denoiseVerifiedSource(
   const notes = response.runner === 'cloud-processing'
     ? [engineText.denoise.cloud]
     : [cloud ? engineText.denoise.cloudNotUsed : engineText.denoise.device];
+  if (response.runner === 'device' && response.cloudSkipped) notes.push(engineText.denoise.cloudWhy[response.cloudSkipped]);
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push(engineText.denoise.layersFull);
   if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
   if (learnedOutcome.kind === 'skipped') notes.push(learnedOutcome.note);

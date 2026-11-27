@@ -1305,6 +1305,8 @@ export const gd: AreaTranslation<typeof source> = {
     consentNo: "Na cleachd, cùm air an uidheam",
     keptOnDevice: "Thagh thu seo a chumail air an uidheam agad.",
     askAgain: "Faighnich a-rithist",
+    autoOn: 'Tha an neul air a chur air airson do phlana. Chan fhaigh ach ro-sheallaidhean de na dealbhan agad, gu bràth na tùsan, agus thèid an sguabadh às an uairsin. Faodaidh tu a chur dheth ann an Roghainnean.',
+    agreeFailed: 'Cha b’ urrainnear cuidiche neòil InFlight a chur air airson do chunntais. Fuirichidh na dealbhan agad air an uidheam seo.',
     running: "A’ ruith…",
     run: (n: number) => `Ruith deasachaidhean neòil airson ${n} dealbhan`,
     topUp: "Cuir ris",
@@ -1776,6 +1778,8 @@ export const gd: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Cleachdadh neòil',
+    cloudSwitch: 'Cleachd neul InFlight airson mo dhealbhan.',
+    cloudSwitchBody: 'Chan fhaigh ach ro-sheallaidhean (gu bràth na tùsan agad) agus thèid an sguabadh às an uairsin. Cuir dheth gus a h-uile càil a chumail air an uidheam seo.',
     intro: 'Na bhroinn gach mìos do gach neach a chlàraicheas a-steach. Cha chleachd deasachadh air an uidheam seo gin dheth seo.',
     photos: 'Dealbhan neòil',
     storage: 'Stòras neòil',

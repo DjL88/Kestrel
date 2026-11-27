@@ -52,6 +52,7 @@ export const source = {
     protectionLost: 'The subject could not be protected safely this time. Your existing edits were kept.',
     cloud: 'Denoised in the InFlight cloud from a working-size copy, and checked on this device.',
     cloudNotUsed: 'The cloud was not used for this one, so it ran on this device.',
+    cloudWhy: { offline: 'The cloud was not used: you are offline.', 'signed-out': 'The cloud was not used: you are not signed in.', 'no-consent': 'The cloud was not used: you have not said yes to it.', failed: 'The cloud did not answer, so it ran on this device.', unverified: 'The cloud\'s result could not be confirmed, so it ran on this device.' },
     device: 'Denoised on this device.',
     layersFull: 'Each subject could not have its own layer, so one combined protection layer was used.',
     protected: (count: number) => (count === 1

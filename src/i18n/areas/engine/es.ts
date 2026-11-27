@@ -42,6 +42,7 @@ export const es: AreaTranslation<typeof source> = {
     protectionLost: 'Esta vez no se pudo proteger el sujeto con seguridad. Se conservaron sus ediciones.',
     cloud: 'Ruido reducido en la nube de InFlight a partir de una copia de trabajo y comprobado en este dispositivo.',
     cloudNotUsed: 'Esta vez no se usó la nube, así que se procesó en este dispositivo.',
+    cloudWhy: { offline: 'No se usó la nube: no hay conexión.', 'signed-out': 'No se usó la nube: no ha iniciado sesión.', 'no-consent': 'No se usó la nube: no ha dicho que sí.', failed: 'La nube no respondió, así que se procesó en este dispositivo.', unverified: 'No se pudo confirmar el resultado de la nube, así que se procesó en este dispositivo.' },
     device: 'Ruido reducido en este dispositivo.',
     layersFull: 'No todos los sujetos pudieron tener su propia capa, así que se usó una capa de protección común.',
     protected: (count) => (count === 1

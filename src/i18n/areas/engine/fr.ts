@@ -42,6 +42,7 @@ export const fr: AreaTranslation<typeof source> = {
     protectionLost: 'Le sujet n’a pas pu être protégé sans risque cette fois. Vos retouches existantes ont été conservées.',
     cloud: 'Débruité dans le cloud InFlight à partir d’une copie de travail, puis vérifié sur cet appareil.',
     cloudNotUsed: 'Le cloud n’a pas été utilisé cette fois, donc le traitement a eu lieu sur cet appareil.',
+    cloudWhy: { offline: 'Cloud non utilisé : vous êtes hors ligne.', 'signed-out': 'Cloud non utilisé : vous n’êtes pas connecté.', 'no-consent': 'Cloud non utilisé : vous n’avez pas dit oui.', failed: 'Le cloud n’a pas répondu, donc le traitement a eu lieu sur cet appareil.', unverified: 'Le résultat du cloud n’a pas pu être confirmé, donc le traitement a eu lieu sur cet appareil.' },
     device: 'Débruité sur cet appareil.',
     layersFull: 'Chaque sujet n’a pas pu avoir son propre calque, donc un seul calque de protection commun a été utilisé.',
     protected: (count) => (count === 1

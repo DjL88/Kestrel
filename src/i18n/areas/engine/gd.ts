@@ -42,6 +42,7 @@ export const gd: AreaTranslation<typeof source> = {
     protectionLost: 'Cha b’ urrainnear an cuspair a dhìon gu sàbhailte an turas seo. Chaidh na deasachaidhean agad a chumail.',
     cloud: 'Chaidh a’ ghràinne a lùghdachadh ann an neul InFlight o lethbhreac-obrach, agus a dhearbhadh air an uidheam seo.',
     cloudNotUsed: 'Cha deach an neul a chleachdadh an turas seo, mar sin ruith e air an uidheam seo.',
+    cloudWhy: { offline: 'Cha deach an neul a chleachdadh: tha thu far loidhne.', 'signed-out': 'Cha deach an neul a chleachdadh: chan eil thu air clàradh a-steach.', 'no-consent': 'Cha deach an neul a chleachdadh: cha tuirt thu tha ris.', failed: 'Cha do fhreagair an neul, mar sin ruith e air an uidheam seo.', unverified: 'Cha b’ urrainnear toradh an neòil a dhearbhadh, mar sin ruith e air an uidheam seo.' },
     device: 'Chaidh a’ ghràinne a lùghdachadh air an uidheam seo.',
     layersFull: 'Cha b’ urrainnear breath fa leth a thoirt do gach cuspair, mar sin chaidh aon bhreath dìon choitcheann a chleachdadh.',
     protected: (count) => (count === 1

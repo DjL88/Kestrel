@@ -1304,6 +1304,8 @@ export const is: AreaTranslation<typeof source> = {
     consentNo: "Nei, halda á tækinu",
     keptOnDevice: "Þú valdir að halda þessu á tækinu.",
     askAgain: "Spyrja aftur",
+    autoOn: 'Skýið er kveikt fyrir áskriftina þína. Aðeins forskoðanir af myndunum þínum eru sendar, aldrei upprunalegu skrárnar, og þeim eytt á eftir. Þú getur slökkt á því í Stillingum.',
+    agreeFailed: 'Ekki tókst að kveikja á skýjahjálp InFlight fyrir reikninginn þinn. Myndirnar þínar verða áfram á þessu tæki.',
     running: "Í gangi…",
     run: (n: number) => `Keyra skýjabreytingar fyrir ${n} myndir`,
     topUp: "Fylla á",
@@ -1775,6 +1777,8 @@ export const is: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Skýjanotkun',
+    cloudSwitch: 'Nota ský InFlight fyrir myndirnar mínar.',
+    cloudSwitchBody: 'Aðeins forskoðanir (aldrei upprunalegu skrárnar) eru sendar og þeim eytt á eftir. Slökktu til að halda öllu á þessu tæki.',
     intro: 'Innifalið í hverjum mánuði fyrir alla sem skrá sig inn. Vinnsla á þessu tæki notar aldrei neitt af þessu.',
     photos: 'Skýjamyndir',
     storage: 'Skýjageymsla',

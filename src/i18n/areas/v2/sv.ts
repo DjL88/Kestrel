@@ -1304,6 +1304,8 @@ export const sv: AreaTranslation<typeof source> = {
     consentNo: "Nej, behåll på enheten",
     keptOnDevice: "Du valde att behålla detta på enheten.",
     askAgain: "Fråga igen",
+    autoOn: 'Molnet är påslaget för din plan. Bara förhandsvisningar av dina foton skickas, aldrig dina original, och de raderas efteråt. Du kan stänga av det i Inställningar.',
+    agreeFailed: 'Kunde inte slå på InFlights molnhjälp för ditt konto. Dina foton stannar på den här enheten.',
     running: "Kör…",
     run: (n: number) => `Kör molnredigeringar för ${n} foton`,
     topUp: "Fyll på",
@@ -1775,6 +1777,8 @@ export const sv: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Molnanvändning',
+    cloudSwitch: 'Använd InFlights moln för mina foton.',
+    cloudSwitchBody: 'Bara förhandsvisningar (aldrig dina original) skickas och raderas efteråt. Stäng av för att behålla allt på den här enheten.',
     intro: 'Ingår varje månad för alla som loggar in. Redigering på den här enheten använder aldrig något av detta.',
     photos: 'Molnbilder',
     storage: 'Molnlagring',

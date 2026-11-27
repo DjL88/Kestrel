@@ -19,7 +19,9 @@ export type EngineResponse =
   | { capability: 'mask'; result: MaskActionResult }
   | { capability: 'raw-develop'; result: RawDevelopActionResult };
 
-type DeviceResponse = EngineResponse & { runner: 'device' };
+/** Why a job that was offered the cloud ran on the device instead. Absent when the cloud was not offered at all. */
+export type CloudSkipReason = 'offline' | 'signed-out' | 'no-consent' | 'failed' | 'unverified';
+type DeviceResponse = EngineResponse & { runner: 'device'; cloudSkipped?: CloudSkipReason };
 // 'subject-detect' has no cloud contract yet (no `runner` field accepted below it). 'raw-develop' has no
 // `result.verification` to check at the cloud-fallback gate (rawDevelopAction.ts explains why: there is no
 // "before" Pixels buffer to judge a fresh decode against) and no cloud develop contract exists either - both
@@ -48,20 +50,28 @@ export async function runEngineCapability(
     ? AbortSignal.any([deviceSignal, cloud.signal])
     : deviceSignal ?? cloud?.signal;
   signal?.throwIfAborted();
-  if (request.capability !== 'subject-detect' && request.capability !== 'raw-develop' && cloud?.online && cloud.signedIn && cloud.userConsent) {
-    try {
-      const response = await cloud.run(request, signal);
-      signal?.throwIfAborted();
-      if (response.capability === request.capability && response.result.verification.ok) {
-        return { ...response, runner: 'cloud-processing' };
+  let cloudSkipped: CloudSkipReason | undefined;
+  if (request.capability !== 'subject-detect' && request.capability !== 'raw-develop' && cloud) {
+    if (!cloud.online) cloudSkipped = 'offline';
+    else if (!cloud.signedIn) cloudSkipped = 'signed-out';
+    else if (!cloud.userConsent) cloudSkipped = 'no-consent';
+    else {
+      try {
+        const response = await cloud.run(request, signal);
+        signal?.throwIfAborted();
+        if (response.capability === request.capability && response.result.verification.ok) {
+          return { ...response, runner: 'cloud-processing' };
+        }
+        cloudSkipped = 'unverified';
+      } catch {
+        signal?.throwIfAborted();
+        cloudSkipped = 'failed';
       }
-    } catch {
-      signal?.throwIfAborted();
     }
   }
   const response = await runDeviceCapability(request, signal);
   signal?.throwIfAborted();
-  return { ...response, runner: 'device' };
+  return { ...response, runner: 'device', ...(cloudSkipped ? { cloudSkipped } : {}) };
 }
 
 async function runDeviceCapability(request: EngineRequest, signal?: AbortSignal): Promise<EngineResponse> {

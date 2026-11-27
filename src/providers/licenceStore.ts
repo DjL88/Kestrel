@@ -277,6 +277,9 @@ export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
 export const accountConnection = () => sync.accountConnection();
 
+/** Whether this device holds a paid plan (Basic or Pro) right now: a valid key or an account grant that unlocks Pro. */
+export const hasPaidPlan = (): boolean => (state.status === 'valid' || state.status === 'account') && state.access.pro;
+
 export function useLicence(): LicenceState {
   return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => state, () => state);
 }

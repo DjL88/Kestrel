@@ -108,5 +108,6 @@ export async function agreeManagedAi(): Promise<void> {
   ]);
   const origin = parseControlPlaneUrl(import.meta.env?.VITE_KESTREL_CONTROL_PLANE_URL);
   const token = await firebaseAuth.idToken().catch(() => null);
-  if (origin && token) await setAccountAiConsent(origin, token, true);
+  if (!origin || !token) throw new Error('Not signed in to InFlight, or the cloud address is not set.');
+  await setAccountAiConsent(origin, token, true);
 }

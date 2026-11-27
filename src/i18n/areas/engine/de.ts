@@ -42,6 +42,7 @@ export const de: AreaTranslation<typeof source> = {
     protectionLost: 'Das Motiv ließ sich diesmal nicht sicher schützen. Ihre bisherigen Bearbeitungen wurden beibehalten.',
     cloud: 'In der InFlight-Cloud aus einer Arbeitskopie entrauscht und auf diesem Gerät geprüft.',
     cloudNotUsed: 'Die Cloud wurde hierfür nicht genutzt, daher lief es auf diesem Gerät.',
+    cloudWhy: { offline: 'Cloud nicht genutzt: Sie sind offline.', 'signed-out': 'Cloud nicht genutzt: Sie sind nicht angemeldet.', 'no-consent': 'Cloud nicht genutzt: Sie haben ihr nicht zugestimmt.', failed: 'Die Cloud hat nicht geantwortet, daher lief es auf diesem Gerät.', unverified: 'Das Cloud-Ergebnis ließ sich nicht bestätigen, daher lief es auf diesem Gerät.' },
     device: 'Auf diesem Gerät entrauscht.',
     layersFull: 'Nicht jedes Motiv konnte eine eigene Ebene bekommen, daher wurde eine gemeinsame Schutzebene verwendet.',
     protected: (count) => (count === 1

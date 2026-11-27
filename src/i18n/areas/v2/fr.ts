@@ -1304,6 +1304,8 @@ export const fr: AreaTranslation<typeof source> = {
     consentNo: "Non, garder sur cet appareil",
     keptOnDevice: "Vous avez choisi de garder cela sur votre appareil.",
     askAgain: "Me redemander",
+    autoOn: 'Le cloud est activé pour votre formule. Seuls des aperçus de vos photos sont envoyés, jamais vos originaux, puis supprimés. Vous pouvez le désactiver dans Réglages.',
+    agreeFailed: 'L’assistant cloud d’InFlight n’a pas pu être activé pour votre compte. Vos photos restent sur cet appareil.',
     running: "En cours…",
     run: (n: number) => `Lancer les retouches cloud pour ${n} photos`,
     topUp: "Recharger",
@@ -1775,6 +1777,8 @@ export const fr: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Utilisation du cloud',
+    cloudSwitch: 'Utiliser le cloud d’InFlight pour mes photos.',
+    cloudSwitchBody: 'Seuls des aperçus (jamais vos originaux) sont envoyés, puis supprimés. Désactivez pour tout garder sur cet appareil.',
     intro: 'Inclus chaque mois pour toute personne connectée. Retoucher sur cet appareil n’en utilise jamais rien.',
     photos: 'Photos dans le cloud',
     storage: 'Stockage cloud',

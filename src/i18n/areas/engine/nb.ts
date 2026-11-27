@@ -42,6 +42,7 @@ export const nb: AreaTranslation<typeof source> = {
     protectionLost: 'Motivet kunne ikke beskyttes trygt denne gangen. De eksisterende redigeringene dine ble beholdt.',
     cloud: 'Støy fjernet i InFlight-skyen fra en arbeidskopi og kontrollert på denne enheten.',
     cloudNotUsed: 'Skyen ble ikke brukt denne gangen, så det kjørte på denne enheten.',
+    cloudWhy: { offline: 'Skyen ble ikke brukt: du er frakoblet.', 'signed-out': 'Skyen ble ikke brukt: du er ikke logget inn.', 'no-consent': 'Skyen ble ikke brukt: du har ikke sagt ja til den.', failed: 'Skyen svarte ikke, så det kjørte på denne enheten.', unverified: 'Skyens resultat kunne ikke bekreftes, så det kjørte på denne enheten.' },
     device: 'Støy fjernet på denne enheten.',
     layersFull: 'Ikke alle motiver kunne få sitt eget lag, så ett felles beskyttelseslag ble brukt.',
     protected: (count) => (count === 1

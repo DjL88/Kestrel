@@ -129,7 +129,12 @@ import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraP
 import { runV2Denoise } from './runDenoise';
 import { cloudRecipeEdit, cloudRecipeWhy, prepareCloudRecipe, sendCloudRecipe, type CloudRecipeOffer } from './runCloudRecipe';
 import { cloudRecipePreviewOn, httpCloudRecipeService, readFullFileConsent, saveFullFileConsent } from '../../providers/cloudRecipeService';
-import { readCloudConsent, saveCloudConsent } from '../../providers/cloudConsent';
+import { readCloudConsent as readStoredConsent, saveCloudConsent } from '../../providers/cloudConsent';
+import { hasPaidPlan } from '../../providers/licenceStore';
+import type { CloudUsage } from '../../core/cloudPlan';
+
+// A paying plan is pre-opted-in to the cloud; an explicit No always wins (src/providers/cloudConsent.ts).
+const readCloudConsent = () => readStoredConsent(undefined, { paying: hasPaidPlan() });
 import { previewBlobFromUrl, previewCopyForCloud } from '../../providers/recipePreviewCopy';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
@@ -1863,12 +1868,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // and one run does them one after another under a single row in Tasks. A photo is sent once: what a run has sent is
   // kept with the project. A photo the person has already edited is left alone, and so is one edited while the cloud worked.
   const cloudEditsChoice = parseCloudEditsChoice(state?.shoot.cloudEdits);
+  // The month's numbers, handed down by the screen that reads them. When known, a run is cut to what the allowance has
+  // left, best photos first; when not known, nothing is trimmed.
+  const [cloudUsageHint, setCloudUsageHint] = useState<CloudUsage | undefined>(undefined);
   const cloudEditsPlan = useMemo(() => {
-    const covered = state ? cloudEditsPhotos(cloudEditsChoice, state.frames.filter(isCullOriginal)) : [];
+    const covered = state ? cloudEditsPhotos(cloudEditsChoice, state.frames.filter(isCullOriginal), cloudUsageHint) : [];
     const done = new Set(state?.shoot.cloudEditsDone ?? []);
     const untouched = new Set((state?.frames ?? []).filter((frame) => sameRecipe(frame.edit ?? DEFAULT_EDIT, DEFAULT_EDIT)).map((frame) => frame.id));
     return { covered, toDo: covered.filter((id) => !done.has(id) && untouched.has(id)) };
-  }, [state, cloudEditsChoice]);
+  }, [state, cloudEditsChoice, cloudUsageHint]);
   const cloudEditsPlanRef = useRef(cloudEditsPlan);
   cloudEditsPlanRef.current = cloudEditsPlan;
   const [cloudEditsRunning, setCloudEditsRunning] = useState(false);
@@ -1997,6 +2005,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Auto-pilot means automatic: with the project's choice made and the one-time yes given, the run starts by itself once
   // importing and Auto pick are quiet (Best and Top 50 follow Auto pick's ranking, so it waits for that). A run that
   // stopped (allowance used up, offline) is not started again by itself in this session; the button still works.
+  // First use on a paying plan: switch on the account's standing consent once, say plainly what is sent, and never
+  // swallow a failure. An explicit No on this device is left alone.
+  const paidConsentTried = useRef(false);
+  useEffect(() => {
+    if (!cloudRecipeOn || paidConsentTried.current || !hasPaidPlan() || !accountConnection()) return;
+    if (readStoredConsent().answer === 'no') return;
+    let agreed = false;
+    try { agreed = localStorage.getItem('kestrel.cloudAiAgreed.v1') === '1'; } catch { /* unreadable: ask the server again */ }
+    paidConsentTried.current = true;
+    if (agreed) return;
+    agreeManagedAi().then(() => {
+      try { localStorage.setItem('kestrel.cloudAiAgreed.v1', '1'); } catch { /* shown again next launch, harmless */ }
+      setNotice(v2Text.cloudEdits.autoOn);
+    }).catch(() => setNotice(v2Text.cloudEdits.agreeFailed));
+  });
   const cloudEditsAutoBlocked = useRef(new Set<string>());
   const projectKey = state?.shoot.id ?? '';
   const backgroundBusy = taskList.some((task) => (task.kind === 'import' || task.kind === 'cull') && (task.state === 'running' || task.state === 'queued' || task.state === 'paused'));
@@ -2225,7 +2248,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!aiSettings) return;
     saveAiSettings({ ...aiSettings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, aiSettings) });
     // InFlight's own AI also needs the account's standing Gemini consent on the server; this press is that choice.
-    if (aiSettings.kind === 'inflight') void agreeManagedAi().catch(() => undefined);
+    if (aiSettings.kind === 'inflight') void agreeManagedAi().catch(() => setNotice(v2Text.cloudEdits.agreeFailed));
   }, [aiSettings]);
   // A different provider or photo never leaves an old answer on screen.
   useEffect(() => { aiAbort.current?.abort(); aiAbort.current = null; setAiOpinion(null); }, [aiSettings]);
@@ -3614,7 +3637,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setCloudRecipeFullFile: (on: boolean) => saveFullFileConsent(on).on,
       cloudRecipeFullFileOn: () => readFullFileConsent().on,
       cloudConsent: () => readCloudConsent().answer,
-      setCloudConsent: (answer: 'yes' | 'no' | 'ask') => saveCloudConsent(answer).answer,
+      setCloudConsent: (answer: 'yes' | 'no' | 'ask') => { saveCloudConsent(answer); return readCloudConsent().answer; },
+      setCloudUsageHint: (usage: CloudUsage | undefined) => { setCloudUsageHint(usage); },
     } : {}),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     sharedEditOf: (photoId) => {
