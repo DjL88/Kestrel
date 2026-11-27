@@ -20,6 +20,8 @@ const SECRET = 'pdl_ntfset_test_only_secret';
  */
 function fakePaddle() {
   const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string | null; discount_id?: string }>();
+  // The offer discount as Paddle has it (made in the dashboard). Tests change it as Paddle would.
+  const discount: { status: string; expires_at: string | null; usage_limit: number | null; times_used: number; fail?: boolean } = { status: 'active', expires_at: '2026-12-01T00:00:00Z', usage_limit: null, times_used: 0 };
   const subs = new Map<string, { status: string; custom_data: Record<string, string>; ends_at: string | null; scheduled?: { action: string; effective_at: string } | null }>();
   const state = { creates: 0, gets: 0, failGets: false };
   const view = (id: string) => {
@@ -54,6 +56,10 @@ function fakePaddle() {
       txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, status: 'ready', discount_id: body.discount_id });
       return Response.json({ data: view(id) }, { status: 201 });
     }
+    if (u.pathname.startsWith('/discounts/')) {
+      if (discount.fail) return new Response(null, { status: 500 });
+      return Response.json({ data: { id: decodeURIComponent(u.pathname.split('/').pop()!), status: discount.status, expires_at: discount.expires_at, usage_limit: discount.usage_limit, times_used: discount.times_used } });
+    }
     state.gets++;
     if (state.failGets) return new Response(null, { status: 500 });
     const portal = u.pathname === '/customers/ctm_01testcustomer01/portal-sessions';
@@ -71,7 +77,7 @@ function fakePaddle() {
     const id = decodeURIComponent(u.pathname.split('/').pop()!);
     return txns.has(id) ? Response.json({ data: view(id) }) : new Response(null, { status: 404 });
   }) as typeof fetch;
-  return { request, state, txns, subs };
+  return { request, state, txns, subs, discount };
 }
 
 function signed(body: unknown, nowMs: number, secret = SECRET) {
@@ -92,7 +98,7 @@ async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
     managePaddleSubscription: (id) => billing!.manage(id),
     paddleWebhookSecret: SECRET,
     paddleClient: { environment: 'sandbox', clientToken: 'test_clienttoken' },
-    proCheckout: { start: (input) => bound!.start(input), status: (input) => bound!.status(input) },
+    proCheckout: { start: (input) => bound!.start(input), status: (input) => bound!.status(input), offer: () => bound!.offer() },
   });
   const orders = new Map<string, StoredProOrder>();
   const ledger = new Map<string, TransactionRecord>();
@@ -269,34 +275,50 @@ test('Paddle-Signature: right secret and fresh timestamp only; any h1 during a r
   assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${h1}`, '', now), false);
 });
 
-test('offer discount (Black Friday): only a checkout started while proPromo is on gets it', async () => {
+test('offer discount (Black Friday): Paddle\'s own status, expiry and usage limit decide who gets it', async () => {
   const { harness: h, paddle, orders } = await setup(false, 'dsc_01testblackfriday');
   try {
-    const day = 86_400_000;
-    const startsAtMs = Date.UTC(2026, 10, 27);
-    const endsAtMs = startsAtMs + 4 * day;
-    const set = await h.call('POST', '/v1/admin/flags/set', { token: h.adminToken, body: { key: 'proPromo', flag: { default: false, rules: [{ audience: { kind: 'any' }, enabled: true, startsAtMs, endsAtMs }] } } });
-    assert.equal(set.status, 200, JSON.stringify(set.body));
+    const minute = 60_000;
     const startFor = async (email: string) => {
       const me = await buyer(h, email);
       const r = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
       assert.equal(r.status, 201, JSON.stringify(r.body));
       return r.body.checkoutId as string;
     };
-    // Before the offer: full price.
-    const before = await startFor('early@example.test');
-    assert.equal(paddle.txns.get(before)!.discount_id, undefined);
-    assert.equal(orders.get(before)!.discountId, undefined);
-    // During the offer: Paddle gets the discount, and the order records it.
-    h.clock.now = startsAtMs + 60_000;
+    // While Paddle says the discount is active: Paddle gets it, the order records it, and the site banner shows its last day.
+    h.clock.now = Date.UTC(2026, 10, 28);
     const during = await startFor('friday@example.test');
     assert.equal(paddle.txns.get(during)!.discount_id, 'dsc_01testblackfriday');
     assert.equal(orders.get(during)!.discountId, 'dsc_01testblackfriday');
-    // The day after the last day: full price again.
-    h.clock.now = endsAtMs;
+    assert.deepEqual((await h.call('GET', '/v1/billing/offer')).body, { live: true, lastDay: '2026-11-30' });
+    // Past Paddle's expiry (even before the next read): full price, no banner.
+    h.clock.now = Date.UTC(2026, 11, 1);
     const after = await startFor('late@example.test');
     assert.equal(paddle.txns.get(after)!.discount_id, undefined);
+    assert.equal(orders.get(after)!.discountId, undefined);
+    assert.deepEqual((await h.call('GET', '/v1/billing/offer')).body, { live: false, lastDay: null });
+    // Switched off (archived) or used up in Paddle: full price once the five-minute read is due.
+    paddle.discount.expires_at = null;
+    h.clock.now += 5 * minute;
+    assert.equal((await h.call('GET', '/v1/billing/offer')).body.live, true);
+    paddle.discount.status = 'archived';
+    h.clock.now += 5 * minute;
+    assert.equal(paddle.txns.get(await startFor('archived@example.test'))!.discount_id, undefined);
+    paddle.discount.status = 'active';
+    paddle.discount.usage_limit = 10;
+    paddle.discount.times_used = 10;
+    h.clock.now += 5 * minute;
+    assert.equal(paddle.txns.get(await startFor('spent@example.test'))!.discount_id, undefined);
+    // Paddle unreachable: full price, and checkout still opens.
+    paddle.discount.fail = true;
+    h.clock.now += 5 * minute;
+    assert.equal(paddle.txns.get(await startFor('offline@example.test'))!.discount_id, undefined);
   } finally { await h.close(); }
+});
+
+test('no offer discount set: full price and no banner', async () => {
+  const { harness: h } = await setup();
+  try { assert.deepEqual((await h.call('GET', '/v1/billing/offer')).body, { live: false, lastDay: null }); } finally { await h.close(); }
 });
 
 const subscriptionEvent = (type: string, id: string, n = 0) => ({ event_id: 'evt_' + type + '_' + id + '_' + n, event_type: type, occurred_at: '2026-11-18T12:00:00Z', data: { id } });

@@ -148,9 +148,8 @@ export function meRoutes(ctx: AppContext): Route[] {
       const account = await store.getAccount(claims.sub);
       if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to subscribe to Pro.');
       try {
-        // The offer (admin flag proPromo, with its dates) counts only for someone signed in and buying while it is on.
-        const promo = evaluateFlag('proPromo', await loadFlags(), {}, { audience: { plan: 'basic', user: account.emailHash }, nowMs: t }).on;
-        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo, plan });
+        // Any offer is a Paddle discount: Paddle's own dates and limits decide whether it applies (proCheckout.ts).
+        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, plan });
         await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
         return { status: 201, body: started };
       } catch {

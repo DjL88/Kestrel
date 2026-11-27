@@ -74,6 +74,13 @@
           "serviceId": "kestrel-control-plane",
           "region": "europe-west2"
         }
+      },
+      {
+        "source": "/v1/billing/offer",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
       }
     ],
     "headers": [
