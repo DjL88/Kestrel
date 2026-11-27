@@ -1114,7 +1114,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // person can change, and it never changes a decision). The species check is the Pro feature `speciesId`.
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
-    active: screen === 'editor' && Boolean(state) && can('speciesId'),
+    active: screen === 'editor' && Boolean(state) && !importing && can('speciesId'),
     area: state?.settings?.speciesArea,
     // Whether a photo may be from elsewhere is checked only while the place is unanswered and not yet asked, and not on
     // phones or low-memory devices (the world's birds and mammals take about 20 MB while it runs).

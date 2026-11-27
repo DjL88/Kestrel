@@ -32,6 +32,7 @@ import { appText as t } from './i18n/areas/app';
 import { readSpeciesRegions } from './core/speciesRegions';
 import { outsideRegionMatch, regionIdsForArea, resolvedArea, type SpeciesArea } from './core/speciesArea';
 import type { SpeciesLabel } from './core/speciesMatch';
+import { prioritizePhotoProcessing } from './core/photoProcessingOrder';
 import { engineScheduler, personWorkClear } from './core/engineScheduler';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
@@ -101,6 +102,11 @@ async function kindOfPicture(picture: HTMLCanvasElement): Promise<ScanResult> {
   return { kindChecked: true, ...(kind ? { subjectKind: kind } : {}) };
 }
 
+/** Rated photos first; the stored catalogue order is untouched (only the walk order changes). */
+function orderedForScan<T extends PhotoFrame>(candidates: readonly T[]): T[] {
+  return prioritizePhotoProcessing(candidates) as T[];
+}
+
 /** Identifies untagged photos quietly, using the on-device model first. */
 export function useSpeciesScan({ projectId, frames, provider, active, onResult, area, checkOutside, onOutsideRegion }: Options) {
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
@@ -153,7 +159,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
           // photo is (Wildlife, Aircraft...), honestly and without a name. Without it no photo ever had a subject on the
           // desktop build that ships the kind check but no species model (owner's test: an obvious puffin "Not identified").
           if (!isDesktopApp() || !(await gateAvailable().catch(() => false))) break;
-          const frame = kindCandidates(current).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+          const frame = orderedForScan(kindCandidates(current)).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
           if (!frame) { ranOut = true; break; }
           skipped.current.add(frameKey(frame.id));
           const picture = await pictureForAnalysis(store, frame).catch(() => null);
@@ -173,7 +179,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
         // decides whether a photo is an animal at all.
         const gateOn = available.localReady && await gateAvailable();
         unclassifiedToo = canAsk() || gateOn;
-        const frame = scanCandidates(current, { includeUnclassified: unclassifiedToo }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+        const frame = orderedForScan(scanCandidates(current, { includeUnclassified: unclassifiedToo })).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
         if (!frame) { ranOut = true; break; }
 
         // What the person owns about this photo, to notice if they change it while the models are thinking
