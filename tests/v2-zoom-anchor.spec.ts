@@ -139,3 +139,18 @@ test('on a portrait photo larger than the view, + and − hold the middle of the
     expect(await drift(), `− step ${step + 1}: the middle of the view moved`).toBeLessThanOrEqual(4);
   }
 });
+
+// The slider session, 27 Nov: in the browser "100%" showed about 87% of a 6,000 px PNG, because the size the canvas
+// used was capped near 18 MP. 100% is one photo pixel per screen pixel at any size.
+test('100% is one photo pixel per screen pixel on a photo larger than 18 MP', async ({ page }) => {
+  const root = await importPicture(page, { width: 8256, height: 5504 });
+  const percent = root.getByTestId('zoom-percent');
+  await percent.click();
+  await root.getByTestId('zoom-menu-100').click();
+  await expect(percent).toHaveText('100%');
+  await page.waitForTimeout(300);
+  const box = await pictureBox(page);
+  const scale = await page.evaluate(() => window.devicePixelRatio || 1);
+  // A Z8-sized 45 MP picture: within a pixel or two of 8,256 photo pixels across, at this screen's pixel ratio.
+  expect(Math.abs(box.width * scale - 8256)).toBeLessThanOrEqual(2);
+});

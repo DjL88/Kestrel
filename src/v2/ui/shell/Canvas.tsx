@@ -3,7 +3,7 @@ import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
+import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
@@ -154,6 +154,9 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
  * zooms, so a share of the frame is not quite the same share of the picture, and a long pinch drifted by a few pixels. */
 const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getBoundingClientRect();
 
+/** The canvas frame's border (Tailwind `border`), inside its width under border-box sizing. */
+const FRAME_BORDER = 1;
+
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
@@ -217,6 +220,8 @@ export default function Canvas({
   const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
   const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
+  /** How far in this photo may zoom (set each render once its Fit scale is known): far enough for 100% at any size. */
+  const maxZoomRef = useRef(8);
   // A zoom asked for by a pinch step reaches canvasZoom a render later. Until it does (or briefly goes missing), the next
   // step builds on it, not on the zoom still shown, so fast pinch steps are neither lost nor applied twice.
   const pendingZoom = useRef<{ zoom: number; at: number } | null>(null);
@@ -279,7 +284,7 @@ export default function Canvas({
       if (mouseNotch && !(event.target instanceof Node && stage.contains(event.target))) return;
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
-      const next = mouseNotch ? mouseWheelZoom(zoomRef.current, event.deltaY) : nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
+      const next = mouseNotch ? mouseWheelZoom(zoomRef.current, event.deltaY, maxZoomRef.current) : nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode, maxZoomRef.current);
       if (next === zoomRef.current) return;
       const atX = clamp(event.clientX, rect.left, rect.left + rect.width);
       const atY = clamp(event.clientY, rect.top, rect.top + rect.height);
@@ -305,7 +310,7 @@ export default function Canvas({
       const gesture = event as Event & { scale?: number; clientX?: number; clientY?: number };
       if (!Number.isFinite(gesture.scale) || !gesture.scale || gesture.scale <= 0) return;
       const rect = stage.getBoundingClientRect();
-      const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
+      const next = Math.max(0.25, Math.min(maxZoomRef.current, safariStartZoom * gesture.scale));
       const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
       const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
       pendingZoom.current = { zoom: next, at: performance.now() };
@@ -1045,7 +1050,7 @@ export default function Canvas({
         // than the photo, so the fitted crop/export stay byte-for-byte unchanged.
         const stage = stageRef.current;
         if (stage) {
-          const next = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 0.25, 8);
+          const next = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 0.25, maxZoomRef.current);
           stage.scrollLeft -= centreX - start.lastCentreX;
           stage.scrollTop -= centreY - start.lastCentreY;
           start.lastCentreX = centreX;
@@ -1480,8 +1485,12 @@ export default function Canvas({
   const fitScale = (() => {
     if (!photo.pixelSize) return null;
     const { frameW, frameH } = artboardFrame(activeSize);
-    return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
+    // Inside the frame's 1 px border: the picture fills the inside, and at 100% that border would otherwise be counted as
+    // picture and leave the photo about 20 px short of its true size.
+    return Math.max((frameW - 2 * FRAME_BORDER) / photo.pixelSize.width, (frameH - 2 * FRAME_BORDER) / photo.pixelSize.height);
   })();
+  const maxZoom = maxCanvasZoom(fitScale);
+  maxZoomRef.current = maxZoom;
   // Match the export's source cap and device-bounded upscale admission.
   const pixelLimit = maxCanvasPixels(typeof navigator === 'undefined' ? { userAgent: '' } : navigator);
   // Original follows the Output scale (2× doubles it), as its export does; a fixed-size format keeps its size and the
@@ -1532,7 +1541,7 @@ export default function Canvas({
   };
   zoomKeyRef.current = (action) => {
     if (action === 'actual') { zoomToActual(); return; }
-    const next = keyboardZoomTarget(action, canvasZoom, fitScale);
+    const next = keyboardZoomTarget(action, canvasZoom, fitScale, maxZoom);
     if (next !== null && Math.abs(next - canvasZoom) > 0.0005) zoomAroundCentre(next);
   };
   const zoomToEye = async () => {
@@ -2265,7 +2274,7 @@ export default function Canvas({
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
             // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
-            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, 8))}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, maxZoom))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
@@ -2306,7 +2315,7 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
-            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, 8))}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, maxZoom))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
