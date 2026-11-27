@@ -999,6 +999,10 @@ export const nl: AreaTranslation<typeof source> = {
     groupChanged: "Gewijzigd",
     groupResetShort: "Herstellen",
     groupReset: (name) => `${name} herstellen`,
+    cvdOn: "Aan",
+    cvdOff: "Uit",
+    cvdOnHint: "Kleuren worden hier in woorden benoemd, en rode en groene vlakken die op elkaar lijken krijgen een omlijning op de foto, met een nummer en naam eronder.",
+    cvdOffHint: "Zet dit aan om kleuren tijdens het bewerken in woorden te laten benoemen.",
     resetPhoto: 'Foto herstellen',
     stopsSuffix: 'EV',
     tooltips: {

@@ -21,7 +21,7 @@ test('?v2 the Flight panel leads with recommendations, is named after the mode, 
   }
 
   // The crowd of explanations is gone from the tab, and one (i) holds them.
-  for (const words of [/Nothing is generated/, /Ongoing analysis active/, /Online review is unavailable/, /Colour notes come from measuring/]) {
+  for (const words of [/Nothing is generated/, /Checking again as you edit/, /Online review is unavailable/, /Colour notes come from measuring/]) {
     await expect(root.getByText(words).filter({ visible: true })).toHaveCount(0);
   }
   await root.getByTestId('copilot-about').locator('summary').click();

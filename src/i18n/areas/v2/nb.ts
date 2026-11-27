@@ -999,6 +999,10 @@ export const nb: AreaTranslation<typeof source> = {
     groupChanged: "Endret",
     groupResetShort: "Tilbakestill",
     groupReset: (name) => `Tilbakestill ${name}`,
+    cvdOn: "På",
+    cvdOff: "Av",
+    cvdOnHint: "Farger navngis med ord her, og røde og grønne områder som ligner hverandre, får en ramme på bildet og et nummer og navn under det.",
+    cvdOffHint: "Slå på for å få fargene navngitt med ord mens du redigerer.",
     resetPhoto: 'Tilbakestill bildet',
     stopsSuffix: 'EV',
     tooltips: {

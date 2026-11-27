@@ -36,11 +36,14 @@ export type ColourFinding =
   /** Hardly any colour at all, but not black and white. Said as information, not as a fault. */
   | { id: 'muted'; severity: 'info' }
   /** Two large areas differ mainly by red against green, so they look alike to many colour-blind viewers. */
-  | { id: 'redGreenAlike'; severity: 'tip'; families: [ColourFamily, ColourFamily] }
+  | { id: 'redGreenAlike'; severity: 'tip'; families: [ColourFamily, ColourFamily]; areas?: [ColourArea, ColourArea] }
   /** How the edit changed colour strength overall (only with a before picture). `change` is a ratio minus 1. */
   | { id: 'editChange'; severity: 'info'; change: number }
   /** The main subject's colour compared with its surroundings (only with a subject outline). */
   | { id: 'subjectColour'; severity: 'info'; subject: ColourFamily; subjectStrength: Strength; surroundings: ColourFamily };
+
+/** Where most of one colour sits, as fractions of the picture (0 to 1): the box holding its middle 90% across and down. */
+export interface ColourArea { x: number; y: number; width: number; height: number }
 
 export interface ColourReport {
   /** The main colours, largest first, at most five, each at least 3% of the picture. */
@@ -153,7 +156,22 @@ const distance = (p: readonly number[], q: readonly number[]) => Math.hypot(p[0]
 
 // ---- The check -------------------------------------------------------------------------------------------------
 
-interface Bucket { family: ColourFamily; count: number; L: number; a: number; b: number; r: number; g: number; bl: number }
+interface Bucket { family: ColourFamily; count: number; L: number; a: number; b: number; r: number; g: number; bl: number; cols: Uint32Array; rows: Uint32Array }
+
+/** The span holding the middle 90% of a colour's pixels along one axis, so stray specks elsewhere don't stretch the box. */
+function middleSpan(counts: Uint32Array, total: number): [number, number] {
+  let seen = 0; let start = 0; let end = counts.length - 1;
+  for (let i = 0; i < counts.length; i += 1) { seen += counts[i]; if (seen > total * 0.05) { start = i; break; } }
+  seen = 0;
+  for (let i = counts.length - 1; i >= 0; i -= 1) { seen += counts[i]; if (seen > total * 0.05) { end = i; break; } }
+  return [start, Math.max(start, end)];
+}
+
+function areaOf(bucket: Bucket, width: number, height: number): ColourArea {
+  const [x0, x1] = middleSpan(bucket.cols, bucket.count);
+  const [y0, y1] = middleSpan(bucket.rows, bucket.count);
+  return { x: x0 / width, y: y0 / height, width: (x1 + 1 - x0) / width, height: (y1 + 1 - y0) / height };
+}
 
 /** Mean colour strength (OKLab chroma) of a picture, ignoring near-black pixels where colour means little. */
 function meanChroma(pixels: Pixels): number {
@@ -203,8 +221,9 @@ export function checkColour({ after, before, subject, blackAndWhite = false }: C
     const chroma = chromaOf(A, B);
     const family = familyOf(L, A, B);
     let bucket = buckets.get(family);
-    if (!bucket) { bucket = { family, count: 0, L: 0, a: 0, b: 0, r: 0, g: 0, bl: 0 }; buckets.set(family, bucket); }
+    if (!bucket) { bucket = { family, count: 0, L: 0, a: 0, b: 0, r: 0, g: 0, bl: 0, cols: new Uint32Array(after.width), rows: new Uint32Array(after.height) }; buckets.set(family, bucket); }
     bucket.count += 1;
+    bucket.cols[p % after.width] += 1; bucket.rows[Math.floor(p / after.width)] += 1;
     bucket.L += L; bucket.a += A; bucket.b += B;
     bucket.r += LINEAR[r]; bucket.g += LINEAR[g]; bucket.bl += LINEAR[b];
 
@@ -288,7 +307,7 @@ export function checkColour({ after, before, subject, blackAndWhite = false }: C
       if (Math.max(chromaOf(lab(x)[1], lab(x)[2]), chromaOf(lab(y)[1], lab(y)[2])) < 0.1) continue;
       const seen = (matrix: number[]) => distance(simulated(matrix, ...lin(x)), simulated(matrix, ...lin(y)));
       if (Math.min(seen(PROTAN), seen(DEUTAN)) < 0.045) {
-        findings.push({ id: 'redGreenAlike', severity: 'tip', families: [x.family, y.family] });
+        findings.push({ id: 'redGreenAlike', severity: 'tip', families: [x.family, y.family], areas: [areaOf(x, after.width, after.height), areaOf(y, after.width, after.height)] });
         break search;
       }
     }

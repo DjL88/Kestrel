@@ -53,4 +53,25 @@ test('Colour-vision support is off by default and, when turned on, names the col
   await expect(words).toContainText('Main colours');
   await expect(words).toContainText(/red/);
   await expect(words).toContainText(/green/);
+
+  // The same switch sits at the top of Adjust, and the red and green look-alike areas are outlined and numbered on the photo.
+  await studio.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  const adjustToggle = studio.getByTestId('cvd-toggle');
+  await expect(adjustToggle).toHaveAttribute('aria-checked', 'true');
+  await expect(studio.getByTestId('colour-area')).toHaveCount(2);
+  await expect(studio.getByTestId('colour-area').first()).toHaveAttribute('aria-label', /^1 · /);
+  // Nothing covers the image: no words on the photo; the numbers and names are in the key under the canvas.
+  await expect(studio.getByTestId('colour-area-marks').locator('text')).toHaveCount(0);
+  const key = studio.getByTestId('colour-area-key');
+  await expect(key.getByTestId('colour-area-key-item')).toHaveCount(2);
+  await expect(key.getByTestId('colour-area-key-item').first()).toHaveText(/^1 · /);
+  await expect(studio.getByTestId('canvas-status')).toContainText(/2 · /);
+  // Turning it off in Adjust turns off the setting too, and the outlines go.
+  await adjustToggle.click();
+  await expect(adjustToggle).toHaveAttribute('aria-checked', 'false');
+  await expect(studio.getByTestId('colour-area')).toHaveCount(0);
+  await expect(studio.getByTestId('colour-area-key')).toHaveCount(0);
+  await openV2Settings(page);
+  await page.getByRole('tab', { name: 'Assistance' }).or(page.getByRole('button', { name: 'Assistance' })).first().click();
+  await expect(page.getByRole('dialog').getByRole('switch', { name: 'Colour-vision support' })).toHaveAttribute('aria-checked', 'false');
 });

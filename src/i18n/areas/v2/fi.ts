@@ -1000,6 +1000,10 @@ export const fi: AreaTranslation<typeof source> = {
     groupChanged: "Muutettu",
     groupResetShort: "Palauta",
     groupReset: (name) => `Palauta ${name}`,
+    cvdOn: "Päällä",
+    cvdOff: "Pois",
+    cvdOnHint: "Värit kerrotaan täällä sanoin, ja toisiaan muistuttavat punaiset ja vihreät alueet rajataan kuvaan ja numeroidaan ja nimetään sen alle.",
+    cvdOffHint: "Ota käyttöön, niin värit nimetään sanoin muokatessasi.",
     resetPhoto: 'Palauta kuva',
     stopsSuffix: 'EV',
     tooltips: {

@@ -1000,6 +1000,10 @@ export const gd: AreaTranslation<typeof source> = {
     groupChanged: "Air atharrachadh",
     groupResetShort: "Ath-shuidhich",
     groupReset: (name) => `Ath-shuidhich ${name}`,
+    cvdOn: "Air",
+    cvdOff: "Dheth",
+    cvdOnHint: "Thèid dathan ainmeachadh ann am faclan an seo, agus thèid loidhne a chur air an dealbh mu raointean dearga is uaine a tha coltach ri chèile, le àireamh is ainm fodha.",
+    cvdOffHint: "Cuir air e gus dathan ainmeachadh ann am faclan fhad 's a tha thu a' deasachadh.",
     resetPhoto: 'Ath-shuidhich an dealbh',
     stopsSuffix: 'EV',
     tooltips: {

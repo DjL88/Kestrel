@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
-import { colourWarningSentences, colourWords, describeColourFinding, describeColourMatch, describeColourSense } from './colourWords';
+import { colourWarningSentences, colourWords, describeColourFinding, describeColourMatch, describeColourSense, warmthFix, colourAreas } from './colourWords';
 import type { ColourMatchResult } from '../../core/colourMatch';
 import { checkSubjectColour } from '../../core/colourSense';
 
@@ -58,6 +58,8 @@ test('ColourSense says in words whether the subject keeps its colour, and says n
   const moved = describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([205, 180, 40]), subject));
   assert.equal(moved?.kept, false);
   assert.match(moved!.text, /Moves from orange towards yellow\./);
+  assert.equal(moved?.fix, 'warmer', 'orange moved towards yellow: one tap makes it warmer again');
+  assert.equal(kept?.fix, undefined);
   const clipped = describeColourSense(checkSubjectColour(picture([230, 120, 60]), picture([255, 128, 64]), subject));
   assert.match(clipped!.text, /Detail is lost in the red channel on part of the subject\./);
   assert.equal(describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([200, 110, 40]), new Float32Array(100))), undefined);
@@ -74,4 +76,18 @@ test('colour match says what the subject should have and whether it is there, wi
     text: 'Expected orange (breast): not found. The subject is mostly grey and blue. Light, age, moult or a wrong name can explain a difference.',
   });
   assert.equal(describeColourMatch(null), undefined);
+});
+
+test('the one-tap warmth fix points back the way the colour came, and stays quiet for greys', () => {
+  assert.equal(warmthFix('green', 'yellow'), 'cooler');
+  assert.equal(warmthFix('orange', 'blue'), 'warmer');
+  assert.equal(warmthFix('grey', 'blue'), undefined);
+  assert.equal(warmthFix('red', 'brown'), undefined);
+});
+
+test('red and green look-alike areas are numbered and named for the photo outline', () => {
+  const area = { x: 0, y: 0, width: 1, height: 0.5 };
+  const report = { palette: [], monochrome: false, findings: [{ id: 'redGreenAlike' as const, severity: 'tip' as const, families: ['red', 'green'] as ['red', 'green'], areas: [area, { ...area, y: 0.5 }] as [typeof area, typeof area] }] };
+  assert.deepEqual(colourAreas(report).map((entry) => entry.label), ['1 · red', '2 · green']);
+  assert.deepEqual(colourAreas({ palette: [], monochrome: false, findings: [] }), []);
 });

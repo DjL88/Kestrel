@@ -68,6 +68,8 @@ interface CanvasProps {
   /** The overlay key as the person reads it ("O"), or undefined when unbound. */
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
+  /** Colour-vision support: red and green areas that look alike, outlined and numbered on the photo. */
+  colourAreas?: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }>;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
   tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
@@ -164,6 +166,7 @@ const FRAME_BORDER = 1;
 
 export default function Canvas({
   PhotoSurface,
+  colourAreas,
   maskGuideId,
   maskOverlayVisible: overlayChosen = true,
   maskOverlayStyle = 'outline',
@@ -1488,12 +1491,14 @@ export default function Canvas({
     ) : undefined;
   // The camera's AF box is in the shown picture's fractions, so like the mask outline it follows crop, rotation and zoom.
   const cameraFocusArea = showCameraFocus ? photo.cameraFocus?.area : undefined;
+  const shownColourAreas = colourAreas?.length ? colourAreas : undefined;
   const renderCanvasMarks = (picture: { width: number; height: number }) => {
     const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
-    if (!cameraFocusArea) return marks;
-    return <>{marks}<CameraFocusBox picture={picture} area={cameraFocusArea} /></>;
+    if (!cameraFocusArea && !shownColourAreas) return marks;
+    return <>{marks}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
+      {shownColourAreas && <ColourAreaMarks picture={picture} areas={shownColourAreas} />}</>;
   };
-  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea;
+  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
@@ -2501,6 +2506,19 @@ export default function Canvas({
             )}
           </div>
         )}
+        {/* Colour-vision support: which outline is which, by line and name (the outlines themselves are on the photo). */}
+        {shownColourAreas && !compareMode && !holdingOriginal && (
+          <span data-testid="colour-area-key" className="flex shrink-0 items-center gap-3 text-[var(--text-primary)]">
+            {shownColourAreas.map(({ label }, index) => (
+              <span key={label} data-testid="colour-area-key-item" className="inline-flex items-center gap-1.5">
+                <svg width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" className="shrink-0">
+                  <line x1="1" y1="4" x2="19" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray={index === 0 ? undefined : '4 3'} />
+                </svg>
+                <span>{label}</span>
+              </span>
+            ))}
+          </span>
+        )}
         {shotNote && (
           <div role={shotNote.problem ? 'alert' : 'status'} data-testid="canvas-shot-note" className="flex shrink-0 items-center gap-1 text-[var(--text-primary)]">
             <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
@@ -2549,6 +2567,29 @@ function CameraFocusBox({ picture, area }: { picture: { width: number; height: n
       <title>{STRINGS.canvas.cameraFocusBox}</title>
       <rect x={x} y={y} width={width} height={height} fill="none" stroke="rgba(0,0,0,0.65)" strokeWidth={4} vectorEffect="non-scaling-stroke" />
       <rect x={x} y={y} width={width} height={height} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+    </g>
+  );
+}
+
+/** Red and green look-alike areas, for Colour-vision support. Only the outlines are on the photo, like the mask outline:
+ * each has its own line (solid, then dashed), and its number and colour name are in the key under the canvas, never over
+ * the picture (Dave: nothing covers the image). So the two are told apart without seeing colour. White on a dark edge
+ * reads on any photo. */
+function ColourAreaMarks({ picture, areas }: { picture: { width: number; height: number }; areas: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }> }) {
+  return (
+    <g data-testid="colour-area-marks" style={{ pointerEvents: 'none' }}>
+      {areas.map(({ label, area }, index) => {
+        const x = area.x * picture.width, y = area.y * picture.height;
+        const width = Math.max(area.width * picture.width, 1), height = Math.max(area.height * picture.height, 1);
+        const dash = index === 0 ? undefined : '8 6';
+        return (
+          <g key={label} data-testid="colour-area" role="img" aria-label={label}>
+            <title>{label}</title>
+            <rect x={x} y={y} width={width} height={height} fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth={4} strokeDasharray={dash} vectorEffect="non-scaling-stroke" />
+            <rect x={x} y={y} width={width} height={height} fill="none" stroke="#fff" strokeWidth={2} strokeDasharray={dash} vectorEffect="non-scaling-stroke" />
+          </g>
+        );
+      })}
     </g>
   );
 }
