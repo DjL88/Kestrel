@@ -154,6 +154,9 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 const STATUS_BUTTON = 'inline-flex min-h-6 shrink-0 items-center rounded border border-[var(--border-default)] px-1.5 text-[10px] leading-4 text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]';
 /** How long a finished zoom-to-eye note stays: long enough to read, short enough not to linger. */
 const EYE_NOTE_MS = 6000;
+/** The box a zoom anchors on: the picture itself, else its frame. The frame's border snaps to whole pixels as it
+ * zooms, so a share of the frame is not quite the same share of the picture, and a long pinch drifted by a few pixels. */
+const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getBoundingClientRect();
 
 export default function Canvas({
   PhotoSurface,
@@ -218,7 +221,11 @@ export default function Canvas({
   const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
   const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
-  zoomRef.current = canvasZoom;
+  // A zoom asked for by a pinch step reaches canvasZoom a render later. Until it does (or briefly goes missing), the next
+  // step builds on it, not on the zoom still shown, so fast pinch steps are neither lost nor applied twice.
+  const pendingZoom = useRef<{ zoom: number; at: number } | null>(null);
+  if (pendingZoom.current && (Math.abs(pendingZoom.current.zoom - canvasZoom) < 0.0006 || performance.now() - pendingZoom.current.at > 1000)) pendingZoom.current = null;
+  zoomRef.current = pendingZoom.current ? pendingZoom.current.zoom : canvasZoom;
   const photoRef = useRef(photo);
   photoRef.current = photo;
   const neighboursRef = useRef(neighbourPhotos);
@@ -231,22 +238,28 @@ export default function Canvas({
    * place in the view (x and y from the stage's top left). Measured from the real layout on both sides, so the stage's
    * padding and the centring of a picture smaller than the view no longer throw the zoom somewhere else.
    */
-  const keepAt = useRef<{ fx: number; fy: number; x: number; y: number } | null>(null);
+  const keepAt = useRef<{ fx: number; fy: number; x: number; y: number; zoom?: number; at?: number } | null>(null);
+  const heldPoint = useRef<{ clientX: number; clientY: number; fx: number; fy: number; at: number } | null>(null);
   const [eyeTarget, setEyeTarget] = useState(0);
   // Where the camera says it focused (src/core/cameraFocus.ts), drawn on the picture when the person asks.
   const [showCameraFocus, setShowCameraFocus] = useState(false);
   /** Hold the picture point under this screen position in place through the next zoom. False when there is no frame. */
-  const holdPointAt = (clientX: number, clientY: number): boolean => {
+  const holdPointAt = (clientX: number, clientY: number, toZoom?: number): boolean => {
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (!stage || !frame) return false;
-    const frameRect = frame.getBoundingClientRect();
+    const frameRect = anchorRect(frame);
     if (!(frameRect.width > 0 && frameRect.height > 0)) return false;
     const stageRect = stage.getBoundingClientRect();
-    keepAt.current = {
-      fx: (clientX - frameRect.left) / frameRect.width, fy: (clientY - frameRect.top) / frameRect.height,
-      x: clientX - stageRect.left, y: clientY - stageRect.top,
-    };
+    // Through one continuous pinch at the same place, hold the picture point chosen at its start. Measuring again at
+    // each step would pick up the whole-pixel rounding of the last scroll, and over a long pinch that adds up to a drift.
+    const now = performance.now();
+    const held = heldPoint.current;
+    const same = held && now - held.at < 1000 && Math.abs(held.clientX - clientX) < 1 && Math.abs(held.clientY - clientY) < 1;
+    const fx = same ? held.fx : (clientX - frameRect.left) / frameRect.width;
+    const fy = same ? held.fy : (clientY - frameRect.top) / frameRect.height;
+    heldPoint.current = { clientX, clientY, fx, fy, at: now };
+    keepAt.current = { fx, fy, x: clientX - stageRect.left, y: clientY - stageRect.top, zoom: toZoom, at: now };
     setEyeTarget((count) => count + 1);
     return true;
   };
@@ -274,7 +287,8 @@ export default function Canvas({
       if (next === zoomRef.current) return;
       const atX = clamp(event.clientX, rect.left, rect.left + rect.width);
       const atY = clamp(event.clientY, rect.top, rect.top + rect.height);
-      if (holdPointAt(atX, atY)) { zoomRef.current = next; setZoomRef.current(next); return; }
+      pendingZoom.current = { zoom: next, at: performance.now() };
+      if (holdPointAt(atX, atY, next)) { zoomRef.current = next; setZoomRef.current(next); return; }
       zoomAnchor.current = {
         // A pinch over the bar above the stage anchors on the nearest point of the stage.
         x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
@@ -298,7 +312,8 @@ export default function Canvas({
       const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
       const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
       const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
-      if (!holdPointAt(rect.left + x, rect.top + y)) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
+      pendingZoom.current = { zoom: next, at: performance.now() };
+      if (!holdPointAt(rect.left + x, rect.top + y, next)) zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
@@ -327,6 +342,27 @@ export default function Canvas({
     return () => window.removeEventListener(CANVAS_ZOOM_EVENT, onZoomKey);
   }, []);
 
+  // Zoomed in past Fit, the stage keeps the margins the picture had at Fit (owner, 27 Nov: "zoom jumps around"). The
+  // picture used to be centred and unscrollable until it outgrew the stage, so a pinch away from the middle drifted
+  // outwards and never came back. With these margins the point under the fingers has room to stay put from Fit, and a
+  // pan stops where an edge sat at Fit. Set before paint and before the anchoring below, so nothing moves on screen.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.style.padding = '';
+    if (canvasZoom <= 1.0005) return;
+    const board = stage.querySelector<HTMLElement>(':scope > [data-stage-margin], :scope > [data-testid="split-composition"], :scope > [data-testid="all-formats-board"]');
+    if (!board) return;
+    const box = board.getBoundingClientRect();
+    const base = getComputedStyle(stage);
+    const baseX = parseFloat(base.paddingLeft) || 0;
+    const baseY = parseFloat(base.paddingTop) || 0;
+    const atFit = { width: box.width / canvasZoom, height: box.height / canvasZoom };
+    const x = Math.max(baseX, (stage.clientWidth - atFit.width) / 2);
+    const y = Math.max(baseY, (stage.clientHeight - atFit.height) / 2);
+    stage.dataset.basePad = `${baseX},${baseY}`;
+    stage.style.padding = `${y}px ${x}px`;
+  }, [canvasZoom, stageEl]);
   useLayoutEffect(() => {
     const stage = stageRef.current;
     const anchor = zoomAnchor.current;
@@ -340,9 +376,12 @@ export default function Canvas({
     const point = keepAt.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (!stage || !point || !frame) return;
-    keepAt.current = null;
+    // A render can come before the asked-for zoom does (the step's own state is local, the zoom comes through the
+    // store). Keep the point until that zoom is on screen, or the anchoring is spent on the old zoom and lost.
+    const arrived = point.zoom === undefined || Math.abs(point.zoom - canvasZoom) < 0.0006 || performance.now() - (point.at ?? 0) > 1000;
+    if (arrived) keepAt.current = null;
     // Measured after layout, so centring, padding and the frame's own zoom are all accounted for.
-    const frameRect = frame.getBoundingClientRect();
+    const frameRect = anchorRect(frame);
     const stageRect = stage.getBoundingClientRect();
     stage.scrollLeft += frameRect.left + point.fx * frameRect.width - (stageRect.left + point.x);
     stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + point.y);
@@ -492,7 +531,13 @@ export default function Canvas({
     const stage = stageEl;
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      if (!entry) return;
+      // The Fit margins added while zoomed in are not less room for the picture: measure inside the stage's own padding.
+      const el = entry.target as HTMLElement;
+      const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
+      if (el.style.padding && Number.isFinite(baseX) && Number.isFinite(baseY)) {
+        setStageSize({ width: el.clientWidth - 2 * baseX, height: el.clientHeight - 2 * baseY });
+      } else setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(stage);
     return () => observer.disconnect();
@@ -1018,11 +1063,16 @@ export default function Canvas({
           start.lastCentreX = centreX;
           start.lastCentreY = centreY;
           if (Math.abs(next - zoomRef.current) > 0.002) {
-            const rect = stage.getBoundingClientRect();
-            zoomAnchor.current = {
-              x: centreX - rect.left, y: centreY - rect.top,
-              left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
-            };
+            // The same anchoring as a touchpad pinch: the picture point between the fingers stays between them,
+            // measured from the real layout (the stage's padding and Fit margins included).
+            pendingZoom.current = { zoom: next, at: performance.now() };
+            if (!holdPointAt(centreX, centreY, next)) {
+              const rect = stage.getBoundingClientRect();
+              zoomAnchor.current = {
+                x: centreX - rect.left, y: centreY - rect.top,
+                left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
+              };
+            }
             zoomRef.current = next;
             setZoomRef.current(next);
           }
@@ -1462,7 +1512,7 @@ export default function Canvas({
     const stage = stageRef.current;
     if (stage) {
       const rect = stage.getBoundingClientRect();
-      if (!holdPointAt(rect.left + stage.clientWidth / 2, rect.top + stage.clientHeight / 2)) {
+      if (!holdPointAt(rect.left + stage.clientWidth / 2, rect.top + stage.clientHeight / 2, next)) {
         zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
       }
     }
@@ -1484,7 +1534,7 @@ export default function Canvas({
     const focus = chooseActualFocus(activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null, known?.focus ?? null, known?.subject ?? null);
     const at = frame ? focusOnScreen(frame, focus) : null;
     if (!stage || !at) { zoomAroundCentre(next); return; }
-    const frameRect = frame!.getBoundingClientRect();
+    const frameRect = anchorRect(frame!);
     keepAt.current = {
       fx: (at.clientX - frameRect.left) / frameRect.width, fy: (at.clientY - frameRect.top) / frameRect.height,
       x: stage.clientWidth / 2, y: stage.clientHeight / 2,
@@ -1508,7 +1558,7 @@ export default function Canvas({
     if (!focus) { setEyeNote({ text: STRINGS.canvas.eyeUnavailable, busy: false }); return; }
     const liveFrame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
     const at = liveFrame ? focusOnScreen(liveFrame, focus) : null;
-    const frameRect = liveFrame?.getBoundingClientRect();
+    const frameRect = liveFrame ? anchorRect(liveFrame) : undefined;
     if (!at || !frameRect || !(frameRect.width > 0 && frameRect.height > 0)) {
       setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeUnavailable : STRINGS.canvas.eyeNone, busy: false });
       return;
@@ -2161,7 +2211,8 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
-            onClick={() => onSetZoom(canvasZoom / 1.25)}
+            // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
+            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, 8))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
@@ -2202,7 +2253,7 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
-            onClick={() => onSetZoom(canvasZoom * 1.25)}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, 8))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
