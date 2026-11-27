@@ -75,7 +75,8 @@ export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (gro
 export function speciesGroupsForRoute(categoryId: string | null | undefined): SpeciesLabel['group'][] | null {
   switch (categoryId) {
     case 'bird': case 'bird-of-prey': case 'waterbird': return ['bird'];
-    case 'mammal': return ['mammal'];
+    // The mammal list (Mammal Diversity Database) includes seals, whales and dolphins.
+    case 'mammal': case 'marine-mammal': return ['mammal'];
     case 'reptile': return ['reptile', 'amphibian'];
     case 'insect': return ['insect'];
     default: return null;

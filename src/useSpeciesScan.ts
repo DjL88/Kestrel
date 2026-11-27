@@ -92,6 +92,13 @@ interface Options {
   onOutsideRegion?: (frameId: string, label: SpeciesLabel) => void;
 }
 
+/** The built-in kind check on its own: what kind of subject the picture shows, if it is sure, and never a name. */
+async function kindOfPicture(picture: HTMLCanvasElement): Promise<ScanResult> {
+  const { crop } = await speciesSubjectCrop(picture);
+  const kind = gateOutcome((await routeAndEmbedPicture(picture, crop)).route, undefined).kind;
+  return { kindChecked: true, ...(kind ? { subjectKind: kind } : {}) };
+}
+
 /** Identifies untagged photos quietly, using the on-device model first. */
 export function useSpeciesScan({ projectId, frames, provider, active, onResult, area, checkOutside, onOutsideRegion }: Options) {
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
@@ -148,11 +155,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
           if (!stillCurrent()) continue;
           if (picture) {
             try {
-              const { crop } = await speciesSubjectCrop(picture);
-              const gate = await routeAndEmbedPicture(picture, crop);
-              const kind = gateOutcome(gate.route, undefined).kind;
+              const result = await kindOfPicture(picture);
               const live = latest.current.frames.find((item) => item.id === frame.id);
-              if (stillCurrent() && live && live.removedAt == null && !live.subjectKind) report(frame.id, { kindChecked: true, ...(kind ? { subjectKind: kind } : {}) });
+              if (stillCurrent() && live && live.removedAt == null && !live.subjectKind) report(frame.id, result);
             } catch { /* The kind stays unknown and is looked at again next time; nothing is guessed. */ }
           }
           await new Promise((resolve) => window.setTimeout(resolve, 30));
@@ -177,6 +182,8 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
 
         let patch: SpeciesPatch | undefined;
+        // When the species model cannot run, the built-in kind check still says what kind of subject it is.
+        let kindOnly: ScanResult | undefined;
         if (available.localReady && localLabels) {
           try {
             // analysePicture locates the subject on-device before comparing it with the saved species vectors.
@@ -235,7 +242,11 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
               mate.burstGroupId === frame.burstGroupId && !mate.vehicle?.carriedFrom && (mate.vehicle?.source === 'person' || mate.vehicle?.registered));
             if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: settled ? vehicle : await guardVehicleOnDevice(await readMarkings(vehicle, store, frame), picture) };
             // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
-          } catch { /* A failed local analysis can still use the opted-in fallback. */ }
+          } catch {
+            // A failed local analysis can still use the opted-in fallback. On the desktop the kind check runs on its own:
+            // the kind only (Wildlife...), never a name, and the photo stays waiting for a species name next time.
+            if (!frame.subjectKind && isDesktopApp()) kindOnly = await kindOfPicture(picture).catch(() => undefined);
+          }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
 
@@ -258,6 +269,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
         if (!live || live.removedAt != null || manualState(live) !== before) continue;
         skipped.current.add(frameKey(frame.id));
         if (patch) report(frame.id, patch);
+        else if (kindOnly) report(frame.id, kindOnly);
         await new Promise((resolve) => window.setTimeout(resolve, asked ? HELPER_GAP_MS : 30));
       }
     } finally {
@@ -286,12 +298,16 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
 
   // Photos the scan would look at now; with the helper off, unclassified photos still count, so the banner can offer it.
   const waiting = scanCandidates(frames, { includeUnclassified: helperOn || ONLINE_HELPER_VISIBLE }).length;
-  // With no species model and no helper, the desktop kind check still wakes for new photos that have no kind yet
-  // (without this a project opened empty never looked at the photos imported into it).
-  const kindWaiting = !localReady && !helperOn && isDesktopApp() ? kindCandidates(frames).length : 0;
+  // What wakes the scan for photos added after it last ran. The desktop app ships the kind check, so photos with no kind
+  // yet count there too: with the species model they are looked at (the kind check decides if they are animals), and
+  // without it they get the kind alone. Before this, only photos already called Wildlife woke it, so a puffin imported
+  // into an open project was never looked at until the project was reopened (owner's test: "Not identified").
+  const wake = isDesktopApp()
+    ? (localReady || helperOn ? scanCandidates(frames, { includeUnclassified: true }) : kindCandidates(frames)).length
+    : waiting;
   useEffect(() => {
-    if (ready && waiting + kindWaiting > 0 && !running.current) { cancelled.current = false; void run(); }
-  }, [ready, waiting, kindWaiting, run]);
+    if (ready && wake > 0 && !running.current) { cancelled.current = false; void run(); }
+  }, [ready, wake, run]);
 
   async function download() {
     if (!online) { setError(t.species.downloadFailed); return; }

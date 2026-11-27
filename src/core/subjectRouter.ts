@@ -57,6 +57,15 @@ export interface RouteResult {
   animalProbability: number;
   /** Total probability of every vehicle category (cars, aircraft, boats…), which decides whether vehicle recognition runs. */
   vehicleProbability: number;
+  /** Total probability of the wild-animal categories together (bird, waterbird, wild mammal, marine mammal…). */
+  wildlifeProbability: number;
+  /**
+   * Whether the picture is confidently a wild animal of some sort, judged on whole families rather than single categories:
+   * the wild-animal categories together must clear the same bar (minimumProbability, and minimumMargin over the next
+   * family) as a single category. A puffin split 0.35 bird / 0.19 marine mammal / 0.12 waterbird is then honestly
+   * wildlife, while no single sub-kind is claimed (category stays null unless one clears the bar on its own).
+   */
+  wildlifeConfident: boolean;
 }
 
 /**
@@ -115,11 +124,22 @@ export function routeSubject(
   const margin = probability - (ranked[1]?.probability ?? 0);
   const confident = probability >= thresholds.minimumProbability && margin >= thresholds.minimumMargin;
   const mass = (test: (category: SubjectCategory) => boolean) => ranked.filter((entry) => test(entry.category)).reduce((sum, entry) => sum + entry.probability, 0);
+  // Families: categories of the same group and kind (wild animals; pets and farm animals; vehicles; landscapes...).
+  const families = new Map<string, number>();
+  for (const entry of ranked) {
+    const key = `${entry.category.group}/${entry.category.kind}`;
+    families.set(key, (families.get(key) ?? 0) + entry.probability);
+  }
+  const wildlifeProbability = families.get("animal/wildlife") ?? 0;
+  const nextFamily = Math.max(0, ...[...families].filter(([key]) => key !== "animal/wildlife").map(([, value]) => value));
+  const wildlifeConfident = wildlifeProbability >= thresholds.minimumProbability && wildlifeProbability - nextFamily >= thresholds.minimumMargin;
   return {
     category: confident ? ranked[0].category : null, best: ranked[0].category, probability, margin, confident, top: ranked.slice(0, 3),
     speciesProbability: mass((category) => category.group === 'animal' && category.identify === 'species'),
     animalProbability: mass((category) => category.group === 'animal'),
     vehicleProbability: mass((category) => category.group === 'vehicle'),
+    wildlifeProbability,
+    wildlifeConfident,
   };
 }
 

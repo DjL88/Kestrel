@@ -26,7 +26,7 @@ export function permitsAutomaticSpeciesTag(species: SpeciesGate): boolean {
 }
 
 export interface GateOutcome {
-  /** 'wildlife' only when the photo had no kind and the gate is confident it is an animal the species list covers. */
+  /** 'wildlife' only when the photo had no kind and the gate is confident it is a wild animal (src/core/subjectRouter.ts). */
   kind?: Extract<SubjectKind, 'wildlife'>;
   species: SpeciesGate;
 }
@@ -38,7 +38,9 @@ export interface GateOutcome {
  */
 export function gateOutcome(route: RouteResult | null, currentKind: SubjectKind | undefined): GateOutcome {
   const species = route ? speciesGate(route) : 'block';
-  const clearlyAnimal = !!route?.confident && route.category?.group === 'animal' && species === 'allow';
+  // A wild animal of some sort, either one category on its own or the wild-animal categories together (a bird split
+  // between "bird" and "waterbird"): the kind is honest even when no single sub-kind, or no species, is certain.
+  const clearlyAnimal = (!!route?.confident && route.category?.group === 'animal' && species === 'allow') || !!route?.wildlifeConfident;
   return !currentKind && clearlyAnimal ? { kind: 'wildlife', species } : { species };
 }
 

@@ -87,7 +87,7 @@
     "a marine mammal in the sea"
    ],
    "detector": [],
-   "identify": null
+   "identify": "species"
   },
   {
    "id": "fish-marine",
