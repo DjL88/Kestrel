@@ -1,4 +1,5 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
+import { onlineHelperFromEntitlements, type OnlineHelperAccess } from '../core/onlineHelperAccess';
 
 /**
  * Account-level consent for the *optional* managed Gemini helper.
@@ -11,6 +12,8 @@ import { parseControlPlaneUrl } from '../core/licenceOnline';
 export interface ManagedAiConsentStatus {
   consent: boolean;
   planAvailable: boolean;
+  /** The server's word on whether the helper is available to this account now (invite-only, switch on). */
+  onlineHelper: OnlineHelperAccess;
 }
 
 export type AccountCloudUsage =
@@ -91,7 +94,7 @@ function consentFrom(data: JsonObject): ManagedAiConsentStatus {
     const value = record(plan);
     return value?.managedAi === true && value?.status === 'active';
   });
-  return { consent: data.aiConsent, planAvailable };
+  return { consent: data.aiConsent, planAvailable, onlineHelper: onlineHelperFromEntitlements(data) };
 }
 
 /** Only show the account's server-reported storage usage after sign-in. An unconfigured

@@ -17,6 +17,7 @@ import { ManageProPanel } from './ManageProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
+import { setOnlineHelperAccess, useOnlineHelperShown } from '../providers/onlineHelperState';
 import { readAccountOnlineSettings, setAccountAiConsent, type AccountCloudUsage, type ManagedAiConsentStatus } from '../providers/accountAiConsent';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { SignInMark } from './SignInMark';
@@ -59,6 +60,7 @@ export function AccountAndLicenceSettings() {
   const [password, setPassword] = useState('');
   const [accountNote, setAccountNote] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<ManagedAiConsentStatus | null>(null);
+  const helperShown = useOnlineHelperShown();
   const [cloudUsage, setCloudUsage] = useState<AccountCloudUsage | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
@@ -118,6 +120,7 @@ export function AccountAndLicenceSettings() {
         const result = await readAccountOnlineSettings(aiServer, token);
         if (request === aiRequest.current) {
           setAiStatus(result.ai);
+          setOnlineHelperAccess(result.ai.onlineHelper);
           setCloudUsage(result.cloud);
         }
       } catch {
@@ -165,6 +168,7 @@ export function AccountAndLicenceSettings() {
       const result = await readAccountOnlineSettings(aiServer, token);
       if (request === aiRequest.current) {
         setAiStatus(result.ai);
+        setOnlineHelperAccess(result.ai.onlineHelper);
         setCloudUsage(result.cloud);
       }
     } catch {
@@ -261,6 +265,7 @@ export function AccountAndLicenceSettings() {
       setAiBusy(false);
       setAiNote(null);
       setAccount(null);
+      setOnlineHelperAccess(null);
       setAccountDevices(null);
       setAccountNote('Signed out of InFlight.');
     });
@@ -365,8 +370,10 @@ export function AccountAndLicenceSettings() {
         )}
         {accountBusy && <p role="status">Working on your account…</p>}
         {accountNote && <p role="status" className="text-[var(--account-warning,#fde68a)]">{accountNote}</p>}
-        {account && (
-          <div className="space-y-3 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3" aria-label="Optional online helper settings">
+        {/* InFlight's own helper is invite-only: shown only when the server says it is available to this account and the
+            device is online (owner, 27 Nov 2026). Otherwise nothing: no disabled switch, no 'not in your plan' line. */}
+        {account && helperShown && (
+          <div className="space-y-3 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3" aria-label="Optional online helper settings" data-testid="account-online-helper">
             <h4 className="font-medium text-[var(--account-foreground,#f4f4f5)]">Online Gemini helper (optional)</h4>
             <p className="text-xs text-[var(--account-text,#d4d4d8)]">
               Off by default. When allowed, the helper can check a small image without camera metadata,
@@ -382,9 +389,6 @@ export function AccountAndLicenceSettings() {
               <span>{aiBusy ? 'Checking online setting…' : aiStatus?.consent === true ? 'Allowed for this account' :
                 aiStatus ? 'Off for this account' : 'Waiting for the account setting'}</span>
             </label>
-            {aiStatus && !aiStatus.planAvailable && (
-              <p className="text-xs text-[var(--account-muted,#a1a1aa)]">Your current plan does not include the hosted helper. Changing this preference does not buy a plan.</p>
-            )}
             {!aiBusy && !aiStatus && (
               <button type="button" className={action} disabled={offline} onClick={() => void retryAiConsent()}>
                 Check online helper setting again
