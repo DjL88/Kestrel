@@ -2035,6 +2035,10 @@ export default function Canvas({
             <div
               key={`${size.id}-${paneIdx}`}
               data-testid={`artboard-${size.id}-${paneIdx}`}
+              // As wide as its picture, borders included (Dave, 27 Nov): left to size itself, the card took the width of its
+              // full header label, so a tall 9:16 or 4:5 picture sat in a wider card with a black band down its right.
+              // The label truncates instead (full text on hover).
+              style={{ width: cardW + 2 }}
               className={`flex flex-col rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] transition-colors ${
                 isSelected
                   ? 'border-[var(--brand-accent)] ring-1 ring-[var(--brand-accent)]'
@@ -2050,7 +2054,7 @@ export default function Canvas({
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BrandIcon name="grip" size={12} className="text-[var(--text-muted)]" />
-                  <span className="truncate text-[0.6875rem] font-semibold text-[var(--text-primary)]">
+                  <span title={size.label} className="truncate text-[0.6875rem] font-semibold text-[var(--text-primary)]">
                     {size.label}{panes.length > 1 ? ` · ${paneIdx + 1}/${panes.length}` : ''}
                   </span>
                 </div>
