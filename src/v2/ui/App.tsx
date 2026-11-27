@@ -132,6 +132,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // The tiles on screen (filmstrip or grid) get their thumbnails first.
   useThumbnailsOnScreen(actions.thumbnailsOnScreen);
+  // The Co-pilot panel is named after the Flight mode in use (Dave, 27 Nov: it said "Co-pilot" in Auto-pilot).
+  const panelTitle = (id: PanelId) => (id === 'copilot' ? STRINGS.topBar.assistModes[store.assistMode] : PANEL_TITLES[id]);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
@@ -1196,7 +1198,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
               <DockPanel
                 panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
+                title={panelTitle(store.activePanel)}
                 dock="left"
                 floatX={activePanelState.floatX}
                 floatY={activePanelState.floatY}
@@ -1385,7 +1387,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
               <DockPanel
                 panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
+                title={panelTitle(store.activePanel)}
                 dock="right"
                 floatX={activePanelState.floatX}
                 floatY={activePanelState.floatY}
@@ -1404,7 +1406,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 <DockPanel
                   key={panelId}
                   panelId={panelId}
-                  title={PANEL_TITLES[panelId]}
+                  title={panelTitle(panelId)}
                   dock="float"
                   floatX={state.floatX}
                   floatY={state.floatY}
@@ -1545,7 +1547,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5"
               >
                 <h2 className="text-xs font-semibold text-[var(--text-primary)]">
-                  {PANEL_TITLES[store.activePanel]}
+                  {panelTitle(store.activePanel)}
                 </h2>
                 <button
                   type="button"
