@@ -549,6 +549,8 @@ export const da: AreaTranslation<typeof source> = {
     zoomFitShort: "Tilpas",
     zoomActual: "100 % (faktiske pixels)",
     zoomEye: "Zoom til øjet",
+    zoomFocusPoint: "Zoom til fokuspunkt",
+    zoomFocusPointNone: "Filen fortæller ikke, hvor kameraet fokuserede.",
     zoomSubject: "Zoom til motivet",
     zoomCentre: "Zoom til midten",
     zoomCurrent: "Nu",

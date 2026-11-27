@@ -550,6 +550,8 @@ export const fi: AreaTranslation<typeof source> = {
     zoomFitShort: "Sovita",
     zoomActual: "100 % (todelliset pikselit)",
     zoomEye: "Zoomaa silmään",
+    zoomFocusPoint: "Zoomaa tarkennuspisteeseen",
+    zoomFocusPointNone: "Tiedosto ei kerro, mihin kamera tarkensi.",
     zoomSubject: "Zoomaa kohteeseen",
     zoomCentre: "Zoomaa keskelle",
     zoomCurrent: "Nyt",

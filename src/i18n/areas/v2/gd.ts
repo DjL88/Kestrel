@@ -550,6 +550,8 @@ export const gd: AreaTranslation<typeof source> = {
     zoomFitShort: "Freagarraich",
     zoomActual: "100% (fìor-phiogsailean)",
     zoomEye: "Sùm chun na sùla",
+    zoomFocusPoint: "Sùm gu puing an fhòcais",
+    zoomFocusPointNone: "Chan eil am faidhle seo ag ràdh càite an do rinn an camara fòcas.",
     zoomSubject: "Sùm chun a’ chuspair",
     zoomCentre: "Sùm chun a’ mheadhain",
     zoomCurrent: "An-dràsta",

@@ -581,6 +581,8 @@ export const source = {
     zoomFitShort: "Fit",
     zoomActual: '100% (actual pixels)',
     zoomEye: 'Zoom to eye',
+    zoomFocusPoint: "Zoom to focus point",
+    zoomFocusPointNone: "This file does not say where the camera focused.",
     zoomSubject: 'Zoom to subject',
     zoomCentre: 'Zoom to centre',
     zoomCurrent: 'Now',

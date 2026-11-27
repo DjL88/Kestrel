@@ -549,6 +549,8 @@ export const it: AreaTranslation<typeof source> = {
     zoomFitShort: "Adatta",
     zoomActual: "100% (pixel reali)",
     zoomEye: "Zoom sull’occhio",
+    zoomFocusPoint: "Zoom sul punto di messa a fuoco",
+    zoomFocusPointNone: "Questo file non indica dove ha messo a fuoco la fotocamera.",
     zoomSubject: "Zoom sul soggetto",
     zoomCentre: "Zoom al centro",
     zoomCurrent: "Ora",

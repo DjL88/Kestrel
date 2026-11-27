@@ -154,3 +154,37 @@ test('100% is one photo pixel per screen pixel on a photo larger than 18 MP', as
   // A Z8-sized 45 MP picture: within a pixel or two of 8,256 photo pixels across, at this screen's pixel ratio.
   expect(Math.abs(box.width * scale - 8256)).toBeLessThanOrEqual(2);
 });
+
+// Dave, 27 Nov (installed build): after Zoom to eye, zooming out jumped the view to the photo's bottom-right. Zoomed in
+// near a corner, each step out keeps the middle of the view where it was until the picture's edge comes to rest where
+// it sits at Fit (it can go no further), never jumping; at Fit the photo is centred.
+test('zooming out from near a corner never jumps, and the photo ends centred at Fit', async ({ page }) => {
+  const root = await importPicture(page);
+  const fit = await pictureBox(page);
+  const stage = await page.evaluate(() => (document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement).getBoundingClientRect().toJSON());
+  const corner = { x: Math.round(fit.left + fit.width * 0.85), y: Math.round(fit.top + fit.height * 0.85) };
+  await page.mouse.move(corner.x, corner.y);
+  await pinch(page, 24, -12);
+  const middle = { x: Math.round(stage.left + stage.width / 2), y: Math.round(stage.top + stage.height / 2) };
+  const zoomOut = root.getByRole('button', { name: 'Zoom out', exact: true });
+  for (let step = 1; step <= 20; step += 1) {
+    const before = await pictureBox(page);
+    if (before.width <= fit.width + 1) break;
+    const share = { fx: (middle.x - before.left) / before.width, fy: (middle.y - before.top) / before.height };
+    await zoomOut.click();
+    await page.waitForTimeout(150);
+    const after = await pictureBox(page);
+    const dx = Math.abs(after.left + share.fx * after.width - middle.x);
+    const dy = Math.abs(after.top + share.fy * after.height - middle.y);
+    // Held in place, or the picture's edge has come to rest where it sits at Fit.
+    const restX = Math.abs(after.left - fit.left) < 2 || Math.abs(after.left + after.width - (fit.left + fit.width)) < 2 || after.width <= fit.width + 1;
+    const restY = Math.abs(after.top - fit.top) < 2 || Math.abs(after.top + after.height - (fit.top + fit.height)) < 2 || after.height <= fit.height + 1;
+    expect(dx <= 4 || restX, `step ${step}: the view jumped sideways by ${dx.toFixed(1)} px`).toBe(true);
+    expect(dy <= 4 || restY, `step ${step}: the view jumped up or down by ${dy.toFixed(1)} px`).toBe(true);
+  }
+  await root.getByTestId('zoom-fit').click();
+  await page.waitForTimeout(200);
+  const end = await pictureBox(page);
+  expect(Math.abs(end.left + end.width / 2 - (fit.left + fit.width / 2)), 'Fit is centred across').toBeLessThanOrEqual(2);
+  expect(Math.abs(end.top + end.height / 2 - (fit.top + fit.height / 2)), 'Fit is centred up and down').toBeLessThanOrEqual(2);
+});

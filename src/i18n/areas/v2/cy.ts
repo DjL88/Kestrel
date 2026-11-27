@@ -549,6 +549,8 @@ export const cy: AreaTranslation<typeof source> = {
     zoomFitShort: "Ffitio",
     zoomActual: "100% (picseli go iawn)",
     zoomEye: "Chwyddo i’r llygad",
+    zoomFocusPoint: "Chwyddo i’r pwynt ffocws",
+    zoomFocusPointNone: "Nid yw’r ffeil hon yn dweud ble roedd y camera’n ffocysu.",
     zoomSubject: "Chwyddo i’r gwrthrych",
     zoomCentre: "Chwyddo i’r canol",
     zoomCurrent: "Nawr",
