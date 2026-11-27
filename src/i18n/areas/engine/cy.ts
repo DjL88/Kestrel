@@ -42,6 +42,7 @@ export const cy: AreaTranslation<typeof source> = {
     protectionLost: 'Doedd dim modd diogelu’r gwrthrych yn ddiogel y tro hwn. Cadwyd eich golygiadau presennol.',
     cloud: 'Lleihawyd sŵn yng nghwmwl InFlight o gopi gweithio, a’i wirio ar y ddyfais hon.',
     cloudNotUsed: 'Ni ddefnyddiwyd y cwmwl y tro hwn, felly rhedodd ar y ddyfais hon.',
+    cloudWhy: { offline: 'Ni ddefnyddiwyd y cwmwl: rydych all-lein.', 'signed-out': 'Ni ddefnyddiwyd y cwmwl: nid ydych wedi mewngofnodi.', 'no-consent': 'Ni ddefnyddiwyd y cwmwl: nid ydych wedi dweud ie iddo.', failed: 'Ni atebodd y cwmwl, felly rhedodd ar y ddyfais hon.', unverified: 'Ni ellid cadarnhau canlyniad y cwmwl, felly rhedodd ar y ddyfais hon.' },
     device: 'Lleihawyd sŵn ar y ddyfais hon.',
     layersFull: 'Doedd dim modd rhoi haen ei hun i bob gwrthrych, felly defnyddiwyd un haen ddiogelu gyfun.',
     protected: (count) => (count === 1

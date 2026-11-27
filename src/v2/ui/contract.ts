@@ -1022,6 +1022,8 @@ export interface WorkspaceActions {
   cloudConsent?: () => import('../../core/cloudConsent').CloudConsentAnswer;
   /** Remember yes or no, or forget the answer ('ask'). Returns what is in force afterwards. */
   setCloudConsent?: (answer: 'yes' | 'no' | 'ask') => import('../../core/cloudConsent').CloudConsentAnswer;
+  /** The month's cloud numbers, so a run covers the best photos the allowance can pay for. */
+  setCloudUsageHint?: (usage: import('../../core/cloudPlan').CloudUsage | undefined) => void;
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;

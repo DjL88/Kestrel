@@ -287,11 +287,11 @@ test('?v2 leaves Basic features, the on-device checks included, without the Pro 
   await expect(root.getByRole('button', { name: /Auto pick/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Import is Basic: no badge.
   await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
-  // Deep Vision Review runs on this device (the subject finder and the Look rules), so it is Basic too: no badge, and it
+  // the connected-helper check runs on this device (the subject finder and the Look rules), so it is Basic too: no badge, and it
   // can be pressed (Dave, 27 Nov: a Pro account online was told it was not on the plan).
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   await openFlightChecks(root);
-  const deepVision = root.getByRole('button', { name: /Deep Vision Review/ });
+  const deepVision = root.getByRole('button', { name: /Check with my connected helper/ });
   await expect(deepVision).toBeEnabled();
   await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(0);
 });

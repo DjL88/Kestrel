@@ -42,6 +42,7 @@ export const nl: AreaTranslation<typeof source> = {
     protectionLost: 'Het onderwerp kon deze keer niet veilig worden beschermd. Uw bestaande bewerkingen zijn behouden.',
     cloud: 'Ruis verwijderd in de InFlight-cloud vanuit een werkkopie, en gecontroleerd op dit apparaat.',
     cloudNotUsed: 'De cloud is hiervoor niet gebruikt, dus het is op dit apparaat gedaan.',
+    cloudWhy: { offline: 'De cloud is niet gebruikt: je bent offline.', 'signed-out': 'De cloud is niet gebruikt: je bent niet ingelogd.', 'no-consent': 'De cloud is niet gebruikt: je hebt er geen ja op gezegd.', failed: 'De cloud antwoordde niet, dus het is op dit apparaat gedaan.', unverified: 'Het cloudresultaat kon niet worden bevestigd, dus het is op dit apparaat gedaan.' },
     device: 'Ruis verwijderd op dit apparaat.',
     layersFull: 'Niet elk onderwerp kon een eigen laag krijgen, dus is één gezamenlijke beschermlaag gebruikt.',
     protected: (count) => (count === 1

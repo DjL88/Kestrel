@@ -63,13 +63,19 @@ const MIN_BAND_SHARE = 0.1;
 const bandOf = (mean: number) => BANDS.findIndex((top) => mean < top);
 
 /** Below this the noise is not visible at normal viewing; denoise changes nothing and says so. */
-export const VISIBLE_NOISE_SIGMA = 1.2;
+export const VISIBLE_NOISE_SIGMA = 0.9;
+
+/** From this ISO up, a reading under the threshold is treated as noise the estimate missed (it samples flat blocks and reads low on fine grain). */
+export const HIGH_ISO_FLOOR = 1600;
+/** The gentlest strength applied at a high ISO when the measurement alone would apply none. */
+export const HIGH_ISO_MIN_STRENGTH = 0.25;
 
 /**
  * Luminance denoise strength (PhotoEdit.denoiseLuminance, 0-2) for a measured sigma. Conservative: grows slowly with
  * the noise and caps at 1.6, and the verified render may still reduce it if subject detail suffers.
  */
-export function luminanceStrengthFor(sigma: number | null): number {
-  if (sigma === null || !Number.isFinite(sigma) || sigma < VISIBLE_NOISE_SIGMA) return 0;
+export function luminanceStrengthFor(sigma: number | null, iso?: number): number {
+  if (sigma === null || !Number.isFinite(sigma)) return 0;
+  if (sigma < VISIBLE_NOISE_SIGMA) return typeof iso === 'number' && iso >= HIGH_ISO_FLOOR ? HIGH_ISO_MIN_STRENGTH : 0;
   return Math.min(1.6, Math.round((sigma - VISIBLE_NOISE_SIGMA + 0.6) * 0.3 * 100) / 100);
 }

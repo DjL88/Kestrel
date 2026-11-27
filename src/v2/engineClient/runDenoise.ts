@@ -21,7 +21,7 @@ import { decodeHeifForDisplay } from '../../providers/heifDecode';
 import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
-import { luminanceStrengthFor } from '../../core/noiseEstimate';
+import { luminanceStrengthFor, VISIBLE_NOISE_SIGMA } from '../../core/noiseEstimate';
 import { engineText } from '../../i18n/areas/engine';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } from '../../providers/denoiseOffThread';
 
@@ -172,9 +172,9 @@ async function denoiseVerifiedSource(
   signal?.throwIfAborted();
   const sigma = await measureFullSizeNoise(source, compute);
   signal?.throwIfAborted();
-  const luminance = luminanceStrengthFor(sigma);
+  const luminance = luminanceStrengthFor(sigma, frame.exif?.iso);
   if (sigma !== null && luminance === 0) {
-    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.noVisibleNoise] };
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [`${engineText.denoise.noVisibleNoise} (${sigma.toFixed(2)} measured, ${VISIBLE_NOISE_SIGMA} needed${frame.exif?.iso ? `, ISO ${frame.exif.iso}` : ''})`] };
   }
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
@@ -276,6 +276,7 @@ async function denoiseVerifiedSource(
   const notes = response.runner === 'cloud-processing'
     ? [engineText.denoise.cloud]
     : [cloud ? engineText.denoise.cloudNotUsed : engineText.denoise.device];
+  if (response.runner === 'device' && response.cloudSkipped) notes.push(engineText.denoise.cloudWhy[response.cloudSkipped]);
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push(engineText.denoise.layersFull);
   if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
   if (learnedOutcome.kind === 'skipped') notes.push(learnedOutcome.note);

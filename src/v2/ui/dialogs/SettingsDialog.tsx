@@ -73,6 +73,7 @@ interface SettingsDialogProps {
   /** This month's cloud usage from the control plane, when signed in. Wins over the sample workspace's figures. */
   cloudUsage?: import('../../../core/cloudPlan').CloudUsage;
   /** Buy a prepaid cloud top-up (useCloudTopUp). Absent: the top-up buttons stay off. */
+  cloudConsent?: { read: () => 'unasked' | 'yes' | 'no'; set: (answer: 'yes' | 'no') => 'unasked' | 'yes' | 'no' };
   cloudTopUp?: { topUp: (pence: number) => void; busy: boolean; note: { text: string; good: boolean } | null };
 }
 
@@ -117,6 +118,7 @@ export default function SettingsDialog({
   proChoiceOffered = false,
   cloudUsage,
   cloudTopUp,
+  cloudConsent,
 }: SettingsDialogProps) {
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
@@ -370,7 +372,7 @@ export default function SettingsDialog({
             )}
 
             {activeTab === 'account' && (cloudUsage ?? settings.account.cloud) && (
-              <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} onTopUp={cloudTopUp?.topUp} topUpBusy={cloudTopUp?.busy} topUpNote={cloudTopUp?.note ?? null} /></div>
+              <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} onTopUp={cloudTopUp?.topUp} topUpBusy={cloudTopUp?.busy} topUpNote={cloudTopUp?.note ?? null} consent={cloudConsent} /></div>
             )}
             {activeTab === 'account' && (
               accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">

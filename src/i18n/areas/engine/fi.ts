@@ -42,6 +42,7 @@ export const fi: AreaTranslation<typeof source> = {
     protectionLost: 'Kohdetta ei voitu suojata turvallisesti tällä kertaa. Nykyiset muokkauksesi säilytettiin.',
     cloud: 'Kohina poistettiin InFlight-pilvessä työkopiosta ja tarkistettiin tällä laitteella.',
     cloudNotUsed: 'Pilveä ei käytetty tällä kertaa, joten käsittely tehtiin tällä laitteella.',
+    cloudWhy: { offline: 'Pilveä ei käytetty: olet offline-tilassa.', 'signed-out': 'Pilveä ei käytetty: et ole kirjautunut sisään.', 'no-consent': 'Pilveä ei käytetty: et ole antanut siihen suostumusta.', failed: 'Pilvi ei vastannut, joten käsittely tehtiin tällä laitteella.', unverified: 'Pilven tulosta ei voitu vahvistaa, joten käsittely tehtiin tällä laitteella.' },
     device: 'Kohina poistettiin tällä laitteella.',
     layersFull: 'Kaikille kohteille ei saatu omaa tasoa, joten käytettiin yhtä yhteistä suojaustasoa.',
     protected: (count) => (count === 1

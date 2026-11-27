@@ -42,6 +42,7 @@ export const ga: AreaTranslation<typeof source> = {
     protectionLost: 'Níorbh fhéidir an t-ábhar a chosaint go sábháilte an uair seo. Coinníodh d’eagarthóireacht reatha.',
     cloud: 'Laghdaíodh torann i scamall InFlight ó chóip oibre, agus seiceáladh é ar an ngléas seo.',
     cloudNotUsed: 'Níor úsáideadh an scamall an uair seo, mar sin rith sé ar an ngléas seo.',
+    cloudWhy: { offline: 'Níor úsáideadh an scamall: tá tú as líne.', 'signed-out': 'Níor úsáideadh an scamall: níl tú logáilte isteach.', 'no-consent': 'Níor úsáideadh an scamall: níor dhúirt tú tá leis.', failed: 'Níor fhreagair an scamall, mar sin rith sé ar an ngléas seo.', unverified: 'Níorbh fhéidir toradh an scamaill a dheimhniú, mar sin rith sé ar an ngléas seo.' },
     device: 'Laghdaíodh torann ar an ngléas seo.',
     layersFull: 'Níorbh fhéidir a shraith féin a thabhairt do gach ábhar, mar sin úsáideadh sraith chosanta chomhpháirteach amháin.',
     protected: (count) => (count === 1

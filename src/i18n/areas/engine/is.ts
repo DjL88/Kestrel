@@ -42,6 +42,7 @@ export const is: AreaTranslation<typeof source> = {
     protectionLost: 'Ekki tókst að verja myndefnið á öruggan hátt í þetta sinn. Núverandi breytingum þínum var haldið.',
     cloud: 'Suð fjarlægt í InFlight-skýinu úr vinnuafriti og prófað á þessu tæki.',
     cloudNotUsed: 'Skýið var ekki notað í þetta sinn, svo þetta keyrði á þessu tæki.',
+    cloudWhy: { offline: 'Skýið var ekki notað: þú ert án nettengingar.', 'signed-out': 'Skýið var ekki notað: þú ert ekki skráð(ur) inn.', 'no-consent': 'Skýið var ekki notað: þú hefur ekki sagt já við því.', failed: 'Skýið svaraði ekki, svo þetta keyrði á þessu tæki.', unverified: 'Ekki tókst að staðfesta niðurstöðu skýsins, svo þetta keyrði á þessu tæki.' },
     device: 'Suð fjarlægt á þessu tæki.',
     layersFull: 'Ekki gat hvert myndefni fengið eigið lag, svo eitt sameiginlegt varnarlag var notað.',
     protected: (count) => (count === 1

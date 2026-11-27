@@ -19,3 +19,29 @@ export function readSharedLink(localProjectId: string): string | null {
 export function writeSharedLink(localProjectId: string, sharedProjectId: string): void {
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify({ ...readAll(), [localProjectId]: sharedProjectId })); } catch { /* storage unavailable: the link is simply not remembered */ }
 }
+
+const OWN_KEY = 'inflight.ownCloudProjects.v1';
+function readOwn(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(globalThis.localStorage?.getItem(OWN_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch { return []; }
+}
+
+/**
+ * This device's project was put in the cloud by "Store in the cloud", for the person's own devices. It is linked like a
+ * shared project (the cloud photo store is the same), but nobody was invited, so it is not shown as shared.
+ */
+export function isOwnCloudProject(localProjectId: string): boolean { return readOwn().includes(localProjectId); }
+
+/**
+ * The shared project to live-sync with (presence, shared edits, comments). A project stored in the cloud only for the
+ * person's own devices is never synced this way: only the previews they chose go up, not every edit and mark.
+ */
+export function readCollabLink(localProjectId: string): string | null {
+  return isOwnCloudProject(localProjectId) ? null : readSharedLink(localProjectId);
+}
+
+export function markOwnCloudProject(localProjectId: string): void {
+  try { globalThis.localStorage?.setItem(OWN_KEY, JSON.stringify([...new Set([...readOwn(), localProjectId])])); } catch { /* not remembered: the project only shows as shared on this device */ }
+}

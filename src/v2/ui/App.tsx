@@ -32,7 +32,8 @@ import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { colourText } from '../../i18n/areas/colour';
-import { readSharedLink } from './dialogs/sharedLinks';
+import { isOwnCloudProject, readCollabLink, readSharedLink } from './dialogs/sharedLinks';
+import { COLLABORATION_UI, cloudLimitNote } from '../../core/storeInCloud';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { setOnlineHelperAccess } from '../../providers/onlineHelperState';
@@ -96,6 +97,7 @@ const PrintDialog = lazyPart(() => import('./dialogs/PrintDialog'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
+const StoreInCloudDialog = lazyPart(() => import('./dialogs/StoreInCloudDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
 const ShortcutGuide = lazyPart(() => import('./dialogs/ShortcutGuide'));
 const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
@@ -139,6 +141,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  const [storeCloudOpen, setStoreCloudOpen] = useState(false);
+  const [sharePortfolioOnly, setSharePortfolioOnly] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
    * zoom bar. Separate from full screen (which hides the window's own frame); the two can be used together. */
   /** Colour-vision support: the red and green outlines show only after "Show where". */
@@ -182,6 +186,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Settings → Account: this month's cloud allowances and balance, read when the Account tab or the Task Manager opens. Signed out, an
   // older server or no network: nothing shows (the sample workspace keeps its own figures).
   const [cloudUsage, setCloudUsage] = React.useState<CloudUsage | undefined>(undefined);
+  // The account's cloud numbers, as Settings › Account shows them (known only when signed in).
+  const accountCloud = cloudUsage ?? store.settings.account.cloud;
+  // Linked to a project shared with people (not this person's own cloud copy). Read again after either dialog closes.
+  const alreadyShared = React.useMemo(() => Boolean(store.activeProjectId && readSharedLink(store.activeProjectId) && !isOwnCloudProject(store.activeProjectId)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [store.activeProjectId, shareVersion]);
   // The same numbers Settings › Account shows.
   const cloudNumbers = cloudUsage ?? store.settings.account.cloud;
   React.useEffect(() => {
@@ -194,6 +204,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // A paid top-up: read the balance again once the server has credited it. Mobile app stores handle their own purchases later.
   const rereadUsage = React.useCallback(() => { sharing.usage().then((body) => setCloudUsage(usageFromServer(body, Date.now()) ?? undefined)).catch(() => undefined); }, [sharing]);
   const cloudTopUp = useCloudTopUp(rereadUsage);
+  const setCloudUsageHint = actions.setCloudUsageHint;
+  React.useEffect(() => { setCloudUsageHint?.(cloudNumbers); }, [setCloudUsageHint, cloudNumbers]);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -273,7 +285,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
   const goToNoticePhoto = (projectId: string, photoKey: string) => {
-    if (!store.activeProjectId || readSharedLink(store.activeProjectId) !== projectId) return false;
+    if (!store.activeProjectId || readCollabLink(store.activeProjectId) !== projectId) return false;
     const photo = store.photos.find((candidate) => candidate.sharedKey === photoKey);
     if (photo) actions.selectPhoto(photo.id);
     return Boolean(photo);
@@ -734,7 +746,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const renderPanelBody = (panelId: PanelId) => {
     const inner = renderPanelInner(panelId);
     const comments = (panelId === 'copilot' || panelId === 'info') && sharedEditing.state.kind !== 'off' ? (
-      <SharedComments client={sharing} project={store.activeProjectId ? readSharedLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
+      <SharedComments client={sharing} project={store.activeProjectId ? readCollabLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
         recipe={activePhoto ? getActiveGroup(activePhoto).recipe : null} canEdit={!editLocked} onApply={(id, delta, label) => actions.updateRecipe(id, delta, label)} />
     ) : null;
     if (!EDITING_PANELS.includes(panelId)) return <>{comments}{inner}</>;
@@ -783,7 +795,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdGuidance={store.settings.cvdGuidance}
             reviewing={store.reviewingPhotoIds.includes(activePhoto?.id ?? '')}
             onSetAssistMode={actions.setAssistMode}
-            onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
@@ -1201,7 +1212,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
             onPrint={store.screen === 'editor' && !store.collage && activePhoto && actions.previewEnlargement ? () => openPrint(activePhoto.id, store.activeSizeId) : undefined}
-            onShare={store.collage ? undefined : () => setShareOpen(true)}
+            // Sharing with other people is paused (COLLABORATION_UI): no Share button. Store in the cloud takes its place,
+            // for a signed-in Pro account only; anyone else sees no button there at all.
+            // A project that was already shared with people before the pause keeps its Share button, so it still opens and
+            // nothing is lost; its invite form is gone (ShareDialog). The offline portfolio moved to File.
+            onShare={!store.collage && (COLLABORATION_UI || alreadyShared) ? () => { setSharePortfolioOnly(false); setShareOpen(true); } : undefined}
+            onPortfolio={!store.collage && !COLLABORATION_UI ? () => { setSharePortfolioOnly(true); setShareOpen(true); } : undefined}
+            storeInCloud={!store.collage && accountCloud?.plan === 'pro' ? {
+              onOpen: () => setStoreCloudOpen(true),
+              onTopUp: () => actions.setSettingsOpen(true, 'account'),
+              limit: cloudLimitNote(accountCloud),
+            } : undefined}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
               <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
@@ -1662,7 +1683,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         attachOriginal={actions.attachCloudOriginal}
         onDone={() => setZoomedPastPreview(null)}
       /></React.Suspense>
+      <React.Suspense fallback={null}><StoreInCloudDialog
+        open={storeCloudOpen}
+        client={sharing}
+        localProjectId={store.activeProjectId}
+        projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
+        photos={store.photos}
+        selectedPhotoIds={store.selectedPhotoIds}
+        displayName={signedInName}
+        renderPreview={actions.renderGalleryPreview}
+        usage={accountCloud}
+        onTopUp={() => { setStoreCloudOpen(false); actions.setSettingsOpen(true, 'account'); }}
+        onChanged={() => setShareVersion((n) => n + 1)}
+        onClose={() => setStoreCloudOpen(false)}
+      /></React.Suspense>
       <React.Suspense fallback={null}><ShareDialog
+        portfolioOnly={sharePortfolioOnly}
         open={shareOpen}
         client={sharing}
         localProjectId={store.activeProjectId}
@@ -1738,6 +1774,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         settings={store.settings}
         cloudUsage={cloudUsage}
         cloudTopUp={cloudUsage && !isMobileShell() ? cloudTopUp : undefined}
+        cloudConsent={actions.cloudConsent && actions.setCloudConsent ? { read: actions.cloudConsent, set: (answer) => actions.setCloudConsent!(answer) } : undefined}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}

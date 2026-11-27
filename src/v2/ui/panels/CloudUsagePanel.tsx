@@ -6,15 +6,18 @@ import { STRINGS } from '../strings';
  * Settings → Account: this month's cloud allowances, what is charged beyond them and the cloud balance.
  * Display only: the control plane meters and authorises every cloud request. Local editing never uses any of this.
  */
-export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, topUpNote = null }: {
+export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, topUpNote = null, consent }: {
   usage: CloudUsage;
   /** Starts a Paddle checkout for a prepaid top-up (useCloudTopUp). Absent: top-ups are not open on this build. */
   onTopUp?: (pence: number) => void;
   topUpBusy?: boolean;
   topUpNote?: { text: string; good: boolean } | null;
+  /** The visible off switch for cloud edits on this device. Absent: not offered on this build. */
+  consent?: { read: () => 'unasked' | 'yes' | 'no'; set: (answer: 'yes' | 'no') => 'unasked' | 'yes' | 'no' };
 }) {
   const words = STRINGS.cloudUsage;
   const summary = usageSummary(usage);
+  const [answer, setAnswer] = React.useState(() => consent?.read() ?? 'unasked');
   const resets = new Date(summary.resetsAtMs).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const label: Record<UsageMeter['id'], string> = { photos: words.photos, storage: words.storage, downloads: words.downloads };
   const amount = (m: UsageMeter) => m.id === 'photos'
@@ -32,6 +35,12 @@ export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, top
         <span className="text-xs text-[var(--text-secondary)]">{words.resets(resets)}</span>
       </div>
       <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{words.intro}</p>
+      {consent && (
+        <label data-testid="cloud-consent-switch" className="flex min-h-9 cursor-pointer items-start gap-2 text-xs text-[var(--text-primary)]">
+          <input type="checkbox" role="switch" checked={answer === 'yes'} onChange={(event) => setAnswer(consent.set(event.target.checked ? 'yes' : 'no'))} className="mt-0.5 h-4 w-4" />
+          <span><span className="font-medium">{words.cloudSwitch}</span> <span className="text-[var(--text-secondary)]">{words.cloudSwitchBody}</span></span>
+        </label>
+      )}
       <ul className="space-y-3">
         {summary.meters.map((m) => (
           <li key={m.id} data-testid={`cloud-meter-${m.id}`} className="space-y-1">
