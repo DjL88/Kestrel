@@ -549,6 +549,8 @@ export const is: AreaTranslation<typeof source> = {
     zoomFitShort: "Passa",
     zoomActual: "100% (raunverulegir dílar)",
     zoomEye: "Þysja að auga",
+    zoomFocusPoint: "Þysja að fókuspunkti",
+    zoomFocusPointNone: "Skráin segir ekki hvar myndavélin fókusaði.",
     zoomSubject: "Þysja að myndefni",
     zoomCentre: "Þysja að miðju",
     zoomCurrent: "Núna",

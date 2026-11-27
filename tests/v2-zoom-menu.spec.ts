@@ -26,7 +26,10 @@ test('?v2 the zoom percentage opens Fit, 100% and Zoom to eye; a picture with no
   const fit = await zoom.textContent();
   await zoom.click();
   const menu = root.getByTestId('zoom-menu');
-  await expect(menu.getByRole('menuitem')).toHaveText([/Fit to screen/, /100% \(actual pixels\)/, /Zoom to (eye|centre)/]);
+  // A PNG carries no camera focus point, so Zoom to focus point is offered but disabled, with the reason.
+  await expect(menu.getByRole('menuitem')).toHaveText([/Fit to screen/, /100% \(actual pixels\)/, /Zoom to focus point/, /Zoom to (eye|centre)/]);
+  await expect(root.getByTestId('zoom-menu-focus-point')).toBeDisabled();
+  await expect(root.getByTestId('zoom-menu-focus-point')).toHaveAttribute('title', 'This file does not say where the camera focused.');
   await expect(root.getByTestId('zoom-menu-fit')).toContainText('Now');
   await root.getByTestId('zoom-menu-100').click();
   await expect(zoom).toHaveText('100%');

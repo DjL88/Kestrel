@@ -549,6 +549,8 @@ export const sv: AreaTranslation<typeof source> = {
     zoomFitShort: "Anpassa",
     zoomActual: "100 % (verkliga pixlar)",
     zoomEye: "Zooma till ögat",
+    zoomFocusPoint: "Zooma till fokuspunkt",
+    zoomFocusPointNone: "Filen säger inte var kameran fokuserade.",
     zoomSubject: "Zooma till motivet",
     zoomCentre: "Zooma till mitten",
     zoomCurrent: "Nu",

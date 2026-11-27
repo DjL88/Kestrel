@@ -552,6 +552,8 @@ export const ga: AreaTranslation<typeof source> = {
     zoomFitShort: "Oiriúnaigh",
     zoomActual: "100% (fíor-phicteilíní)",
     zoomEye: "Zúmáil chuig an tsúil",
+    zoomFocusPoint: "Súmáil chuig an bpointe fócais",
+    zoomFocusPointNone: "Ní deir an comhad seo cá ndearna an ceamara fócas.",
     zoomSubject: "Zúmáil chuig an ábhar",
     zoomCentre: "Zúmáil chuig an lár",
     zoomCurrent: "Anois",
