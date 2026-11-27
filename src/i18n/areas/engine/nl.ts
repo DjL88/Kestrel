@@ -157,6 +157,8 @@ export const nl: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Ruisonderdrukking kon niet worden gestart.',
     suggestionStale: 'De foto is na dit voorstel veranderd. Wacht op een nieuwe controle.',
     checkTask: (filename) => `${filename} en de kleur ervan controleren`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} zou ${w} × ${h} px zijn geworden, kleiner dan het origineel van ${ew} × ${eh} px, dus het is niet geëxporteerd. De ontwikkeling op volle resolutie was niet beschikbaar; er is niets kleiners opgeslagen. Probeer het opnieuw als Taken rustig is.`,
+    originalCropped: (name, w, h) => `${name}: origineel geëxporteerd op ${w} × ${h} px, het deel van de foto dat de uitsnede van het origineel toont.`,
     checkStage: 'Belichting, kleur en scène bekijken',
     secondOpinionStage: "Second opinion van het beeldmodel op het apparaat",
     checkFailed: 'Deze foto kon niet worden gecontroleerd. Details in Taken.',

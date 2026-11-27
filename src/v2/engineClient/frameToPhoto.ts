@@ -37,6 +37,7 @@ import { engineText } from '../../i18n/areas/engine';
 import { editorText } from '../../i18n/areas/editor';
 import type { Leaning } from '../../core/editStyle';
 import { displaySpeciesName } from '../../core/speciesNames';
+import { STARTER_TAGS } from '../../core/subjectTags';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
@@ -228,19 +229,24 @@ export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>
   });
 }
 
+/** The tag that names the species: a species name wins over a kind word such as "Bird" or "Perched" that comes first. */
+function speciesTagOf(frame: Pick<PhotoFrame, 'tags'>): string | undefined {
+  return frame.tags?.find((entry) => !STARTER_TAGS.wildlife.some((word) => word.toLowerCase() === entry.toLowerCase())) ?? frame.tags?.[0];
+}
+
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
   // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
   const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
   if (chosen) return shown(chosen);
-  const tag = frame.tags?.[0];
+  const tag = speciesTagOf(frame);
   if (!tag) return undefined;
   return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 /** The place an automatic species name was matched against, in the person's words; nothing for a name of the person's own or an older photo. */
 export function speciesAreaLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags' | 'speciesArea'>): string | undefined {
-  const tag = frame.tags?.[0];
+  const tag = speciesTagOf(frame);
   if (!frame.speciesArea || frame.subjectNames?.length || !tag || !frame.autoTags?.includes(tag)) return undefined;
   return speciesAreaText.matchedIn(areaWords(frame.speciesArea, []));
 }

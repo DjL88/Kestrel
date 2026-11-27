@@ -157,6 +157,8 @@ export const pt: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Não foi possível iniciar a redução de ruído.',
     suggestionStale: 'A fotografia mudou depois desta sugestão. Aguarde uma nova verificação.',
     checkTask: (filename) => `A verificar ${filename} e a sua cor`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} teria ficado com ${w} × ${h} px, menos do que o original de ${ew} × ${eh} px, por isso não foi exportado. A revelação em resolução total não estava disponível; nada mais pequeno foi guardado. Tente de novo quando as Tarefas estiverem paradas.`,
+    originalCropped: (name, w, h) => `${name}: original exportado a ${w} × ${h} px, a parte da fotografia que o recorte do original mostra.`,
     checkStage: 'A analisar a exposição, a cor e a cena',
     secondOpinionStage: "Segunda opinião do modelo visual no dispositivo",
     checkFailed: 'Não foi possível verificar esta fotografia. Detalhes em Tarefas.',
