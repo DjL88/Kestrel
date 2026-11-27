@@ -1,3 +1,4 @@
+import { openFlightChecks } from './helpers';
 import { expect, test } from '@playwright/test';
 
 // Personal style (x-spec-personal-style), a preview that is off by default: with enough learnt examples on this device,
@@ -40,7 +41,7 @@ test('Auto leans towards a learnt style, says so, and forgets it on request', as
   }, pixels);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const openPanel = studio.getByRole('button', { name: testInfo.project.name === 'phone' ? 'Flight' : 'Co-pilot', exact: true });
-  if (!await studio.getByRole('button', { name: 'Check photo on this device' }).isVisible()) await openPanel.first().click();
+  await openFlightChecks(studio, openPanel);
   await studio.getByRole('button', { name: 'Check photo on this device' }).click();
   const before = studio.getByText('Current edit', { exact: true }).first().locator('..').locator('img');
   const after = studio.getByRole('img', { name: 'Natural', exact: true });

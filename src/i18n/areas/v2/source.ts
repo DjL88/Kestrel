@@ -670,6 +670,8 @@ export const source = {
     noGenAiNote: "Nothing is generated. Uses masking, denoise, tone and colour grading only.",
     aboutLabel: "About these suggestions",
     reviewRunning: "Review in progress. Nothing is applied until you choose.",
+    findingsHeading: "Findings",
+    moreChecks: "More checks",
     reviewRunningShort: "Checking…",
     applyAllSuggestions: 'Apply suggested recipe',
     applySingle: 'Apply',

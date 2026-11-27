@@ -1,4 +1,4 @@
-import { openExportAdvanced, openV2Settings } from './helpers';
+import { openExportAdvanced, openV2Settings, openFlightChecks } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -290,6 +290,7 @@ test('?v2 leaves Basic features, the on-device checks included, without the Pro 
   // Deep Vision Review runs on this device (the subject finder and the Look rules), so it is Basic too: no badge, and it
   // can be pressed (Dave, 27 Nov: a Pro account online was told it was not on the plan).
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  await openFlightChecks(root);
   const deepVision = root.getByRole('button', { name: /Deep Vision Review/ });
   await expect(deepVision).toBeEnabled();
   await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(0);

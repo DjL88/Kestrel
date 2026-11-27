@@ -1,3 +1,4 @@
+import { openFlightChecks } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test('Co-pilot renders a local edit preview and only changes the photo after Apply', async ({ page }, testInfo) => {
@@ -31,7 +32,7 @@ test('Co-pilot renders a local edit preview and only changes the photo after App
   }, pixels);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const openPanel = studio.getByRole('button', { name: testInfo.project.name === 'phone' ? 'Flight' : 'Co-pilot', exact: true });
-  if (!await studio.getByRole('button', { name: 'Check photo on this device' }).isVisible()) await openPanel.first().click();
+  await openFlightChecks(studio, openPanel);
   await studio.getByRole('button', { name: 'Check photo on this device' }).click();
   const before = studio.getByText('Current edit', { exact: true }).first().locator('..').locator('img');
   const after = studio.getByRole('img', { name: 'Natural', exact: true });

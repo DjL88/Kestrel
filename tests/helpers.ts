@@ -94,3 +94,14 @@ export async function openExportAdvanced(scope: Locator) {
   await advanced.waitFor();
   if (!(await advanced.evaluate((details) => (details as HTMLDetailsElement).open))) await advanced.locator(':scope > summary').click();
 }
+
+/**
+ * The Flight panel keeps its on-device checks, cloud edit settings and full notes under one closed "More checks"
+ * (Dave, 27 Nov: the tab shows just the points). Opens the panel if it is shut (pass its rail button), then the disclosure.
+ */
+export async function openFlightChecks(root: import('@playwright/test').Locator, openPanel?: import('@playwright/test').Locator) {
+  const more = root.getByTestId('flight-more-checks');
+  if (!await more.isVisible() && openPanel) await openPanel.first().click();
+  await more.waitFor({ state: 'visible' });
+  if (await more.getAttribute('open') === null) await more.locator('summary').click();
+}
