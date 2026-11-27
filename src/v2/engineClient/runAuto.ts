@@ -30,6 +30,7 @@ import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
 import { engineText } from '../../i18n/areas/engine';
 import type { AutoUnavailable, AutoUnavailableCause } from './autoUnavailable';
+import { timedStep } from '../../providers/previewTiming';
 
 export interface AutoRun {
   plan: AutoPlan;
@@ -153,12 +154,13 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const sceneHints = sceneHintsFromPhotoTags(frame);
   const basePolicy = preservationPolicy(photographyObservations);
   const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || sceneHints.preserveDark === true };
-  const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints });
+  // Marked (inflight:auto:*), so a trace or the stress test shows how long Auto's steps hold the page.
+  const natural = timedStep('auto:natural', () => naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints }));
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
   const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
-  const naturalPlan = planAuto({ ...input, proposal: global });
+  const naturalPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: global }));
   let plan = naturalPlan;
   const recipes: Omit<AutoCandidate, 'after'>[] = [];
   const describeEdit = (edit: PhotoEdit, local = false) => acceptedAutoChanges(base, edit, local).map((change) => change.key === 'subjectMask'
@@ -219,7 +221,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Colour match: the species signature on file, only for a confidently named species on a reliable mask. The vision
   // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
   const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
-  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation) : { before: '', candidates: [], rejected: [] };
+  const rendered = recipes.length ? timedStep('auto:render', () => renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation)) : { before: '', candidates: [], rejected: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
     plan = naturalPlan;
