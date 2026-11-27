@@ -21,7 +21,7 @@ test('before a release every card says coming soon', async ({ page }) => {
   await answer(page, { status: 'coming-soon', platforms: {} });
   await page.goto(origin);
   await expect(page.locator('#release-status')).toContainText('isn’t released yet');
-  for (const id of ['mac', 'windows', 'ios', 'android']) await expect(page.locator(`#${id}`)).toHaveText('Coming soon');
+  for (const id of ['mac', 'windows', 'linux', 'ios', 'android']) await expect(page.locator(`#${id}`)).toHaveText('Coming soon');
 });
 
 test('installer files and store listings appear on the right cards, and nothing else does', async ({ page }) => {
