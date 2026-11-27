@@ -81,6 +81,11 @@ export interface AppOptions {
   paddleWebhookSecret?: string;
   /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
   paddleClient?: { environment: PaddleEnvironment; clientToken: string };
+  /**
+   * Which Paddle the server talks to. In 'sandbox' anyone could pay with Paddle's public test card, so only testers
+   * (the admins and KCP_SANDBOX_TESTERS) may start a checkout, and payments for anyone else are ignored.
+   */
+  paddleEnvironment?: PaddleEnvironment;
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** How many Pro subscriptions are current (Paddle status active or trialing), by plan, for the admin console's Today. */

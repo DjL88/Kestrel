@@ -31,6 +31,11 @@ export interface Config {
   devMode: boolean;
   /** Google accounts allowed into the admin console (lower-case emails). Empty: admin sessions come only from accounts with the admin role. */
   adminEmails: string[];
+  /**
+   * Extra accounts that may buy while Paddle is in its sandbox (test cards), besides the admins. From the private
+   * tfvars (KCP_SANDBOX_TESTERS), never the repository. Ignored once Paddle is in production.
+   */
+  sandboxTesters: string[];
   /** OAuth web client id for "Sign in with Google" on /admin. Not a secret. Absent: Google sign-in is off. */
   googleClientId?: string;
   /** OAuth client ids (web, iOS, Android) accepted for people signing in with Google. Falls back to googleClientId. Not secrets. */
@@ -92,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     releaseUrlPrefixes: ['https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/'],
     devMode,
     adminEmails: (env.KCP_ADMIN_EMAILS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
+    sandboxTesters: (env.KCP_SANDBOX_TESTERS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
     googleClientId: env.KCP_GOOGLE_CLIENT_ID || undefined,
     userGoogleClientIds: (env.KCP_USER_GOOGLE_CLIENT_IDS ?? env.KCP_GOOGLE_CLIENT_ID ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
     firebaseProjectId: env.KCP_FIREBASE_PROJECT_ID || undefined,
