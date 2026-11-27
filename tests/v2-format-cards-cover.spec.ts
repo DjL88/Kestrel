@@ -30,7 +30,9 @@ async function importLandscape(page: Page, root: Locator) {
 }
 
 async function includeFormat(root: Locator, label: string) {
-  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  // The rail button toggles its panel, so open Formats only when it is shut.
+  const tab = root.getByRole('button', { name: 'Formats', exact: true }).first();
+  if ((await tab.getAttribute('aria-pressed')) !== 'true') await tab.click();
   const toggle = root.getByRole('button', { name: `Include ${label}`, exact: true });
   if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
@@ -60,21 +62,31 @@ async function darkEdges(page: Page, card: Locator) {
   }, shot.toString('base64'));
 }
 
-test('every format card on All formats shows its picture edge to edge, with no dark band (9:16, 4:5, 1:1 from a landscape)', async ({ page }) => {
-  test.setTimeout(120_000);
-  await page.goto('/?v2');
-  const root = page.locator('.inflight-v2');
-  await importLandscape(page, root);
-  for (const label of ['Instagram / TikTok Story', 'Instagram Portrait', 'Instagram Square']) await includeFormat(root, label);
-  await root.getByRole('button', { name: /All formats/ }).click();
-  for (const id of ['ig-story', 'ig-portrait', 'ig-square']) {
-    const card = root.getByTestId(`artboard-${id}-0`).getByRole('button', { name: /Select/ });
-    await expect(card).toBeVisible();
-    // Long enough for the full-detail redraw to have settled (it waits 250 ms after the last change).
-    await page.waitForTimeout(1200);
-    const edges = await darkEdges(page, card);
-    for (const side of ['left', 'right', 'top', 'bottom'] as const) {
-      expect(edges[side], `${id}: dark band at the ${side} edge (${edges.size}, ${JSON.stringify(edges)})`).toBeLessThan(0.05);
+// Unedited, and edited: an edited picture also gets the full-detail redraw over it (FrameImage's detail-picture), the
+// likeliest thing to cover only part of a card.
+for (const edited of [false, true]) {
+  test(`every format card on All formats shows its picture edge to edge, with no dark band (9:16, 4:5, 1:1 from a landscape)${edited ? ', edited' : ''}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto('/?v2');
+    const root = page.locator('.inflight-v2');
+    await importLandscape(page, root);
+    if (edited) {
+      const adjust = root.getByRole('button', { name: 'Adjust', exact: true }).first();
+      if ((await adjust.getAttribute('aria-pressed')) !== 'true') await adjust.click();
+      await root.getByRole('tab', { name: 'Advanced Edits' }).click();
+      await root.getByRole('slider', { name: 'Exposure' }).fill('0.5');
     }
-  }
-});
+    for (const label of ['Instagram / TikTok Story', 'Instagram Portrait', 'Instagram Square']) await includeFormat(root, label);
+    await root.getByRole('button', { name: /All formats/ }).click();
+    for (const id of ['ig-story', 'ig-portrait', 'ig-square']) {
+      const card = root.getByTestId(`artboard-${id}-0`).getByRole('button', { name: /Select/ });
+      await expect(card).toBeVisible();
+      // Long enough for the full-detail redraw to have settled (it waits 250 ms after the last change).
+      await page.waitForTimeout(1200);
+      const edges = await darkEdges(page, card);
+      for (const side of ['left', 'right', 'top', 'bottom'] as const) {
+        expect(edges[side], `${id}: dark band at the ${side} edge (${edges.size}, ${JSON.stringify(edges)})`).toBeLessThan(0.05);
+      }
+    }
+  });
+}
