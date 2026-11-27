@@ -3,6 +3,7 @@ import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { CANVAS_TIPS_EVENT, TIP_MS, readTips, tipDue, tipShown, tipsAgain, writeTips, type CanvasTipKind } from '../utils/canvasTips';
 import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
@@ -607,6 +608,51 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // Canvas tips (Dave, 27 Nov): no permanent hint, only a short correct tip the first few times the editor opens or
+  // Crop starts, in the status line under the canvas. View › Show canvas tips brings them back.
+  const [tip, setTip] = useState<CanvasTipKind | null>(null);
+  const [tipHeld, setTipHeld] = useState(false);
+  const [tipLeaving, setTipLeaving] = useState(false);
+  const tipStore = () => { try { return window.localStorage; } catch { return null; } };
+  const offerTip = (kind: CanvasTipKind) => {
+    if (hideHints) return;
+    const store = tipStore();
+    const state = readTips(store);
+    if (!tipDue(state, kind)) return;
+    writeTips(store, tipShown(state, kind));
+    setTipLeaving(false);
+    setTip(kind);
+  };
+  const viewTipOffered = useRef(false);
+  useEffect(() => {
+    if (!photo || viewTipOffered.current) return;
+    viewTipOffered.current = true;
+    offerTip('view');
+  // Once per visit to the editor, when the first photo shows.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo?.id]);
+  useEffect(() => {
+    if (revealSizeId) offerTip('crop');
+    else setTip((shown) => (shown === 'crop' ? null : shown));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealSizeId]);
+  useEffect(() => {
+    if (!tip || tipHeld) return;
+    // Fades out (instantly with reduced motion: the stylesheet turns transitions off), then goes.
+    const fade = window.setTimeout(() => setTipLeaving(true), TIP_MS);
+    const gone = window.setTimeout(() => { setTip(null); setTipLeaving(false); }, TIP_MS + 300);
+    return () => { window.clearTimeout(fade); window.clearTimeout(gone); setTipLeaving(false); };
+  }, [tip, tipHeld]);
+  useEffect(() => {
+    const again = () => {
+      const kind: CanvasTipKind = revealSizeId ? 'crop' : 'view';
+      writeTips(tipStore(), tipShown(tipsAgain(), kind));
+      setTipLeaving(false);
+      setTip(kind);
+    };
+    window.addEventListener(CANVAS_TIPS_EVENT, again);
+    return () => window.removeEventListener(CANVAS_TIPS_EVENT, again);
+  }, [revealSizeId]);
   // One frame of a split composition, selected so it can be removed (button or Delete key).
   const [selectedPane, setSelectedPane] = useState<{ sizeId: string; index: number } | null>(null);
   const paneDown = useRef<{ x: number; y: number } | null>(null);
@@ -1757,7 +1803,6 @@ export default function Canvas({
             onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
             onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
-            title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             data-shape-pending={shapePending ? 'true' : undefined}
             className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
@@ -2373,10 +2418,21 @@ export default function Canvas({
             )}
           </div>
         )}
-        {!hideHints && canvasLayoutMode === 'single' && !eyeNote && !shotNote && !hoveredLook && !selectedMask && (
-          <p className="v2-mouse-hint hidden min-w-0 truncate text-[var(--text-muted)] lg:block">
-            {activeSize.kind === 'video' ? STRINGS.canvas.zoomVideoHint : STRINGS.canvas.dragCropHint}
-          </p>
+        {/* A video format needs its one instruction to be usable, so it stays while that format is shown. */}
+        {!hideHints && canvasLayoutMode === 'single' && activeSize.kind === 'video' && !eyeNote && !shotNote && (
+          <p className="v2-mouse-hint min-w-0 truncate text-[var(--text-muted)]">{STRINGS.canvas.zoomVideoHint}</p>
+        )}
+        {tip && !hideHints && (
+          <div role="status" data-testid="canvas-tip" data-tip={tip}
+            onPointerEnter={() => setTipHeld(true)} onPointerLeave={() => setTipHeld(false)}
+            onFocus={() => setTipHeld(true)} onBlur={() => setTipHeld(false)}
+            className={`flex min-w-0 shrink items-center gap-1.5 text-[var(--text-secondary)] transition-opacity duration-300 ${tipLeaving ? 'opacity-0' : 'opacity-100'}`}>
+            <span className="truncate">{tip === 'crop' ? STRINGS.canvas.tipCrop : STRINGS.canvas.tipView}</span>
+            <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setTip(null)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="close" size={11} />
+            </button>
+          </div>
         )}
         {canvasOnly && onToggleCanvasOnly && (
           <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
