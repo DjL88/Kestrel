@@ -574,6 +574,8 @@ test('an export of several photos the person asked for starts beside Auto pick o
   assert.deepEqual(exported, [1, 2]);
   release();
   assert.equal(await autoPick.finished, 'done');
+});
+
 const THUMBS = { key: 'thumbnails:p1', title: 'Preparing thumbnails' };
 
 test('per-photo jobs with one group show as ONE row that counts up, with the photos listed under it', async () => {
