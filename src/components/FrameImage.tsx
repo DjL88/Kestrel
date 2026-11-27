@@ -17,6 +17,7 @@ import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
 import { recordWorkerVerdict, renderSignature, samePixels, workerVerdict } from '../providers/workerRenderCheck';
+import { renderEditOnGpu } from '../providers/webglEdit';
 import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
@@ -424,8 +425,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     const verifyWorker = async (framed: HTMLCanvasElement, signature: string): Promise<void> => {
       const started = performance.now();
       if (!liveDraftSupported()) { recordWorkerVerdict(signature, false); return; }
-      // In a task of its own, so it never adds to the drawing that came before it.
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      // At an idle moment, in a task of its own: a click or key waiting to be handled always goes first.
+      await new Promise<void>((resolve) => {
+        const whenIdle = (globalThis as { requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
+        if (whenIdle) whenIdle(() => resolve(), { timeout: 1000 }); else setTimeout(resolve, 0);
+      });
       if (cancelled) return;
       const edit = frame.edit ?? DEFAULT_EDIT;
       const scale = Math.min(1, VERIFY_EDGE / Math.max(framed.width, framed.height));
@@ -437,8 +441,15 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       context.drawImage(framed, 0, 0, small.width, small.height);
       const before = context.getImageData(0, 0, small.width, small.height).data;
       const inWorker = liveDraft().check(small.width, small.height, before, edit);
-      const onPage = timedStep('preview:verify-page', () => { applyCanvasPhotoEdit(small, edit); return context.getImageData(0, 0, small.width, small.height).data; });
-      const same = samePixels(onPage, await inWorker);
+      // Only the graphics-card step is compared: the rest of the edit is the same JavaScript on the page and in the worker,
+      // so from the same pixels it gives the same bytes. That keeps the page's part to a few milliseconds.
+      const onPage = timedStep('preview:verify-page', () => {
+        const usedGpu = renderEditOnGpu(small, edit);
+        return { usedGpu, pixels: context.getImageData(0, 0, small.width, small.height).data };
+      });
+      const answer = await inWorker;
+      // Both sides must take the same path; where neither used its graphics card, both ran the same JavaScript.
+      const same = Boolean(answer) && answer!.usedGpu === onPage.usedGpu && (!onPage.usedGpu || samePixels(onPage.pixels, answer!.pixels));
       recordWorkerVerdict(signature, same);
       measureStep('preview:worker-verify', started, { same, signature });
     };

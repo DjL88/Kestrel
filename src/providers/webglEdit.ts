@@ -223,6 +223,14 @@ function setup(): Gpu | null {
   }
 }
 
+/**
+ * Create the graphics-card context and compile the shaders now, at a quiet moment, instead of on the first edit drawn
+ * on the page: that first use took about 140 ms, and a click made then had to wait for it (owner's laptop and CI, 27 Nov).
+ */
+export function prepareGpu(): void {
+  if (gpu === undefined) gpu = setup();
+}
+
 /** Render an edit on the GPU into the given canvas. Returns false when the CPU path should run instead. */
 export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imageEdge = Math.max(target.width, target.height)): boolean {
   if (gpu === undefined) gpu = setup();

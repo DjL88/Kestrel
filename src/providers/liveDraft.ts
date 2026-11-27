@@ -11,7 +11,7 @@ export type LiveDraftRequest =
   | { type: 'base'; slot: string; key: string; base: ImageBitmap; lensCentre: LensCentre }
   | { type: 'base-file'; slot: string; key: string; blob: Blob; framing: PhotoFraming; longEdge: number }
   | { type: 'release'; slot: string }
-  /** The edit applied to a small copy of a picture, to compare with the page's answer (FrameImage verifyWorker). */
+  /** The edit's graphics-card step applied to a small copy of a picture, to compare with the page's (FrameImage verifyWorker). */
   | { type: 'check'; id: number; width: number; height: number; data: Uint8ClampedArray; edit: PhotoEdit }
   /** The photo at full resolution, for the zoomed-in detail: its file, decoded in the worker. */
   | { type: 'detail-source'; slot: string; key: string; blob: Blob }
@@ -23,7 +23,7 @@ export type LiveDraftRequest =
 /** Where the lens's centre falls in the framed picture (photoFraming.ts lensCentre). */
 export type LensCentre = { x: number; y: number; r: number };
 
-export type LiveDraftReply = { id: number; missing: true } | { id: number; bitmap: ImageBitmap; ms: number } | { id: number; pixels: Uint8ClampedArray };
+export type LiveDraftReply = { id: number; missing: true } | { id: number; bitmap: ImageBitmap; ms: number } | { id: number; pixels: Uint8ClampedArray; usedGpu: boolean };
 
 type WorkerLike = Pick<Worker, 'postMessage' | 'terminate'> & {
   onmessage: ((event: MessageEvent<LiveDraftReply>) => void) | null;
@@ -40,8 +40,8 @@ export interface LiveDraftClient {
   /** Draw this step at `edge` pixels on the long side. Null when overtaken, when the worker has no base, or on failure. */
   draw(slot: string, key: string, edge: number, edit: PhotoEdit): Promise<ImageBitmap | null>;
   release(slot: string): void;
-  /** The worker's answer for an edit on a small test picture (pixels), or null. */
-  check(width: number, height: number, data: Uint8ClampedArray, edit: PhotoEdit): Promise<Uint8ClampedArray | null>;
+  /** The worker's graphics-card step for an edit on a small picture (pixels, and whether its graphics card took it), or null. */
+  check(width: number, height: number, data: Uint8ClampedArray, edit: PhotoEdit): Promise<{ pixels: Uint8ClampedArray; usedGpu: boolean } | null>;
   /** Keep this photo's full-resolution file in the worker for detail (once per slot and key). */
   sendDetailSource(slot: string, key: string, blob: Blob): void;
   detailSourceKey(slot: string): string | undefined;
@@ -60,7 +60,7 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
   const detailSources = new Map<string, string>();
   const detailLatest = new Map<string, number>();
   const waiting = new Map<number, (bitmap: ImageBitmap | null) => void>();
-  const checks = new Map<number, (pixels: Uint8ClampedArray | null) => void>();
+  const checks = new Map<number, (answer: { pixels: Uint8ClampedArray; usedGpu: boolean } | null) => void>();
   /** Per slot: the draw being worked on, and the newest step waiting behind it. */
   const busy = new Set<string>();
   const queued = new Map<string, { send: () => void; resolve: (bitmap: ImageBitmap | null) => void }>();
@@ -71,7 +71,7 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
     started.onmessage = (event) => {
       const reply = event.data;
       const checked = checks.get(reply.id);
-      if (checked) { checks.delete(reply.id); checked('pixels' in reply ? reply.pixels : null); return; }
+      if (checked) { checks.delete(reply.id); checked('pixels' in reply ? { pixels: reply.pixels, usedGpu: reply.usedGpu } : null); return; }
       const done = waiting.get(reply.id);
       waiting.delete(reply.id);
       if (!done) { if ('bitmap' in reply) reply.bitmap.close(); return; }

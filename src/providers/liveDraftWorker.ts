@@ -122,9 +122,10 @@ scope.onmessage = (event) => {
         const canvas = new OffscreenCanvas(request.width, request.height);
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
         context.putImageData(new ImageData(request.data as Uint8ClampedArray<ArrayBuffer>, request.width, request.height), 0, 0);
-        applyCanvasPhotoEdit(canvas as unknown as HTMLCanvasElement, request.edit);
+        // Only the graphics-card step: everything else is the same JavaScript here as on the page, so it gives the same bytes.
+        const usedGpu = renderEditOnGpu(canvas as unknown as HTMLCanvasElement, request.edit);
         const pixels = context.getImageData(0, 0, request.width, request.height).data;
-        scope.postMessage({ id: request.id, pixels }, [pixels.buffer]);
+        scope.postMessage({ id: request.id, pixels, usedGpu }, [pixels.buffer]);
         return;
       }
       if (request.type === 'detail-source') {
