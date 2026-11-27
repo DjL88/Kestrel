@@ -1,7 +1,7 @@
 # InFlight: illegal content risk assessment (UK Online Safety Act 2023)
 
 > **DRAFT for the owner to check and sign. Not legal advice.**
-> Written on 26 November 2026 and updated on 27 November 2026 (no image scanning; accounts 18+) by a Claude session from what the code on `main` does. The owner must check every statement, fill in the blanks marked **[OWNER]**, and sign it before shared projects, client galleries or cloud storage open to UK users.
+> Written on 26 November 2026 and updated on 27 November 2026 (no image scanning; accounts 18+) by a Claude session from what the code on `main` does. The estimates are the session's proposals for the owner to confirm. The owner must check every statement and sign it before shared projects, client galleries or cloud storage open to UK users.
 >
 > How to read the markings:
 > - **Code:** `path/to/file.ts` — the file that implements the statement. Checked by reading the code, not by running the live service.
@@ -15,8 +15,8 @@
 |---|---|
 | Service | InFlight (codebase name Kestrel): photo workflow app for Windows, macOS and web, with optional online sharing and cloud storage |
 | Provider | David Leitch, sole trader trading as InFlight, 7 High Street, Kington, HR5 3AX, United Kingdom (from `site/terms.html` §1) |
-| Person responsible for this assessment and for online safety compliance | David Leitch **[OWNER: confirm]** |
-| Date carried out | **[OWNER: date signed]** |
+| Person responsible for this assessment and for online safety compliance | David Leitch |
+| Date carried out | The date in section 8 |
 | Version | 0.2 draft, 27 November 2026 |
 | Next review | See section 7 |
 | Method | Ofcom's four steps for the illegal content risk assessment: (1) understand the kinds of illegal content to assess, (2) assess the risk of harm, (3) decide and put in place measures, record them, (4) report, review and update. **LAW: CHECK** against Ofcom's current Risk Assessment Guidance and Risk Profiles. |
@@ -72,11 +72,11 @@ What the service does **not** have (checked by reading the route list in `servic
 
 | Item | Value |
 |---|---|
-| UK monthly active users of the user-to-user features | **ASSUMPTION — [OWNER: fill in]**. Before launch this is close to zero. Give an estimate for the first 12 months. |
-| Total UK users of the app (including local-only users, who are out of scope) | **ASSUMPTION — [OWNER]** |
-| Expected galleries published per month | **ASSUMPTION — [OWNER]** |
-| Expected images shared per month (gallery and cloud previews) | **ASSUMPTION — [OWNER]**. InFlight does not scan them (see section 3). |
-| Staff | 1 (sole trader) **[OWNER: confirm]** |
+| UK monthly active users of the user-to-user features | Estimate: fewer than 1,000 in the first 12 months (owner to confirm when signing). Before launch this is close to zero. |
+| Total UK users of the app (including local-only users, who are out of scope) | Estimate: fewer than 10,000 in the first 12 months. |
+| Expected galleries published per month | Estimate: fewer than 200. |
+| Expected images shared per month (gallery and cloud previews) | Estimate: fewer than 20,000. InFlight does not scan them (see section 3). |
+| Staff | 1 (sole trader) |
 | Is the service "large" under Ofcom's codes (more than 7 million UK monthly users)? | No, on any realistic estimate. **LAW: CHECK** threshold. |
 
 ### 1.4 Who uses it
@@ -135,7 +135,7 @@ Each line says what the code does and where. "Live?" says whether it is switched
 | **No automated image scanning** | Shared and cloud pictures are published without any image check. Local photos and safe copy are never seen by InFlight. | `services/control-plane/src/routesCollab.ts` gallery and cloud commit routes; `services/control-plane/test/content-safety.test.ts` | Yes. |
 | **Report a gallery (user reporting and complaints)** | Every gallery page has *Report this gallery*. No account needed. Categories: child-sexual-abuse, intimate-image-abuse, terrorism-or-violence, harassment-or-privacy, copyright, other-illegal, policy-breach. Reporter gets a reference and a receipt to check the outcome. Rate limited. | `/v1/gallery/report`, `/v1/gallery/report/status` in `routesGeneral.ts`; `contentSafety.ts` `addNotice()`, `noticeStatus()`; `site/gallery.html` | Yes, once galleries are switched on. |
 | **Urgent handling** | Child-sexual-abuse, intimate-image-abuse and terrorism-or-violence reports are marked urgent and sorted first. A child-sexual-abuse report takes the gallery down at once until reviewed. | `contentSafety.ts` `addNotice()` (`urgent`), `notices()` sort; `/v1/gallery/report` (`setHold`) | Yes, with galleries. |
-| **CSAM handling on a report** | The admin removes the photo or revokes the gallery, suspends the account, and reports by hand to the NCA and the IWF. No copy is kept unless they ask. Admins see report details only; no route signs a link for them to view a reported picture. | `/v1/admin/safety/notices/:id/decide` in `routesAdmin.ts`; `site/admin.html` Safety panel; `docs/safety/README.md` | Manual process. **Not yet written down as a step-by-step procedure [OWNER].** |
+| **CSAM handling on a report** | The admin removes the photo or revokes the gallery, suspends the account, and reports by hand to the NCA and the IWF. No copy is kept unless they ask. Admins see report details only; no route signs a link for them to view a reported picture. | `/v1/admin/safety/notices/:id/decide` in `routesAdmin.ts`; `site/admin.html` Safety panel; `docs/safety/README.md` | Manual process. The step-by-step is in `docs/safety/README.md`. |
 | **Suspended accounts are locked out** | A suspended account fails sign-in checks on the service, and every client gallery it created stops serving. | `ownerSuspended` in `appContext.ts`; `gallery.ts` `open()` | Yes. |
 | **Decisions with reasons (statement of reasons)** | Admin chooses no action, remove photo or revoke gallery, with a reason the reporter and owner both see. | `contentSafety.ts` `decideNotice()`; `/v1/admin/safety/*` and `/v1/me/safety` | Yes, with galleries. The app does not show the owner's list yet. |
 | **Audit log** | Report decisions are written to the audit log. | `adminDone(...)` in `routesAdmin.ts`; `/v1/gallery/report` | Yes. |
@@ -169,19 +169,19 @@ Each line says what the code does and where. "Live?" says whether it is switched
 | G4 | **Text is not checked.** Comments and gallery visitor feedback are not checked for CSAM URLs, grooming or threats. | CSAM URLs and grooming through comments. | A report button on comments. | Later |
 | G5 | **No age check.** Accounts are 18+ in the terms; nothing in the code checks age. | A child could join by lying about their age. | Solicitor to advise whether self-declaration is enough (`childrens-access-assessment.md`). | Owner / solicitor |
 | G6 | **No appeal route for gallery owners.** Owners see the decision and reason at `/v1/me/safety`, but cannot ask for another look except by email. | Unfair removals are harder to put right. | Add an appeal button; show the list in the app; email outcomes. | Frontend lane |
-| G7 | **One-person moderation.** All reports are handled by the owner. | Slow response when the owner is away. | Set and publish a target response time (for example urgent reports within 24 hours) **[OWNER]**; arrange cover or pause galleries during absence. | Owner |
+| G7 | **One-person moderation.** All reports are handled by the owner. | Slow response when the owner is away. | Set and publish a target response time (urgent reports within 24 hours, see section 6); arrange cover or pause galleries during absence. | Owner |
 | G8 | **Live service not tested end to end.** Nothing in this assessment was checked on the live service. | Measures may behave differently live. | Make a test gallery, report it, and decide the report from /admin → Safety; record the result here. | Owner + Claude worker |
 
 ## 5. Overall risk level
 
-Without automated detection, the service is judged **medium risk for image-based CSAM and intimate image abuse** once galleries open, and **low** for the other harms. It is a small service run by one person: sharing happens only when a user chooses it, accounts are 18+, projects are invite-only, gallery links are unguessable and expire within 90 days, and there is no public feed, search, profiles or messaging between strangers. The main controls are invite-only projects, unguessable expiring gallery links, the report form that takes a gallery down at once on a CSAM report, and account suspension. **[OWNER/solicitor: agree or change, and decide whether galleries may open on this basis.]**
+Without automated detection, the service is judged **medium risk for image-based CSAM and intimate image abuse** once galleries open, and **low** for the other harms. It is a small service run by one person: sharing happens only when a user chooses it, accounts are 18+, projects are invite-only, gallery links are unguessable and expire within 90 days, and there is no public feed, search, profiles or messaging between strangers. The main controls are invite-only projects, unguessable expiring gallery links, the report form that takes a gallery down at once on a CSAM report, and account suspension. Signing below confirms the owner agrees with these levels.
 
 ## 6. Step 4: reporting and governance
 
-- Accountable person: **[OWNER name]**. Reviews this assessment and every open report.
+- Accountable person: David Leitch. Reviews this assessment and every open report.
 - Where reports are handled: /admin → Safety (`/v1/admin/safety`), details only.
-- Records: this file in the repository (version history in Git) plus a signed copy kept by the owner **[OWNER: where]**.
-- Target response times: **[OWNER: fill in]**, for example urgent reports within 24 hours, others within 5 working days.
+- Records: this file in the repository (version history in Git) plus the signed copy uploaded to /admin → Compliance documents.
+- Target response times: urgent reports (child sexual abuse, intimate image abuse, terrorism) within 24 hours; others within 5 working days. If the owner is away for longer, client galleries are paused.
 
 ## 7. Review
 
@@ -189,8 +189,8 @@ Review this assessment:
 
 - **before** shared projects, client galleries or cloud storage open to the public;
 - within **3 months** of opening, using real report and case data;
-- then at least **every 12 months** (**[OWNER: first annual date]**);
-- and **before** any significant change, including: messaging between users; public galleries, profiles or search; video; changing the minimum age; adding any automated check; passing 50,000 UK monthly users of the online features **[OWNER: pick a threshold]**; or Ofcom publishing new codes or guidance. **LAW: CHECK** Ofcom's rule on reassessing before a significant change.
+- then at least **every 12 months** (first annual review by 27 November 2027);
+- and **before** any significant change, including: messaging between users; public galleries, profiles or search; video; changing the minimum age; adding any automated check; passing 50,000 UK monthly users of the online features; or Ofcom publishing new codes or guidance. **LAW: CHECK** Ofcom's rule on reassessing before a significant change.
 
 ## 8. Sign-off
 
@@ -198,6 +198,6 @@ Review this assessment:
 |---|---|
 | Name | David Leitch |
 | Role | Sole trader, trading as InFlight; person accountable for online safety |
-| Signature | ______________________ |
+| Signature | Type your full name here, or sign a printed copy |
 | Date | ______________________ |
 | Solicitor reviewed (name, firm, date) | ______________________ |
