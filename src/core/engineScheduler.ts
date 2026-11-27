@@ -62,6 +62,12 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
    * shoot-wide Auto pick that cannot pause no longer holds a one-photo mask until every photo is analysed.
    */
   interactive?: boolean;
+  /**
+   * How long one photo may go without a new stage or progress before the watchdog stops it, fails it with a plain
+   * message and gives its slot back (default STALL_MS; cloud work STALL_CLOUD_MS). Work that takes longer than this
+   * legitimately reports progress as it goes.
+   */
+  stallMs?: number;
   recovery?: {
     key: string;
     journal: JobJournal;
@@ -103,6 +109,10 @@ interface WorkBatch {
   controller: AbortController | null;
   /** Give back the processing slot of the photo now running (once). Set while one runs. */
   releaseSlot: (() => void) | null;
+  /** When the running photo last showed a sign of life (dispatch, stage, progress, sub-items). */
+  lastActivity: number;
+  stallMs: number | undefined;
+  cloud: boolean;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -112,6 +122,14 @@ interface WorkBatch {
   retry(): Promise<SchedulerTicket | null>;
   finish(result: 'done' | 'failed' | 'cancelled'): void;
 }
+
+/** A photo with no new stage or progress for this long is stuck: the watchdog fails it and frees its slot. */
+export const STALL_MS = 5 * 60_000;
+/** Cloud work waits on the network and a remote queue, so it gets longer. */
+export const STALL_CLOUD_MS = 15 * 60_000;
+/** The words the watchdog leaves on a stuck photo, so nothing waits for ever in silence. */
+export const stalledMessage = (minutes: number) =>
+  `Stopped after ${minutes} minutes with no progress, so other work can go on. Nothing was changed. Retry failed items only to try again.`;
 
 export function limitsForDevice(device: { hardwareConcurrency?: number; deviceMemory?: number; mobile?: boolean } = {}): DeviceLimits {
   const cores = Number.isFinite(device.hardwareConcurrency) ? Math.max(1, Math.floor(device.hardwareConcurrency!)) : 2;
@@ -127,6 +145,8 @@ export function createEngineScheduler(options: {
   resourceSample?: ResourceSample | null;
   mode?: ProcessingMode;
   now?: () => number;
+  /** How often the watchdog looks for stuck photos (ms). 0: never on its own (tests call checkStalls with their own clock). */
+  watchdogMs?: number;
 } = {}) {
   const store = options.taskStore ?? tasks;
   const limits: DeviceLimits = { ...(options.limits ?? limitsForDevice()) };
@@ -202,6 +222,40 @@ export function createEngineScheduler(options: {
     job.handle.finish(`${job.items.length} of ${job.items.length} completed`);
     job.finish('done');
   };
+  /**
+   * The watchdog: a running photo that shows no sign of life for its limit is stopped, failed with a plain message and
+   * its slot given back, so one hung read or model never leaves every other task "waiting for processing slot" at 0%
+   * CPU. Its late result, if it ever comes, is never committed. The rest of its task carries on.
+   */
+  let watchdog: ReturnType<typeof setInterval> | null = null;
+  const checkStalls = () => {
+    const at = now();
+    let anyActive = false;
+    for (const job of jobs.values()) {
+      if (!job.active || !job.releaseSlot) continue;
+      anyActive = true;
+      const limit = job.stallMs ?? (job.cloud ? STALL_CLOUD_MS : STALL_MS);
+      if (at - job.lastActivity < limit) continue;
+      const item = job.items.find(candidate => candidate.state === 'running');
+      if (item && !item.confirmed) { item.state = 'failed'; item.detail = stalledMessage(Math.round(limit / 60_000)); }
+      job.controller?.abort();
+      job.releaseSlot();
+      if (job.cancelled) { job.finish('cancelled'); continue; }
+      publishProgress(job);
+      if (job.items.some(candidate => candidate.state === 'queued')) {
+        job.handle.transition('queued', `${countDone(job)} of ${job.items.length} completed; waiting for processing slot`);
+      } else finishJob(job);
+    }
+    if (!anyActive && watchdog) { clearInterval(watchdog); watchdog = null; }
+    pump();
+  };
+  const startWatchdog = () => {
+    if (watchdog || options.watchdogMs === 0) return;
+    watchdog = setInterval(checkStalls, options.watchdogMs ?? 30_000);
+    // In Node (tests), never keep the process alive just for the watchdog; in the app the page stays open anyway.
+    (watchdog as { unref?: () => void }).unref?.();
+  };
+
   const pump = () => {
     if (pausedAll) return;
     // Each dispatch covers only one photograph, then reconsider priority.
@@ -218,7 +272,9 @@ export function createEngineScheduler(options: {
       dispatched = true;
       job.active = true;
       job.order = ++sequence;
+      job.lastActivity = now();
       used[job.resource]++;
+      startWatchdog();
       // The slot is given back when the photo finishes, or at once when its task is cancelled: a photo that ignores
       // the stop (a hung read, a stuck analysis) must never keep every other task "waiting for processing slot".
       let holding = true;
@@ -241,6 +297,7 @@ export function createEngineScheduler(options: {
       const ctx: ScheduledContext = {
         signal: controller.signal,
         stage(stage) {
+          job.lastActivity = now();
           if (!job.cancelled && !controller.signal.aborted) {
             item.detail = stage;
             job.handle.patch({ stage, detail: `${item.label}: ${stage}` });
@@ -248,22 +305,29 @@ export function createEngineScheduler(options: {
           }
         },
         reportProgress(done, total, detail) {
+          job.lastActivity = now();
           if (!job.cancelled && !controller.signal.aborted) {
             job.manualProgress = true;
             job.handle.progress(done, total, detail);
           }
         },
         setSubitems(subitems) {
+          job.lastActivity = now();
           if (job.cancelled || controller.signal.aborted) return;
           job.subitems = subitems.map(sub => ({ ...sub, state: 'queued' }));
           updateItems(job);
         },
         updateSubitem(id, state, detail) {
+          job.lastActivity = now();
           if (job.cancelled || controller.signal.aborted || !job.subitems) return;
           job.subitems = job.subitems.map(sub => sub.id === id ? { ...sub, state, ...(detail ? { detail } : {}) } : sub);
           updateItems(job);
         },
-        setLocation(location) { if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location }); },
+        setLocation(location) {
+          job.cloud = location === 'cloud';
+          job.lastActivity = now();
+          if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location });
+        },
         checkCancelled() {
           controller.signal.throwIfAborted();
           if (job.cancelled) throw new Error('Job cancelled.');
@@ -406,6 +470,7 @@ export function createEngineScheduler(options: {
       interactive: definition.interactive === true && items.length === 1,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
+      lastActivity: now(), stallMs: definition.stallMs, cloud: (definition.location ?? 'local') === 'cloud',
       handle, items: items as WorkItem<unknown>[], manualProgress: false,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
       saveCheckpoint: () => {
@@ -501,6 +566,8 @@ export function createEngineScheduler(options: {
   };
   return {
     submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    /** Look for stuck photos now (the watchdog does this every 30 s). */
+    checkStalls,
     cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {

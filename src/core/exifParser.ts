@@ -287,6 +287,9 @@ async function readHead(file: Blob, bytes: number): Promise<Uint8Array> {
   return new Uint8Array(await file.slice(0, bytes).arrayBuffer());
 }
 
+/** How much of a RAW is handed to the EXIF reader in one piece. */
+const RAW_EXIF_BYTES = 4 * 1024 * 1024;
+
 export async function parseImageExif(
   file: Blob,
   filename: string
@@ -297,7 +300,10 @@ export async function parseImageExif(
   const formatLabel = isNikonRaw ? rawPreviewLabel(filename) : isHeif ? heifFormatLabel(filename) : undefined;
 
   try {
-    const metadata = isHeif ? await readHeifExif(file) : file;
+    // A RAW's start as one buffer, not a Blob: read from a Blob, exifr reads in chunks and missed the lens on Nikon Z 8
+    // NEFs (LensModel lies past a 165 KB maker note), so the Info panel said "Lens: Not recorded" for a lens the file names.
+    // The bytes are the same head the import already reads (EXIF is within the first 1 MiB on 120/120 real files).
+    const metadata = isHeif ? await readHeifExif(file) : isNikonRaw ? await file.slice(0, RAW_EXIF_BYTES).arrayBuffer() : file;
     if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
     // A RAW's maker segments (XMP, thumbnails) can sit past the bytes read or be malformed. One bad segment must not
     // lose the camera, lens and size, so a failed full read retries with only the main TIFF and EXIF directories.

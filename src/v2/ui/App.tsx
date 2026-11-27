@@ -11,6 +11,7 @@ import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
+import { trueDetailJob } from './utils/trueDetailJob';
 import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
@@ -859,6 +860,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             hideReadouts={store.settings.calmReadouts}
             onUpdateRecipe={actions.updateRecipe}
             onDenoise={actions.denoisePhoto}
+            trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
             cloudEnabled={store.features.cloudAssist}
             onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
           />

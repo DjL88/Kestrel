@@ -15,6 +15,8 @@ import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicatePr
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
+import { measureStep, timedStep } from '../../providers/previewTiming';
+import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
 import { panoramaRecipe, type PanoramaRecipe } from '../../core/panoramaRecipe';
@@ -207,6 +209,7 @@ import { language } from '../../i18n/messages';
 import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
 import { createReadAhead, importLanes } from '../../core/importReadAhead';
+import { startNativeResourceSampling } from '../../providers/nativeResourceSample';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -319,6 +322,9 @@ function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBra
 }
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
+  // A real measurement of the machine for the task scheduler (desktop app), so heavy jobs can run side by side when there
+  // is room, instead of one at a time behind whichever is slowest.
+  useEffect(() => startNativeResourceSampling(), []);
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
   // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
@@ -500,8 +506,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       },
     });
   }
+  // While a slider is held, the newest state waits here and is saved once when the drag ends (or when the editor closes):
+  // each save copies the whole project, which on a large project would hold the slider on every step.
+  const heldSave = useRef<{ id: string; state: CullingState } | null>(null);
+  useEffect(() => {
+    const flush = () => {
+      const held = heldSave.current;
+      heldSave.current = null;
+      if (held) saveGuard.current!.submit(held.id, held.state);
+    };
+    const stop = onEditGestureEnd(flush);
+    return () => { stop(); flush(); };
+  }, []);
   useEffect(() => {
     if (!state || screen !== 'editor') return;
+    if (editGestureActive()) { heldSave.current = { id: state.shoot.id, state }; return; }
+    heldSave.current = null;
     saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
   useEffect(() => {
@@ -1298,24 +1318,45 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
+  // The preview the histogram is measured from, decoded once per address (not once per slider step).
+  // One entry, replaced when the address changes: the loaded preview (the 16-bit pass checks its turn against it) and its
+  // small unedited copy.
+  const histogramSource = useRef<{ url: string; picture: Promise<{ element: HTMLImageElement; naturalWidth: number; naturalHeight: number; small: ImageData }> } | null>(null);
   useEffect(() => {
     if (!histogramKey || !activeFrame) return;
     let live = true;
     const frame = activeFrame;
-    const timer = window.setTimeout(() => {
+    let stopWaiting: (() => void) | undefined;
+    const measure = () => {
+      // Not while a slider is held: the histogram follows once the hand is still.
+      if (editGestureActive()) { stopWaiting = onEditGestureEnd(() => { stopWaiting?.(); stopWaiting = undefined; if (live) measure(); }); return; }
       provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
         if (!url || !live) return;
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
+        if (histogramSource.current?.url !== url) {
+          const picture = loadImage(url).then((element) => {
+            const scale = Math.min(1, 256 / Math.max(element.naturalWidth, element.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(element.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(element.naturalHeight * scale));
+            const context = canvas.getContext('2d', { willReadFrequently: true })!;
+            context.drawImage(element, 0, 0, canvas.width, canvas.height);
+            return { element, naturalWidth: element.naturalWidth, naturalHeight: element.naturalHeight, small: context.getImageData(0, 0, canvas.width, canvas.height) };
+          });
+          histogramSource.current = { url, picture };
+          picture.catch(() => { if (histogramSource.current?.picture === picture) histogramSource.current = null; });
+        }
+        const image = await histogramSource.current.picture;
         // When the file records no size, the shown picture gives the photo its shape. For a plain picture file that is
         // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
         if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
-        const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+        const measureStart = performance.now();
+        // The small unedited picture is drawn once per preview (above) and kept: each step only applies its edit to a copy.
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.width = image.small.width; canvas.height = image.small.height;
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        context.putImageData(image.small, 0, 0);
         applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        measureStep('histogram:measure', measureStart);
         if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
         // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
         // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
@@ -1323,12 +1364,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // Only for a photo the person stays on: browsing past photos never starts a full RAW develop for each one.
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         if (!live) return;
-        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image);
-        const measured = live && working ? histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working) : null;
+        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image.element);
+        const measured = live && working ? timedStep('histogram:raw16', () => histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working)) : null;
         if (live && measured) setHistograms((current) => ({ ...current, [frame.id]: measured }));
       }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
-    }, 160);
-    return () => { live = false; window.clearTimeout(timer); };
+    };
+    const timer = window.setTimeout(measure, 160);
+    return () => { live = false; window.clearTimeout(timer); stopWaiting?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 

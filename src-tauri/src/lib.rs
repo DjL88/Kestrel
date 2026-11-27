@@ -21,6 +21,8 @@ mod preview_cache;
 #[cfg(desktop)]
 mod import_io;
 #[cfg(desktop)]
+mod resource_sample;
+#[cfg(desktop)]
 mod sftp;
 #[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
@@ -410,6 +412,13 @@ async fn preview_cache_build(app: tauri::AppHandle, requests: Vec<preview_cache:
     }).await.map_err(|_| "The previews could not be made.".to_string())
 }
 
+/// The machine's CPU load and free memory for the task scheduler (resource_sample.rs). Cheap: called every few seconds.
+#[cfg(desktop)]
+#[tauri::command]
+fn resource_sample(state: tauri::State<'_, resource_sample::Sampler>) -> Result<resource_sample::Sample, String> {
+    state.sample().ok_or_else(|| "The system figures could not be read.".to_string())
+}
+
 /// The size and modified time of many photos in one call (import_io.rs): the folder look-through made one call per photo.
 #[cfg(desktop)]
 #[tauri::command]
@@ -619,7 +628,8 @@ pub fn run() {
         .manage(ShootRoomState::default())
         .manage(PtpUsbState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, photo_stats, photo_fingerprint, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, sftp::sftp_test, sftp::sftp_put, sftp::sftp_get, sftp::sftp_list, sftp::sftp_remove])
+        .manage(resource_sample::Sampler::new())
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, photo_stats, photo_fingerprint, resource_sample, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, sftp::sftp_test, sftp::sftp_put, sftp::sftp_get, sftp::sftp_list, sftp::sftp_remove])
         .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
             let id = event.id().0.clone();

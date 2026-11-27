@@ -28,6 +28,7 @@ test('?v2 histogram: every line has its own pattern and name, and a clipped chan
   await (await chooser).setFiles([{ name: 'red.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
 
   const channels = root.getByTestId('histogram-channel-clipping');
   await expect(channels).toContainText('Red clipped: shadows 0%, highlights 100%', { timeout: 30000 });
