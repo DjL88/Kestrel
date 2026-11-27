@@ -69,6 +69,7 @@ export const VIEWS = {
   people: { label: 'People and licences', sections: ['grant', 'licensees', 'issue', 'revoke', 'usage'] },
   money: { label: 'Payments and money', sections: ['payments', 'refunds', 'accounts', 'pricing'] },
   messages: { label: 'Messages', sections: ['messages', 'safety', 'news'] },
+  technical: { label: 'Technical overview', sections: ['technical-overview'] },
   advanced: { label: 'Advanced', sections: ['flags', 'monitoring', 'audit', 'tax', 'price-review', 'mail', 'learning', 'compliance', 'overview', 'notifications'] },
 };
 
