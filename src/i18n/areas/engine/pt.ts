@@ -50,6 +50,8 @@ export const pt: AreaTranslation<typeof source> = {
     global: 'Nenhum contorno de motivo era fiável, por isso a redução de ruído foi aplicada por igual a toda a fotografia.',
     failedCheck: 'O resultado não passou a verificação de qualidade. As suas edições foram mantidas.',
     mainThread: 'Este dispositivo não conseguiu reduzir o ruído em segundo plano, por isso o InFlight pode ter parado enquanto trabalhava.',
+    workerUnavailable: 'Este dispositivo não conseguiu reduzir o ruído em segundo plano, por isso nada foi alterado (fazê-lo aqui bloquearia o InFlight). Tente de novo depois de reiniciar o InFlight.',
+    learnedNoWorker: 'A redução de ruído por IA não pôde correr em segundo plano neste dispositivo, por isso só foi comparada a redução de ruído integrada.',
     learnedLostDetail: 'Em tamanho real, a redução de ruído com IA suavizou detalhes reais do motivo, por isso foi usada a redução de ruído integrada.',
     leftAsItWas: (notes) => `Ficou como estava. ${notes}`,
   },
