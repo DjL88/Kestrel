@@ -5,7 +5,7 @@ import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
 import { installedModel } from './modelUpdater';
 import type { DetectorAgreement } from '../core/rfDetr';
-import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
+import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, sharpnessCrop, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 import { loadOrt, ortOptions, ortPlanForWorkers } from './ortRuntime';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -63,7 +63,7 @@ function load(): Promise<Loaded> {
 interface Slot { worker: Worker; busy: boolean }
 let pool: Promise<Slot[] | null> | null = null;
 const waiting: Array<(slot: Slot) => void> = [];
-const pending = new Map<number, { resolve: (data: Float32Array) => void; reject: (error: Error) => void }>();
+const pending = new Map<number, { resolve: (data: unknown) => void; reject: (error: Error) => void }>();
 let nextId = 1;
 
 function startPool(): Promise<Slot[] | null> {
@@ -94,7 +94,10 @@ function startPool(): Promise<Slot[] | null> {
           const next = waiting.shift();
           slot.busy = Boolean(next); // handed straight to the next waiting job, so two jobs never share a worker by accident
           next?.(slot);
-          if (message.type === 'result') { recordModelRun('yolox-tiny', message.runMs); job.resolve(message.data as Float32Array); } else job.reject(new Error(message.message));
+          if (message.type === 'result') { recordModelRun('yolox-tiny', message.runMs); job.resolve(message.data as Float32Array); }
+          else if (message.type === 'found') { recordModelRun('yolox-tiny', message.runMs); job.resolve(message.detections); }
+          else if (message.type === 'sharp') job.resolve(message.sharpness);
+          else job.reject(new Error(message.message));
         };
         worker.postMessage({ type: 'init', model: bytes.slice(0), ort: plan }); // each worker keeps its own copy
       })));
@@ -112,20 +115,38 @@ export async function detectorParallelism(): Promise<number> {
   return (await startPool())?.length ?? 1;
 }
 
-async function inferInWorker(slots: Slot[], input: Float32Array): Promise<Float32Array> {
+/** Send one job to a free worker (or wait for one), and resolve with its answer. */
+async function inWorker<T>(slots: Slot[], message: Record<string, unknown>, transfer: Transferable[] = []): Promise<T> {
   const slot = slots.find((candidate) => !candidate.busy) ?? await new Promise<Slot>((resolve) => waiting.push(resolve));
   slot.busy = true;
   const id = nextId++;
-  return new Promise<Float32Array>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    slot.worker.postMessage({ type: 'run', id, input, size: DETECTOR_MODEL.inputSize }, [input.buffer]);
+  return new Promise<T>((resolve, reject) => {
+    pending.set(id, { resolve: resolve as (data: unknown) => void, reject });
+    slot.worker.postMessage({ ...message, id }, transfer);
   });
 }
 
 type Source = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
 const dims = (source: Source) => source instanceof HTMLImageElement ? { w: source.naturalWidth, h: source.naturalHeight } : { w: source.width, h: source.height };
 
-async function lookIn(source: Source, tile: Box): Promise<Detection[]> {
+/**
+ * The picture as the workers read it: one ImageBitmap per search (never kept between searches, so a canvas drawn again
+ * later is never read stale), or null where the workers cannot run. With it, drawing each tile, packing the model's
+ * input, reading its answer and measuring sharpness all happen in the workers, and the interface thread only receives
+ * the subjects (it held the page for up to 680 ms under load, 27 Nov).
+ */
+interface Look { source: Source; slots: Slot[] | null; picture: ImageBitmap | null }
+async function prepareLook(source: Source): Promise<Look> {
+  const slots = await startPool();
+  if (!slots || typeof createImageBitmap === 'undefined') return { source, slots, picture: null };
+  const picture = await createImageBitmap(source).catch(() => null);
+  return { source, slots, picture };
+}
+const endLook = (look: Look) => { if (look.picture && look.picture !== look.source) look.picture.close(); };
+
+async function lookIn(look: Look, tile: Box): Promise<Detection[]> {
+  const { source, slots, picture } = look;
+  if (slots && picture) return inWorker<Detection[]>(slots, { type: 'look', picture, tile });
   const scale = tileScale(tile);
   const w = Math.max(1, Math.round(tile.w * scale));
   const h = Math.max(1, Math.round(tile.h * scale));
@@ -137,8 +158,7 @@ async function lookIn(source: Source, tile: Box): Promise<Detection[]> {
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, tile.x, tile.y, tile.w, tile.h, 0, 0, w, h);
   const input = toInput(context.getImageData(0, 0, w, h).data, w, h);
-  const slots = await startPool();
-  if (slots) return decodeTile(await inferInWorker(slots, input), tile);
+  if (slots) return decodeTile(await inWorker<Float32Array>(slots, { type: 'run', input, size: DETECTOR_MODEL.inputSize }, [input.buffer]), tile);
   const size = DETECTOR_MODEL.inputSize;
   const loaded = await load();
   const results = await loaded.session.run({ [loaded.session.inputNames[0]]: new loaded.ort.Tensor('float32', input, [1, 3, size, size]) });
@@ -172,18 +192,23 @@ async function withTandem(source: Source, yolox: Detection[], signal?: AbortSign
 export async function findSubject(source: Source, signal?: AbortSignal): Promise<FoundSubject | null> {
   const { w, h } = dims(source);
   const plan = tilePlan(w, h);
-  let detections = await lookIn(source, plan[0]);
-  if (!detections.some((d) => d.score >= 0.5)) {
-    for (const tile of plan.slice(1)) {
-      signal?.throwIfAborted();
-      detections = detections.concat(await lookIn(source, tile));
+  const look = await prepareLook(source);
+  try {
+    let detections = await lookIn(look, plan[0]);
+    if (!detections.some((d) => d.score >= 0.5)) {
+      for (const tile of plan.slice(1)) {
+        signal?.throwIfAborted();
+        detections = detections.concat(await lookIn(look, tile));
+      }
     }
+    const merged = await withTandem(source, mergeDetections(detections).filter((d) => d.score >= 0.3), signal);
+    const best = merged.sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
+    if (!best) return null;
+    const { agreement, review, ...detection } = best;
+    return { detection, sharpness: await sharpnessOf(look, best.box), coverage: (best.box.w * best.box.h) / (w * h), ...(agreement ? { agreement, review } : {}) };
+  } finally {
+    endLook(look);
   }
-  const merged = await withTandem(source, mergeDetections(detections).filter((d) => d.score >= 0.3), signal);
-  const best = merged.sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
-  if (!best) return null;
-  const { agreement, review, ...detection } = best;
-  return { detection, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h), ...(agreement ? { agreement, review } : {}) };
 }
 
 /**
@@ -195,42 +220,44 @@ export async function findSubject(source: Source, signal?: AbortSignal): Promise
 export async function findSubjectsSamePass(source: Source, signal?: AbortSignal): Promise<FoundSubject[]> {
   const { w, h } = dims(source);
   const plan = tilePlan(w, h);
-  let detections = await lookIn(source, plan[0]);
+  const look = await prepareLook(source);
+  try {
+  let detections = await lookIn(look, plan[0]);
   if (!detections.some((d) => d.score >= 0.5)) {
     for (const tile of plan.slice(1)) {
       signal?.throwIfAborted();
-      detections = detections.concat(await lookIn(source, tile));
+      detections = detections.concat(await lookIn(look, tile));
     }
   }
   const finite = (d: Detection) => Number.isFinite(d.box.x) && Number.isFinite(d.box.y) && Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0;
   const merged = await withTandem(source, mergeDetections(detections).filter((d) => d.score >= 0.3 && finite(d)), signal);
-  return merged
+  const chosen = merged
     .filter(finite)
     .sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))
-    .slice(0, 8)
-    .map(({ agreement, review, ...detection }) => ({
-      detection,
-      sharpness: sharpnessOf(source, detection.box),
-      coverage: (detection.box.w * detection.box.h) / (w * h),
-      ...(agreement ? { agreement, review } : {}),
-    }));
+    .slice(0, 8);
+  return await Promise.all(chosen.map(async ({ agreement, review, ...detection }) => ({
+    detection,
+    sharpness: await sharpnessOf(look, detection.box),
+    coverage: (detection.box.w * detection.box.h) / (w * h),
+    ...(agreement ? { agreement, review } : {}),
+  })));
+  } finally {
+    endLook(look);
+  }
 }
 
 /** Sharpness inside the box, measured at a fixed size so a big subject and a small one compare fairly. */
-function sharpnessOf(source: Source, box: Box): number {
-  const pad = 0.1;
-  const { w, h } = dims(source);
-  const x = Math.max(0, box.x - box.w * pad);
-  const y = Math.max(0, box.y - box.h * pad);
-  const cw = Math.min(w - x, box.w * (1 + 2 * pad));
-  const ch = Math.min(h - y, box.h * (1 + 2 * pad));
-  const scale = Math.min(1, 160 / Math.max(cw, ch));
+async function sharpnessOf(look: Look, box: Box): Promise<number> {
+  // In a worker when one runs, from the same picture the subjects were found in.
+  if (look.slots && look.picture) return inWorker<number>(look.slots, { type: 'sharpness', picture: look.picture, box });
+  const { w, h } = dims(look.source);
+  const crop = sharpnessCrop(w, h, box);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(4, Math.round(cw * scale));
-  canvas.height = Math.max(4, Math.round(ch * scale));
+  canvas.width = crop.width;
+  canvas.height = crop.height;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) return 0;
-  context.drawImage(source, x, y, cw, ch, 0, 0, canvas.width, canvas.height);
+  context.drawImage(look.source, crop.region.x, crop.region.y, crop.region.w, crop.region.h, 0, 0, canvas.width, canvas.height);
   return boxSharpness(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
 }
 
@@ -245,10 +272,12 @@ export async function findSubjects(source: Source, signal?: AbortSignal): Promis
   const { w, h } = dims(source);
   if (!(w > 0 && h > 0)) return [];
   const plan = tilePlan(w, h);
+  const look = await prepareLook(source);
+  try {
   const detections: Detection[] = [];
   for (const tile of plan) {
     signal?.throwIfAborted();
-    detections.push(...await lookIn(source, tile));
+    detections.push(...await lookIn(look, tile));
     signal?.throwIfAborted();
   }
   const inside = (d: Detection) => d.score >= 0.5 && Number.isFinite(d.box.x) && Number.isFinite(d.box.y) &&
@@ -257,16 +286,19 @@ export async function findSubjects(source: Source, signal?: AbortSignal): Promis
   // Every subject is kept separately (two birds stay two). With RF-DETR installed, both detectors' subjects are joined.
   const yolox = mergeDetections(detections).filter(inside);
   signal?.throwIfAborted();
-  return (await withTandem(source, yolox, signal))
+  const chosen = (await withTandem(source, yolox, signal))
     .filter(inside)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 20)
-    .map(({ agreement, review, ...detection }) => ({
-      detection,
-      sharpness: sharpnessOf(source, detection.box),
-      coverage: (detection.box.w * detection.box.h) / (w * h),
-      ...(agreement ? { agreement, review } : {}),
-    }));
+    .slice(0, 20);
+  return await Promise.all(chosen.map(async ({ agreement, review, ...detection }) => ({
+    detection,
+    sharpness: await sharpnessOf(look, detection.box),
+    coverage: (detection.box.w * detection.box.h) / (w * h),
+    ...(agreement ? { agreement, review } : {}),
+  })));
+  } finally {
+    endLook(look);
+  }
 }
 
 /** The checked detector bytes (a signed same-contract update first), for the culling workers (cullObservationPool.ts). */
