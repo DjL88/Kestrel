@@ -298,6 +298,8 @@ export interface OverlaySettings {
   textOffsetY: number; // -40 to 40 (%)
   textColour: 'light' | 'dark';
   textScrim: boolean;
+  /** Camera and lens as the camera wrote them (EXIF), instead of the Auto-correct names (Settings › Auto-correct). */
+  rawCameraNames?: boolean;
   rows: OverlayTextRow[];
   watermarkEnabled: boolean;
   watermarkPresetId: string;

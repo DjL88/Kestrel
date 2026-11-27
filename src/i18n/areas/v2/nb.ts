@@ -1169,6 +1169,7 @@ export const nb: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Bruk kameraets egne navn",
     templatesHeading: 'Maler',
     templatesIntro: 'Lagre bildets oppsett for tekst og vannmerke, og bruk det på andre bilder i én operasjon. Lagres på denne enheten.',
     templateNameLabel: 'Malnavn',

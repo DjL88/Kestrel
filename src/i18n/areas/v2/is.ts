@@ -1169,6 +1169,7 @@ export const is: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Nota upprunaleg heiti myndavélarinnar",
     templatesHeading: 'Sniðmát',
     templatesIntro: 'Vistaðu uppsetningu texta og vatnsmerkis á þessari mynd og notaðu hana á aðrar myndir í einu. Vistað á þessu tæki.',
     templateNameLabel: 'Heiti sniðmáts',

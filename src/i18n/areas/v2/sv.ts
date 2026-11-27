@@ -1169,6 +1169,7 @@ export const sv: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Använd kamerans egna namn",
     templatesHeading: 'Mallar',
     templatesIntro: 'Spara fotots layout för text och vattenstämpel och använd den på andra foton i ett svep. Sparas på den här enheten.',
     templateNameLabel: 'Mallnamn',

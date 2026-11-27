@@ -1169,6 +1169,7 @@ export const fr: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Utiliser les noms d’origine de l’appareil",
     templatesHeading: 'Modèles',
     templatesIntro: 'Enregistrez la disposition du texte et du filigrane de cette photo, puis appliquez-la d’un coup à d’autres photos. Enregistré sur cet appareil.',
     templateNameLabel: 'Nom du modèle',

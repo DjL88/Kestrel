@@ -1169,6 +1169,7 @@ export const da: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Brug kameraets egne navne",
     templatesHeading: 'Skabeloner',
     templatesIntro: 'Gem dette fotos tekst- og vandmærkelayout, og anvend det på andre fotos i ét hug. Gemt på denne enhed.',
     templateNameLabel: 'Skabelonnavn',

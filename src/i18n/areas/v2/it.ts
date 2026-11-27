@@ -1169,6 +1169,7 @@ export const it: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Usa i nomi originali della fotocamera",
     templatesHeading: 'Modelli',
     templatesIntro: 'Salva la disposizione di testo e filigrana di questa foto, poi applicala ad altre foto in un colpo solo. Salvato su questo dispositivo.',
     templateNameLabel: 'Nome del modello',

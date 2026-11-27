@@ -1169,6 +1169,7 @@ export const cy: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Defnyddio enwau gwreiddiol y camera",
     templatesHeading: 'Templedi',
     templatesIntro: 'Cadwch gynllun testun a dyfrnod y llun hwn, yna ei roi ar luniau eraill mewn un tro. Wedi’i gadw ar y ddyfais hon.',
     templateNameLabel: 'Enw’r templed',

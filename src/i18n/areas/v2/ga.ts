@@ -1172,6 +1172,7 @@ export const ga: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Úsáid ainmneacha bunaidh an cheamara",
     templatesHeading: 'Teimpléid',
     templatesIntro: 'Sábháil leagan amach téacs agus comhartha uisce an ghrianghraif seo, ansin cuir i bhfeidhm ar ghrianghraif eile é in aon iarracht amháin. Sábháilte ar an ngléas seo.',
     templateNameLabel: 'Ainm an teimpléid',

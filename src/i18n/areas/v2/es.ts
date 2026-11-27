@@ -1169,6 +1169,7 @@ export const es: AreaTranslation<typeof source> = {
     },
   },
   overlays: {
+    rawCameraNames: "Usar los nombres originales de la cámara",
     templatesHeading: 'Plantillas',
     templatesIntro: 'Guarde la disposición de texto y marca de agua de esta foto y aplíquela a otras fotos de una vez. Se guarda en este dispositivo.',
     templateNameLabel: 'Nombre de la plantilla',
