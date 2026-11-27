@@ -73,11 +73,15 @@ export interface SamMask {
 /**
  * A first tap with nothing else to go on means "this subject", not "this patch of it". The model offers several
  * candidates, from a small part to the whole object; it often rates the part highest (the white chest of a puffin). So
- * for that prompt the largest candidate the model rates nearly as well as its best is chosen, as long as it holds the
- * tapped point and is still an object (not most of the frame). Parts then come from more taps, and any other prompt keeps
- * the model's best.
+ * for that prompt the largest object the model rates nearly as well as its best is chosen, as long as it holds the
+ * tapped point and is still an object (not most of the frame). Two candidates of nearly the same size are the same object,
+ * one of them with a gap bridged (the notch under a puffin's beak and chin, owner's report 27 Nov): then the tighter one
+ * is kept, so the outline follows the subject into its concave corners. Parts then come from more taps, and any other
+ * prompt keeps the model's best.
  */
 export const WHOLE_SUBJECT_SCORE_MARGIN = 0.12;
+/** A candidate this much larger (by area) than another is a bigger object (part to whole), not the same one filled in. */
+export const WHOLE_SUBJECT_GROWTH = 1.3;
 export const WHOLE_SUBJECT_MIN_SCORE = 0.5;
 export const WHOLE_SUBJECT_MAX_COVERAGE = 0.85;
 
@@ -108,15 +112,16 @@ export function chooseSamMask(masks: Float32Array, scores: Float32Array, w: numb
     const tapped = Math.min(h - 1, Math.max(0, Math.floor(wholeSubjectAt.y))) * w + Math.min(w - 1, Math.max(0, Math.floor(wholeSubjectAt.x)));
     const holdsTap = (c: number) => masks[c * plane + tapped] >= 0;
     const object = (c: number) => holdsTap(c) && areas[c] / plane <= WHOLE_SUBJECT_MAX_COVERAGE;
-    // The best-rated candidate that is an object at the tap; then the largest one rated nearly as well.
+    // The best-rated candidate that is an object at the tap, and every object rated nearly as well, smallest first.
     let reference = -1;
     for (let c = 0; c < candidates; c += 1) if (object(c) && (reference < 0 || scores[c] > scores[reference])) reference = c;
     if (reference >= 0) {
-      chosen = reference;
-      for (let c = 0; c < candidates; c += 1) {
-        const close = scores[c] >= scores[reference] - WHOLE_SUBJECT_SCORE_MARGIN && scores[c] >= WHOLE_SUBJECT_MIN_SCORE;
-        if (object(c) && close && areas[c] > areas[chosen]) chosen = c;
-      }
+      const close = [...Array(candidates).keys()].filter((c) => c === reference || (object(c)
+        && scores[c] >= scores[reference] - WHOLE_SUBJECT_SCORE_MARGIN && scores[c] >= WHOLE_SUBJECT_MIN_SCORE))
+        .sort((a, b) => areas[a] - areas[b]);
+      // Step up to a bigger object only; within the biggest object, keep its tightest candidate.
+      chosen = close[0];
+      for (const c of close.slice(1)) if (areas[c] >= areas[chosen] * WHOLE_SUBJECT_GROWTH) chosen = c;
     }
   }
   const data = new Uint8Array(plane);
