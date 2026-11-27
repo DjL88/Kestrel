@@ -12,6 +12,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Auto leans towards the edits this person keeps, undoes or corrects, learnt on this device (x-spec-personal-style). */
   editStyle: 'kestrel.preview.edit-style.v1',
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
+  /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
+  finishBest: 'kestrel.preview.finish-best.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
 } as const;
 

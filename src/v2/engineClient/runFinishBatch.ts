@@ -41,6 +41,8 @@ export interface FinishResult {
   /** When the one edit step was recorded, so Undo takes back only that step. */
   at?: number;
   review: 'pending' | 'kept' | 'undone';
+  /** Set when Undo was refused because the person edited the photo again since: History is the way back then. */
+  changedSince?: boolean;
 }
 
 /** Everything the batch needs from the app, so the flow is tested without a browser. */

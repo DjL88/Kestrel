@@ -16,7 +16,7 @@ export const GALLERY_PREVIEW_EDGE = 2048;
  * edge, as JPEG. Null when there is no trustworthy picture yet: a RAW whose sensor data has not been developed on this
  * device is not published from its embedded preview.
  */
-export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<Blob | null> {
+export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal, edge = GALLERY_PREVIEW_EDGE): Promise<Blob | null> {
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
   if (!raw && !url) return null;
@@ -25,7 +25,7 @@ export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserP
   signal?.throwIfAborted();
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const scale = Math.min(1, GALLERY_PREVIEW_EDGE / Math.max(width, height));
+  const scale = Math.min(1, edge / Math.max(width, height));
   const canvas = document.createElement('canvas');
   drawFramedPhoto(source, canvas, framing, { scale });
   await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });

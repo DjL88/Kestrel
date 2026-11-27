@@ -55,6 +55,10 @@ export const FEATURES = {
   // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   // Stays off until it is checked on a real shoot that it proposes keepers, not only rejects.
   cullRules: 'flagged',
+  // Finish my best: say "best 50 / best 10% / all" and the app edits those photos best first in one batch on this device,
+  // then shows a review (Keep or Undo each). Off for everyone until an admin flag (or this device's preview switch,
+  // localStorage kestrel.preview.finish-best.v1 = 1) turns it on. Not a paywall.
+  finishBest: 'flagged',
   // Brand kits (K080): a saved logo, colours and text style put on an export in one step, kept on this device. On for
   // everyone since 26 Nov 2026; an admin flag can switch it off. Not a paywall.
   brandKits: 'free',
