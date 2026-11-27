@@ -1,3 +1,4 @@
+import { useSliderValue } from '../utils/useSliderValue';
 import React from 'react';
 import type { EditRecipe, LensProfileOutcome, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -55,7 +56,7 @@ function SliderRow({
   id,
   label,
   tooltip,
-  value,
+  value: workspaceValue,
   min,
   max,
   step = 1,
@@ -63,8 +64,10 @@ function SliderRow({
   leftHint,
   rightHint,
   hideReadouts,
-  onChange,
+  onChange: commit,
 }: SliderRowProps) {
+  // The thumb moves at once; the edit follows as a transition, so dragging never waits for the editor.
+  const [value, onChange] = useSliderValue(workspaceValue, commit);
   const formatted =
     step < 1
       ? `${value > 0 ? '+' : ''}${value.toFixed(1)}${unit}`

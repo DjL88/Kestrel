@@ -1172,8 +1172,10 @@ export const source = {
   // Enhance Panel
   enhance: {
     heading: 'Enhance',
-    denoiseHeading: 'Noise Reduction',
-    denoiseNow: 'Denoise this photo',
+    denoiseHeading: "TrueDetail noise reduction",
+    denoiseNow: "Run TrueDetail on this photo",
+    trueDetailRunning: (percent: number) => `TrueDetail is working on this photo: ${percent}%`,
+    trueDetailQueued: "TrueDetail will start in a moment",
     denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: 'Runs on this device. Cloud processing is part of Pro.',
     aiDenoiseInUse: 'AI denoise is in use on the subject. It is stored on this device only.',
@@ -1397,6 +1399,9 @@ export const source = {
     fileSection: 'File & Connection',
     cameraSection: 'Camera & Capture',
     cullSection: 'Analysis Summary',
+    tabsLabel: "Photo information",
+    tabDetails: "Details",
+    tabFile: "File & histogram",
     originalStatusConnected: 'Original connected (16-bit RAW)',
     originalStatusOffline: 'Original not connected — local preview active',
   },

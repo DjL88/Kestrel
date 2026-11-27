@@ -50,8 +50,15 @@ export function fullResolutionRasterFormat(filename: string): 'jpeg' | 'png' | n
   return extension === 'png' ? 'png' : null;
 }
 
-/** "CR3 Embedded Preview", for the info panel. */
-export const rawPreviewLabel = (filename: string) => `${extensionOf(filename).toUpperCase()} Embedded Preview`;
+/**
+ * "NEF RAW", for the info panel's Format: the file's own format. It used to say "NEF Embedded Preview", which describes a
+ * picture, not the file, and contradicted "Picture shown: Developed from RAW" once the sensor develop was on screen.
+ */
+export const rawPreviewLabel = (filename: string) => `${extensionOf(filename).toUpperCase()} RAW`;
+
+/** The Format to show for a photo: a RAW always by its own format, also when an older catalogue stored the old label. */
+export const shownFileFormat = (filename: string, stored: string | undefined): string | undefined =>
+  isRawPreviewFile(filename) && (!stored || /embedded preview/i.test(stored)) ? rawPreviewLabel(filename) : stored;
 
 /** HEIF types detected by the catalogue and metadata reader. Pixel decoding depends on the platform. */
 export const HEIF_EXTENSIONS = ['heic', 'heif', 'hif'];

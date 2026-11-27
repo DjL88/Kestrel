@@ -79,7 +79,9 @@ test('?v2 the editor stays responsive while denoise runs, and the work runs in a
   });
 
   const started = Date.now();
-  await root.getByRole('button', { name: 'Denoise this photo' }).click();
+  await root.getByRole('button', { name: 'Run TrueDetail on this photo' }).click();
+  // While it runs, the button that started it says so (owner, 26 Nov), not only the Tasks list.
+  await expect(root.getByTestId('truedetail-run')).toHaveAttribute('aria-busy', 'true', { timeout: 10_000 });
   const done = root.getByText(/Denoised on this device|Left as it was/).first();
   // While denoise is running, a button still reacts.
   let clicks = 0;
