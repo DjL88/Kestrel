@@ -1,5 +1,5 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
-import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
+import { MONTHLY_PHOTO_ALLOWANCE, usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { CloudStatus, type CloudStatusState } from './shell/CloudStatus';
 import { projectsText } from '../../i18n/areas/projects';
@@ -192,6 +192,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const alreadyShared = React.useMemo(() => Boolean(store.activeProjectId && readSharedLink(store.activeProjectId) && !isOwnCloudProject(store.activeProjectId)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [store.activeProjectId, shareVersion]);
+  // The same numbers Settings › Account shows.
+  const cloudNumbers = cloudUsage ?? store.settings.account.cloud;
   React.useEffect(() => {
     const wanted = (store.settingsOpen && store.settingsTab === 'account') || store.activePanel === 'tasks';
     if (!wanted) return;
@@ -796,6 +798,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplySuggestion={actions.applyAssistSuggestion}
             onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
             onUndo={editLocked ? undefined : actions.undo}
+            cloudEdits={store.cloudEdits && actions.setCloudEdits && actions.runCloudEdits && actions.cloudConsent && actions.setCloudConsent ? {
+              view: store.cloudEdits, onSetChoice: actions.setCloudEdits, onRun: actions.runCloudEdits,
+              consent: actions.cloudConsent, onSetConsent: actions.setCloudConsent,
+              usage: cloudNumbers ? { used: cloudNumbers.photosUsed, monthly: MONTHLY_PHOTO_ALLOWANCE[cloudNumbers.plan] } : undefined,
+              onTopUp: () => actions.setSettingsOpen(true, 'account'),
+            } : undefined}
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
@@ -1123,6 +1131,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           theme={activeTheme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
+          cloudEditsOffered={Boolean(actions.setCloudEdits)}
           defaultAssistMode={store.settings.defaultAssistMode}
           onCreateFromFolder={actions.createProjectFromFolder}
           onQuickStart={actions.startQuickStart}
