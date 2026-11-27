@@ -97,6 +97,7 @@ test('three bracketed frames become one new photo that is sharper than every fra
   for (const value of inputs) expect(result.value).toBeGreaterThan(value * 1.2);
 
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   const info = root.getByTestId('v2-focus-stack-info');
   await expect(info).toContainText('Made from 3 photos:');
   for (const name of ['macro_1.png', 'macro_2.png', 'macro_3.png']) await expect(info).toContainText(name);
