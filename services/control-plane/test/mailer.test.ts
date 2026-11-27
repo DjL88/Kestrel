@@ -244,3 +244,33 @@ test('notice delivery: push has no device yet; email only to an address the acco
   assert.equal(await d.email('acc_kim', msg), 'no-address', 'an unsubscribed address is never mailed');
   assert.equal(sent.length, 2);
 });
+
+test('a website contact message is emailed to the team inbox, with Reply-To the visitor, only when email is on', async () => {
+  const { sent, transport } = recorder();
+  const mailer = new Mailer({ transport, ledger: new FirestoreMailLedger(new MemoryFirestore()), fromAddress: 'hello@inflight.studio', teamAddress: 'team@inflight.studio', siteOrigin: 'https://inflight.studio', unsubscribeKey: Buffer.alloc(32, 9) });
+  const h = await startHarness(undefined, undefined, { requireAdminSwitch: true, mailer });
+  try {
+    const message = { name: 'Alex\r\nBcc: x@evil.test', email: 'alex@example.test', message: 'Does Pro work on two laptops?', consent: true };
+    assert.equal((await h.call('POST', '/v1/contact', { body: message })).status, 200);
+    assert.equal(sent.length, 0, 'email switch off: stored only');
+    assert.equal((await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key: 'email', on: true } })).status, 200);
+    assert.equal((await h.call('POST', '/v1/contact', { body: message })).status, 200);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].from, 'hello@inflight.studio'); assert.equal(sent[0].to, 'team@inflight.studio');
+    const head = sent[0].raw.split('\r\n\r\n')[0];
+    assert.match(head, /^Reply-To: <alex@example\.test>$/m);
+    assert.match(head, /^Subject: Website message from Alex Bcc: x@evil\.test$/m, 'no header injection');
+    assert.doesNotMatch(head, /^Bcc:/m);
+    const textPart = sent[0].raw.split('Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n')[1].split('\r\n--')[0];
+    assert.match(Buffer.from(textPart.replace(/\r\n/g, ''), 'base64').toString('utf8'), /Does Pro work on two laptops\?/);
+    assert.equal((await h.call('GET', '/v1/admin/messages', { token: h.adminToken })).body.messages.length, 2, 'both stored');
+  } finally { await h.close(); }
+
+  const failing = new Mailer({ transport: { send: async () => { throw new Error('535 bad credentials'); } }, ledger: new FirestoreMailLedger(new MemoryFirestore()), fromAddress: 'hello@inflight.studio', siteOrigin: 'https://inflight.studio', unsubscribeKey: Buffer.alloc(32, 9) });
+  const f = await startHarness(undefined, undefined, { requireAdminSwitch: true, mailer: failing });
+  try {
+    await f.call('POST', '/v1/admin/switches/set', { token: f.adminToken, body: { key: 'email', on: true } });
+    const r = await f.call('POST', '/v1/contact', { body: { name: 'Sam', email: 'sam@example.test', message: 'Hi', consent: true } });
+    assert.equal(r.status, 200, 'a mail failure never loses the message'); assert.equal(r.body.received, true);
+  } finally { await f.close(); }
+});

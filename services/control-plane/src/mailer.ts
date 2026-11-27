@@ -254,6 +254,8 @@ export interface MailerOptions {
   /** The sending account's type, which sets the hard daily cap (default Workspace). */
   account?: MailAccountKind;
   fromName?: string;
+  /** Where website contact-form messages go (KCP_CONTACT_NOTIFY_TO). Default: the sending account itself. */
+  teamAddress?: string;
   /** The public website, which forwards /v1/mail/** to the control plane (firebase.json). */
   siteOrigin: string;
   /** Signs unsubscribe links. */
@@ -277,6 +279,7 @@ export class Mailer {
   readonly account: MailAccountKind;
   constructor(private readonly o: MailerOptions) {
     if (!isMailAddress(o.fromAddress)) throw new Error('KCP_MAIL_FROM must be an email address');
+    if (o.teamAddress?.trim() && !isMailAddress(o.teamAddress.trim())) throw new Error('KCP_CONTACT_NOTIFY_TO must be an email address');
     if (!/^https:\/\/[^/]+$/.test(o.siteOrigin)) throw new Error('KCP_SITE_ORIGIN must be a bare https origin');
     this.account = o.account ?? 'workspace';
     const l = o.limits ?? { ...DEFAULT_MAIL_LIMITS, daily: Math.min(DEFAULT_MAIL_LIMITS.daily, hardDailyMax(this.account)) };
@@ -385,6 +388,38 @@ export class Mailer {
     await this.o.transport.send(this.o.fromAddress, m.to, raw);
     return { sent: true };
   }
+
+  /** The sending account, which is the team's own inbox unless KCP_CONTACT_NOTIFY_TO says otherwise. */
+  get teamAddress(): string { return this.o.teamAddress?.trim() || this.o.fromAddress; }
+  /** Mail to the team itself: plain text, no unsubscribe link (it never goes to a customer), same daily limits. */
+  async sendInternal(m: { to: string; subject: string; text: string; replyTo?: string; sender: string }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
+    const nowMs = (this.o.now ?? Date.now)();
+    const refused = await this.o.ledger.reserve(new Date(nowMs).toISOString().slice(0, 10), m.sender, emailHashOf(m.to), { ...this.limits, perRecipient: Math.max(this.limits.perRecipient, 50) });
+    if (refused) return { sent: false, reason: refused };
+    const raw = buildMessage({
+      from: { address: this.o.fromAddress, name: this.o.fromName ?? 'InFlight' }, to: m.to,
+      subject: m.subject, text: m.text,
+      html: `<!doctype html><html lang="en-GB"><body><pre style="font-family:system-ui,sans-serif;white-space:pre-wrap">${escapeHtml(m.text)}</pre></body></html>`,
+      date: new Date(nowMs), messageIdDomain: this.o.fromAddress.split('@')[1],
+      headers: { ...(m.replyTo && isMailAddress(m.replyTo) ? { 'Reply-To': `<${m.replyTo}>` } : {}), 'Auto-Submitted': 'auto-generated' },
+    });
+    await this.o.transport.send(this.o.fromAddress, m.to, raw);
+    return { sent: true };
+  }
+}
+
+/**
+ * A website contact-form message, forwarded to the team's inbox. Reply-To is the visitor, so replying answers them.
+ * The message is already stored (and shown in /admin), so a refusal or failure here loses nothing.
+ */
+export function sendContactAlert(mailer: Mailer, m: { name: string; email: string; message: string; messageId: string }, now: Date) {
+  return mailer.sendInternal({
+    to: mailer.teamAddress,
+    subject: `Website message from ${oneLine(m.name, 80)}`,
+    replyTo: isMailAddress(m.email) ? m.email : undefined,
+    text: [`From: ${oneLine(m.name, 120)} <${oneLine(m.email, 254)}>`, `Received: ${now.toISOString()}`, `Reference: ${m.messageId}`, '', m.message.replace(/\r\n?/g, '\n').slice(0, 10000).replace(/\n/g, '\r\n'), '', 'Also in /admin, Messages.'].join('\r\n'),
+    sender: 'contact-form',
+  });
 }
 
 /**

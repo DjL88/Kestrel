@@ -13,6 +13,7 @@ import { DEFAULT_MAX_JOB_MS } from './cloudJobs.ts';
 import { galleryIdFor } from './gallery.ts';
 import { SAFE_COPY_MAX_BYTES, safeCopyKey } from './safeCopy.ts';
 import { htmlLang, mailWords } from './mailText.ts';
+import { sendContactAlert } from './mailer.ts';
 import { ApiError, parseJson, send } from './http.ts';
 import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
@@ -524,7 +525,15 @@ export function generalRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.ContactRequest, req.rawBody);
       // A filled-in hidden field means a robot: answer as if it worked, store nothing.
       if (body.website) return { status: 200, body: { received: true } };
-      await store.insertContactMessage({ messageId: `msg_${randomId(12)}`, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      const messageId = `msg_${randomId(12)}`;
+      await store.insertContactMessage({ messageId, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      // Also email it to the team's inbox when app email is on. Stored first, so a mail failure loses nothing.
+      if (options.mailer && (await switchOn('email'))) {
+        try {
+          const r = await sendContactAlert(options.mailer, { name: body.name, email: body.email, message: body.message, messageId }, new Date(now()));
+          if (!r.sent) console.warn(`contact alert not emailed (${r.reason}); it is in /admin`);
+        } catch { console.warn('contact alert email failed; it is in /admin'); }
+      }
       return { status: 200, body: { received: true } };
     },
   },

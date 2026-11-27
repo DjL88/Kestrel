@@ -86,7 +86,7 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     });
     const cap = hardDailyMax(account);
     out.mailer = new Mailer({
-      transport, ledger: new FirestoreMailLedger(db), fromAddress: fromAddressFor(username, env.KCP_MAIL_FROM), fromName: 'InFlight', account,
+      transport, ledger: new FirestoreMailLedger(db), fromAddress: fromAddressFor(username, env.KCP_MAIL_FROM), fromName: 'InFlight', account, teamAddress: env.KCP_CONTACT_NOTIFY_TO,
       siteOrigin: required('KCP_SITE_ORIGIN'), unsubscribeKey: createHmac('sha256', deps.sessionSecret).update('mail-unsubscribe-v1').digest(),
       limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', Math.min(DEFAULT_MAIL_LIMITS.daily, cap), cap), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
     });

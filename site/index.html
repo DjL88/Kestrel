@@ -377,7 +377,7 @@
   <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#how" data-i18n="navHow">How it works</a><a href="#shoots" data-i18n="navShoot">On a shoot</a><a href="#pricing" data-i18n="navPlans">Plans</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
   <div class="bar-end">
     <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
-    <a class="cta small" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
+    <a class="cta small" data-web-app="signin" href="#downloads" data-i18n="signIn">Sign in</a>
   </div>
 </div></header>
 <main id="top">
@@ -424,9 +424,9 @@
     <div class="welcome">
       <h2 data-i18n="welcomeTitle">Welcome to InFlight</h2>
       <p class="invite" data-i18n="inviteOnly">By invitation only while we test.</p>
-      <a class="cta block" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
-      <a class="ghost block" data-web-app="signup" href="/V2Proto/" data-i18n="signUp">Create an account</a>
-      <a class="ghost block" data-web-app="guest" href="/V2Proto/" data-i18n="guestTry">Try it as a guest</a>
+      <a class="cta block" data-web-app="signin" href="#downloads" data-i18n="signIn">Sign in</a>
+      <a class="ghost block" data-web-app="signup" href="#downloads" data-i18n="signUp">Create an account</a>
+      <a class="ghost block" data-web-app="guest" href="#downloads" data-i18n="guestTry">Try it as a guest</a>
       <p class="fine" data-i18n="guestNote">As a guest you edit your own photos in this browser, but nothing is kept once you close the tab. Signed in, your web projects live in InFlight's cloud.</p>
       <a class="centre-link" href="#contact" data-i18n="requestInvite">Request an invitation</a>
     </div>
@@ -1070,9 +1070,11 @@
   })();
 </script>
 <script>
-  // Sign in, Create an account and Try it as a guest open the web app. The address is one setting: the meta tag below.
+  // Sign in, Create an account and Try it as a guest open the web app once one is live. The address is one setting:
+  // a <meta name="inflight-web-app" content="..."> tag. Without it they go to Downloads, never to the private test site.
   (function webAppLinks() {
-    const base = document.querySelector('meta[name="inflight-web-app"]')?.content || '/V2Proto/';
+    const base = document.querySelector('meta[name="inflight-web-app"]')?.content;
+    if (!base || /v2proto/i.test(base)) return;
     for (const link of document.querySelectorAll('[data-web-app]')) {
       const url = new URL(base, location.href);
       url.hash = link.dataset.webApp;
