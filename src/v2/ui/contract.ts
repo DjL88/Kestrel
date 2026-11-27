@@ -517,7 +517,7 @@ export interface Photo {
 }
 
 export interface Project {
-  kind?: 'photography' | 'collage';
+  kind?: 'photography' | 'collage' | 'tethered';
   id: string;
   name: string;
   updatedAt: string;
@@ -626,6 +626,8 @@ export interface WorkspaceSettings {
   calmHints: boolean;
   /** Hide the numbers beside sliders. Separate from the preset, because many people find exact values calming. */
   calmReadouts: boolean;
+  /** Focus mode: the filmstrip's row keeps photos, Import and Folder, and the rest sits under More. Unset: on for phones. */
+  filmstripFocus?: boolean;
   touchDensity: 'comfortable' | 'compact';
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
@@ -843,7 +845,7 @@ export interface WorkspaceActions {
   openProject: (projectId: string) => void;
   backToProjects: () => void;
   /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
-  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
+  createProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;

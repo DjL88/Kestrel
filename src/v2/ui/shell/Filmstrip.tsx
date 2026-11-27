@@ -78,6 +78,9 @@ interface FilmstripProps {
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
+  /** Focus mode: keep the row to photos, Import and Folder; Auto pick and the Culling Assistant move under More. */
+  focusRow?: boolean;
+  onSetFocusRow?: (on: boolean) => void;
   onExportSelected: () => void;
   /** Two selected photos open side by side. */
   onCompareSelected?: () => void;
@@ -153,6 +156,8 @@ export default function Filmstrip({
   activity = null,
   onRunAutoCull,
   onOpenCullAssistant,
+  focusRow = false,
+  onSetFocusRow,
   onExportSelected,
   onCompareSelected,
   onCreateCollage,
@@ -163,6 +168,17 @@ export default function Filmstrip({
   onChooseFromProject,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
+  const rowMoreRef = useRef<HTMLDetailsElement | null>(null);
+  const closeRowMore = () => { if (rowMoreRef.current) rowMoreRef.current.open = false; };
+  // The tools row scrolls sideways, which clips anything drawn outside it; the menu is placed on the screen instead,
+  // just above the More button (CI, 26 Nov: the canvas took the tap meant for the menu).
+  const [rowMoreAt, setRowMoreAt] = useState<{ left: number; bottom: number } | null>(null);
+  const placeRowMore = () => {
+    const details = rowMoreRef.current;
+    if (!details?.open) { setRowMoreAt(null); return; }
+    const box = details.getBoundingClientRect();
+    setRowMoreAt({ left: Math.max(8, Math.min(box.left, window.innerWidth - 264)), bottom: window.innerHeight - box.top + 4 });
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
@@ -307,7 +323,7 @@ export default function Filmstrip({
   return (
     <section
       aria-label={STRINGS.filmstripLabels.label1}
-      className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
+      className={`v2-filmstrip relative ${rowMoreAt ? 'z-40' : 'z-20'} flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none`}
     >
       <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activityText} edge="top" testId="filmstrip-progress" />
       {/* Top Resize Drag Bar */}
@@ -476,7 +492,7 @@ export default function Filmstrip({
             </button>
           )}
 
-          {!hideAutoCull && !collageMode && (
+          {!hideAutoCull && !collageMode && !focusRow && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -490,11 +506,43 @@ export default function Filmstrip({
             <ProBadge feature="smartCulling" />
           </button>
           )}
-          {onOpenCullAssistant && !hideAutoCull && !collageMode && (
+          {onOpenCullAssistant && !hideAutoCull && !collageMode && !focusRow && (
             <button type="button" onClick={onOpenCullAssistant} data-testid="open-cull-assistant"
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap">
               <span>{CULL_ASSISTANT_LABEL}</span>
             </button>
+          )}
+          {onSetFocusRow && !collageMode && (
+            <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more" onToggle={placeRowMore}>
+              <summary aria-label={STRINGS.filmstrip.rowMoreLabel}
+                className="inline-flex h-7 cursor-pointer list-none items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <span aria-hidden="true">⋯</span>
+                <span>{STRINGS.filmstrip.rowMore}</span>
+              </summary>
+              <div style={rowMoreAt ? { left: rowMoreAt.left, bottom: rowMoreAt.bottom } : undefined}
+                className="fixed z-50 flex w-64 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1.5 shadow-[var(--shadow-popover)]">
+                {focusRow && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onRunAutoCull(); }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    <BrandIcon name="find-subject" size={13} />
+                    <span>{STRINGS.filmstrip.autoCull}</span>
+                    <ProBadge feature="smartCulling" />
+                  </button>
+                )}
+                {focusRow && onOpenCullAssistant && !hideAutoCull && (
+                  <button type="button" onClick={() => { closeRowMore(); onOpenCullAssistant(); }}
+                    className="inline-flex min-h-9 items-center rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {CULL_ASSISTANT_LABEL}
+                  </button>
+                )}
+                <button type="button" aria-pressed={!focusRow} data-testid="filmstrip-show-all-buttons"
+                  onClick={() => { closeRowMore(); onSetFocusRow(!focusRow); }}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  <BrandIcon name={focusRow ? 'checkbox-empty' : 'checkbox-checked'} size={14} />
+                  <span>{STRINGS.filmstrip.showAllButtons}</span>
+                </button>
+              </div>
+            </details>
           )}
         </div>
 

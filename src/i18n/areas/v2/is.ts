@@ -278,6 +278,8 @@ export const is: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Vinna með myndir: flokka, framkalla og flytja út myndaröð',
     kindCollageTitle: 'Klippimynd eða albúm',
     kindCollageBody: 'Raða mörgum myndum á síður, veggspjöld eða færslur',
+    kindTetheredTitle: "Tengd myndataka",
+    kindTetheredBody: "Myndir berast frá myndavélinni jafnóðum: um snúru, Wi-Fi myndavélarinnar eða í vaktaða möppu",
     kindSelected: 'Valið',
     modeQuestion: "Hversu mikið á InFlight að hjálpa?",
     modeChangeLater: "Þú getur breytt þessu síðar í verkefninu.",
@@ -285,6 +287,9 @@ export const is: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Flytja inn',
+    rowMore: "Meira",
+    rowMoreLabel: "Fleiri tól til innflutnings og vals",
+    showAllButtons: "Sýna alla hnappa í þessari röð",
     autoCull: 'Sjálfvirkt val og greining',
     autoCullRunning: 'Greini…',
     searchPlaceholder: 'Leita að skráarheiti, myndavél, tegund…',

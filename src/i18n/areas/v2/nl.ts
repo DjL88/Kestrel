@@ -278,6 +278,8 @@ export const nl: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Foto’s bewerken: een reeks beelden selecteren, ontwikkelen en exporteren',
     kindCollageTitle: 'Collage of album',
     kindCollageBody: 'Meerdere foto’s schikken op pagina’s, posters of berichten',
+    kindTetheredTitle: "Tethered shoot",
+    kindTetheredBody: "Foto’s komen van de camera binnen terwijl u ze maakt: via kabel, camera-wifi of een bewaakte map",
     kindSelected: 'Geselecteerd',
     modeQuestion: "Hoeveel moet InFlight helpen?",
     modeChangeLater: "Je kunt dit later in het project wijzigen.",
@@ -285,6 +287,9 @@ export const nl: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Importeren',
+    rowMore: "Meer",
+    rowMoreLabel: "Meer gereedschap voor importeren en selecteren",
+    showAllButtons: "Alle knoppen in deze rij tonen",
     autoCull: 'Automatisch kiezen & analyseren',
     autoCullRunning: 'Analyseren…',
     searchPlaceholder: 'Zoek bestandsnaam, camera, soort…',

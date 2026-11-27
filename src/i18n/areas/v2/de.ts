@@ -278,6 +278,8 @@ export const de: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Fotos bearbeiten: eine Bildserie sichten, entwickeln und exportieren',
     kindCollageTitle: 'Collage oder Album',
     kindCollageBody: 'Mehrere Fotos auf Seiten, Postern oder Beiträgen anordnen',
+    kindTetheredTitle: "Tethered-Shooting",
+    kindTetheredBody: "Fotos kommen direkt von der Kamera, während Sie fotografieren: per Kabel, Kamera-WLAN oder überwachtem Ordner",
     kindSelected: 'Ausgewählt',
     modeQuestion: "Wie viel soll InFlight helfen?",
     modeChangeLater: "Sie können das später im Projekt ändern.",
@@ -285,6 +287,9 @@ export const de: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Importieren',
+    rowMore: "Mehr",
+    rowMoreLabel: "Weitere Werkzeuge zum Importieren und Aussortieren",
+    showAllButtons: "Alle Schaltflächen in dieser Zeile zeigen",
     autoCull: 'Auto-Auswahl & Analyse',
     autoCullRunning: 'Wird analysiert …',
     searchPlaceholder: 'Dateiname, Kamera, Art suchen …',

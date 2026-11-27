@@ -281,6 +281,8 @@ export const ga: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Cuir grianghraif in eagar: roghnaigh, forbair agus easpórtáil sraith pictiúr',
     kindCollageTitle: 'Colláis nó albam',
     kindCollageBody: 'Leag roinnt grianghraf amach ar leathanaigh, póstaeir nó postálacha',
+    kindTetheredTitle: "Seisiún ceangailte",
+    kindTetheredBody: "Tagann grianghraif ón gceamara agus tú á nglacadh: le cábla, Wi-Fi an cheamara nó fillteán faoi fhaire",
     kindSelected: 'Roghnaithe',
     modeQuestion: "Cé mhéad cabhrach ba cheart do InFlight a thabhairt?",
     modeChangeLater: "Is féidir leat é seo a athrú níos déanaí sa tionscadal.",
@@ -288,6 +290,9 @@ export const ga: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Iompórtáil',
+    rowMore: "Tuilleadh",
+    rowMoreLabel: "Tuilleadh uirlisí iompórtála agus roghnaithe",
+    showAllButtons: "Taispeáin gach cnaipe sa ró seo",
     autoCull: 'Roghnú agus anailís uathoibríoch',
     autoCullRunning: 'Ag déanamh anailíse…',
     searchPlaceholder: 'Cuardaigh ainm comhaid, ceamara, speiceas…',

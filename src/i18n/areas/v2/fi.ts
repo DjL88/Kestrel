@@ -279,6 +279,8 @@ export const fi: AreaTranslation<typeof source> = {
     kindPhotoShootBody: 'Muokkaa kuvia: karsi, kehitä ja vie kuvasarja',
     kindCollageTitle: 'Kollaasi tai albumi',
     kindCollageBody: 'Asettele useita kuvia sivuille, julisteisiin tai julkaisuihin',
+    kindTetheredTitle: "Kaapeloitu kuvaus",
+    kindTetheredBody: "Kuvat saapuvat kamerasta sitä mukaa kuin otat niitä: kaapelilla, kameran Wi-Fillä tai seurattuun kansioon",
     kindSelected: 'Valittu',
     modeQuestion: "Kuinka paljon InFlightin pitäisi auttaa?",
     modeChangeLater: "Voit muuttaa tätä myöhemmin projektissa.",
@@ -286,6 +288,9 @@ export const fi: AreaTranslation<typeof source> = {
   },
   filmstrip: {
     importPhotos: 'Tuo',
+    rowMore: "Lisää",
+    rowMoreLabel: "Lisää tuonti- ja karsintatyökaluja",
+    showAllButtons: "Näytä kaikki tämän rivin painikkeet",
     autoCull: 'Automaattinen poiminta ja analyysi',
     autoCullRunning: 'Analysoidaan…',
     searchPlaceholder: 'Hae tiedostonimeä, kameraa, lajia…',
