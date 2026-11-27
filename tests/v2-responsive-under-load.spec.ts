@@ -20,14 +20,25 @@ async function desktopHeaders(page: Page) {
   });
 }
 
-/** Every core but one busy at full speed, as other programs would keep them: the page must still answer at once. */
+/**
+ * Every core but one busy at full speed, as other programs would keep them: the page must still answer at once.
+ *
+ * Scaled to the machine: where the browser has no graphics card and draws in software (SwiftShader or llvmpipe, as on
+ * the CI runners), its drawing runs on the processor too, which on a desktop the graphics card does. Two cores are left
+ * then, one for the page and one for that software drawing, or the test would measure the runner's missing graphics card
+ * rather than InFlight. The limits below stay the same either way.
+ */
 async function saturate(page: Page) {
   return page.evaluate(() => {
-    const cores = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+    const gl = document.createElement('canvas').getContext('webgl');
+    const info = gl?.getExtension('WEBGL_debug_renderer_info');
+    const renderer = String((gl && info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl?.getParameter(gl.RENDERER)) ?? '');
+    const softwareDrawing = !gl || /swiftshader|llvmpipe|software/i.test(renderer);
+    const cores = Math.max(1, (navigator.hardwareConcurrency || 4) - (softwareDrawing ? 2 : 1));
     const code = 'let x = 0; for (;;) { x = (x * 1103515245 + 12345) | 0; }';
     const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
     (window as unknown as Win).__burners = Array.from({ length: cores }, () => new Worker(url));
-    return cores;
+    return `${cores} of ${navigator.hardwareConcurrency}${softwareDrawing ? `, drawing in software (${renderer || 'no WebGL'})` : ''}`;
   });
 }
 
@@ -145,7 +156,7 @@ test('?v2 with the processor saturated and an import running, the editor answers
   const delays = probe.events.map((e) => e.delay).sort((a, b) => a - b);
   const worst = probe.events.filter((e) => e.delay > 100).map((e) => `${e.name} waited ${Math.round(e.delay)} ms`);
   const long = probe.longTasks.filter((t) => t.duration > 50).map((t) => Math.round(t.duration));
-  console.log(`under load (${cores} busy cores): ${probe.events.length} slow-ish events, input delay median ${Math.round(delays[delays.length >> 1] ?? 0)} ms, worst ${Math.round(delays.at(-1) ?? 0)} ms; long tasks over 50 ms: [${long.join(', ')}]`);
+  console.log(`under load (busy cores: ${cores}): ${probe.events.length} slow-ish events, input delay median ${Math.round(delays[delays.length >> 1] ?? 0)} ms, worst ${Math.round(delays.at(-1) ?? 0)} ms; long tasks over 50 ms: [${long.join(', ')}]`);
   const marks = await page.evaluate(() => performance.getEntriesByType('measure').filter((m) => m.name.startsWith('inflight:') && m.duration > 50)
     .map((m) => `${m.name} ${Math.round(m.duration)} ms`));
   if (marks.length) console.log(`InFlight steps over 50 ms (time taken, not all of it on the page): ${marks.join(', ')}`);
