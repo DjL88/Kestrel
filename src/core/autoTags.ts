@@ -143,6 +143,19 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
 }
 
 /**
+ * Photos the built-in kind check can look at when no species model is offered (the desktop app ships the kind check,
+ * "Checks the kind of subject", but not always a species model): still in the library, no kind yet, never kind-checked,
+ * no species name looked for, and nothing of the person's own on them. Looking at them sets only the kind (Wildlife,
+ * Aircraft...), never a name, and never marks the species as checked, so a species model added later still names them.
+ */
+export function kindCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; kindChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+  frames: readonly T[],
+): T[] {
+  return frames.filter((frame) => frame.removedAt == null && !frame.subjectKind && !frame.kindChecked && !frame.speciesChecked &&
+    !(frame.tags?.length) && !(frame.subjectNames?.length));
+}
+
+/**
  * What to store after a photo has been looked at. It is always marked as checked. A name is added only when the model was
  * sure, the photo may take it, and it is on the species list the model knows.
  */
