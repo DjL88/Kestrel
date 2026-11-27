@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import FlightModePicker from './FlightModePicker';
 import { deepReviewAvailable } from '../utils/deepReview';
 import { flightFindings } from '../utils/flightFindings';
+import CloudEditsProjectCard, { type CloudEditsProjectCardProps } from './CloudEditsProjectCard';
 import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
@@ -33,6 +34,8 @@ interface CoPilotPanelProps {
   /** One tap back after an applied suggestion moved the subject's colour warmer or cooler (ColourSense). */
   onNudgeWarmth?: (photoId: string, direction: 'cooler' | 'warmer') => void;
   colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
+  /** Cloud edits for the whole project. Absent while cloud edit settings are off. */
+  cloudEdits?: CloudEditsProjectCardProps;
   /** Takes back the last edit. Shown beside "Applied". */
   onUndo?: () => void;
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
@@ -75,6 +78,7 @@ export default function CoPilotPanel({
   onNudgeWarmth,
   colourVerdict,
   onUndo,
+  cloudEdits,
   onDismissSuggestion,
   onStepPreview,
   onResetStyle,
@@ -249,6 +253,9 @@ export default function CoPilotPanel({
         </section>
       )}
 
+      {/* The one question that needs the person before Cloud edits can run for this project. */}
+      {cloudEdits && <CloudEditsProjectCard {...cloudEdits} askOnly />}
+
       {/* Everything that needs a press or a read: the on-device checks, cloud edit settings, a helper's opinion and the
           full notes. Closed by default. */}
       <details data-testid="flight-more-checks" className="rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
@@ -285,6 +292,7 @@ export default function CoPilotPanel({
             </p>
           </div>
 
+          {cloudEdits && <CloudEditsProjectCard {...cloudEdits} />}
           {cloudRecipe && (
             <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
               onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn}

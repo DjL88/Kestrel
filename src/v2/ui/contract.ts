@@ -86,6 +86,8 @@ export type FeatureKey =
 export interface CloudRecipeResultView {
   /** What happened, in words. */
   message: string;
+  /** The service confirmed it deleted its copy of the picture. */
+  copyDeleted?: boolean;
   /** What changed, e.g. ["Exposure +0.3", "Highlights −20"]. Present when settings were applied. */
   changes?: string[];
   /** The changed settings at their old values, to show the photo as it was while "Hold to compare" is held. */
@@ -791,6 +793,8 @@ export interface WorkspaceStore {
   canvasLayoutMode: 'single' | 'all-formats';
   bottomTab: 'filmstrip' | 'info';
   assistMode: AssistMode;
+  /** Cloud edits for the open project. Absent while cloud edit settings are off or no project is open. */
+  cloudEdits?: { choice: import('../../core/cloudEditsChoice').CloudEditsChoice; covered: number; toDo: number; running: boolean };
   features: Record<FeatureKey, boolean>;
   /** Which plan each feature belongs to, so the UI can mark Pro features with the Pro badge. Basic or Pro only. */
   featurePlan: Record<FeatureKey, 'basic' | 'pro'>;
@@ -871,7 +875,11 @@ export interface WorkspaceActions {
   openProject: (projectId: string) => void;
   backToProjects: () => void;
   /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
-  createProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
+  createProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode, cloudEdits?: import('../../core/cloudEditsChoice').CloudEditsChoice) => void;
+  /** Cloud edits for the open project: which photos a run covers. Absent while cloud edit settings are off. */
+  setCloudEdits?: (choice: import('../../core/cloudEditsChoice').CloudEditsChoice) => void;
+  /** Runs Cloud edits now for the photos still to do. One row in Tasks. Returns what happened, in words. */
+  runCloudEdits?: () => Promise<string>;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
