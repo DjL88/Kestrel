@@ -44,6 +44,41 @@ test('the first action exchanges the Firebase token for a session, sends no cook
   assert.deepEqual(calls.at(-1)!.body, { kind: 'inviteEmail', email: 'a@b.test', role: 'client', photoIds: ['x1'], language: 'en-GB' });
 });
 
+const jwt = (payload: object) => 'h.' + Buffer.from(JSON.stringify(payload)).toString('base64url') + '.sig';
+
+test('a session nearing its end is renewed quietly with its refresh token, not by a full sign-in', async () => {
+  let signIns = 0;
+  let refreshes = 0;
+  const { calls, fetcher } = fakeServer({
+    'POST /v1/auth/firebase': () => { signIns += 1; return [200, { accessToken: `s${signIns}`, refreshToken: `r${signIns}`, expiresIn: 900 }]; },
+    'POST /v1/auth/refresh': (body) => { refreshes += 1; return body.refreshToken === 'r1' ? [200, { accessToken: 'renewed', refreshToken: 'r-next', expiresIn: 900 }] : [401, { error: { code: 'AUTH_TOKEN_EXPIRED' } }]; },
+    'GET /v1/collab/notices': () => [200, { notices: [], unread: 0 }],
+  });
+  // Firebase hands out a new ID token every hour for the same person: that alone is not a reason to sign in again.
+  let idToken = jwt({ user_id: 'uid-1', iat: 1 });
+  const client = collabClient('https://cp.example.test', async () => idToken, fetcher);
+  await client.notices();
+  idToken = jwt({ user_id: 'uid-1', iat: 2 });
+  await client.notices();
+  assert.equal(signIns, 1);
+  const original = Date.now;
+  try {
+    Date.now = () => original() + 15 * 60_000; // the inbox poll after the session ended
+    await client.notices();
+    assert.equal(signIns, 1, 'no second audited sign-in');
+    assert.equal(refreshes, 1);
+    assert.equal(calls.at(-1)!.auth, 'Bearer renewed');
+    Date.now = () => original() + 30 * 60_000; // the next refresh token is refused (server restarted): one ordinary sign-in
+    await client.notices();
+    assert.equal(refreshes, 2);
+    assert.equal(signIns, 2);
+  } finally { Date.now = original; }
+  // Someone else signing in is never served the first person's session.
+  idToken = jwt({ user_id: 'uid-2' });
+  await client.notices();
+  assert.equal(signIns, 3);
+});
+
 test('one sign-in serves many actions: the session is reused until the ID token changes, it nears expiry, or the server refuses it', async () => {
   let issued = 0;
   let accepted = new Set<string>();

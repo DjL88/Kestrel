@@ -124,7 +124,7 @@ test('a planned switch is shown off and not set up, and refuses to switch on, ev
       for (const key of ['pro-cloud-storage']) {
       const planned = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
       assert.equal(planned.on, false); assert.equal(planned.configured, false);
-      assert.match(planned.label, /designed, not built/);
+      assert.match(planned.label, /not built yet/);
       const r = await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key, on: true } });
       assert.equal(r.status, 409); assert.equal(r.body.error.code, 'SWITCH_NOT_CONFIGURED');
       await h.app.store.setSetting(`switch_${key}`, '1');

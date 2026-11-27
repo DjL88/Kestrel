@@ -40,8 +40,8 @@ test('Accounts shows income, estimated costs and profit, then uses a chosen Goog
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('link', { name: 'Money and tax' }).click();
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: 'Payments and money' }).click();
+  await page.getByText('Month by month', { exact: true }).click();
   const summary = page.locator('#accounts-summary');
   await expect(summary).toContainText('£49.56');
   await expect(summary).toContainText('£3.40');
