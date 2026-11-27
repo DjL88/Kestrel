@@ -16,7 +16,7 @@ import { renderRaw16Screen } from '../providers/raw16Render';
 import { measureStep, timedStep, timedWait } from '../providers/previewTiming';
 import { editGestureActive, onEditGestureEnd } from '../providers/editGesture';
 import { liveDraft, liveDraftSupported } from '../providers/liveDraft';
-import { recordWorkerVerdict, renderSignature, samePixels, workerRendersLikePage, workerVerdict } from '../providers/workerRenderCheck';
+import { recordWorkerVerdict, renderSignature, samePixels, workerVerdict } from '../providers/workerRenderCheck';
 import { useDetailRegion, type DetailSource } from './useDetailRegion';
 import { canDevelopRaw } from '../providers/rawDevelop';
 import { liveStageCache } from '../providers/liveStageCache';
@@ -68,6 +68,9 @@ interface FrameImageProps {
 const FULL_EDGE = 2200;
 /** A drag's quick picture is drawn at the size it is shown, never smaller than this. */
 const DRAFT_MIN_EDGE = 480;
+/** The worker's check of a new kind of edit is made on a copy at most this size (see verifyWorker). */
+const VERIFY_EDGE = 320;
+
 /** Developer switch: draw the full-quality picture on the page, as before, to compare it with the worker's. */
 const PAGE_RENDER_KEY = 'inflight.debug.page-render';
 function pageRenderChosen(): boolean {
@@ -341,7 +344,6 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (!workerCanDrawFinal()) return null;
       // Only for a kind of edit the worker has already drawn exactly as the page did, on this device (verifyWorker below).
       if (workerVerdict(renderSignature(frame.edit ?? DEFAULT_EDIT)) !== true) return null;
-      if (!await workerRendersLikePage()) return null;
       if (cancelled) return 'cancelled';
       const draft = liveDraft();
       if (draft.baseKey(slot.current) !== draftKey || !baseFromRender.current.has(draftKey)) return null;
@@ -386,8 +388,12 @@ export const FrameImage: React.FC<FrameImageProps> = ({
         // Only a base from this full render (not one made from the shown file) is good for drawing the full-quality picture.
         baseSent = createImageBitmap(canvas).then((bitmap) => { liveDraft().sendBase(slot.current, key, bitmap, lens); baseFromRender.current.add(key); return true; }, () => false);
       }
-      // Then the edit itself in the worker, from exactly these framed pixels (the same picture as drawing it here).
-      if (baseSent && workerCanDrawFinal() && await baseSent) {
+      // Then the edit itself in the worker, from exactly these framed pixels (the same picture as drawing it here), once
+      // the worker has been found to draw this kind of edit exactly as the page does.
+      const signature = renderSignature(frame.edit ?? DEFAULT_EDIT);
+      if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === undefined) await verifyWorker(canvas, signature);
+      if (cancelled) return;
+      if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === true && await baseSent) {
         const fromWorker = await renderFinalInWorker();
         if (fromWorker === 'cancelled') return;
         if (fromWorker) {
@@ -407,28 +413,32 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       showLive(canvas);
       if (dragging) return;
-      // The first time this kind of edit is drawn: the worker draws it too, from the same framed picture, and only if
-      // every byte matches is it trusted with this kind of edit from then on. The page's picture is the one shown.
-      if (baseSent && workerCanDrawFinal() && workerVerdict(renderSignature(frame.edit ?? DEFAULT_EDIT)) === undefined) {
-        void verifyWorker(canvas, baseSent);
-      }
       await finishFull(canvas, Math.max(size.width, size.height) * scale);
     };
 
-    const verifyWorker = async (canvas: HTMLCanvasElement, baseSent: Promise<boolean>) => {
-      const edit = frame.edit ?? DEFAULT_EDIT;
-      const signature = renderSignature(edit);
+    /**
+     * The first time this kind of edit is drawn (its signature): the page and the worker each apply it to the same small
+     * copy of the framed picture (at most 640 px), and only if every byte matches is the worker trusted with this kind
+     * of edit. The real edit, so every part of the maths it uses is compared; small, so the check costs the page little.
+     */
+    const verifyWorker = async (framed: HTMLCanvasElement, signature: string): Promise<void> => {
       const started = performance.now();
-      const onPage = canvas.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, canvas.width, canvas.height).data ?? null;
-      if (!onPage || !await baseSent || !await workerRendersLikePage()) { recordWorkerVerdict(signature, false); return; }
-      const bitmap = await liveDraft().draw(slot.current, draftKey, FULL_EDGE, edit);
-      if (!bitmap) return; // overtaken by a newer drawing: asked again next time
-      const check = document.createElement('canvas');
-      check.width = bitmap.width; check.height = bitmap.height;
-      const context = check.getContext('2d', { willReadFrequently: true })!;
-      context.drawImage(bitmap, 0, 0);
-      bitmap.close();
-      const same = check.width === canvas.width && check.height === canvas.height && samePixels(onPage, context.getImageData(0, 0, check.width, check.height).data);
+      if (!liveDraftSupported()) { recordWorkerVerdict(signature, false); return; }
+      // In a task of its own, so it never adds to the drawing that came before it.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (cancelled) return;
+      const edit = frame.edit ?? DEFAULT_EDIT;
+      const scale = Math.min(1, VERIFY_EDGE / Math.max(framed.width, framed.height));
+      const small = document.createElement('canvas');
+      small.width = Math.max(1, Math.round(framed.width * scale)); small.height = Math.max(1, Math.round(framed.height * scale));
+      const context = small.getContext('2d', { willReadFrequently: true });
+      if (!context) { recordWorkerVerdict(signature, false); return; }
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(framed, 0, 0, small.width, small.height);
+      const before = context.getImageData(0, 0, small.width, small.height).data;
+      const inWorker = liveDraft().check(small.width, small.height, before, edit);
+      const onPage = timedStep('preview:verify-page', () => { applyCanvasPhotoEdit(small, edit); return context.getImageData(0, 0, small.width, small.height).data; });
+      const same = samePixels(onPage, await inWorker);
       recordWorkerVerdict(signature, same);
       measureStep('preview:worker-verify', started, { same, signature });
     };

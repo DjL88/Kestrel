@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { tasks, type Task } from '../../core/taskStore';
 
 /** How often the workspace takes a fresh task list: progress shows four times a second, which reads as live. */
@@ -25,12 +25,16 @@ export function feedTaskList(store: Store, deliver: (list: readonly Task[]) => v
   return () => { stop(); if (pending !== null) timers.clear(pending); };
 }
 
-/** The task list for the workspace, fed at most four times a second and drawn as a transition (it never holds input). */
+/**
+ * The task list for the workspace, fed at most four times a second. An ordinary update, not a transition: a transition
+ * render can start from older state and be thrown away, yet the workspace and filmstrip write refs while they render
+ * (the photo the arrow keys step from), so a discarded render could put an older photo back and lose a key press.
+ */
 export function useTaskList(store: Store = tasks): readonly Task[] {
   const [list, setList] = useState<readonly Task[]>(() => store.list());
   useEffect(() => {
     setList(store.list());
-    return feedTaskList(store, (next) => startTransition(() => setList(next)));
+    return feedTaskList(store, setList);
   }, [store]);
   return list;
 }

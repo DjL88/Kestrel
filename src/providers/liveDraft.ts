@@ -11,7 +11,7 @@ export type LiveDraftRequest =
   | { type: 'base'; slot: string; key: string; base: ImageBitmap; lensCentre: LensCentre }
   | { type: 'base-file'; slot: string; key: string; blob: Blob; framing: PhotoFraming; longEdge: number }
   | { type: 'release'; slot: string }
-  /** The edit applied to a small test picture, to compare with the page's answer (workerRendersLikePage). */
+  /** The edit applied to a small copy of a picture, to compare with the page's answer (FrameImage verifyWorker). */
   | { type: 'check'; id: number; width: number; height: number; data: Uint8ClampedArray; edit: PhotoEdit }
   /** The photo at full resolution, for the zoomed-in detail: its file, decoded in the worker. */
   | { type: 'detail-source'; slot: string; key: string; blob: Blob }
