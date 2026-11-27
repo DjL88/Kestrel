@@ -71,3 +71,52 @@ test('the concave corner under the beak survives the grid, the fine outline and 
   }
   assert.ok(lineAt > 0 && lineAt < 100, `the line under the beak is at y = ${lineAt.toFixed(1)}, the underside is at 96`);
 });
+
+/**
+ * The burrow puffin (owner's report, 27 Nov): standing on soil, a thin orange leg and foot below the body. The model's
+ * tight candidate leaves the foot out; a slightly larger one has it. Unlike the bridged notch, the foot reaches out of the
+ * body's own shape, so it is a part of the bird: the larger candidate is the one to take.
+ */
+const standing = (x: number, y: number) => (Math.hypot((x - 120) / 60, (y - 80) / 50) - 1) * 50;
+function leg(x: number, y: number) {
+  const shin = Math.max(Math.abs(x - 132) - 1.5, 125 - y, y - 160); // 3 px wide, from the belly down to the soil
+  const foot = Math.max(Math.abs(y - 162) - 2.5, 124 - x, x - 150); // 5 px tall, lying along the soil
+  return Math.min(shin, foot);
+}
+const footPoints = [{ x: 132, y: 145 }, { x: 142, y: 162 }];
+function standingCandidates(withFootScore: number) {
+  const plane = W * H;
+  const masks = new Float32Array(plane * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    masks[i] = -Math.hypot((x - 130) / 25, (y - 95) / 20) * 25 + 25; // the white chest
+    masks[plane + i] = -standing(x, y) * 1.5; // the bird without its leg and foot
+    masks[2 * plane + i] = -Math.min(standing(x, y), leg(x, y)) * 1.5; // the bird with them
+  }
+  return { masks, scores: Float32Array.from([0.95, 0.88, withFootScore]) };
+}
+const tapChest = { x: 130, y: 95, add: true };
+
+test('a thin leg and foot reaching out from the body are kept: the candidate with them is taken', () => {
+  for (const withFootScore of [0.84, 0.88, 0.9]) {
+    const { masks, scores } = standingCandidates(withFootScore);
+    const chosen = chooseSamMask(masks, scores, W, H, tapChest);
+    for (const p of footPoints) assert.equal(chosen.data[p.y * W + p.x], 1, `the leg and foot at ${p.x},${p.y} are selected (rated ${withFootScore})`);
+    assert.equal(chosen.data[170 * W + 200], 0, 'the soil is not');
+  }
+});
+
+test('the thin leg (3 px of 256) and the foot survive the grid, the fine outline and the outline drawn', () => {
+  const { masks, scores } = standingCandidates(0.88);
+  const chosen = chooseSamMask(masks, scores, W, H, tapChest);
+  const mask = { ...createSubjectMask('m', samMaskToGrid(chosen), '', 'high', samMaskDetail(chosen)), feather: 0.3 } as Mask;
+  const outW = 2048, outH = 1536;
+  const alpha = effectiveAlpha(mask, [mask], outW, outH, { aspect: outH / outW, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const at = (p: { x: number; y: number }) => alpha[Math.floor(((p.y + 0.5) / H) * outH) * outW + Math.floor(((p.x + 0.5) / W) * outW)];
+  for (const p of footPoints) assert.ok(at(p) >= 0.5, `the editor applies the mask to the leg and foot at ${p.x},${p.y} (${at(p).toFixed(2)})`);
+  const guide = maskCoverageGuide([mask], 'm', 4000, 3000, 'outline')!;
+  for (const p of footPoints) {
+    const i = (Math.floor(((p.y + 0.5) / H) * guide.height) * guide.width + Math.floor(((p.x + 0.5) / W) * guide.width)) * 4;
+    assert.notEqual(guide.rgba[i] === 0 && guide.rgba[i + 3] > 150, true, `no dark ring (outside) at the middle of the leg and foot at ${p.x},${p.y}`);
+  }
+});
