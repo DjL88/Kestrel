@@ -157,6 +157,8 @@ export const da: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Støjreduktionen kunne ikke starte.',
     suggestionStale: 'Fotoet ændrede sig efter dette forslag. Vent på et nyt tjek.',
     checkTask: (filename) => `Tjekker ${filename} og farverne`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} ville være blevet ${w} × ${h} px, mindre end originalens ${ew} × ${eh} px, så det blev ikke eksporteret. Fremkaldelsen i fuld opløsning var ikke tilgængelig; intet mindre blev gemt. Prøv igen, når Opgaver er rolige.`,
+    originalCropped: (name, w, h) => `${name}: Original eksporteret i ${w} × ${h} px, den del af fotoet som originalens beskæring viser.`,
     checkStage: 'Ser på eksponering, farve og motiv',
     secondOpinionStage: "Second opinion fra billedmodellen på enheden",
     checkFailed: 'Kunne ikke tjekke dette foto. Detaljer under Opgaver.',

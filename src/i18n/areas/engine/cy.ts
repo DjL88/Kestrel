@@ -157,6 +157,8 @@ export const cy: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Doedd dim modd dechrau lleihau sŵn.',
     suggestionStale: 'Newidiodd y llun ar ôl yr awgrym hwn. Arhoswch am wiriad newydd.',
     checkTask: (filename) => `Gwirio ${filename} a’i liw`,
+    originalTooSmall: (name, w, h, ew, eh) => `Byddai ${name} wedi bod yn ${w} × ${h} px, yn llai na’i Gwreiddiol ${ew} × ${eh} px, felly ni chafodd ei allforio. Nid oedd y datblygiad cydraniad llawn ar gael; ni chadwyd dim llai. Rhowch gynnig arall pan fydd Tasgau’n dawel.`,
+    originalCropped: (name, w, h) => `${name}: allforiwyd y Gwreiddiol ar ${w} × ${h} px, y rhan o’r llun y mae ei docio Gwreiddiol yn ei dangos.`,
     checkStage: 'Edrych ar amlygiad, lliw a golygfa',
     secondOpinionStage: "Ail farn gan y model gweledol ar y ddyfais",
     checkFailed: 'Doedd dim modd gwirio’r llun hwn. Manylion yn Tasgau.',

@@ -157,6 +157,8 @@ export const ga: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Níorbh fhéidir an laghdú torainn a thosú.',
     suggestionStale: 'D’athraigh an grianghraf tar éis an mholta seo. Fan le seiceáil nua.',
     checkTask: (filename) => `${filename} agus a dhath á seiceáil`,
+    originalTooSmall: (name, w, h, ew, eh) => `Bheadh ${name} ${w} × ${h} px, níos lú ná a bhunleagan ${ew} × ${eh} px, mar sin níor easpórtáladh é. Ní raibh an forbairt lánrún ar fáil; níor sábháladh aon rud níos lú. Bain triail eile as nuair a bheidh Tascanna ciúin.`,
+    originalCropped: (name, w, h) => `${name}: easpórtáladh an bunleagan ag ${w} × ${h} px, an chuid den ghrianghraf a thaispeánann a bhearradh bunleagain.`,
     checkStage: 'Ag féachaint ar nochtadh, dath agus radharc',
     secondOpinionStage: "Dara tuairim ón tsamhail radhairc ar an ngléas",
     checkFailed: 'Níorbh fhéidir an grianghraf seo a sheiceáil. Sonraí i dTascanna.',

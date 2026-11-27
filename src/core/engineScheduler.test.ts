@@ -559,3 +559,19 @@ test('a single file read starts at once at 100% CPU and little memory, and never
   assert.equal(ran, true);
   assert.doesNotMatch(store.list().find(task => task.id === ticket.taskId)?.detail ?? '', /^Waiting/);
 });
+
+test('an export of several photos the person asked for starts beside Auto pick on a busy computer', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let picking = 0;
+  const autoPick = await scheduler.submit(batch('Auto pick', 3, async () => { picking += 1; await held; }, { priority: 5 }));
+  await until(() => picking === 1, 'Auto pick runs');
+  const exported: number[] = [];
+  const exporting = await scheduler.submit({ ...batch('Exporting 2 photos', 2, async (n) => { exported.push(n); }, { resource: 'gpu', priority: 20, interactive: true }), kind: 'export' });
+  assert.equal(await exporting.finished, 'done', 'not held behind Auto pick or by the load');
+  assert.deepEqual(exported, [1, 2]);
+  release();
+  assert.equal(await autoPick.finished, 'done');
+});
