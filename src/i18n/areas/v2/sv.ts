@@ -621,7 +621,7 @@ export const sv: AreaTranslation<typeof source> = {
     nothingYet: 'Inget att rapportera ännu. Det visas när InFlight har tittat på det här fotot.',
     modeDescriptions: {
       solo: 'Sololäge: du har den manuella kontrollen. Välj Kontrollera fotot på den här enheten när du vill ha förslag.',
-      copilot: 'Andrepilotläge: InFlight kontrollerar det öppna fotot på den här enheten och låter dig välja vilken föreslagen redigering som helst.',
+      copilot: 'Andrepilotläge: InFlight gör små, säkra ändringar själv och lämnar redigeringsbesluten åt dig. Allt annat är ett förslag.',
       autopilot: 'Autopilotläge: InFlight kan använda en kontrollerad redigering på ett oredigerat foto när du öppnar det.',
     },
     runReviewButton: 'Djup visuell granskning',

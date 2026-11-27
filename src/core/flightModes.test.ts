@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DEFAULT_EDIT, type PhotoEdit } from './photoEdits';
 import type { PhotoFrame } from './types';
-import { COPILOT_MAX_EXPOSURE_EV, flightPolicy, planAutoBatch, reasonsForSafeChange, safeSubset } from './flightModes';
+import { batchAllowedIn, batchMayEdit, COPILOT_MAX_EXPOSURE_EV, flightPolicy, planAutoBatch, reasonsForSafeChange, safeSubset } from './flightModes';
 
 const frame = (id: string, extra: Partial<PhotoFrame> = {}, exif: Partial<PhotoFrame['exif']> = {}): PhotoFrame =>
   ({ id, filename: `${id}.jpg`, sequenceIndex: Number(id.replace(/\D/g, '')) || 0, decision: 'undecided', exif, ...extra }) as unknown as PhotoFrame;
@@ -63,6 +63,23 @@ test('the Auto-pilot batch goes best first and skips edited, edited-elsewhere, r
   assert.deepEqual(plan.todo.slice(0, 3).map((entry) => entry.id), ['p2', 'p10', 'p8'], 'rated, then picked');
   assert.deepEqual(new Set(plan.todo.map((entry) => entry.id)), new Set(['p1', 'p2', 'p8', 'p9', 'p10']));
   assert.equal(plan.editedElsewhere, 1);
+});
+
+test('the batch re-checks a photo on the live frame: rejected since the plan, or edited, hidden or removed, is not edited', () => {
+  const live = frame('p1');
+  assert.equal(batchMayEdit(live), true);
+  assert.equal(batchMayEdit({ ...live, decision: 'reject' }), false, 'rejected by Auto-cull or the person after the plan was made');
+  assert.equal(batchMayEdit(frame('p1', {}, { rejectedByMetadata: true } as never)), false);
+  assert.equal(batchMayEdit({ ...live, edit: { ...DEFAULT_EDIT, exposure: 1 } }), false);
+  assert.equal(batchMayEdit({ ...live, removedAt: 5 }), false);
+  assert.equal(batchMayEdit(live, () => true), false, 'a hidden RAW+JPEG partner');
+  assert.equal(batchMayEdit(undefined), false);
+});
+
+test('only Auto-pilot runs the background batch, so switching to Solo or Co-pilot stops it', () => {
+  assert.equal(batchAllowedIn('autopilot'), true);
+  assert.equal(batchAllowedIn('copilot'), false);
+  assert.equal(batchAllowedIn('solo'), false);
 });
 
 test('the Auto-pilot batch only takes photos from this import', () => {

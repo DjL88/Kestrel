@@ -78,6 +78,12 @@ test('the background batch edits a photo that is not open, as one undo step, and
   assert.equal(commitAutoEdit(kept, 'project', original, proposal, 2000, undefined, { anyPhoto: true }), kept);
 });
 
+test('the background batch never edits a photo that was rejected after it was planned', () => {
+  const rejected = { ...original, decision: 'reject' as const };
+  const state = { ...project(rejected), selectedFrameId: 'other-photo' };
+  assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000, undefined, { anyPhoto: true }), state);
+});
+
 test('a held Auto-pilot edit says it was held, where the suggestion is, and that nothing changed', async () => {
   const AUTOPILOT_HELD_FOR_REVIEW = (await import('./commitAutoEdit.ts')).autopilotHeldForReview();
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /held this edit for your review/);

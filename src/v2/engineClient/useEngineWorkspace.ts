@@ -120,7 +120,7 @@ import { learnedLeanings, recordOutcome, type StyleKey } from '../../core/editSt
 import { loadEditStyle, resetEditStyle, saveEditStyle } from './editStyleStore';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, autopilotSkippedEdited, autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
-import { flightPolicy, planAutoBatch, reasonsForSafeChange, safeSubset } from '../../core/flightModes';
+import { batchAllowedIn, batchMayEdit, flightPolicy, planAutoBatch, reasonsForSafeChange, safeSubset, type FlightMode } from '../../core/flightModes';
 import { guardResult } from '../../core/visionGuardian';
 import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian, askOnDeviceGuardianAbout, onDeviceGuardianReady } from '../../providers/visionGuardian';
@@ -2010,15 +2010,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // a photo that has an edit, was edited in another app, is rejected or removed is left as it is, and no decision is changed.
   const flightBatchOn = can('flightBatch') || workflowPreviewOn('flightBatch');
   const autoBatchController = useRef<AbortController | null>(null);
+  /** How many the running batch has edited so far, for the line said if it is stopped. */
+  const autoBatchEdited = useRef(0);
+  /** Photos from a later import, waiting for the running batch to finish: they are queued, never cancelling it. */
+  const autoBatchQueued = useRef<{ projectKey: string; ids: Set<string> } | null>(null);
+  /** The project's Flight mode as it is now, re-read by the batch before every photo (the top-bar chip can change it mid-run). */
+  const flightModeNow = useRef<FlightMode>('copilot');
   const runAutoBatch = useCallback((projectKey: string, imported: ReadonlySet<string>) => {
     const now = stateRef.current;
-    if (!now || now.shoot.id !== projectKey || !provider.current) return;
+    if (!now || now.shoot.id !== projectKey || !provider.current || !batchAllowedIn(flightModeNow.current)) return;
+    // A second import while a batch runs (or a tethered frame arriving) joins the queue; the running batch is never cancelled.
+    if (autoBatchController.current && !autoBatchController.current.signal.aborted) {
+      const queued = autoBatchQueued.current?.projectKey === projectKey ? autoBatchQueued.current : { projectKey, ids: new Set<string>() };
+      imported.forEach((id) => queued.ids.add(id));
+      autoBatchQueued.current = queued;
+      return;
+    }
     const plan = planAutoBatch(now.frames, imported, (frame) => pairsRef.current.rawOf.has(frame.id));
     const flight = v2Text.flight;
     if (!plan.todo.length) { if (plan.editedElsewhere) setNotice(flight.batchDone(0, 0, plan.editedElsewhere, 0)); return; }
-    autoBatchController.current?.abort();
     const controller = new AbortController();
     autoBatchController.current = controller;
+    autoBatchEdited.current = 0;
     const count = { edited: 0, left: 0, held: 0 };
     void engineScheduler.submit({
       title: flight.batchTitle, kind: 'auto-edit', resource: 'cpu', priority: 3, pauseable: true,
@@ -2028,8 +2041,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       runItem: async (item, _, ctx) => {
         ctx.stage(flight.batchStage);
         const live = () => (stateRef.current?.shoot.id === projectKey ? stateRef.current.frames.find((candidate) => candidate.id === item.id) : undefined);
+        // Re-read on the live photo each time: still Auto-pilot, and the photo not rejected, edited, hidden or removed since.
         const untouched = (frame: PhotoFrame | undefined): frame is PhotoFrame =>
-          Boolean(frame) && frame!.removedAt == null && !frame!.edit && !frame!.editHistory?.steps.length && !autopilotSkipsEditedElsewhere(frame!);
+          batchAllowedIn(flightModeNow.current) && batchMayEdit(frame, (candidate) => pairsRef.current.rawOf.has(candidate.id)) &&
+          !autopilotSkipsEditedElsewhere(frame!);
         const frame = live();
         if (!untouched(frame)) { count.left += 1; return; }
         const run = await runAuto(frame, provider.current!, ctx.signal, editStyleOn ? learnedLeanings(loadEditStyle()) : []);
@@ -2056,9 +2071,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // The person may have edited, removed or moved on from it while it was checked: then it is left alone.
         if (!untouched(live())) { count.left += 1; return; }
         const at = Date.now();
-        count.edited += 1;
         ctx.commitIfCurrent(() => {
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || !untouched(live())) { count.left += 1; return; }
+          count.edited += 1;
+          autoBatchEdited.current = count.edited;
           mutate((current) => commitAutoEdit(current, projectKey, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }, { anyPhoto: true }));
           sayAuto(frame.id, 'applied', candidate.summary || run.headline, { mode: 'autopilot', appliedAt: at });
           noteAutoApplied(frame.id, run, run.plan.proposal);
@@ -2069,17 +2085,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (controller.signal.aborted) ticket.cancel();
       return ticket.finished;
     }).then((outcome) => {
-      if (autoBatchController.current === controller) autoBatchController.current = null;
       if (stateRef.current?.shoot.id !== projectKey || controller.signal.aborted) return;
       setNotice(outcome === 'cancelled' ? flight.batchStopped(count.edited) : flight.batchDone(count.edited, count.left, plan.editedElsewhere, count.held));
-    }).catch(() => setNotice(engineText.workspace.checkFailed));
+    }).catch(() => { if (!controller.signal.aborted) setNotice(engineText.workspace.checkFailed); })
+      .finally(() => {
+        if (autoBatchController.current !== controller) return;
+        autoBatchController.current = null;
+        // Photos that arrived while it ran are checked next, as their own batch.
+        const queued = autoBatchQueued.current;
+        autoBatchQueued.current = null;
+        if (queued && !controller.signal.aborted) runAutoBatchRef.current?.(queued.projectKey, queued.ids);
+      });
   }, [editStyleOn, mutate, sayAuto, noteAutoApplied]);
+  const runAutoBatchRef = useRef<typeof runAutoBatch | null>(null);
+  runAutoBatchRef.current = runAutoBatch;
   const openProjectId = state?.shoot.id;
-  useEffect(() => () => autoBatchController.current?.abort(), [openProjectId]);
+  useEffect(() => () => { autoBatchQueued.current = null; autoBatchController.current?.abort(); autoBatchController.current = null; }, [openProjectId]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   // Each project keeps its own Flight mode; an older project without one follows Settings' default.
   const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
+  flightModeNow.current = assistMode;
+  // Switching to Solo or Co-pilot (the top-bar chip is one click) stops the background batch at once and says so:
+  // "Solo never changes the photo" must hold even for a job that began under Auto-pilot.
+  useEffect(() => {
+    if (batchAllowedIn(assistMode)) return;
+    autoBatchQueued.current = null;
+    const running = autoBatchController.current;
+    if (!running) return;
+    autoBatchController.current = null;
+    running.abort();
+    setNotice(v2Text.flight.batchStopped(autoBatchEdited.current));
+  }, [assistMode]);
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull, edit: flightBatchOn ? runAutoBatch : null as null | typeof runAutoBatch });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull, edit: flightBatchOn ? runAutoBatch : null };
@@ -2184,7 +2221,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           }
           // Applying is wanted by the Auto button, or by Auto-pilot and Co-pilot for a photo opened unedited.
           const wantsApply = applyNow || (!manual && applies !== 'none');
-          if (skipEdited) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited(), modeTag));
+          // The sentence names Auto-pilot, so only Auto-pilot says it; Co-pilot's suggestions are in its panel anyway.
+          if (skipEdited) { if (assistMode === 'autopilot') ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited(), modeTag)); }
           // Never silently nothing: when the checks leave the photo alone, the one-line reason is said.
           else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.plan.verdict.kind === 'looks-good' ? v2Text.flight.leftAlone : run.headline, modeTag));
           const safe = !applyNow && applies === 'safe' ? safeSubset(run.plan.base, run.plan.proposal) : null;

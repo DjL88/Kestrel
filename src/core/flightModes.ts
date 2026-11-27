@@ -48,6 +48,8 @@ export interface SafeSubset {
  * The part of Auto's proposal Co-pilot may apply by itself: an exposure change within +/-0.3 EV and a straighten within
  * 2 degrees, and nothing that touches colour, white balance or masks. A change over the limit is not clamped (that would
  * be a change nobody proposed): it is left whole as a suggestion. Returns null when nothing in the proposal is safe.
+ * Only the exposure part is wired into the app today: nothing passes `straightenFrom`, so Co-pilot does not straighten by
+ * itself yet and nothing may say it does. The straighten rule is kept (and tested) for when Auto proposes an angle.
  */
 export function safeSubset(
   base: PhotoEdit,
@@ -98,11 +100,26 @@ export function planAutoBatch(frames: readonly PhotoFrame[], importedIds: Readon
   let editedElsewhere = 0;
   const candidates: PhotoFrame[] = [];
   for (const frame of frames) {
-    if (!importedIds.has(frame.id) || frame.removedAt != null || !isCullOriginal(frame) || hidden(frame)) continue;
-    if (frame.decision === 'reject' || frame.exif?.rejectedByMetadata) continue;
-    if (frame.edit || frame.editHistory?.steps.length) continue;
+    if (!importedIds.has(frame.id) || !batchMayEdit(frame, hidden)) continue;
     if (frame.exif?.editStatus?.kind === 'edited-elsewhere') { editedElsewhere += 1; continue; }
     candidates.push(frame);
   }
   return { todo: prioritizePhotoProcessing(candidates), editedElsewhere };
+}
+
+/**
+ * Whether the background batch may still edit this photo, as it is now. The plan uses it when it is made and the batch uses
+ * it again, on the live photo, before each photo is checked and just before its edit is written, because the batch runs long
+ * after the import: Auto-cull or the person may have rejected, edited or removed the photo in the meantime.
+ * (The "edited in another app" rule is separate, because the plan counts those photos for its summary.)
+ */
+export function batchMayEdit(frame: PhotoFrame | undefined, hidden: (frame: PhotoFrame) => boolean = () => false): frame is PhotoFrame {
+  if (!frame || frame.removedAt != null || !isCullOriginal(frame) || hidden(frame)) return false;
+  if (frame.decision === 'reject' || frame.exif?.rejectedByMetadata) return false;
+  return !frame.edit && !frame.editHistory?.steps.length;
+}
+
+/** Only Auto-pilot edits photos it was not asked about. Co-pilot and Solo never run the background batch. */
+export function batchAllowedIn(mode: FlightMode): boolean {
+  return mode === 'autopilot';
 }

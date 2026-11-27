@@ -151,7 +151,7 @@ export const da: AreaTranslation<typeof source> = {
     viewMenu: 'Vis',
     exportButton: 'Eksportér',
     assistModes: { solo: 'Solo', copilot: 'Andenpilot', autopilot: 'Autopilot' },
-    assistModeHints: { solo: "Du redigerer selv. InFlight ændrer aldrig dit foto og giver råd, når du beder om det.", copilot: "InFlight foretager små, sikre ændringer selv og overlader redigeringsbeslutningerne til dig. Alt andet er et forslag.", autopilot: "InFlight gør det for dig og fortæller hvorfor. Det, den er usikker på, venter på dig, og Fortryd tager enhver ændring tilbage." },
+    assistModeHints: { solo: "Du redigerer selv. InFlight ændrer aldrig dit foto og giver råd, når du beder om det.", copilot: "InFlight foretager små, sikre ændringer selv og overlader beslutningerne om redigering til dig. Alt andet er et forslag.", autopilot: "InFlight gør det for dig og fortæller hvorfor. Det, den er usikker på, venter på dig, og Fortryd tager enhver ændring tilbage." },
     fileActions: {
       newProject: 'Nyt projekt',
       importPhotos: 'Importér fotos',
@@ -621,7 +621,7 @@ export const da: AreaTranslation<typeof source> = {
     nothingYet: 'Intet at rapportere endnu. Det vises, når InFlight har set på dette foto.',
     modeDescriptions: {
       solo: 'Solotilstand: du har den manuelle kontrol. Vælg Tjek foto på denne enhed, når du vil have forslag.',
-      copilot: 'Andenpilottilstand: InFlight tjekker det åbne foto på denne enhed og lader dig vælge enhver foreslået redigering.',
+      copilot: 'Andenpilottilstand: InFlight foretager små, sikre ændringer selv og overlader beslutningerne om redigering til dig. Alt andet er et forslag.',
       autopilot: 'Autopilottilstand: InFlight kan anvende en kontrolleret redigering på et uredigeret foto, når du åbner det.',
     },
     runReviewButton: 'Dyb visuel gennemgang',

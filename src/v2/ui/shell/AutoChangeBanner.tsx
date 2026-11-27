@@ -9,6 +9,11 @@ interface AutoChangeBannerProps {
   status: WorkspaceStore['autoStatus'];
   /** Before/After is showing. */
   comparing: boolean;
+  /** Banners already dismissed ("photoId:time"), kept by the caller so a dismissal survives the banner unmounting (grid, collage, canvas only). */
+  dismissed: ReadonlySet<string>;
+  onDismiss: (key: string) => void;
+  /** Only an Auto edit made at or after this time (ms) is announced: the start of this session. */
+  since: number;
   onUndo: () => void;
   onToggleCompare: () => void;
 }
@@ -16,14 +21,13 @@ interface AutoChangeBannerProps {
 /**
  * Over the canvas after Auto (the button), Co-pilot or Auto-pilot changed this photo: what it changed, in words, and why,
  * with Undo and Before / After. It stays until it is dismissed, undone or the photo is edited further, so a change made
- * while the person was looking elsewhere is never a surprise. When an automatic check left the photo alone, a one-line
+ * while the person was looking elsewhere is never a surprise (it is not shown again for an edit from an earlier session). When an automatic check left the photo alone, a one-line
  * "Looked good, left alone" shows briefly instead. Words, an icon and a text label carry every state, never colour alone.
  */
-export default function AutoChangeBanner({ photo, status, comparing, onUndo, onToggleCompare }: AutoChangeBannerProps) {
+export default function AutoChangeBanner({ photo, status, comparing, dismissed, onDismiss, since, onUndo, onToggleCompare }: AutoChangeBannerProps) {
   const t = STRINGS.flight;
-  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
   const [now, setNow] = useState(() => Date.now());
-  const model = autoBannerModel(photo, status, now, dismissed);
+  const model = autoBannerModel(photo, status, now, dismissed, since);
   const leftAloneUntil = model?.kind === 'left-alone' && status?.at ? status.at + LEFT_ALONE_MS : null;
   useEffect(() => {
     if (leftAloneUntil == null) return;
@@ -66,7 +70,7 @@ export default function AutoChangeBanner({ photo, status, comparing, onUndo, onT
         <button type="button" data-testid="auto-banner-undo" onClick={onUndo} className={small}>{STRINGS.autoEdit.undo}</button>
         <button type="button" data-testid="auto-banner-compare" aria-pressed={comparing} onClick={onToggleCompare} className={small}>{STRINGS.autoEdit.beforeAfter}</button>
         <button type="button" data-testid="auto-banner-dismiss" aria-label={t.dismiss} title={t.dismiss}
-          onClick={() => setDismissed((current) => new Set(current).add(`${photo.id}:${model.at}`))}
+          onClick={() => onDismiss(`${photo.id}:${model.at}`)}
           className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
           <BrandIcon name="close" size={14} />
         </button>

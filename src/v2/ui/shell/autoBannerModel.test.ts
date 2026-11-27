@@ -49,6 +49,12 @@ test('"left alone" shows briefly after an automatic check, and not for the butto
   assert.equal(autoBannerModel(photo(), { ...status, photoId: 'other' }, 5100), null);
 });
 
+test('an Auto edit from before this session is not announced again, and one from this session is', () => {
+  const history = { steps: [autoStep], cursor: 1 };
+  assert.equal(autoBannerModel(photo(history), undefined, 5000, new Set(), 2000), null, 'made at 1000, session began at 2000');
+  assert.equal(autoBannerModel(photo(history), undefined, 5000, new Set(), 1000)?.kind, 'applied');
+});
+
 test('an applied banner is never replaced by "left alone"', () => {
   const status = { photoId: 'p1', state: 'unchanged' as const, text: 'Looked good, left alone.', mode: 'autopilot' as const, at: 5000 };
   assert.equal(autoBannerModel(photo({ steps: [autoStep], cursor: 1 }), status, 5100)?.kind, 'applied');

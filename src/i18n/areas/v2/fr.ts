@@ -621,7 +621,7 @@ export const fr: AreaTranslation<typeof source> = {
     nothingYet: 'Rien à signaler pour l’instant. Les remarques apparaissent quand InFlight a examiné cette photo.',
     modeDescriptions: {
       solo: 'Mode Solo : vous gardez le contrôle manuel. Choisissez Vérifier la photo sur cet appareil quand vous voulez des suggestions.',
-      copilot: 'Mode Copilote : InFlight vérifie la photo ouverte sur cet appareil et vous laisse choisir les retouches suggérées.',
+      copilot: 'Mode Copilote : InFlight fait seul les petites modifications sûres et vous laisse les décisions de retouche. Tout le reste est une suggestion.',
       autopilot: 'Mode Pilote automatique : InFlight peut appliquer une retouche vérifiée à une photo non retouchée quand vous l’ouvrez.',
     },
     runReviewButton: 'Analyse visuelle approfondie',

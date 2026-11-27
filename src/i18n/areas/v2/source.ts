@@ -659,7 +659,7 @@ export const source = {
     nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
       solo: 'Solo: you are in control. InFlight only gives advice when you ask for it.',
-      copilot: 'Co-pilot: InFlight does some of the work and leaves the decision to you. Nothing changes until you say yes.',
+      copilot: 'Co-pilot: InFlight makes small, safe changes itself and leaves the edit decisions to you. Everything else is a suggestion.',
       autopilot: 'Auto-pilot: InFlight does the work and tells you why. Undo takes any edit back.',
     },
     runReviewButton: 'Check with my connected helper',

@@ -621,7 +621,7 @@ export const is: AreaTranslation<typeof source> = {
     nothingYet: 'Ekkert að segja enn. Þetta birtist þegar InFlight hefur skoðað þessa mynd.',
     modeDescriptions: {
       solo: 'Einn: þú stjórnar öllu sjálf/ur. Veldu Athuga mynd á þessu tæki þegar þú vilt tillögur.',
-      copilot: 'Aðstoðarflugmaður: InFlight athugar opnu myndina á þessu tæki og leyfir þér að velja hvaða tillögu sem er.',
+      copilot: 'Aðstoðarflugmaður: InFlight gerir litlar, öruggar breytingar sjálft og lætur þig um ákvarðanirnar. Allt annað er tillaga.',
       autopilot: 'Sjálfstýring: InFlight getur notað athugaða breytingu á óbreytta mynd þegar þú opnar hana.',
     },
     runReviewButton: 'Ítarleg myndræn yfirferð',

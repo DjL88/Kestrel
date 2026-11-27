@@ -621,7 +621,7 @@ export const nl: AreaTranslation<typeof source> = {
     nothingYet: 'Nog niets te melden. Dit verschijnt zodra InFlight deze foto heeft bekeken.',
     modeDescriptions: {
       solo: 'Solomodus: u houdt handmatig de controle. Kies Foto op dit apparaat controleren wanneer u suggesties wilt.',
-      copilot: 'Copilootmodus: InFlight controleert de geopende foto op dit apparaat en laat u elke voorgestelde bewerking kiezen.',
+      copilot: 'Copilootmodus: InFlight doet kleine, veilige wijzigingen zelf en laat de bewerkbeslissingen aan jou. Al het andere is een voorstel.',
       autopilot: 'Automatische-pilootmodus: InFlight kan een gecontroleerde bewerking toepassen op een onbewerkte foto wanneer u die opent.',
     },
     runReviewButton: 'Diepe beeldbeoordeling',

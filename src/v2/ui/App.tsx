@@ -142,6 +142,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  // Auto banners the person dismissed, and when this session began: kept here, not in the banner, which unmounts for the grid and canvas only.
+  const [autoBannerDismissed, setAutoBannerDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const sessionStartedAt = useRef(Date.now());
   const [storeCloudOpen, setStoreCloudOpen] = useState(false);
   const [sharePortfolioOnly, setSharePortfolioOnly] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
@@ -1301,6 +1304,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {store.collage && collageEditingId && <button type="button" className="min-h-10 shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-left text-sm font-semibold text-[var(--brand-accent)]" onClick={() => setCollageEditingId(null)}>← Back to collage pages</button>}
               {!store.collage && !store.gridViewOpen && !pairPhotos && !canvasOnlyShown && <AutoChangeBanner photo={activePhoto} status={store.autoStatus} comparing={store.compareMode}
+                dismissed={autoBannerDismissed} onDismiss={(key) => setAutoBannerDismissed((current) => new Set(current).add(key))} since={sessionStartedAt.current}
                 onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />}
               {store.collage && !collageEditingId ? (
                 <CollageEditor document={store.collage} photos={store.photos} projects={store.projects.filter((p) => p.id !== store.activeProjectId)}

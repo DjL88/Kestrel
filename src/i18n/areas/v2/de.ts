@@ -151,7 +151,7 @@ export const de: AreaTranslation<typeof source> = {
     viewMenu: 'Ansicht',
     exportButton: 'Exportieren',
     assistModes: { solo: 'Solo', copilot: 'Co-Pilot', autopilot: 'Autopilot' },
-    assistModeHints: { solo: "Sie bearbeiten selbst. InFlight verändert Ihr Foto nie und gibt Rat, wenn Sie danach fragen.", copilot: "InFlight nimmt kleine, sichere Änderungen selbst vor und überlässt die Bearbeitungsentscheidungen Ihnen. Alles andere ist ein Vorschlag.", autopilot: "InFlight erledigt es für Sie und sagt, warum. Was unsicher ist, wartet auf Sie, und Rückgängig nimmt jede Änderung zurück." },
+    assistModeHints: { solo: "Sie bearbeiten selbst. InFlight verändert Ihr Foto nie und gibt Rat, wenn Sie danach fragen.", copilot: "InFlight nimmt kleine, sichere Änderungen selbst vor und überlässt Ihnen die Entscheidungen über die Bearbeitung. Alles andere ist ein Vorschlag.", autopilot: "InFlight erledigt es für Sie und sagt, warum. Was unsicher ist, wartet auf Sie, und Rückgängig nimmt jede Änderung zurück." },
     fileActions: {
       newProject: 'Neues Projekt',
       importPhotos: 'Fotos importieren',
@@ -621,7 +621,7 @@ export const de: AreaTranslation<typeof source> = {
     nothingYet: 'Noch nichts zu melden. Hinweise erscheinen, sobald InFlight dieses Foto geprüft hat.',
     modeDescriptions: {
       solo: 'Solo-Modus: Sie behalten die manuelle Kontrolle. Wählen Sie „Foto auf diesem Gerät prüfen“, wenn Sie Vorschläge möchten.',
-      copilot: 'Co-Pilot-Modus: InFlight prüft das geöffnete Foto auf diesem Gerät und lässt Sie jede vorgeschlagene Bearbeitung wählen.',
+      copilot: 'Co-Pilot-Modus: InFlight nimmt kleine, sichere Änderungen selbst vor und überlässt Ihnen die Entscheidungen über die Bearbeitung. Alles andere ist ein Vorschlag.',
       autopilot: 'Autopilot-Modus: InFlight kann eine geprüfte Bearbeitung auf ein unbearbeitetes Foto anwenden, wenn Sie es öffnen.',
     },
     runReviewButton: 'Tiefe Bildanalyse',

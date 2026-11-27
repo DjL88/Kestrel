@@ -624,7 +624,7 @@ export const ga: AreaTranslation<typeof source> = {
     nothingYet: 'Níl aon rud le tuairisciú fós. Feicfear é nuair a bheidh InFlight tar éis breathnú ar an ngrianghraf seo.',
     modeDescriptions: {
       solo: 'Mód aonair: is agatsa atá an smacht. Roghnaigh Seiceáil an grianghraf ar an ngléas seo nuair is mian leat moltaí.',
-      copilot: 'Mód comhphíolóta: seiceálann InFlight an grianghraf oscailte ar an ngléas seo agus ligeann sé duit eagarthóireacht mholta ar bith a roghnú.',
+      copilot: 'Mód comhphíolóta: Déanann InFlight athruithe beaga, sábháilte leis féin agus fágann sé na cinntí eagarthóireachta agatsa. Moladh is ea gach rud eile.',
       autopilot: 'Mód uathphíolóta: is féidir le InFlight eagarthóireacht seiceáilte a chur i bhfeidhm ar ghrianghraf gan athrú nuair a osclaíonn tú é.',
     },
     runReviewButton: 'Athbhreithniú amhairc domhain',

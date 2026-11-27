@@ -621,7 +621,7 @@ export const pt: AreaTranslation<typeof source> = {
     nothingYet: 'Ainda nada a assinalar. Aparece quando o InFlight tiver analisado esta fotografia.',
     modeDescriptions: {
       solo: 'Modo Solo: mantém o controlo manual. Escolha Verificar a fotografia neste dispositivo quando quiser sugestões.',
-      copilot: 'Modo Copiloto: o InFlight verifica a fotografia aberta neste dispositivo e deixa-o escolher qualquer edição sugerida.',
+      copilot: 'Modo Copiloto: O InFlight faz sozinho as alterações pequenas e seguras e deixa as decisões de edição com você. Tudo o resto é uma sugestão.',
       autopilot: 'Modo Piloto automático: o InFlight pode aplicar uma edição verificada a uma fotografia por editar quando a abre.',
     },
     runReviewButton: 'Revisão visual aprofundada',

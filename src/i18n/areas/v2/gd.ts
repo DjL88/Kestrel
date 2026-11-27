@@ -622,7 +622,7 @@ export const gd: AreaTranslation<typeof source> = {
     nothingYet: 'Chan eil dad ri aithris fhathast. Nochdaidh e nuair a bhios InFlight air sùil a thoirt air an dealbh seo.',
     modeDescriptions: {
       solo: 'Modh leat fhèin: ’s ann agadsa a tha an smachd. Tagh Dearbh an dealbh air an uidheam seo nuair a bhios tu ag iarraidh mholaidhean.',
-      copilot: 'Modh co-phìleat: dearbhaidh InFlight an dealbh fosgailte air an uidheam seo agus leigidh e leat deasachadh sam bith a mholar a thaghadh.',
+      copilot: 'Modh co-phìleat: Nì InFlight atharraichean beaga sàbhailte leis fhèin agus fàgaidh e na co-dhùnaidhean deasachaidh agadsa. Is e moladh a th’ anns a h-uile rud eile.',
       autopilot: 'Modh fèin-phìleat: faodaidh InFlight deasachadh dearbhte a chur an sàs air dealbh gun deasachadh nuair a dh’fhosglas tu e.',
     },
     runReviewButton: 'Lèirmheas lèirsinneach domhainn',

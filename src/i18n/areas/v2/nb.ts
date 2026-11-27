@@ -621,7 +621,7 @@ export const nb: AreaTranslation<typeof source> = {
     nothingYet: 'Ingenting å melde ennå. Det vises når InFlight har sett på dette bildet.',
     modeDescriptions: {
       solo: 'Solomodus: du har den manuelle kontrollen. Velg Sjekk bildet på denne enheten når du vil ha forslag.',
-      copilot: 'Andrepilotmodus: InFlight sjekker det åpne bildet på denne enheten og lar deg velge hvilken som helst foreslått redigering.',
+      copilot: 'Andrepilotmodus: InFlight gjør små, trygge endringer selv og overlater redigeringsvalgene til deg. Alt annet er et forslag.',
       autopilot: 'Autopilotmodus: InFlight kan bruke en kontrollert redigering på et uredigert bilde når du åpner det.',
     },
     runReviewButton: 'Grundig visuell gjennomgang',

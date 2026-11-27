@@ -622,7 +622,7 @@ export const fi: AreaTranslation<typeof source> = {
     nothingYet: 'Ei vielä raportoitavaa. Tiedot näkyvät, kun InFlight on tarkastellut tätä kuvaa.',
     modeDescriptions: {
       solo: 'Soolotila: hallitset kaikkea itse. Valitse Tarkista kuva tällä laitteella, kun haluat ehdotuksia.',
-      copilot: 'Perämiestila: InFlight tarkistaa avoimen kuvan tällä laitteella ja antaa sinun valita minkä tahansa ehdotetun muokkauksen.',
+      copilot: 'Perämiestila: InFlight tekee pienet, turvalliset muutokset itse ja jättää muokkauspäätökset sinulle. Kaikki muu on ehdotus.',
       autopilot: 'Autopilottitila: InFlight voi käyttää tarkistettua muokkausta muokkaamattomaan kuvaan, kun avaat sen.',
     },
     runReviewButton: 'Syvä visuaalinen arvio',

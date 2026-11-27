@@ -621,7 +621,7 @@ export const cy: AreaTranslation<typeof source> = {
     nothingYet: 'Dim i’w adrodd eto. Bydd yn ymddangos unwaith y bydd InFlight wedi edrych ar y llun hwn.',
     modeDescriptions: {
       solo: 'Modd unigol: chi sy’n rheoli â llaw. Dewiswch Gwirio’r llun ar y ddyfais hon pan fyddwch eisiau awgrymiadau.',
-      copilot: 'Modd cyd-beilot: mae InFlight yn gwirio’r llun agored ar y ddyfais hon ac yn gadael i chi ddewis unrhyw olygiad a awgrymir.',
+      copilot: 'Modd cyd-beilot: Mae InFlight yn gwneud newidiadau bach, diogel ei hun ac yn gadael y penderfyniadau golygu i chi. Awgrym yw popeth arall.',
       autopilot: 'Modd awtobeilot: gall InFlight roi golygiad wedi’i wirio ar lun heb ei olygu pan fyddwch yn ei agor.',
     },
     runReviewButton: 'Adolygiad gweledol manwl',

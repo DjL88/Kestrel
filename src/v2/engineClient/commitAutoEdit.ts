@@ -23,6 +23,8 @@ export function commitAutoEdit(
 
   const index = state.frames.findIndex((frame) => frame.id === frameId);
   const frame = state.frames[index];
+  // The batch runs long after the import: a photo rejected since is a decision that is kept, never edited over.
+  if (options.anyPhoto && (frame?.decision === 'reject' || frame?.exif?.rejectedByMetadata)) return state;
   if (!frame || frame.removedAt != null || frame.edit || frame.editHistory !== examined.editHistory ||
       frame.framing !== examined.framing || frame.stableKey !== examined.stableKey ||
       frame.originalSha256 !== examined.originalSha256 ||

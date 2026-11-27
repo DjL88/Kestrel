@@ -15,7 +15,9 @@ const ZERO = /^[+-]?0+(\.0+)?( EV)?$/;
 
 /**
  * What the canvas banner says, from the photo's own edit history (so it is always true: it follows Undo and Redo) and what
- * Auto last did for it. "Applied" is shown while the newest step in force was made by Auto and the person has not dismissed it.
+ * Auto last did for it. "Applied" is shown while the newest step in force was made by Auto, was made since `since` (this
+ * session's start, so a photo Auto edited in an earlier session does not announce itself again on every visit) and the
+ * person has not dismissed it.
  * "Left alone" is shown briefly after an automatic check that changed nothing, and never over an applied banner.
  */
 export function autoBannerModel(
@@ -23,12 +25,13 @@ export function autoBannerModel(
   status: AutoStatus | undefined,
   now: number,
   dismissed: ReadonlySet<string> = new Set(),
+  since = 0,
 ): AutoBannerModel {
   if (!photo) return null;
   const history = photo.editHistory;
   const step = history && history.cursor > 0 ? history.steps[history.cursor - 1] : undefined;
   if (step?.by === 'auto') {
-    if (dismissed.has(`${photo.id}:${step.at}`)) return null;
+    if (step.at < since || dismissed.has(`${photo.id}:${step.at}`)) return null;
     const mine = status?.photoId === photo.id && status.state === 'applied' && status.appliedAt === step.at ? status : undefined;
     return {
       kind: 'applied', at: step.at, who: mine?.mode ?? 'auto',
