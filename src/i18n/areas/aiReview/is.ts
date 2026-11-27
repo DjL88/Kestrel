@@ -17,7 +17,7 @@ export const is: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio-lykill)',
     anthropic: 'Anthropic Claude',
     openai: 'Samhæft við OpenAI, eða líkan á þessari tölvu (Ollama, LM Studio)',
-    inflight: "Netaðstoð InFlight (aðeins boðnir prófendur)",
+    inflight: "Netaðstoð InFlight",
   },
   key: 'API-lykill',
   keyOptional: 'API-lykill (hafðu autt fyrir líkan á þessari tölvu)',

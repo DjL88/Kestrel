@@ -1,4 +1,4 @@
-import { openV2Settings } from './helpers';
+import { openFlightChecks, openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -51,7 +51,8 @@ test('Your own AI (a model on this computer) gives a second opinion, applied onl
   await page.getByRole('button', { name: 'Close settings' }).click();
 
   const card = studio.getByTestId('v2-ai-opinion').first();
-  if (!await card.isVisible()) await studio.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  // The helper's opinion sits under the Flight panel's closed More checks.
+  await openFlightChecks(studio, studio.getByRole('button', { name: 'Co-pilot', exact: true }));
   await expect(card).toContainText('Nothing leaves your computer');
   expect(asked).toHaveLength(0);
   await card.getByRole('button', { name: 'I agree' }).click();
@@ -64,4 +65,26 @@ test('Your own AI (a model on this computer) gives a second opinion, applied onl
   expect(asked).toHaveLength(1);
   await result.getByTestId('v2-ai-opinion-apply').click();
   await expect(card).toContainText('Applied');
+});
+
+test('InFlight’s own online helper is not offered when it is not available to the account (invite-only)', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Settings opens from the desktop tool rail.');
+  // This build is signed out and has no control plane, so the server has not said "available": no choice, no switch,
+  // no "invited testers only" line (owner, 27 Nov 2026). The available state is covered by src/v2/ui/onlineHelperVisibility.test.ts.
+  await page.route('**/*.onnx*', (route) => route.abort());
+  await page.goto('/?v2');
+  // Settings opens from the File menu, which is there once a project is open.
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Helper hidden');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
+  await openV2Settings(page);
+  await page.getByRole('tab', { name: /AI/ }).or(page.getByRole('button', { name: /AI providers|AI/ })).first().click();
+  const setup = page.getByTestId('v2-ai-setup');
+  await expect(setup).toBeVisible();
+  const offered = await setup.locator('select option').evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
+  expect(offered).toEqual(['openai', 'gemini', 'anthropic']);
+  await expect(page.getByText(/invited testers/i)).toHaveCount(0);
+  await expect(page.getByTestId('account-online-helper')).toHaveCount(0);
 });

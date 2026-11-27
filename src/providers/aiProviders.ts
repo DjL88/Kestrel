@@ -12,6 +12,7 @@
  * (`generativelanguage.googleapis.com`), which only ever needed an API key, covers the same models.
  */
 import { AI_REVIEW_SCHEMA, parseAiReview, type AiReview } from '../core/aiReview';
+import { offeredProviderKinds } from '../core/onlineHelperAccess';
 import { isDesktopApp } from './desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 
@@ -32,8 +33,13 @@ export type AiProviderKind = 'gemini' | 'anthropic' | 'openai' | 'inflight';
  */
 export const AI_PROVIDER_KINDS: readonly AiProviderKind[] = ['openai', 'gemini', 'anthropic', 'inflight'];
 const CONTROL_PLANE = parseControlPlaneUrl(import.meta.env?.VITE_KESTREL_CONTROL_PLANE_URL);
-/** The kinds this build can offer: InFlight's own AI only where a control plane is configured. */
-export const availableAiProviderKinds = (): AiProviderKind[] => AI_PROVIDER_KINDS.filter((kind) => kind !== 'inflight' || CONTROL_PLANE !== null);
+/**
+ * The kinds to offer: InFlight's own online helper only when the server (this build's control plane) says it is
+ * available to this account right now (invite-only, switch on, online: `useOnlineHelperShown`). Otherwise it is not
+ * offered at all.
+ */
+export const availableAiProviderKinds = (helperShown = false): AiProviderKind[] =>
+  offeredProviderKinds(AI_PROVIDER_KINDS, helperShown, 'inflight');
 
 export interface AiProviderSettings {
   kind: AiProviderKind;
