@@ -140,6 +140,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [shareOpen, setShareOpen] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
    * zoom bar. Separate from full screen (which hides the window's own frame); the two can be used together. */
+  /** Colour-vision support: the red and green outlines show only after "Show where". */
+  const [showColourWhere, setShowColourWhere] = useState(false);
   const [canvasOnly, setCanvasOnly] = useState(false);
   // The enlargement preview: the export's own picture of one format. Null result while it is being made.
   const [enlargement, setEnlargement] = useState<{ photoId: string; sizeId: string; result: EnlargementPreviewResult | null } | null>(null);
@@ -749,6 +751,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     actions.updateRecipe(photoId, { temperature: next }, direction === 'cooler' ? colourText.fixCooler : colourText.fixWarmer);
   };
   const toggleCvd = () => actions.updateSettings({ cvdGuidance: !store.settings.cvdGuidance });
+  // Colour-vision support's one-line verdict: Correct is one named, undoable step; the red and green outlines show only
+  // after "Show where" (Dave, 27 Nov: the verdict leads, the detail waits).
+  const correctColour = (photoId: string, fix: import('../../core/colourVerdict').ColourFix) => {
+    const photo = store.photos.find((entry) => entry.id === photoId);
+    if (!photo) return;
+    const current = Number(getActiveGroup(photo).recipe[fix.setting] ?? 0);
+    actions.updateRecipe(photoId, { [fix.setting]: Math.max(-100, Math.min(100, current + fix.delta)) }, STRINGS.colourVerdict.editName);
+  };
+  const colourVerdictProps = {
+    onCorrect: editLocked ? undefined : correctColour,
+    onUndo: editLocked ? undefined : actions.undo,
+    canShowWhere: Boolean(activePhoto?.assistCritique.colourAreas?.length),
+    showingWhere: showColourWhere,
+    onToggleWhere: () => setShowColourWhere((shown) => !shown),
+  };
   const renderPanelInner = (panelId: PanelId) => {
     switch (panelId) {
       case 'copilot':
@@ -792,6 +809,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
             onToggleCvdGuidance={toggleCvd}
+            colourVerdict={colourVerdictProps}
             hideReadouts={store.settings.calmReadouts}
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
@@ -1285,7 +1303,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
-                  colourAreas={store.settings.cvdGuidance ? activePhoto?.assistCritique.colourAreas : undefined}
+                  colourAreas={store.settings.cvdGuidance && showColourWhere ? activePhoto?.assistCritique.colourAreas : undefined}
                   onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
