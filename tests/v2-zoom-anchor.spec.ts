@@ -98,14 +98,19 @@ test('two-finger scroll (a plain wheel without Ctrl) pans the zoomed picture and
   const at = await pictureBox(page);
   await page.mouse.move(at.left + at.width / 2, at.top + at.height / 2);
   await pinch(page, 24, -12);
+  // The pinch zoomed in, well past the view, so there is room to pan (a slow runner once panned a picture still at Fit).
+  await expect.poll(async () => (await pictureBox(page)).width, { timeout: 10000 }).toBeGreaterThan(at.width * 3);
   const zoomed = await root.getByTestId('zoom-percent').textContent();
   const before = await pictureBox(page);
   // Small, smooth deltas with a sideways part, as a touchpad's two-finger scroll sends them.
   for (let step = 0; step < 10; step += 1) await page.mouse.wheel(7, 9);
-  await page.waitForTimeout(250);
+  // Chromium animates wheel scrolling, and a loaded runner takes longer than a fixed wait to finish it.
+  await expect.poll(async () => {
+    const now = await pictureBox(page);
+    return Math.abs(now.top - before.top) + Math.abs(now.left - before.left);
+  }, { timeout: 5000 }).toBeGreaterThan(20);
   const after = await pictureBox(page);
   expect(after.width).toBeCloseTo(before.width, 0);
-  expect(Math.abs(after.top - before.top) + Math.abs(after.left - before.left)).toBeGreaterThan(20);
   await expect(root.getByTestId('zoom-percent')).toHaveText(zoomed!);
 });
 
