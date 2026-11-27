@@ -177,6 +177,20 @@ export function usageSummary(usage: CloudUsage): UsageSummary {
   };
 }
 
+/**
+ * True when nothing more can go into cloud storage: the included amount is used (Basic has none) and the balance cannot
+ * pay a month of what is stored beyond it, which the control plane needs before an upload (cloudStorageBilling.ts).
+ * False when the server does not report storage. Nothing stored is ever removed or made smaller because of this.
+ */
+export function storageFull(usage: Pick<CloudUsage, 'plan' | 'storedBytes' | 'balancePence'>): boolean {
+  if (usage.storedBytes === undefined) return false;
+  const free = freeStorageBytes(usage.plan);
+  const stored = whole(usage.storedBytes);
+  if (stored < free) return false;
+  const monthPence = ((stored - free) / GB) * PAYG_PENCE.storagePerGbMonth;
+  return whole(usage.balancePence) <= Math.ceil(monthPence);
+}
+
 export interface TaskEstimate {
   photos: number;
   /** Photos covered by this month's allowance. */
