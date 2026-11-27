@@ -6,7 +6,7 @@ import type { EmailFailure } from '../core/launchWelcome';
 import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
-import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
+import { appleFirebaseFailureMessage, appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
 import { DESKTOP_MICROSOFT_REFUSED, desktopMicrosoftClient, desktopMicrosoftRefused, microsoftCodeExchangeBody, microsoftIdTokenFromAnswer, microsoftSignInEnabled, microsoftSignInUrl, MICROSOFT_TOKEN_URL } from '../core/microsoftSignIn';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
@@ -336,7 +336,7 @@ async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>
     // Apple gives the name only on the first sign-in, outside the token; keep it so the account is not nameless.
     if (answer.displayName && !user.displayName) await auth.updateProfile(user, { displayName: answer.displayName }).catch(() => undefined);
     return toSession(user, 'apple');
-  });
+  }).catch((error) => { throw new Error(appleFirebaseFailureMessage(error)); });
 }
 
 /**
