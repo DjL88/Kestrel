@@ -207,6 +207,7 @@ import { language } from '../../i18n/messages';
 import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
 import { createReadAhead, importLanes } from '../../core/importReadAhead';
+import { startNativeResourceSampling } from '../../providers/nativeResourceSample';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
@@ -319,6 +320,9 @@ function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBra
 }
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
+  // A real measurement of the machine for the task scheduler (desktop app), so heavy jobs can run side by side when there
+  // is room, instead of one at a time behind whichever is slowest.
+  useEffect(() => startNativeResourceSampling(), []);
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
   // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
