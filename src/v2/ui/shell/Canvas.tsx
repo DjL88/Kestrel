@@ -275,8 +275,8 @@ export default function Canvas({
   /**
    * Zooming out, by any means (Dave, 27 Nov): the picture moves steadily back to where it sits at Fit, in step with the
    * zoom, and is exactly centred when Fit is reached. Its offset from the Fit position shrinks in proportion to how far
-   * the zoom still is above Fit. Where the picture sits at Fit is worked out the same way as the Fit margins below, with
-   * any scrollbar counted as room, so a scrollbar going as Fit nears cannot make the picture jump sideways.
+   * the zoom still is above Fit. Where the picture sits at Fit is worked out the same way as the Fit margins below: inside
+   * the stage's scrollbars (clientWidth/Height), which it always keeps, so nothing there changes as Fit nears.
    * False when there is nothing to hold (no frame, or not zoomed in past Fit).
    */
   const holdTowardsFit = (toZoom: number): boolean => {
@@ -290,8 +290,8 @@ export default function Canvas({
     const box = board.getBoundingClientRect();
     const stageRect = stage.getBoundingClientRect();
     const fit = {
-      x: (stage.offsetWidth - box.width / from) / 2 + (pic.left - box.left + pic.width / 2) / from,
-      y: (stage.offsetHeight - box.height / from) / 2 + (pic.top - box.top + pic.height / 2) / from,
+      x: (stage.clientWidth - box.width / from) / 2 + (pic.left - box.left + pic.width / 2) / from,
+      y: (stage.clientHeight - box.height / from) / 2 + (pic.top - box.top + pic.height / 2) / from,
     };
     const now = { x: pic.left + pic.width / 2 - stageRect.left, y: pic.top + pic.height / 2 - stageRect.top };
     const share = toZoom <= 1.0005 ? 0 : (toZoom - 1) / (from - 1);
