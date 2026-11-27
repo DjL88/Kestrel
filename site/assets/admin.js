@@ -64,7 +64,9 @@ function act(element, event, work) {
       if (button) {
         button.disabled = false;
         // After a question in the page, focus goes back to the button that asked it (if it is still there).
-        if (button.isConnected && (!document.activeElement || document.activeElement === document.body)) button.focus({ preventScroll: true });
+        // Straight after a <dialog> closes the browser still reports focus on its own button, so that counts too.
+        const at = document.activeElement;
+        if (button.isConnected && (!at || at === document.body || $('ask').contains(at))) button.focus({ preventScroll: true });
       }
     }
   });

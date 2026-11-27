@@ -196,10 +196,11 @@ test('a feature the server is not set up for reads "Not set up yet", with no err
   });
   await expect(page.locator('#needs-unknown')).toBeHidden();
   await openPage(page, 'Advanced');
-  await page.getByText('Model training', { exact: true }).click();
+  // By section: 'Model training' is also the name of a switch on another page.
+  await page.locator('#learning > summary').click();
   await expect(page.locator('#learning-unavailable')).toHaveText('Not set up on this server yet.');
   await expect(page.locator('#learning-run')).toBeDisabled();
-  await page.getByText('Tax', { exact: true }).click();
+  await page.locator('#tax > summary').click();
   await expect(page.locator('#tax-unavailable')).toContainText('does not have');
   await expect(page.locator('#status')).toBeEmpty();
   expect(errors).toEqual([]);
