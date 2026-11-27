@@ -1346,6 +1346,8 @@ export const source = {
     consentNo: "No, keep it on this device",
     keptOnDevice: "You chose to keep this on your device.",
     askAgain: "Ask me again",
+    autoOn: 'Cloud edits are on for your plan. Only previews of your photos are sent, never your originals, and they are deleted afterwards. You can turn this off in Settings.',
+    agreeFailed: 'Could not switch on InFlight\'s cloud helper for your account. Your photos stay on this device.',
     running: "Running…",
     run: (n: number) => `Run Cloud edits for ${n} photos`,
     topUp: "Top up",
@@ -1844,6 +1846,8 @@ export const source = {
   // Tasks panel controls
   cloudUsage: {
     title: 'Cloud usage',
+    cloudSwitch: 'Use InFlight\'s cloud for my photos.',
+    cloudSwitchBody: 'Only previews (never your originals) are sent, and deleted afterwards. Turn off to keep everything on this device.',
     intro: 'Included every month for everyone who signs in. Editing on this device never uses any of this.',
     photos: 'Cloud photos',
     storage: 'Cloud storage',

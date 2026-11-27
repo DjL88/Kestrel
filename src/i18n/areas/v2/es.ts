@@ -1304,6 +1304,8 @@ export const es: AreaTranslation<typeof source> = {
     consentNo: "No, dejarlo en este dispositivo",
     keptOnDevice: "Elegiste dejar esto en tu dispositivo.",
     askAgain: "Preguntar de nuevo",
+    autoOn: 'La nube está activada en su plan. Solo se envían vistas previas de sus fotos, nunca los originales, y se borran después. Puede desactivarla en Ajustes.',
+    agreeFailed: 'No se pudo activar el asistente en la nube de InFlight para su cuenta. Sus fotos se quedan en este dispositivo.',
     running: "En marcha…",
     run: (n: number) => `Ejecutar ediciones en la nube para ${n} fotos`,
     topUp: "Recargar",
@@ -1775,6 +1777,8 @@ export const es: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Uso de la nube',
+    cloudSwitch: 'Usar la nube de InFlight para mis fotos.',
+    cloudSwitchBody: 'Solo se envían vistas previas (nunca sus originales) y se borran después. Desactívelo para mantener todo en este dispositivo.',
     intro: 'Incluido cada mes para quien inicie sesión. Editar en este dispositivo nunca consume nada de esto.',
     photos: 'Fotos en la nube',
     storage: 'Almacenamiento en la nube',

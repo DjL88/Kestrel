@@ -1304,6 +1304,8 @@ export const da: AreaTranslation<typeof source> = {
     consentNo: "Nej, behold det på enheden",
     keptOnDevice: "Du valgte at beholde dette på enheden.",
     askAgain: "Spørg igen",
+    autoOn: 'Skyen er slået til for dit abonnement. Der sendes kun forhåndsvisninger af dine fotos, aldrig dine originaler, og de slettes bagefter. Du kan slå det fra i Indstillinger.',
+    agreeFailed: 'Kunne ikke slå InFlights skyhjælper til for din konto. Dine fotos forbliver på denne enhed.',
     running: "Kører…",
     run: (n: number) => `Kør sky-redigeringer for ${n} billeder`,
     topUp: "Tank op",
@@ -1775,6 +1777,8 @@ export const da: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Cloudforbrug',
+    cloudSwitch: 'Brug InFlights sky til mine fotos.',
+    cloudSwitchBody: 'Kun forhåndsvisninger (aldrig dine originaler) sendes og slettes bagefter. Slå fra for at holde alt på denne enhed.',
     intro: 'Inkluderet hver måned for alle, der logger ind. Redigering på denne enhed bruger aldrig noget af dette.',
     photos: 'Cloudbilleder',
     storage: 'Cloudlager',

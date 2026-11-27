@@ -42,6 +42,7 @@ export const pt: AreaTranslation<typeof source> = {
     protectionLost: 'Desta vez não foi possível proteger o motivo com segurança. As suas edições foram mantidas.',
     cloud: 'Ruído reduzido na nuvem InFlight a partir de uma cópia de trabalho e verificado neste dispositivo.',
     cloudNotUsed: 'Desta vez a nuvem não foi usada, por isso correu neste dispositivo.',
+    cloudWhy: { offline: 'A nuvem não foi usada: está offline.', 'signed-out': 'A nuvem não foi usada: não iniciou sessão.', 'no-consent': 'A nuvem não foi usada: não disse que sim.', failed: 'A nuvem não respondeu, por isso correu neste dispositivo.', unverified: 'Não foi possível confirmar o resultado da nuvem, por isso correu neste dispositivo.' },
     device: 'Ruído reduzido neste dispositivo.',
     layersFull: 'Nem todos os motivos puderam ter a sua própria camada, por isso foi usada uma camada de proteção comum.',
     protected: (count) => (count === 1

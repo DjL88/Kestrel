@@ -1304,6 +1304,8 @@ export const de: AreaTranslation<typeof source> = {
     consentNo: "Nein, auf dem Gerät lassen",
     keptOnDevice: "Du hast gewählt, das auf deinem Gerät zu lassen.",
     askAgain: "Erneut fragen",
+    autoOn: 'Die Cloud ist für Ihren Tarif eingeschaltet. Es werden nur Vorschaubilder Ihrer Fotos gesendet, nie Ihre Originale, und danach gelöscht. Sie können sie in den Einstellungen ausschalten.',
+    agreeFailed: 'Der Cloud-Helfer von InFlight ließ sich für Ihr Konto nicht einschalten. Ihre Fotos bleiben auf diesem Gerät.',
     running: "Läuft…",
     run: (n: number) => `Cloud-Bearbeitungen starten für ${n} Fotos`,
     topUp: "Aufladen",
@@ -1775,6 +1777,8 @@ export const de: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Cloud-Nutzung',
+    cloudSwitch: 'InFlights Cloud für meine Fotos nutzen.',
+    cloudSwitchBody: 'Es werden nur Vorschaubilder (nie Ihre Originale) gesendet und danach gelöscht. Ausschalten, um alles auf diesem Gerät zu halten.',
     intro: 'Jeden Monat für alle Angemeldeten enthalten. Bearbeiten auf diesem Gerät verbraucht nichts davon.',
     photos: 'Cloud-Fotos',
     storage: 'Cloud-Speicher',

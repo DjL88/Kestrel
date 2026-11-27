@@ -42,6 +42,7 @@ export const sv: AreaTranslation<typeof source> = {
     protectionLost: 'Motivet kunde inte skyddas säkert den här gången. Dina befintliga redigeringar behölls.',
     cloud: 'Brusreducerat i InFlight-molnet från en arbetskopia och kontrollerat på den här enheten.',
     cloudNotUsed: 'Molnet användes inte den här gången, så det kördes på den här enheten.',
+    cloudWhy: { offline: 'Molnet användes inte: du är offline.', 'signed-out': 'Molnet användes inte: du är inte inloggad.', 'no-consent': 'Molnet användes inte: du har inte sagt ja till det.', failed: 'Molnet svarade inte, så det kördes på den här enheten.', unverified: 'Molnets resultat kunde inte bekräftas, så det kördes på den här enheten.' },
     device: 'Brusreducerat på den här enheten.',
     layersFull: 'Alla motiv kunde inte få ett eget lager, så ett gemensamt skyddslager användes.',
     protected: (count) => (count === 1

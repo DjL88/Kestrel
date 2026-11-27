@@ -1305,6 +1305,8 @@ export const fi: AreaTranslation<typeof source> = {
     consentNo: "Ei, pidä laitteella",
     keptOnDevice: "Valitsit pitää tämän laitteellasi.",
     askAgain: "Kysy uudelleen",
+    autoOn: 'Pilvi on päällä tilauksessasi. Vain valokuviesi esikatselukuvat lähetetään, ei koskaan alkuperäisiä, ja ne poistetaan sen jälkeen. Voit kytkeä sen pois Asetuksissa.',
+    agreeFailed: 'InFlightin pilviapuria ei voitu ottaa käyttöön tilillesi. Kuvasi pysyvät tällä laitteella.',
     running: "Käynnissä…",
     run: (n: number) => `Aja pilvimuokkaukset: ${n} kuvaa`,
     topUp: "Lataa saldoa",
@@ -1776,6 +1778,8 @@ export const fi: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Pilven käyttö',
+    cloudSwitch: 'Käytä InFlightin pilveä valokuvilleni.',
+    cloudSwitchBody: 'Vain esikatselukuvat (ei koskaan alkuperäisiä) lähetetään, ja ne poistetaan sen jälkeen. Kytke pois pitääksesi kaiken tällä laitteella.',
     intro: 'Sisältyy joka kuukausi kaikille kirjautuneille. Muokkaus tällä laitteella ei koskaan kuluta tästä mitään.',
     photos: 'Pilvikuvat',
     storage: 'Pilvitallennus',

@@ -1307,6 +1307,8 @@ export const ga: AreaTranslation<typeof source> = {
     consentNo: "Ná húsáid, coinnigh ar an ngléas",
     keptOnDevice: "Roghnaigh tú é seo a choinneáil ar do ghléas.",
     askAgain: "Fiafraigh díom arís",
+    autoOn: 'Tá an scamall ar siúl do do phlean. Ní sheoltar ach réamhamharcanna de do ghrianghraif, riamh do bhunphictiúir, agus scriostar iad ina dhiaidh. Is féidir leat é a chur as sna Socruithe.',
+    agreeFailed: 'Níorbh fhéidir cúntóir scamaill InFlight a chur ar siúl do do chuntas. Fanfaidh do ghrianghraif ar an ngléas seo.',
     running: "Ar siúl…",
     run: (n: number) => `Rith eagarthóireacht scamaill do ${n} grianghraf`,
     topUp: "Breisigh",
@@ -1778,6 +1780,8 @@ export const ga: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Úsáid néil',
+    cloudSwitch: 'Úsáid scamall InFlight do mo ghrianghraif.',
+    cloudSwitchBody: 'Ní sheoltar ach réamhamharcanna (riamh do bhunphictiúir) agus scriostar iad ina dhiaidh. Cuir as chun gach rud a choinneáil ar an ngléas seo.',
     intro: 'San áireamh gach mí do gach duine a shíníonn isteach. Ní úsáideann eagarthóireacht ar an ngléas seo aon chuid de seo.',
     photos: 'Grianghraif néil',
     storage: 'Stóráil néil',

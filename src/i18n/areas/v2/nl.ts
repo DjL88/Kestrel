@@ -1304,6 +1304,8 @@ export const nl: AreaTranslation<typeof source> = {
     consentNo: "Nee, op dit apparaat houden",
     keptOnDevice: "Je koos ervoor dit op je apparaat te houden.",
     askAgain: "Vraag opnieuw",
+    autoOn: 'De cloud staat aan voor je abonnement. Alleen voorbeeldweergaven van je foto’s worden verstuurd, nooit je originelen, en daarna gewist. Je kunt dit uitzetten in Instellingen.',
+    agreeFailed: 'De cloudhulp van InFlight kon niet worden aangezet voor je account. Je foto’s blijven op dit apparaat.',
     running: "Bezig…",
     run: (n: number) => `Cloudbewerkingen uitvoeren voor ${n} foto’s`,
     topUp: "Opwaarderen",
@@ -1775,6 +1777,8 @@ export const nl: AreaTranslation<typeof source> = {
   },
   cloudUsage: {
     title: 'Cloudgebruik',
+    cloudSwitch: 'Gebruik de cloud van InFlight voor mijn foto’s.',
+    cloudSwitchBody: 'Alleen voorbeeldweergaven (nooit je originelen) worden verstuurd en daarna gewist. Zet uit om alles op dit apparaat te houden.',
     intro: 'Elke maand inbegrepen voor iedereen die inlogt. Bewerken op dit apparaat gebruikt hier nooit iets van.',
     photos: 'Cloudfoto’s',
     storage: 'Cloudopslag',

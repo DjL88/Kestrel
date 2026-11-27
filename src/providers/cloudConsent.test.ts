@@ -23,3 +23,13 @@ test('a yes that cannot be saved is not in force, and unreadable storage is unas
   assert.equal(readCloudConsent(broken).answer, 'unasked');
   assert.equal(readCloudConsent(null).answer, 'unasked');
 });
+
+test('a paying plan is pre-opted-in when unasked, and an explicit no always wins', () => {
+  const store = memory();
+  assert.equal(readCloudConsent(store, { paying: false }).answer, 'unasked');
+  assert.equal(readCloudConsent(store, { paying: true }).answer, 'yes');
+  saveCloudConsent('no', 5, store);
+  assert.equal(readCloudConsent(store, { paying: true }).answer, 'no');
+  saveCloudConsent('yes', 6, store);
+  assert.equal(readCloudConsent(store, { paying: false }).answer, 'yes');
+});

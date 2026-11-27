@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cloudEditsAllowance, cloudEditsPhotos, parseCloudEditsChoice } from './cloudEditsChoice';
+import { cloudEditsAllowance, cloudEditsPhotos, parseCloudEditsChoice, pickForCloud } from './cloudEditsChoice';
 
 const frames = Array.from({ length: 60 }, (_, i) => ({ id: `p${i}`, cullScore: i }));
 
@@ -21,16 +21,29 @@ test('Best and Top 50 follow Auto pick\'s ranking, best first; All is every phot
   assert.equal(cloudEditsPhotos('all', [...frames, { id: 'gone', cullScore: 99, removedAt: 1 }]).length, 60);
 });
 
-test('a photo Auto pick has not scored is never guessed into Best or Top 50, and a removed one is never sent', () => {
+test('an unscored photo goes last in Top 50 and All rather than being dropped, and is never guessed into Best', () => {
   const mixed = [{ id: 'a', cullScore: 5 }, { id: 'b' }, { id: 'c', cullScore: 9, removedAt: 3 }, { id: 'd', cullScore: 7 }, { id: 'e', cullScore: 1 }];
-  assert.deepEqual(cloudEditsPhotos('top50', mixed), ['d', 'a', 'e']);
+  assert.deepEqual(cloudEditsPhotos('top50', mixed), ['d', 'a', 'e', 'b']);
   assert.deepEqual(cloudEditsPhotos('best', mixed), ['d']);
   assert.deepEqual(cloudEditsPhotos('best', [{ id: 'a', cullScore: 5 }, { id: 'b' }]), [], 'too few scored photos to rank');
-  assert.deepEqual(cloudEditsPhotos('all', mixed), ['a', 'b', 'd', 'e']);
+  assert.deepEqual(cloudEditsPhotos('all', mixed), ['d', 'a', 'e', 'b']);
 });
 
 test('the allowance line uses the account\'s own numbers, and says nothing it does not know', () => {
   assert.deepEqual(cloudEditsAllowance(50, { used: 100, monthly: 5000 }), { count: 50, monthly: 5000, left: 4900, over: 0 });
   assert.deepEqual(cloudEditsAllowance(50, { used: 4980, monthly: 5000 }), { count: 50, monthly: 5000, left: 20, over: 30 });
   assert.deepEqual(cloudEditsAllowance(50, null), { count: 50, over: 0 });
+});
+
+test('pickForCloud: stars, then score, then catalogue order, unscored last, removed never, cut to the allowance', () => {
+  const photos = [
+    { id: 'a', cullScore: 1 }, { id: 'b', rating: 3, cullScore: 1 }, { id: 'c' }, { id: 'd', cullScore: 9 },
+    { id: 'e', rating: 3, cullScore: 5 }, { id: 'f' }, { id: 'x', rating: 5, removedAt: 1 },
+  ];
+  assert.deepEqual(pickForCloud(photos).map((p) => p.id), ['e', 'b', 'd', 'a', 'c', 'f']);
+  // 498 of 500 used: only the two best go, not photos 1 and 2.
+  assert.deepEqual(pickForCloud(photos, { plan: 'basic', photosUsed: 498, balancePence: 0 }).map((p) => p.id), ['e', 'b']);
+  assert.deepEqual(pickForCloud(photos, { plan: 'basic', photosUsed: 500, balancePence: 0 }), []);
+  assert.equal(pickForCloud(photos, { plan: 'pro', photosUsed: 0, balancePence: 0 }).length, 6);
+  assert.deepEqual(cloudEditsPhotos('all', photos, { plan: 'basic', photosUsed: 499, balancePence: 0 }), ['e']);
 });

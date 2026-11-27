@@ -194,6 +194,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // A paid top-up: read the balance again once the server has credited it. Mobile app stores handle their own purchases later.
   const rereadUsage = React.useCallback(() => { sharing.usage().then((body) => setCloudUsage(usageFromServer(body, Date.now()) ?? undefined)).catch(() => undefined); }, [sharing]);
   const cloudTopUp = useCloudTopUp(rereadUsage);
+  const setCloudUsageHint = actions.setCloudUsageHint;
+  React.useEffect(() => { setCloudUsageHint?.(cloudNumbers); }, [setCloudUsageHint, cloudNumbers]);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -1738,6 +1740,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         settings={store.settings}
         cloudUsage={cloudUsage}
         cloudTopUp={cloudUsage && !isMobileShell() ? cloudTopUp : undefined}
+        cloudConsent={actions.cloudConsent && actions.setCloudConsent ? { read: actions.cloudConsent, set: (answer) => actions.setCloudConsent!(answer) } : undefined}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}
