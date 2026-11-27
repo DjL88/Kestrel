@@ -78,6 +78,17 @@ function pageRenderChosen(): boolean {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(PAGE_RENDER_KEY) === '1'; } catch { return false; }
 }
 
+/**
+ * Developer switch, off by default: let the drag worker draw the full-quality picture too, for a kind of edit it has
+ * drawn byte for byte as the page did (verifyWorker). Off because that check, on a small copy, did not hold on every
+ * machine: on CI the worker's full-size picture differed from the page's (27 Nov), and quality must never differ. So the
+ * worker draws only the quick picture while a slider is held, and the full-quality picture is always drawn on the page.
+ */
+const WORKER_FINAL_KEY = 'inflight.debug.worker-final';
+function workerFinalChosen(): boolean {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(WORKER_FINAL_KEY) === '1'; } catch { return false; }
+}
+
 /** The 16-bit pass waits until the slider has been still this long. */
 const SENSOR16_SETTLE_MS = 300;
 
@@ -334,12 +345,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     };
 
     /**
-     * The full-quality picture drawn in the drag worker (the same edit maths, its tone on the graphics card there as here,
-     * from the same framed 2,200 px picture it already holds), so letting go of a slider never holds the page for the
-     * redraw. Null when it cannot (no worker, layers or a stored AI result drawn on the page, no framed picture there yet):
-     * then it is drawn here, as before.
+     * Only with the developer switch (WORKER_FINAL_KEY, off by default): the full-quality picture drawn in the drag worker
+     * from the same framed 2,200 px picture it already holds. Null when it is off or cannot (no worker, layers or a stored
+     * AI result drawn on the page, no framed picture there yet): then it is drawn here.
      */
-    const workerCanDrawFinal = () => variant === 'full' && !dragging && prepareDrag && liveDraftSupported() && !pageRenderChosen()
+    const workerCanDrawFinal = () => variant === 'full' && !dragging && prepareDrag && liveDraftSupported() && workerFinalChosen() && !pageRenderChosen()
       && layersKey === '[]' && !frame.edit?.trueDetailAi && hasImage.current;
     const renderFinalInWorker = async (): Promise<HTMLCanvasElement | 'cancelled' | null> => {
       if (!workerCanDrawFinal()) return null;
@@ -392,6 +402,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       // Then the edit itself in the worker, from exactly these framed pixels (the same picture as drawing it here), once
       // the worker has been found to draw this kind of edit exactly as the page does.
       const signature = renderSignature(frame.edit ?? DEFAULT_EDIT);
+      // Switched off: the worker is not trusted with this kind of edit, and nothing is compared (it costs the page nothing).
+      if (baseSent && !workerFinalChosen() && workerVerdict(signature) === undefined) {
+        recordWorkerVerdict(signature, false);
+        measureStep('preview:worker-verify', performance.now(), { same: false, signature, off: true });
+      }
       if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === undefined) await verifyWorker(canvas, signature);
       if (cancelled) return;
       if (baseSent && workerCanDrawFinal() && workerVerdict(signature) === true && await baseSent) {
