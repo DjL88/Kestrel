@@ -300,6 +300,27 @@ export class Mailer {
     const cap = Math.min(this.limits.daily, hardDailyMax(this.account));
     return { day, sent, cap, account: this.account, providerLimit: providerDailyLimit(this.account), from: this.o.fromAddress, warn: sent >= Math.ceil(cap * 0.8) };
   }
+  /**
+   * Mail to the owner (a website contact message): plain text with an escaped copy as HTML, no unsubscribe link (it
+   * never goes to a customer). Counts against the daily cap like every email; the per-sender and per-recipient limits,
+   * meant for invitations and notices, would cut the owner off after a few messages, so they do not apply here.
+   */
+  async sendToOwner(m: { to: string; subject: string; text: string; replyTo?: string }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
+    const nowMs = (this.o.now ?? Date.now)();
+    const limits = { daily: this.limits.daily, perSender: Number.MAX_SAFE_INTEGER, perRecipient: Number.MAX_SAFE_INTEGER };
+    const refused = await this.o.ledger.reserve(new Date(nowMs).toISOString().slice(0, 10), 'owner:contact-form', emailHashOf(m.to), limits);
+    if (refused) return { sent: false, reason: refused };
+    const replyTo = m.replyTo ? safeReplyTo(m.replyTo) : undefined;
+    const text = m.text.replace(/\r?\n/g, '\r\n');
+    const raw = buildMessage({
+      from: { address: this.o.fromAddress, name: this.o.fromName ?? 'InFlight' }, to: m.to, subject: m.subject, text,
+      html: `<!doctype html><html lang="en-GB"><body><pre style="font-family:system-ui,sans-serif;white-space:pre-wrap">${escapeHtml(m.text)}</pre></body></html>`,
+      date: new Date(nowMs), messageIdDomain: this.o.fromAddress.split('@')[1],
+      headers: { ...(replyTo ? { 'Reply-To': `<${replyTo}>` } : {}), 'Auto-Submitted': 'auto-generated' },
+    });
+    await this.o.transport.send(this.o.fromAddress, m.to, raw);
+    return { sent: true };
+  }
   async unsubscribe(recipientHash: string) { await this.o.ledger.suppress(recipientHash, (this.o.now ?? Date.now)()); }
 
   /**
@@ -385,6 +406,26 @@ export class Mailer {
     await this.o.transport.send(this.o.fromAddress, m.to, raw);
     return { sent: true };
   }
+}
+
+/** One address for Reply-To: a valid single address with nothing that could start another header or list. */
+export function safeReplyTo(email: string): string | undefined {
+  const e = email.trim();
+  return e && !/[\r\n,;<>"\s]/.test(e) && isMailAddress(e) ? e : undefined;
+}
+
+/**
+ * A website contact-form message as the email to the owner (KCP_CONTACT_NOTIFY_TO): plain text only, nothing from
+ * the sender is ever HTML or a header except a validated Reply-To, so replying answers the visitor.
+ */
+export function contactAlertMail(m: { name: string; email: string; message: string; messageId: string }, at: Date) {
+  const name = oneLine(m.name, 100);
+  return {
+    subject: `InFlight contact: ${name}`,
+    replyTo: safeReplyTo(m.email),
+    text: [`Name: ${name}`, `Email: ${oneLine(m.email, 254)}`, `Received: ${at.toISOString()}`, `Reference: ${m.messageId}`, '', 'Message:',
+      m.message.replace(/\r\n?/g, '\n').slice(0, 10_000), '', 'This message is also kept in /admin, Messages.'].join('\n'),
+  };
 }
 
 /**

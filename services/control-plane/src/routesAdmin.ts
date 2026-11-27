@@ -347,6 +347,8 @@ export function adminRoutes(ctx: AppContext): Route[] {
         paymentsConnected: !!options.payments,
         proSubscribers,
         spend: sp && spentPence !== null ? { month, spentPence, ceilingPence: sp.ceilingPence } : null,
+        // The last website contact message that could not be emailed to the owner (it is still in Messages); null once one goes.
+        contactMailProblem: await (async () => { try { const v = JSON.parse((await store.getSetting('contact_mail_problem')) || 'null'); return v && typeof v.problem === 'string' ? { atMs: Number(v.atMs) || null, problem: v.problem } : null; } catch { return null; } })(),
       });
     },
   },

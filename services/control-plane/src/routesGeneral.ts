@@ -13,6 +13,7 @@ import { DEFAULT_MAX_JOB_MS } from './cloudJobs.ts';
 import { galleryIdFor } from './gallery.ts';
 import { SAFE_COPY_MAX_BYTES, safeCopyKey } from './safeCopy.ts';
 import { htmlLang, mailWords } from './mailText.ts';
+import { contactAlertMail } from './mailer.ts';
 import { ApiError, parseJson, send } from './http.ts';
 import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
@@ -534,7 +535,19 @@ export function generalRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.ContactRequest, req.rawBody);
       // A filled-in hidden field means a robot: answer as if it worked, store nothing.
       if (body.website) return { status: 200, body: { received: true } };
-      await store.insertContactMessage({ messageId: `msg_${randomId(12)}`, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      const messageId = `msg_${randomId(12)}`;
+      await store.insertContactMessage({ messageId, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      // Then email the owner, if set up and switched on. The message is already kept, so a refusal or a failed send
+      // loses nothing: the visitor still sees success and /admin, Today says the email did not go.
+      if (options.mailer && options.contactNotify && (await switchOn('contact-email'))) {
+        let problem: string | null = null;
+        try {
+          const mail = contactAlertMail({ name: body.name, email: body.email, message: body.message, messageId }, new Date(now()));
+          const r = await options.mailer.sendToOwner({ to: options.contactNotify.to, ...mail });
+          if (!r.sent) problem = r.reason === 'daily-limit' ? 'the daily email limit was reached' : 'the email was refused (' + r.reason + ')';
+        } catch { problem = 'sending failed'; }
+        await store.setSetting('contact_mail_problem', problem ? JSON.stringify({ atMs: now(), problem, messageId }) : '').catch(() => undefined);
+      }
       return { status: 200, body: { received: true } };
     },
   },
