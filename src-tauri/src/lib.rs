@@ -266,12 +266,21 @@ fn oauth_listen_start(state: tauri::State<'_, OauthListener>) -> Result<String, 
 /// Wait for the one redirect and return its query string (`code` and `state`, or `error`). The page checks `state`.
 #[cfg(desktop)]
 #[tauri::command]
-async fn oauth_listen_wait(state: tauri::State<'_, OauthListener>, timeout_secs: u64) -> Result<String, String> {
+async fn oauth_listen_wait(app: tauri::AppHandle, state: tauri::State<'_, OauthListener>, timeout_secs: u64) -> Result<String, String> {
     let listener = state.0.lock().map_err(|_| "Sign-in is busy. Try again.".to_string())?.take().ok_or_else(|| "No sign-in is waiting.".to_string())?;
     let timeout = std::time::Duration::from_secs(timeout_secs.clamp(10, 600));
-    tauri::async_runtime::spawn_blocking(move || oauth_loopback::wait_for_callback(&listener, timeout))
+    let result = tauri::async_runtime::spawn_blocking(move || oauth_loopback::wait_for_callback(&listener, timeout))
         .await
-        .map_err(|_| "Sign-in stopped unexpectedly.".to_string())?
+        .map_err(|_| "Sign-in stopped unexpectedly.".to_string())?;
+    // Bring InFlight back in front of the browser once the answer has arrived (not on a timeout).
+    if result.is_ok() {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+    result
 }
 
 /// Stop listening, for example when the person closes the browser tab and cancels.

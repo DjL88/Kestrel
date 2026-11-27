@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 pub const PORT: u16 = 53682;
 pub const CALLBACK_PATH: &str = "/oauth-callback";
-const PAGE: &str = "<!doctype html><html lang=\"en-GB\"><meta charset=\"utf-8\"><title>InFlight</title><body style=\"font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0\"><p>You can close this tab and go back to InFlight.</p></body></html>";
+const PAGE: &str = "<!doctype html><html lang=\"en-GB\"><meta charset=\"utf-8\"><title>InFlight</title><body style=\"font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0\"><p>You&rsquo;re signed in. You can close this tab and return to InFlight.</p><script>setTimeout(function(){try{window.close()}catch(e){}},300)</script></body></html>";
 
 /// Listen on this computer only.
 pub fn bind(port: u16) -> std::io::Result<TcpListener> {
@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(query, "code=abc&state=xyz");
         let (stray, answer) = browser.join().unwrap();
         assert!(stray.starts_with("HTTP/1.1 404"));
-        assert!(answer.starts_with("HTTP/1.1 200") && answer.contains("close this tab"));
+        assert!(answer.starts_with("HTTP/1.1 200") && answer.contains("return to InFlight"));
     }
 
     #[test]
