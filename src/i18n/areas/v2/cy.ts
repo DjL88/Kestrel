@@ -999,6 +999,10 @@ export const cy: AreaTranslation<typeof source> = {
     groupChanged: "Wedi newid",
     groupResetShort: "Ailosod",
     groupReset: (name) => `Ailosod ${name}`,
+    cvdOn: "Ymlaen",
+    cvdOff: "I ffwrdd",
+    cvdOnHint: "Mae lliwiau'n cael eu henwi mewn geiriau yma, ac mae ardaloedd coch a gwyrdd sy'n edrych yn debyg wedi'u hamlinellu a'u rhifo ar y llun.",
+    cvdOffHint: "Trowch ymlaen i gael enwau lliwiau mewn geiriau wrth olygu.",
     resetPhoto: 'Ailosod y llun',
     stopsSuffix: 'EV',
     tooltips: {

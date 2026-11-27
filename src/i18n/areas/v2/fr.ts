@@ -999,6 +999,10 @@ export const fr: AreaTranslation<typeof source> = {
     groupChanged: "Modifié",
     groupResetShort: "Réinitialiser",
     groupReset: (name) => `Réinitialiser ${name}`,
+    cvdOn: "Activé",
+    cvdOff: "Désactivé",
+    cvdOnHint: "Les couleurs sont nommées en mots ici, et les zones rouges et vertes qui se ressemblent sont entourées et numérotées sur la photo.",
+    cvdOffHint: "Activez cette option pour que les couleurs soient nommées en mots pendant la retouche.",
     resetPhoto: 'Réinitialiser la photo',
     stopsSuffix: 'IL',
     tooltips: {
