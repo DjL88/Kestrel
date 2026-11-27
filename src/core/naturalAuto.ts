@@ -242,6 +242,13 @@ function emptyScene(): SceneReport {
 }
 
 /** Choose a natural, reversible recipe for an unedited preview. Never commits anything. */
+/** In a low-key frame, a lit subject darker than this (perceptual, 0 to 1) is lifted; mid-grey is about 0.46. */
+export const LOW_KEY_DIM = 0.3;
+/** A background whose mean brightness (0 to 1) is under this after the edit is still black to the eye. */
+export const LOW_KEY_BACKGROUND = 0.1;
+/** Where that lift aims: under mid-grey, so the subject still reads as lit against the dark. */
+export const LOW_KEY_TARGET = 0.36;
+
 export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const { pixels, width, height } = input;
   const notes: string[] = [];
@@ -341,7 +348,16 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const darkThreshold = lowKey || subdued ? 0.16 : 0.37;
   const subjectDarkerThanBackground = reference === 'subject' && brightBackground;
   if (lowKey) {
+    // The dark background is the mood, and it stays dark. But the lit subject itself can still be dim: the owner's
+    // kingfisher against a black river (27 Nov 2026) got no edit at all and "looks good". A subject below about a stop
+    // and a half under mid-grey is lifted towards LOW_KEY_TARGET, never past its own highlight headroom. A near-black
+    // background barely moves under the same gain, so the mood is kept.
     gain = 1;
+    if (refMedian > 0 && refMedian < LOW_KEY_DIM) {
+      const wanted = toLinear(LOW_KEY_TARGET) / Math.max(toLinear(refMedian), 1e-4);
+      const headroom = refP98 > 0 ? toLinear(0.96) / Math.max(toLinear(refP98), 1e-4) : wanted;
+      gain = clamp(Math.min(wanted, Math.max(1, headroom)), 1, 2 ** (1.2 * EV_PER_UNIT));
+    }
   } else if (refMedian < darkThreshold && refMedian > 0) {
     const wanted = toLinear(target) / Math.max(toLinear(refMedian), 1e-4);
     const headroom = refP98 > 0 ? toLinear(0.96) / Math.max(toLinear(refP98), 1e-4) : wanted;
@@ -374,7 +390,8 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
 
   // Shadows: lift only dark areas that hold real structure, never noise or out-of-focus foliage.
   if (lowKey) {
-    notes.push('A lit subject against a dark scene: the mood is kept, so exposure and shadows stay put.');
+    notes.push(edit.exposure > 0 ? 'A lit subject against a dark scene: the subject is lifted and the dark background keeps its mood, so shadows stay put.'
+      : 'A lit subject against a dark scene: the mood is kept, so exposure and shadows stay put.');
   } else if (scene.shadowArea > 0.12) {
     if (shadowsAreNoise || subdued || scene.shadowStructured < 0.3) {
       notes.push(highIso ? 'High ISO: lifting dark areas would show grain at full size, so shadows are left alone.' :
@@ -557,7 +574,13 @@ export function assessNaturalAuto(
   if (bgPixels >= 64 && bgColourBefore / bgPixels > 0.1 && bgColourAfter / bgColourBefore / Math.max(1, bgLumBefore > 0 ? bgLumAfter / bgLumBefore : 1) > 1.12) {
     return { safe: false, reason: 'Background colours would be pushed too far' };
   }
-  if (bgCount >= 4 && bgEnergyBefore > 0 && bgEnergyAfter / bgEnergyBefore > 1.2 && (bgEnergyAfter - bgEnergyBefore) / bgCount > 0.002) {
+  // Crunchier means more local contrast in the background. On a background that is near black and STAYS near black, an
+  // exposure lift only scales what little is there with its brightness (a few bright specks of water get brighter with
+  // everything else): that is not sharpening and cannot be seen as crunch, so there the rise is measured against the
+  // lift. Anywhere the background ends up visible (dark foliage lifted into grey), the check is as strict as before.
+  const bgStaysBlack = bgPixels > 0 && bgLumAfter / bgPixels < LOW_KEY_BACKGROUND;
+  const bgLift = bgStaysBlack ? Math.max(1, bgLumBefore > 0 ? bgLumAfter / bgLumBefore : 1) : 1;
+  if (bgCount >= 4 && bgEnergyBefore > 0 && bgEnergyAfter / bgEnergyBefore / bgLift > 1.2 && (bgEnergyAfter - bgEnergyBefore * bgLift) / bgCount > 0.002) {
     return { safe: false, reason: 'The out-of-focus background would look crunchier' };
   }
   if (noisyCount >= 4 && noisyBefore > 0 && noisyAfter / noisyBefore > 1.5) {

@@ -1373,6 +1373,14 @@ export const source = {
     holdCompare: "Hold to compare",
     holdCompareHint: "Shows the photo as it was while you hold it.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Checks this photo on this device and applies a natural edit in one step. Undo takes it back.",
+    working: "Looking at this photo…",
+    states: { working: "Looking at this photo…", applied: "Auto applied.", unchanged: "Nothing changed.", unavailable: "Auto could not run." },
+    beforeAfter: "Before / After",
+    undo: "Undo",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Brought in from Lightroom",

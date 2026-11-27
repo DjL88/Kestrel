@@ -1331,6 +1331,14 @@ export const sv: AreaTranslation<typeof source> = {
     holdCompare: "Håll för att jämföra",
     holdCompareHint: "Visar fotot som det var medan du håller.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Kontrollerar det här fotot på den här enheten och gör en naturlig redigering i ett steg. Ångra tar bort den.",
+    working: "Tittar på det här fotot…",
+    states: { working: "Tittar på det här fotot…", applied: "Auto tillämpat.", unchanged: "Inget ändrades.", unavailable: "Auto kunde inte köras." },
+    beforeAfter: "Före / Efter",
+    undo: "Ångra",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Hämtat från Lightroom",

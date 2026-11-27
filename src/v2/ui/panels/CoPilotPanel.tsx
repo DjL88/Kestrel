@@ -134,7 +134,7 @@ export default function CoPilotPanel({
 
         {suggestions.length === 0 ? (
           <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-muted)]">
-            {reviewPending ? STRINGS.copilot.waitingForReview : STRINGS.copilot.noLocalSuggestions}
+            {reviewPending ? STRINGS.copilot.waitingForReview : photo.assistCritique.subjectNote || STRINGS.copilot.noLocalSuggestions}
           </p>
         ) : (
           <div className="space-y-2">

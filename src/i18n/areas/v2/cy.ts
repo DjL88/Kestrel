@@ -1331,6 +1331,14 @@ export const cy: AreaTranslation<typeof source> = {
     holdCompare: "Daliwch i gymharu",
     holdCompareHint: "Yn dangos y llun fel yr oedd tra byddwch yn dal.",
   },
+  autoEdit: {
+    label: "Awto",
+    hint: "Yn gwirio’r llun hwn ar y ddyfais hon ac yn rhoi golygiad naturiol mewn un cam. Mae Dadwneud yn ei dynnu’n ôl.",
+    working: "Yn edrych ar y llun hwn…",
+    states: { working: "Yn edrych ar y llun hwn…", applied: "Awto wedi’i roi.", unchanged: "Dim wedi newid.", unavailable: "Ni allai Awto redeg." },
+    beforeAfter: "Cyn / Wedyn",
+    undo: "Dadwneud",
+  },
   history: {
     byAuto: "Awto",
     byLightroom: "Daeth o Lightroom",

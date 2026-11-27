@@ -135,3 +135,27 @@ export function underexposedFlat(width = 160, height = 120): SyntheticScene {
 }
 
 export const REFERENCE_SCENES = [robinBrightBokeh, woodlandDarkBird, closeRobinGreen] as const;
+
+/**
+ * A lit bird against a near-black background, with a few bright specks of splash (the owner's kingfisher frame, 27 Nov
+ * 2026, without using it). `subjectLevel` is the bird's typical 8-bit level: about 50 is a dim bird that wants a lift,
+ * about 130 one that is already well lit.
+ */
+export function darkBackgroundBird(subjectLevel = 50, width = 320, height = 240): SyntheticScene {
+  return build('dark-background-bird', width, height, 41, (x, y, random) => {
+    const cx = width * 0.5, cy = height * 0.5, rx = width * 0.16, ry = height * 0.2;
+    const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+    if (d < 1) {
+      const t = feather(x, y, random, 6);
+      // Lit edges of the plumage: about a tenth of the bird is clearly brighter than the rest.
+      const lit = (x * 5 + y * 3) % 10 === 0 ? 1.9 : 1;
+      const upper = y < cy;
+      return { subject: true, rgb: upper ? [subjectLevel * 0.55 * lit + t, subjectLevel * 0.95 * lit + t, subjectLevel * 1.35 * lit + t]
+        : [subjectLevel * 1.45 * lit + t, subjectLevel * 0.9 * lit + t, subjectLevel * 0.45 * lit + t] };
+    }
+    // Splash: a few bright specks below the bird.
+    if (y > cy + ry && y < cy + ry * 1.6 && (x * 13 + y * 7) % 97 === 0) return { subject: false, rgb: [215, 222, 228] };
+    const grain = gauss(random) * 1.5;
+    return { subject: false, rgb: [7 + grain, 9 + grain, 11 + grain] };
+  });
+}

@@ -226,3 +226,46 @@ test('exposure and warmth suggestions land on the 0.1 slider steps', () => {
     for (const value of [edit.exposure, edit.warmth]) assert.equal(Math.round(value * 10) / 10, value);
   }
 });
+
+// The owner's kingfisher, 27 Nov 2026: a lit bird against a near-black river with a few specks of splash got no edit at
+// all ("looks good"). The dark background is the mood and stays, but a dim subject is lifted, and the safety checks
+// pass a plain lift of such a frame (they used to call it "crunchier" because the specks got brighter with everything else).
+test('a dim subject on a dark background is lifted, the background stays dark, and the checks accept it', async () => {
+  const { darkBackgroundBird } = await import('./syntheticScenes');
+  const { planAuto } = await import('./unifiedAuto');
+  for (const withMask of [true, false]) {
+    const scene = darkBackgroundBird(50);
+    const segmentation = withMask ? high(scene) : null;
+    const natural = naturalAuto({ pixels: scene.pixels, width: scene.width, height: scene.height, segmentation });
+    assert.equal(natural.scene.kind, 'low-key');
+    assert.ok(natural.edit.exposure >= 0.5 && natural.edit.exposure <= 1.2, `a real lift, within bounds: ${natural.edit.exposure}`);
+    assert.equal(natural.edit.shadows, 0, 'the dark background is not opened into grey');
+    assert.ok(natural.notes.some((note) => note.includes('dark background keeps its mood')));
+    const plan = planAuto({ pixels: scene.pixels, width: scene.width, height: scene.height, base: DEFAULT_EDIT, natural, segmentation, proposal: { ...DEFAULT_EDIT, ...natural.edit } });
+    assert.equal(plan.verdict.kind, 'improved', 'the lift passes the quality gate');
+    // The picture after the edit: the bird is clearly brighter, the background is still dark.
+    const after = renderRecipePreview(scene.pixels, scene.width, scene.height, plan.proposal);
+    const bird = (i: number) => scene.subject[i] === 1, background = (i: number) => scene.subject[i] === 0;
+    // With a trusted subject the full lift passes (about +19% in 8-bit levels); without one the gentler half is offered.
+    assert.ok(regionMean(after, bird) > regionMean(scene.pixels, bird) * (withMask ? 1.15 : 1.05), 'the subject is lifted');
+    assert.ok(regionMean(after, background) < 24, `the background stays dark: ${regionMean(after, background)}`);
+  }
+});
+
+test('a well-lit subject on a dark background is left exactly as it is', async () => {
+  const { darkBackgroundBird } = await import('./syntheticScenes');
+  const scene = darkBackgroundBird(130);
+  const natural = naturalAuto({ pixels: scene.pixels, width: scene.width, height: scene.height, segmentation: high(scene) });
+  assert.equal(natural.scene.kind, 'low-key');
+  assert.equal(natural.edit.exposure, 0);
+  assert.equal(natural.edit.shadows, 0);
+  assert.ok(natural.notes.some((note) => note.includes('the mood is kept')));
+});
+
+test('sharpening the out-of-focus background is still refused, with or without a lift', () => {
+  const scene = closeRobinGreen();
+  const before = renderRecipePreview(scene.pixels, scene.width, scene.height, DEFAULT_EDIT);
+  const crunchy = renderRecipePreview(scene.pixels, scene.width, scene.height, { ...DEFAULT_EDIT, exposure: 0.5, clarity: 1, sharpen: 1 });
+  const verdict = assessNaturalAuto(before, crunchy, scene.width, scene.height, high(scene));
+  assert.equal(verdict.safe, false, verdict.reason);
+});

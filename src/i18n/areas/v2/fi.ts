@@ -1332,6 +1332,14 @@ export const fi: AreaTranslation<typeof source> = {
     holdCompare: "Pidä painettuna vertaillaksesi",
     holdCompareHint: "Näyttää kuvan entisellään, kun pidät painettuna.",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Tarkistaa tämän kuvan tällä laitteella ja tekee luonnollisen muokkauksen yhdellä kerralla. Kumoa palauttaa sen.",
+    working: "Katsotaan tätä kuvaa…",
+    states: { working: "Katsotaan tätä kuvaa…", applied: "Auto käytetty.", unchanged: "Mikään ei muuttunut.", unavailable: "Autoa ei voitu ajaa." },
+    beforeAfter: "Ennen / Jälkeen",
+    undo: "Kumoa",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Tuotu Lightroomista",

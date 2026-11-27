@@ -13,6 +13,7 @@ import { captureProfileFor } from '../../../core/captureSharpen';
 import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 import ColourVisionToggle from './ColourVisionToggle';
 import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
+import AutoEditButton, { type AutoEditButtonProps } from './AutoEditButton';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -21,6 +22,8 @@ interface AdjustPanelProps {
   cvdGuidance: boolean;
   /** Turns Colour-vision support on or off here; it is the same setting as Settings → Assistance. */
   onToggleCvdGuidance?: () => void;
+  /** One-click Auto at the top of the panel. Absent: no button (a locked photo, or no engine). */
+  autoEdit?: Omit<AutoEditButtonProps, 'photoId'>;
   /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. */
   colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
   hideReadouts: boolean;
@@ -138,6 +141,7 @@ export default function AdjustPanel({
   cvdGuidance,
   onToggleCvdGuidance,
   colourVerdict,
+  autoEdit,
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
@@ -180,6 +184,7 @@ export default function AdjustPanel({
 
   return (
     <div className="space-y-5">
+      {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
       {onToggleCvdGuidance && (
         <div className="space-y-2">
           <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
