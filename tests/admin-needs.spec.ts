@@ -29,7 +29,7 @@ async function signIn(page: Page, extra: Record<string, unknown> = {}) {
       '/v1/admin/licensees': { licences: [] }, '/v1/admin/usage': { accounts: [] },
       '/v1/admin/payments': { connected: false, transactions: [] }, '/v1/admin/messages': { messages: [] },
       '/v1/admin/pricing/review': { review: null }, '/v1/admin/audit': { entries: [] }, '/v1/admin/flags': { flags: {} },
-      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { checks: null, cases: [], notices: [] },
+      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { notices: [] },
       ...extra,
       '/v1/admin/balance-refunds': { refunds },
     };

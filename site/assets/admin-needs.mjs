@@ -24,14 +24,6 @@ export function needsYou(d, nowMs = Date.now()) {
 
   if (d.safety === null) unknown.push('safety');
   else if (d.safety) {
-    const cases = d.safety.cases ?? [];
-    const toReport = cases.filter(k => k.kind === 'hash-match' && (k.status !== 'reported' || k.nca === 'manual'));
-    const failed = toReport.filter(k => k.ncmec?.error);
-    if (toReport.length) add('safety-report', plural(toReport.length, 'hash match') + ' to report',
-      failed.length ? 'The automatic CyberTipline report failed for ' + failed.length + '. Send it again or record a report made by hand.'
-        : 'Send the report, or record that it was made by hand.', 'safety', true);
-    const held = cases.filter(k => k.kind === 'ai-flag' && k.status === 'review');
-    if (held.length) add('safety-held', plural(held.length, 'held picture') + ' to decide', 'Release it or keep it held, from its details only.', 'safety');
     const open = (d.safety.notices ?? []).filter(n => n.status === 'open');
     const urgent = open.some(n => n.urgent);
     if (open.length) add('safety-notices', plural(open.length, 'gallery report') + ' to answer' + (urgent ? ' (urgent)' : ''),

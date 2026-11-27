@@ -806,39 +806,10 @@ async function loadSafety() {
   try { s = await api('admin/safety'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.safety = null;
-    $('safety-checks').textContent = 'Safety checks are not set up on this server yet.'; return;
+    $('safety-checks').textContent = 'Reports are not set up on this server yet.'; return;
   }
   snapshot.safety = s;
-  const c = s.checks;
-  $('safety-checks').textContent = !c ? 'Safety is not set up on this server.'
-    : 'Hash checks: ' + (c.hashMatchers.length ? c.hashMatchers.join(', ') : 'none') + '. AI check: ' + (c.classifier ?? 'none') + '. CyberTipline connection: ' + (c.reporter ? 'set up' : 'not yet (report by hand)') + '.'
-      + (s.publishingRefused ? ' Publishing to galleries and the cloud is refused until a hash check is set up.' : '');
-  $('safety-cases').tBodies[0].replaceChildren(...s.cases.map(k => {
-    const row = document.createElement('tr');
-    cell(row, when(k.atMs));
-    cell(row, badge(k.kind === 'hash-match' ? 'Hash match' : 'AI flag', k.kind === 'hash-match' ? 'bad' : undefined));
-    cell(row, (k.scope === 'gallery' ? 'Gallery ' + (k.galleryId ?? '').slice(0, 8) : 'Cloud project ' + k.projectId.slice(0, 8)) + ' · ' + k.variant + (k.country ? ' · ' + k.country : ''));
-    cell(row, k.detection.checker + (k.detection.labels ? ' (' + Object.entries(k.detection.labels).map(([a, b]) => a + ' ' + b.toLowerCase()).join(', ') + ')' : k.detection.source ? ' (' + k.detection.source + ')' : ''));
-    cell(row, k.status + (k.appeal ? ' · appealed: ' + k.appeal.text : '') + (k.decision ? ' · ' + k.decision.reason : ''));
-    cell(row, k.kind === 'hash-match' ? 'NCMEC ' + (k.ncmec?.reportId ?? (k.ncmec?.error ? 'failed: ' + k.ncmec.error : 'pending')) + ' · NCA ' + k.nca : 'Never reported');
-    const actions = el('div', undefined, 'row');
-    const done = async message => { await Promise.all([loadSafety(), loadAudit()]); say(message); };
-    if (k.kind === 'ai-flag' && k.status === 'review') {
-      actions.append(
-        button('Release', 'Release case ' + k.caseId, '', async () => { const reason = askReason('Why is it fine to share?'); if (reason) { await api('admin/safety/cases/' + k.caseId + '/decide', { outcome: 'released', reason }); await done('Released.'); } }),
-        button('Keep held', 'Uphold case ' + k.caseId, 'danger', async () => { const reason = askReason('Why does it stay held? The uploader sees this.'); if (reason) { await api('admin/safety/cases/' + k.caseId + '/decide', { outcome: 'upheld', reason }); await done('Kept held.'); } }));
-    }
-    if (k.kind === 'hash-match' && k.status !== 'reported') {
-      actions.append(
-        button('Send report', 'Send CyberTipline report for ' + k.caseId, '', async () => { await api('admin/safety/cases/' + k.caseId + '/report', {}); await done('Reported to NCMEC.'); }),
-        button('Record manual report', 'Record a manual report for ' + k.caseId, '', async () => { const id = prompt('NCMEC CyberTipline report number (leave empty if none yet)'); if (id === null) return; const nca = k.nca === 'manual' && confirm('Has the NCA report been made too?'); await api('admin/safety/cases/' + k.caseId + '/manual-report', { ...(id.trim() ? { ncmecReportId: id.trim() } : {}), ncaDone: nca }); await done('Recorded.'); }));
-    }
-    if (k.kind === 'hash-match' && k.status === 'reported' && k.nca === 'manual') {
-      actions.append(button('NCA report made', 'Record NCA report for ' + k.caseId, '', async () => { await api('admin/safety/cases/' + k.caseId + '/manual-report', { ncaDone: true }); await done('Recorded.'); }));
-    }
-    cell(row, actions);
-    return row;
-  }));
+  $('safety-checks').textContent = '';
   $('safety-notices').tBodies[0].replaceChildren(...s.notices.map(n => {
     const row = document.createElement('tr');
     cell(row, when(n.atMs));
