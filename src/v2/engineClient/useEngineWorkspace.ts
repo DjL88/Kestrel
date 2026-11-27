@@ -443,6 +443,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // RAW, Auto-pilot applied nothing and said nothing). The last dozen photos are kept.
   type AutoSaid = { state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string; mode?: 'copilot' | 'autopilot'; at?: number; appliedAt?: number };
   const [autoStatus, setAutoStatus] = useState<Record<string, AutoSaid>>({});
+  // Why the last Denoise changed nothing, per photo: the panel offers "Denoise anyway" or says to wait for the develop.
+  const [denoiseStatus, setDenoiseStatus] = useState<Record<string, { state: 'no-visible-noise' | 'waiting-develop'; text: string }>>({});
+  const sayDenoise = useCallback((photoId: string, status: { state: 'no-visible-noise' | 'waiting-develop'; text: string } | null) => {
+    setDenoiseStatus((current) => {
+      const { [photoId]: _gone, ...rest } = current;
+      return status ? { ...rest, [photoId]: status } : rest;
+    });
+  }, []);
   const sayAuto = useCallback((photoId: string, state: AutoSaid['state'], text: string, extra: Pick<AutoSaid, 'mode' | 'appliedAt'> = {}) => {
     setAutoStatus((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([id]) => id !== photoId).slice(-11)), [photoId]: { state, text, at: Date.now(), ...extra } }));
   }, []);
@@ -1724,10 +1732,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // The person pressed "Denoise this photo". Signed in, online and with the cloud feature on, that press is the consent to
   // upload a working-size copy for this one job; otherwise, or if the cloud fails or does not verify, it runs on this device.
   const denoiseInFlight = useRef(new Set<string>());
-  const denoisePhoto = useCallback((photoId: string) => {
+  const denoisePhoto = useCallback((photoId: string, options?: { anyway?: boolean }) => {
     const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId);
     if (!frame || denoiseInFlight.current.has(photoId)) return;
     denoiseInFlight.current.add(photoId);
+    sayDenoise(photoId, null);
     // Existing explicit cloud opt-in is preserved. A local fallback is labelled
     // with the runner that actually returned, never as a successful cloud job.
     const connection = can('cloudAssist') ? accountConnection() : null;
@@ -1743,9 +1752,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ctx.stage(engineText.workspace.denoiseStage);
         const outcome = await runV2Denoise(frame, provider.current!,
           connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal,
-          (done, total, label) => ctx.reportProgress(done, total, label));
+          (done, total, label) => ctx.reportProgress(done, total, label),
+          // The Tasks row says what was measured and the strength chosen, as soon as both are known.
+          { anyway: options?.anyway, onMeasured: text => ctx.stage(text) });
         ctx.checkCancelled();
         if (!outcome) throw new Error(engineText.workspace.denoiseNoSource);
+        if (outcome.notDeveloped) {
+          // Not a failure: the RAW is not developed yet. Say so plainly and let the panel show "Wait for develop".
+          ctx.commitIfCurrent(() => { sayDenoise(photoId, { state: 'waiting-develop', text: outcome.notes.join(' ') }); setNotice(outcome.notes.join(' ')); });
+          return;
+        }
         ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
         const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) &&
           framingKey(current.framing) === framingKey(frame.framing);
@@ -1765,15 +1781,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           }));
         }
         // A main-thread fallback is always said, even on success, so a pause is never unexplained.
-        ctx.commitIfCurrent(() => setNotice(outcome.verified
-          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
-          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        ctx.commitIfCurrent(() => {
+          // A photo with no visible noise keeps its answer in the panel, with "Denoise anyway" beside it.
+          if (outcome.noVisibleNoise) sayDenoise(photoId, { state: 'no-visible-noise', text: outcome.notes.filter(Boolean).join(' ') });
+          setNotice(outcome.verified
+            ? [outcome.anywayNote, outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].filter(Boolean).join(' ')
+            : engineText.denoise.leftAsItWas(outcome.notes.filter(Boolean).join(' ')));
+        });
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
     }).catch(reason => setNotice(reason instanceof Error ? reason.message : engineText.workspace.denoiseNotQueued))
       .finally(() => { denoiseInFlight.current.delete(photoId); });
-  }, [can, editFrames]);
+  }, [can, editFrames, sayDenoise]);
 
   // Cloud edit settings (x-std-cloud-recipe), a preview that is off by default. Preparing shows what would be sent and
   // its size and sends nothing; the person's press of Send is the consent for that one upload. The settings that come
@@ -4368,6 +4388,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
     ...(activeFrame && autoStatus[activeFrame.id] ? { autoStatus: { photoId: activeFrame.id, ...autoStatus[activeFrame.id] } } : {}),
+    ...(activeFrame && denoiseStatus[activeFrame.id] ? { denoiseStatus: { photoId: activeFrame.id, ...denoiseStatus[activeFrame.id] } } : {}),
     ...(cloudRecipeOn && state ? { cloudEdits: { choice: cloudEditsChoice, covered: cloudEditsPlan.covered.length, toDo: cloudEditsPlan.toDo.length, running: cloudEditsRunning } } : {}),
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
@@ -4411,7 +4432,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, autoStatus, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, autoStatus, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, denoiseStatus, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
 
   return { store, actions };
 }

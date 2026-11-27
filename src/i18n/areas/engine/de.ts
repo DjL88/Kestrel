@@ -55,6 +55,12 @@ export const de: AreaTranslation<typeof source> = {
     learnedNoWorker: "Die gelernte Entrauschung konnte auf diesem Gerät nicht im Hintergrund laufen, daher wurde nur die eingebaute Entrauschung verglichen.",
     learnedLostDetail: "In voller Größe hat die gelernte Rauschreduzierung echte Details am Motiv weggeglättet, daher wurde stattdessen die eingebaute Rauschreduzierung verwendet.",
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
+    measured: (m, n, iso) => `Gemessenes Rauschen: ${m}${iso ? ` bei ISO ${iso}` : ''}. Sichtbar wird es ab ${n}.`,
+    anyway: (m, s, iso) => `Trotzdem entrauscht, mit sanfter Stärke (${s}). Gemessenes Rauschen: ${m}${iso ? ` bei ISO ${iso}` : ''}, unter dem Wert, ab dem es sichtbar wird.`,
+    notDeveloped: (f) => `${f} wurde noch nicht aus den Sensordaten des RAW entwickelt, daher lässt sich das Rauschen nicht messen. Entwickeln Sie es zuerst in voller Größe oder warten Sie, bis eine laufende Entwicklung fertig ist, und starten Sie das Entrauschen dann erneut. Es wurde nichts geändert.`,
+    wholeFrameLarge: "Das Motiv füllte zu viel vom Bild, um es auszulassen, daher wurde das ganze Bild gelesen.",
+    wholeFrameNoSubject: "Es wurde kein Motiv gefunden, daher wurde das ganze Bild gelesen, einschließlich des Motivs.",
+    measuredStage: (m, s) => `Rauschen gemessen: ${m}, Stärke ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight konnte die Vorlage auf diesem Gerät nicht speichern.',

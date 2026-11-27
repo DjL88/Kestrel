@@ -806,6 +806,11 @@ export interface WorkspaceStore {
     /** The time of the edit step Co-pilot or Auto-pilot recorded, so the banner can tell its step from a later one. */
     appliedAt?: number;
   };
+  /**
+   * Why the last Denoise left the open photo as it was, in the person's words: no visible noise found (the panel then offers
+   * "Denoise anyway") or a RAW not developed yet (the panel says to wait for the develop). Absent otherwise.
+   */
+  denoiseStatus?: { photoId: string; state: 'no-visible-noise' | 'waiting-develop'; text: string };
   /** Cloud edits for the open project. Absent while cloud edit settings are off or no project is open. */
   cloudEdits?: { choice: import('../../core/cloudEditsChoice').CloudEditsChoice; covered: number; toDo: number; running: boolean };
   features: Record<FeatureKey, boolean>;
@@ -1057,8 +1062,8 @@ export interface WorkspaceActions {
 
   // Editing & Looks
   updateRecipe: (photoId: string, patch: Partial<EditRecipe>, label?: string) => void;
-  /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
-  denoisePhoto: (photoId: string) => void;
+  /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. `anyway` denoises a photo whose noise read as not visible, at a gentle strength, through the same checks. */
+  denoisePhoto: (photoId: string, options?: { anyway?: boolean }) => void;
   applyLook: (photoId: string, lookId: string) => void;
   /** Your own looks, kept on this device. Each returns false (with a notice) when it was refused. */
   saveUserLook?: (photoId: string, name: string) => boolean;

@@ -921,6 +921,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               hideReadouts={store.settings.calmReadouts}
               onUpdateRecipe={actions.updateRecipe}
               onDenoise={actions.denoisePhoto}
+              denoiseStatus={store.denoiseStatus}
               trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
               cloudEnabled={store.features.cloudAssist}
               onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}

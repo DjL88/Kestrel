@@ -55,6 +55,12 @@ export const it: AreaTranslation<typeof source> = {
     learnedNoWorker: "La riduzione del rumore appresa non ha potuto funzionare in background su questo dispositivo, quindi è stata confrontata solo quella integrata.",
     learnedLostDetail: "A grandezza piena, la riduzione del rumore appresa ha smussato dettagli reali del soggetto, quindi è stata usata la riduzione del rumore integrata.",
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
+    measured: (m, n, iso) => `Rumore misurato: ${m}${iso ? ` a ISO ${iso}` : ''}. Inizia a vedersi da ${n}.`,
+    anyway: (m, s, iso) => `Rumore ridotto comunque, con una forza delicata (${s}). Rumore misurato: ${m}${iso ? ` a ISO ${iso}` : ''}, sotto il livello da cui inizia a vedersi.`,
+    notDeveloped: (f) => `${f} non è ancora stata sviluppata dai dati del sensore del RAW, quindi il suo rumore non può essere misurato. Sviluppala prima a dimensione intera, oppure aspetta la fine dello sviluppo in corso, poi riesegui la riduzione del rumore. Non è stato cambiato nulla.`,
+    wholeFrameLarge: "Il soggetto occupava troppo spazio nell’inquadratura per essere escluso, quindi è stata letta l’intera immagine.",
+    wholeFrameNoSubject: "Non è stato trovato alcun soggetto, quindi è stata letta l’intera immagine, soggetto compreso.",
+    measuredStage: (m, s) => `Rumore misurato ${m}, forza ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight non è riuscito a salvare il modello su questo dispositivo.',

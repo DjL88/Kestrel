@@ -55,6 +55,12 @@ export const fi: AreaTranslation<typeof source> = {
     learnedNoWorker: "Opittu kohinanpoisto ei voinut toimia taustalla tällä laitteella, joten vain sisäänrakennettua kohinanpoistoa verrattiin.",
     learnedLostDetail: "Täysikokoisena opittu kohinanpoisto silotti kohteen todellisia yksityiskohtia, joten käytettiin sisäänrakennettua kohinanpoistoa.",
     leftAsItWas: (notes) => `Jätettiin ennalleen. ${notes}`,
+    measured: (m, n, iso) => `Mitattu kohina: ${m}${iso ? ` ISO ${iso} -arvolla` : ''}. Se alkaa näkyä arvosta ${n}.`,
+    anyway: (m, s, iso) => `Kohina poistettiin silti lempeällä voimakkuudella (${s}). Mitattu kohina: ${m}${iso ? ` ISO ${iso} -arvolla` : ''}, alle rajan, josta se alkaa näkyä.`,
+    notDeveloped: (f) => `Kuvaa ${f} ei ole vielä kehitetty RAW-tiedoston kennotiedoista, joten sen kohinaa ei voi mitata. Kehitä se ensin täysikokoisena tai odota, kunnes käynnissä oleva kehitys on valmis, ja suorita kohinanpoisto uudelleen. Mitään ei muutettu.`,
+    wholeFrameLarge: "Kohde täytti kuvasta liikaa jätettäväksi pois, joten luettiin koko kuva.",
+    wholeFrameNoSubject: "Kohdetta ei löytynyt, joten luettiin koko kuva kohde mukaan lukien.",
+    measuredStage: (m, s) => `Kohina mitattu ${m}, voimakkuus ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight ei voinut tallentaa mallia tälle laitteelle.',
