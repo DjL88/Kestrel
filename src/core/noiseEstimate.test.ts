@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { estimateNoiseSigma, luminanceStrengthFor, VISIBLE_NOISE_SIGMA } from './noiseEstimate';
+import { anywayLuminanceStrength, ANYWAY_LUMINANCE_STRENGTH, estimateNoiseSigma, luminanceStrengthFor, measureBackgroundNoise, MIN_BACKGROUND_BLOCKS, VISIBLE_NOISE_SIGMA } from './noiseEstimate';
 
 /** Seeded Gaussian noise (Box-Muller) on a picture made by `base`. */
 function picture(width: number, height: number, sigma: number, base: (x: number, y: number) => number, seed = 7): Uint8ClampedArray {
@@ -79,4 +79,66 @@ test('a high ISO still gets a gentle denoise when the estimate reads clean, and 
   assert.equal(luminanceStrengthFor(0.3), 0);
   assert.ok(luminanceStrengthFor(0.3, 3200) > 0);
   assert.equal(luminanceStrengthFor(null, 6400), 0, 'no evidence is still no denoise');
+});
+
+/** A centred "subject" box covering `share` of each side, with its own noise, on a background with its own. */
+function withSubject(size: number, share: number, subjectSigma: number, backgroundSigma: number, subjectBase: (x: number, y: number) => number = () => 120) {
+  const background = picture(size, size, backgroundSigma, () => 120, 31);
+  const subject = picture(size, size, subjectSigma, subjectBase, 32);
+  const exclude = new Uint8Array(size * size);
+  const lo = Math.floor(size * (1 - share) / 2), hi = Math.ceil(size * (1 + share) / 2);
+  for (let y = lo; y < hi; y += 1) for (let x = lo; x < hi; x += 1) {
+    const i = y * size + x;
+    exclude[i] = 1;
+    for (let c = 0; c < 3; c += 1) background[i * 4 + c] = subject[i * 4 + c];
+  }
+  return { rgba: background, exclude };
+}
+
+test('the background sets the reading when a clean, sharp subject fills most of the frame', () => {
+  // Subject 80% of each side (64% of the area), clean; noisy background around it. Without the mask the clean subject's
+  // blocks are the flattest and the photo reads as clean.
+  const { rgba, exclude } = withSubject(512, 0.8, 0.3, 6);
+  const blind = measureBackgroundNoise(rgba, 512, 512);
+  assert.ok(blind.sigma! < VISIBLE_NOISE_SIGMA, `without the subject mask it reads ${blind.sigma!.toFixed(2)}`);
+  const masked = measureBackgroundNoise(rgba, 512, 512, exclude);
+  assert.equal(masked.subjectLeftOut, true);
+  assert.ok(masked.subjectBlocks > 0);
+  assert.ok(Math.abs(masked.sigma! - 6) / 6 < 0.25, `background noise 6, measured ${masked.sigma!.toFixed(2)}`);
+  assert.ok(luminanceStrengthFor(masked.sigma) > 0);
+});
+
+test('a busy textured subject is left out and does not inflate a clean background', () => {
+  const { rgba, exclude } = withSubject(512, 0.5, 0, 0.3, (x, y) => 120 + 70 * Math.sin(x * 1.9) * Math.cos(y * 1.7));
+  const masked = measureBackgroundNoise(rgba, 512, 512, exclude);
+  assert.equal(masked.subjectLeftOut, true);
+  assert.ok(masked.sigma! < VISIBLE_NOISE_SIGMA, `clean background read as ${masked.sigma!.toFixed(2)}`);
+});
+
+test('a clean frame stays clean with the subject left out, and the same reading comes with no mask', () => {
+  const { rgba, exclude } = withSubject(384, 0.4, 0.2, 0.2);
+  assert.ok(measureBackgroundNoise(rgba, 384, 384, exclude).sigma! < VISIBLE_NOISE_SIGMA);
+  assert.equal(measureBackgroundNoise(rgba, 384, 384).sigma, estimateNoiseSigma(rgba, 384, 384));
+});
+
+test('a subject that fills nearly the whole frame falls back to reading everything, and says so', () => {
+  const { rgba, exclude } = withSubject(256, 0.98, 5, 5);
+  const result = measureBackgroundNoise(rgba, 256, 256, exclude);
+  assert.equal(result.subjectLeftOut, false);
+  assert.ok(result.blocks >= MIN_BACKGROUND_BLOCKS, 'the fallback reads the blocks of the whole frame');
+  assert.ok(Math.abs(result.sigma! - 5) / 5 < 0.25);
+});
+
+test('a mask of the wrong size is ignored rather than trusted', () => {
+  const { rgba } = withSubject(256, 0.5, 0.3, 6);
+  const result = measureBackgroundNoise(rgba, 256, 256, new Uint8Array(10).fill(1));
+  assert.equal(result.subjectLeftOut, false);
+  assert.ok(result.sigma! > 0);
+});
+
+test('"Denoise anyway" is gentle, never below the default, and never stronger than the measured need', () => {
+  assert.equal(anywayLuminanceStrength(0.4, 100), ANYWAY_LUMINANCE_STRENGTH);
+  assert.equal(anywayLuminanceStrength(null), ANYWAY_LUMINANCE_STRENGTH);
+  assert.equal(anywayLuminanceStrength(8), luminanceStrengthFor(8));
+  assert.ok(ANYWAY_LUMINANCE_STRENGTH <= 0.5);
 });

@@ -15,17 +15,48 @@ const BLOCK = 16;
 const KERNEL_SCALE = Math.sqrt(Math.PI / 2) / 6;
 
 export function estimateNoiseSigma(rgba: Uint8ClampedArray, width: number, height: number): number | null {
-  if (width < BLOCK + 2 || height < BLOCK + 2 || rgba.length < width * height * 4) return null;
+  return measureBackgroundNoise(rgba, width, height).sigma;
+}
+
+/** What a noise reading was based on, so the person can be told plainly what was (and was not) measured. */
+export interface NoiseMeasurement {
+  /** Luminance noise, standard deviation on a 0-255 scale; null when there was too little to measure. */
+  sigma: number | null;
+  /** 16x16 blocks that were measured. */
+  blocks: number;
+  /** Blocks left out because they touched the subject. */
+  subjectBlocks: number;
+  /** True when the subject was left out of the reading. False when no subject was given, or it filled too much of the
+   * frame to leave enough background, and the whole frame was read instead. */
+  subjectLeftOut: boolean;
+}
+
+/** Fewest background blocks worth a reading; fewer than this and the subject's blocks are read too. */
+export const MIN_BACKGROUND_BLOCKS = 24;
+
+/**
+ * Noise measured from the flattest parts of the whole frame, leaving out the subject when it is given. The subject is
+ * where texture (feathers, fur) fools the estimator, and where noise has often been reduced already in camera or by
+ * the sharpening that follows; the background is where noise shows. `exclude` has one byte per pixel (non-zero = subject)
+ * for the same width and height as `rgba`; a block touching any such pixel is left out. When that leaves under
+ * MIN_BACKGROUND_BLOCKS blocks, the whole frame is read as before and `subjectLeftOut` says so. Measures, never edits.
+ */
+export function measureBackgroundNoise(rgba: Uint8ClampedArray, width: number, height: number, exclude?: Uint8Array): NoiseMeasurement {
+  const none: NoiseMeasurement = { sigma: null, blocks: 0, subjectBlocks: 0, subjectLeftOut: false };
+  if (width < BLOCK + 2 || height < BLOCK + 2 || rgba.length < width * height * 4) return none;
+  const usable = exclude && exclude.length >= width * height ? exclude : undefined;
   const luma = new Float32Array(width * height);
   for (let i = 0; i < luma.length; i += 1) luma[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
-  const blocks: { sigma: number; band: number }[] = [];
+  const blocks: { sigma: number; band: number; subject: boolean }[] = [];
   for (let by = 1; by + BLOCK < height - 1; by += BLOCK) {
     for (let bx = 1; bx + BLOCK < width - 1; bx += BLOCK) {
       let sum = 0;
       let clipped = 0;
+      let subject = false;
       for (let y = by; y < by + BLOCK; y += 1) {
         for (let x = bx; x < bx + BLOCK; x += 1) {
           const i = y * width + x;
+          if (usable && usable[i]) subject = true;
           const c = luma[i];
           // Clipped highlights and crushed shadows hide noise; such blocks would read as falsely clean.
           if (c < 4 || c > 251) clipped += 1;
@@ -38,10 +69,19 @@ export function estimateNoiseSigma(rgba: Uint8ClampedArray, width: number, heigh
       if (clipped > (BLOCK * BLOCK) / 4) continue;
       let mean = 0;
       for (let y = by; y < by + BLOCK; y += 1) for (let x = bx; x < bx + BLOCK; x += 1) mean += luma[y * width + x];
-      blocks.push({ sigma: (KERNEL_SCALE * sum) / (BLOCK * BLOCK), band: bandOf(mean / (BLOCK * BLOCK)) });
+      blocks.push({ sigma: (KERNEL_SCALE * sum) / (BLOCK * BLOCK), band: bandOf(mean / (BLOCK * BLOCK)), subject });
     }
   }
-  if (blocks.length < 4) return null;
+  const subjectBlocks = blocks.filter((block) => block.subject).length;
+  const background = blocks.filter((block) => !block.subject);
+  const leaveOut = subjectBlocks > 0 && background.length >= MIN_BACKGROUND_BLOCKS;
+  const used = leaveOut ? background : blocks;
+  if (used.length < 4) return { ...none, blocks: used.length, subjectBlocks };
+  return { sigma: sigmaOfBlocks(used), blocks: used.length, subjectBlocks, subjectLeftOut: leaveOut };
+}
+
+/** The noisiest tonal band that covers enough of the picture, from each band's flattest blocks. */
+function sigmaOfBlocks(blocks: { sigma: number; band: number }[]): number {
   const flattest = (list: number[]) => { list.sort((a, b) => a - b); return list[Math.floor(list.length * 0.2)]; };
   // A band counts when it covers enough of the picture to be seen, so a few odd blocks never decide.
   const enough = Math.max(MIN_BAND_BLOCKS, Math.ceil(blocks.length * MIN_BAND_SHARE));
@@ -78,4 +118,14 @@ export function luminanceStrengthFor(sigma: number | null, iso?: number): number
   if (sigma === null || !Number.isFinite(sigma)) return 0;
   if (sigma < VISIBLE_NOISE_SIGMA) return typeof iso === 'number' && iso >= HIGH_ISO_FLOOR ? HIGH_ISO_MIN_STRENGTH : 0;
   return Math.min(1.6, Math.round((sigma - VISIBLE_NOISE_SIGMA + 0.6) * 0.3 * 100) / 100);
+}
+
+/** "Denoise anyway": the gentle luminance strength used when the person asks for denoise on a photo whose noise read as not visible. */
+export const ANYWAY_LUMINANCE_STRENGTH = 0.3;
+/** ...and the gentle overall strength it asks the verified recipe for (the same 0 to 2 range as `PhotoEdit.denoise`). */
+export const ANYWAY_DENOISE_STRENGTH = 0.4;
+
+/** Luminance strength for "Denoise anyway": the measured need when there is one, never below the gentle default. */
+export function anywayLuminanceStrength(sigma: number | null, iso?: number): number {
+  return Math.max(ANYWAY_LUMINANCE_STRENGTH, luminanceStrengthFor(sigma, iso));
 }
