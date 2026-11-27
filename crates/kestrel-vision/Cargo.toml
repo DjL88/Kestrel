@@ -9,7 +9,10 @@ description = "Runs a pinned, licensed local vision-language model (SmolVLM2) on
 sha2 = "0.10"
 anyhow = "1.0.104"
 image = "0.25.10"
-ort = "2.0.0-rc.15"
+# The ONNX Runtime 1.23 API (ort's own default asks for 1.31): 1.23.2 is the last release Microsoft ships for Intel Macs,
+# which the universal Mac app links (scripts/macos/fetch-onnxruntime.sh). Windows and Linux keep the downloaded
+# prebuilt runtime (a newer runtime serves the older API). Same defaults otherwise.
+ort = { version = "2.0.0-rc.15", default-features = false, features = ["std", "ndarray", "tracing", "download-binaries", "tls-native", "copy-dylibs", "api-23"] }
 serde_json = "1.0.154"
 tokenizers = { version = "0.23.2", default-features = false, features = ["onig"] }
 memory-stats = "1"
