@@ -824,6 +824,11 @@ export const source = {
     looksHint: 'Hover over a style to preview it on your photo.',
     lightToneHeading: 'Light & Tone',
     colourHeading: 'Colour & Clarity',
+    groupColour: "Colour",
+    groupDetail: "Detail",
+    groupChanged: "Changed",
+    groupResetShort: "Reset",
+    groupReset: (name: string) => `Reset ${name}`,
     resetPhoto: 'Reset photo',
     stopsSuffix: 'EV',
     tooltips: {

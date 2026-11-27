@@ -983,6 +983,11 @@ export const de: AreaTranslation<typeof source> = {
     looksHint: 'Bewegen Sie den Zeiger über einen Stil, um ihn in der Vorschau auf Ihrem Foto zu sehen.',
     lightToneHeading: 'Licht & Tonwerte',
     colourHeading: 'Farbe & Klarheit',
+    groupColour: "Farbe",
+    groupDetail: "Details",
+    groupChanged: "Geändert",
+    groupResetShort: "Zurücksetzen",
+    groupReset: (name) => `${name} zurücksetzen`,
     resetPhoto: 'Foto zurücksetzen',
     stopsSuffix: 'LW',
     tooltips: {

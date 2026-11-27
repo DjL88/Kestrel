@@ -983,6 +983,11 @@ export const sv: AreaTranslation<typeof source> = {
     looksHint: 'Håll muspekaren över en stil för att förhandsgranska den på ditt foto.',
     lightToneHeading: 'Ljus och ton',
     colourHeading: 'Färg och klarhet',
+    groupColour: "Färg",
+    groupDetail: "Detaljer",
+    groupChanged: "Ändrad",
+    groupResetShort: "Återställ",
+    groupReset: (name) => `Återställ ${name}`,
     resetPhoto: 'Återställ foto',
     stopsSuffix: 'EV',
     tooltips: {

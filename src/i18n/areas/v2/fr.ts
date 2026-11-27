@@ -983,6 +983,11 @@ export const fr: AreaTranslation<typeof source> = {
     looksHint: 'Survolez un style pour le voir sur votre photo.',
     lightToneHeading: 'Lumière et tonalité',
     colourHeading: 'Couleur et clarté',
+    groupColour: "Couleur",
+    groupDetail: "Détails",
+    groupChanged: "Modifié",
+    groupResetShort: "Réinitialiser",
+    groupReset: (name) => `Réinitialiser ${name}`,
     resetPhoto: 'Réinitialiser la photo',
     stopsSuffix: 'IL',
     tooltips: {

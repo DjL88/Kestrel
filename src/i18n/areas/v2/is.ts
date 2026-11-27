@@ -983,6 +983,11 @@ export const is: AreaTranslation<typeof source> = {
     looksHint: 'Haltu bendlinum yfir myndstíl til að sjá hann á myndinni þinni.',
     lightToneHeading: 'Birta og tónn',
     colourHeading: 'Litur og skýrleiki',
+    groupColour: "Litur",
+    groupDetail: "Smáatriði",
+    groupChanged: "Breytt",
+    groupResetShort: "Endurstilla",
+    groupReset: (name) => `Endurstilla ${name}`,
     resetPhoto: 'Endurstilla mynd',
     stopsSuffix: 'EV',
     tooltips: {

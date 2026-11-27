@@ -983,6 +983,11 @@ export const cy: AreaTranslation<typeof source> = {
     looksHint: 'Hofranwch dros arddull i’w gweld ar eich llun.',
     lightToneHeading: 'Golau a thôn',
     colourHeading: 'Lliw ac eglurder',
+    groupColour: "Lliw",
+    groupDetail: "Manylder",
+    groupChanged: "Wedi newid",
+    groupResetShort: "Ailosod",
+    groupReset: (name) => `Ailosod ${name}`,
     resetPhoto: 'Ailosod y llun',
     stopsSuffix: 'EV',
     tooltips: {

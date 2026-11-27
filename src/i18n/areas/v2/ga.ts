@@ -986,6 +986,11 @@ export const ga: AreaTranslation<typeof source> = {
     looksHint: 'Coinnigh an pointeoir os cionn stíle chun í a fheiceáil beo ar do ghrianghraf.',
     lightToneHeading: 'Solas agus ton',
     colourHeading: 'Dath agus soiléire',
+    groupColour: "Dath",
+    groupDetail: "Mionsonraí",
+    groupChanged: "Athraithe",
+    groupResetShort: "Athshocraigh",
+    groupReset: (name) => `Athshocraigh ${name}`,
     resetPhoto: 'Athshocraigh an grianghraf',
     stopsSuffix: 'EV',
     tooltips: {

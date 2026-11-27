@@ -984,6 +984,11 @@ export const gd: AreaTranslation<typeof source> = {
     looksHint: 'Cùm an tomhaire os cionn stoidhle gus a faicinn air an dealbh agad.',
     lightToneHeading: 'Solas is tòna',
     colourHeading: 'Dath is soilleireachd',
+    groupColour: "Dath",
+    groupDetail: "Mion-fhiosrachadh",
+    groupChanged: "Air atharrachadh",
+    groupResetShort: "Ath-shuidhich",
+    groupReset: (name) => `Ath-shuidhich ${name}`,
     resetPhoto: 'Ath-shuidhich an dealbh',
     stopsSuffix: 'EV',
     tooltips: {
