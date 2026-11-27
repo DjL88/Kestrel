@@ -6,20 +6,20 @@ test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'A touchpad pinch (Ctrl+wheel) is a desktop gesture; touch pinch is in v2-phone-uat.');
 });
 
-async function importPicture(page: Page) {
+async function importPicture(page: Page, size = { width: 3000, height: 2000 }) {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
   await page.getByLabel(/name/i).first().fill('Pinch check');
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
-  const png = await page.evaluate(() => {
-    const canvas = document.createElement('canvas'); canvas.width = 3000; canvas.height = 2000;
+  const png = await page.evaluate((wanted) => {
+    const canvas = document.createElement('canvas'); canvas.width = wanted.width; canvas.height = wanted.height;
     const ctx = canvas.getContext('2d')!;
-    for (let y = 0; y < 20; y += 1) for (let x = 0; x < 30; x += 1) {
+    for (let y = 0; y < wanted.height / 100; y += 1) for (let x = 0; x < wanted.width / 100; x += 1) {
       ctx.fillStyle = (x + y) % 2 ? '#6a7a8a' : '#a0886a'; ctx.fillRect(x * 100, y * 100, 100, 100);
     }
     return canvas.toDataURL('image/png').split(',')[1];
-  });
+  }, size);
   const chooser = page.waitForEvent('filechooser');
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'checks.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') }]);
@@ -85,4 +85,55 @@ test('two-finger scroll (a plain wheel without Ctrl) pans the zoomed picture and
   expect(after.width).toBeCloseTo(before.width, 0);
   expect(Math.abs(after.top - before.top) + Math.abs(after.left - before.left)).toBeGreaterThan(20);
   await expect(root.getByTestId('zoom-percent')).toHaveText(zoomed!);
+});
+
+// Dave, 27 Nov (installed build, a portrait 2672×4000 puffin): after zooming to the eye, + moved the head to the bottom
+// edge and a second + jumped to the photo's top-left corner. The buttons zoom about the middle of the view; a pinch
+// about the fingers; both while the portrait photo is larger than the view.
+test('on a portrait photo larger than the view, + and − hold the middle of the view and a pinch holds the fingers', async ({ page }) => {
+  const root = await importPicture(page, { width: 2672, height: 4000 });
+  const middle = () => page.evaluate(() => {
+    const stage = document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement;
+    const r = stage.getBoundingClientRect();
+    return { x: r.left + stage.clientWidth / 2, y: r.top + stage.clientHeight / 2 };
+  });
+  /** Where the picture point now at this screen spot is after the next zoom, against the spot itself. */
+  const track = async (spot: { x: number; y: number }) => {
+    const box = await pictureBox(page);
+    const share = { fx: (spot.x - box.left) / box.width, fy: (spot.y - box.top) / box.height };
+    return async () => {
+      const now = await pictureBox(page);
+      return Math.hypot(now.left + share.fx * now.width - spot.x, now.top + share.fy * now.height - spot.y);
+    };
+  };
+  const zoomIn = root.getByRole('button', { name: 'Zoom in', exact: true });
+  const zoomOut = root.getByRole('button', { name: 'Zoom out', exact: true });
+  const percent = root.getByTestId('zoom-percent');
+  // Far enough in that the portrait photo is taller and wider than the view; each step checked.
+  for (let step = 0; step < 8; step += 1) {
+    const was = await percent.textContent();
+    const drift = await track(await middle());
+    await zoomIn.click();
+    await expect(percent).not.toHaveText(was!);
+    await page.waitForTimeout(150);
+    expect(await drift(), `+ step ${step + 1}: the middle of the view moved`).toBeLessThanOrEqual(4);
+  }
+  const big = await pictureBox(page);
+  const view = await page.evaluate(() => (document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement).getBoundingClientRect().toJSON());
+  expect(big.height).toBeGreaterThan(view.height);
+  expect(big.width).toBeGreaterThan(view.width);
+  // A pinch off the middle, larger than the view.
+  const spot = { x: view.left + view.width * 0.3, y: view.top + view.height * 0.6 };
+  await page.mouse.move(spot.x, spot.y);
+  const pinchDrift = await track(spot);
+  await pinch(page, 8, -12);
+  expect(await pinchDrift(), 'the pinch point moved').toBeLessThanOrEqual(4);
+  for (let step = 0; step < 3; step += 1) {
+    const was = await percent.textContent();
+    const drift = await track(await middle());
+    await zoomOut.click();
+    await expect(percent).not.toHaveText(was!);
+    await page.waitForTimeout(150);
+    expect(await drift(), `− step ${step + 1}: the middle of the view moved`).toBeLessThanOrEqual(4);
+  }
 });

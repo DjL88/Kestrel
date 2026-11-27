@@ -220,7 +220,7 @@ export default function Canvas({
   // A zoom asked for by a pinch step reaches canvasZoom a render later. Until it does (or briefly goes missing), the next
   // step builds on it, not on the zoom still shown, so fast pinch steps are neither lost nor applied twice.
   const pendingZoom = useRef<{ zoom: number; at: number } | null>(null);
-  if (pendingZoom.current && (Math.abs(pendingZoom.current.zoom - canvasZoom) < 1e-9 || performance.now() - pendingZoom.current.at > 1000)) pendingZoom.current = null;
+  if (pendingZoom.current && (Math.abs(pendingZoom.current.zoom - canvasZoom) < 0.0006 || performance.now() - pendingZoom.current.at > 1000)) pendingZoom.current = null;
   zoomRef.current = pendingZoom.current ? pendingZoom.current.zoom : canvasZoom;
   const photoRef = useRef(photo);
   photoRef.current = photo;
@@ -374,7 +374,7 @@ export default function Canvas({
     if (!stage || !point || !frame) return;
     // A render can come before the asked-for zoom does (the step's own state is local, the zoom comes through the
     // store). Keep the point until that zoom is on screen, or the anchoring is spent on the old zoom and lost.
-    const arrived = point.zoom === undefined || Math.abs(point.zoom - canvasZoom) < 1e-9 || performance.now() - (point.at ?? 0) > 1000;
+    const arrived = point.zoom === undefined || Math.abs(point.zoom - canvasZoom) < 0.0006 || performance.now() - (point.at ?? 0) > 1000;
     if (arrived) keepAt.current = null;
     // Measured after layout, so centring, padding and the frame's own zoom are all accounted for.
     const frameRect = anchorRect(frame);
@@ -2264,7 +2264,8 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
-            onClick={() => onSetZoom(canvasZoom / 1.25)}
+            // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
+            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, 8))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
@@ -2305,7 +2306,7 @@ export default function Canvas({
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
-            onClick={() => onSetZoom(canvasZoom * 1.25)}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, 8))}
             className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
