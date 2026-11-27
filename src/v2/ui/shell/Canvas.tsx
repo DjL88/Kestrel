@@ -1526,8 +1526,8 @@ export default function Canvas({
    * 100%: one picture pixel per screen pixel, centred on where the camera says it focused, else a clear eye, else the
    * subject, else the middle of the picture. Pressed again at 100%, it goes back to Fit.
    */
-  const zoomToActual = () => {
-    const next = keyboardZoomTarget('actual', canvasZoom, fitScale);
+  const zoomToActual = (cameraPointOnly = false) => {
+    const next = cameraPointOnly ? (fitScale ? 1 / fitScale : null) : keyboardZoomTarget('actual', canvasZoom, fitScale);
     if (next === null) return;
     if (next === 1 || !photo) { zoomAroundCentre(next); return; }
     const stage = stageRef.current;
@@ -1535,13 +1535,16 @@ export default function Canvas({
     const picture = frame ? pictureIn(frame) : null;
     const shown = picture ? (picture instanceof HTMLImageElement ? { width: picture.naturalWidth, height: picture.naturalHeight } : { width: picture.width, height: picture.height }) : null;
     const known = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus : null;
-    const focus = chooseActualFocus(activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null, known?.focus ?? null, known?.subject ?? null);
+    const cameraPoint = activeSize.kind === 'photo' && !compareMode ? cameraFocusPoint(photo.cameraFocus?.area, shown) : null;
+    // Zoom to focus point: the camera's own AF point and nothing else (Dave, 27 Nov).
+    if (cameraPointOnly && !cameraPoint) return;
+    const focus = cameraPointOnly ? chooseActualFocus(cameraPoint, null, null) : chooseActualFocus(cameraPoint, known?.focus ?? null, known?.subject ?? null);
     const at = frame ? focusOnScreen(frame, focus) : null;
     if (!stage || !at) { zoomAroundCentre(next); return; }
     const frameRect = anchorRect(frame!);
     keepAt.current = {
       fx: (at.clientX - frameRect.left) / frameRect.width, fy: (at.clientY - frameRect.top) / frameRect.height,
-      x: stage.clientWidth / 2, y: stage.clientHeight / 2,
+      x: stage.clientWidth / 2, y: stage.clientHeight / 2, zoom: next, at: performance.now(),
     };
     setEyeTarget((count) => count + 1);
     if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
@@ -1576,7 +1579,7 @@ export default function Canvas({
       view: { width: stage.clientWidth, height: stage.clientHeight },
     });
     setEyeNote({ text: focus.kind === 'eye' ? (focus.sure ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe) : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
-    keepAt.current = point;
+    keepAt.current = { ...point, zoom: target, at: performance.now() };
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
   };
@@ -2306,9 +2309,14 @@ export default function Canvas({
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
                   { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
+                  // The camera's own AF point, read from the file (the same data as "Show where the camera focused").
+                  { id: 'focus-point', label: STRINGS.canvas.zoomFocusPoint, run: () => zoomToActual(true), current: false,
+                    disabled: activeSize.kind !== 'photo' || compareMode || !photo.cameraFocus?.area,
+                    reason: !photo.cameraFocus?.area ? STRINGS.canvas.zoomFocusPointNone : undefined },
                   { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    title={'reason' in item ? item.reason : undefined}
                     data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}
                     className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
