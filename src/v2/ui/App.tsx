@@ -785,7 +785,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdGuidance={store.settings.cvdGuidance}
             reviewing={store.reviewingPhotoIds.includes(activePhoto?.id ?? '')}
             onSetAssistMode={actions.setAssistMode}
-            onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onNudgeWarmth={editLocked ? undefined : nudgeWarmth}

@@ -655,15 +655,14 @@ export const source = {
 
   copilot: {
     heading: 'Co-pilot',
-    changeInSettings: 'Change mode in Settings',
     modeForProject: 'Flight mode for this project',
     nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
-      solo: 'Solo: you are in control. Press Check photo on this device whenever you want ideas.',
-      copilot: 'Co-pilot: InFlight looks at this photo on this device and suggests edits. You choose which to use.',
-      autopilot: 'Auto-pilot: when you open a photo you have not edited yet, InFlight can apply an edit it has checked. Undo takes it back.',
+      solo: 'Solo: you are in control. InFlight only gives advice when you ask for it.',
+      copilot: 'Co-pilot: InFlight does some of the work and leaves the decision to you. Nothing changes until you say yes.',
+      autopilot: 'Auto-pilot: InFlight does the work and tells you why. Undo takes any edit back.',
     },
-    runReviewButton: 'Deep Vision Review',
+    runReviewButton: 'Check with my connected helper',
     localReviewButton: 'Check photo on this device',
     runReviewSub: 'Checks on this device, plus any helper you connected. Never makes new pixels.',
     ongoingBadge: 'Checking again as you edit.',

@@ -617,7 +617,6 @@ export const nl: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Copiloot',
-    changeInSettings: 'Modus wijzigen in Instellingen',
     modeForProject: "Vliegmodus voor dit project",
     nothingYet: 'Nog niets te melden. Dit verschijnt zodra InFlight deze foto heeft bekeken.',
     modeDescriptions: {

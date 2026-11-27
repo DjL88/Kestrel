@@ -618,7 +618,6 @@ export const fi: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Perämies',
-    changeInSettings: 'Vaihda tilaa Asetuksissa',
     modeForProject: "Tämän projektin lentotila",
     nothingYet: 'Ei vielä raportoitavaa. Tiedot näkyvät, kun InFlight on tarkastellut tätä kuvaa.',
     modeDescriptions: {

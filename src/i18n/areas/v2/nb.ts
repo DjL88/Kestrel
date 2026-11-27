@@ -617,7 +617,6 @@ export const nb: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Andrepilot',
-    changeInSettings: 'Bytt modus i Innstillinger',
     modeForProject: "Flymodus for dette prosjektet",
     nothingYet: 'Ingenting å melde ennå. Det vises når InFlight har sett på dette bildet.',
     modeDescriptions: {

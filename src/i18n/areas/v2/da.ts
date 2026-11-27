@@ -617,7 +617,6 @@ export const da: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Andenpilot',
-    changeInSettings: 'Skift tilstand i Indstillinger',
     modeForProject: "Flytilstand for dette projekt",
     nothingYet: 'Intet at rapportere endnu. Det vises, når InFlight har set på dette foto.',
     modeDescriptions: {

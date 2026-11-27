@@ -617,7 +617,6 @@ export const sv: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Andrepilot',
-    changeInSettings: 'Byt läge i Inställningar',
     modeForProject: "Flygläge för det här projektet",
     nothingYet: 'Inget att rapportera ännu. Det visas när InFlight har tittat på det här fotot.',
     modeDescriptions: {

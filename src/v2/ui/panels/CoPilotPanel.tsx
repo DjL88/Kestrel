@@ -26,8 +26,6 @@ interface CoPilotPanelProps {
   /** True while this photo's deep vision review is running. */
   reviewing?: boolean;
   onSetAssistMode: (mode: AssistMode) => void;
-  /** The mode is chosen in Settings, not here. */
-  onOpenSettings: () => void;
   onRunDeepVisionReview: (photoId: string) => void;
   onRequestLocalAuto?: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
@@ -261,7 +259,7 @@ export default function CoPilotPanel({
       <details data-testid="flight-more-checks" className="rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">{STRINGS.copilot.moreChecks}</summary>
         <div className="space-y-4 border-t border-[var(--border-subtle)] p-3">
-          {/* Renamed Deep Vision Review CTA */}
+          {/* The on-device check, then the optional connected helper */}
           <div className="space-y-2">
             {onRequestLocalAuto && (
               <button type="button" onClick={() => onRequestLocalAuto(photo.id)}

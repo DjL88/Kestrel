@@ -618,7 +618,6 @@ export const gd: AreaTranslation<typeof source> = {
 
   copilot: {
     heading: 'Co-phìleat',
-    changeInSettings: 'Atharraich am modh sna Roghainnean',
     modeForProject: "Modh itealaich a' phròiseict seo",
     nothingYet: 'Chan eil dad ri aithris fhathast. Nochdaidh e nuair a bhios InFlight air sùil a thoirt air an dealbh seo.',
     modeDescriptions: {
