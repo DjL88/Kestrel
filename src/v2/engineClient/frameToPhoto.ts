@@ -61,6 +61,8 @@ export interface AssistState {
   dismissed: string[];
   /** The vision guardian's second opinion on each suggestion (assistGuardian.ts). It advises; it never changes a suggestion. */
   guardian?: AssistGuardian;
+  /** The recipe Co-pilot applied by itself (its small, safe subset of this run's suggestion). While the photo still has exactly this recipe, the suggestions stay offered and applying one is not stale. */
+  safeApplied?: PhotoEdit;
 }
 
 /** The file's own edit evidence in the person's words: a short label and one sentence on what it rests on. */
@@ -155,7 +157,8 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
   const matching = run.candidates.find((candidate) => candidate.edit === currentEdit);
-  const available = matching ? [matching] : sameRecipe(run.plan.base, currentEdit) ? run.candidates : [];
+  const fromBase = sameRecipe(run.plan.base, currentEdit) || (assist.safeApplied !== undefined && currentEdit === assist.safeApplied);
+  const available = matching ? [matching] : fromBase ? run.candidates : [];
   const suggestions: AssistSuggestion[] = available.filter((candidate) => !assist.dismissed.includes(candidate.id))
     .map((candidate) => ({
       id: candidate.id,

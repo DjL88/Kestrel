@@ -29,6 +29,7 @@ import { AccountButton } from './shell/AccountButton';
 import { TaskAlerts } from './shell/TaskAlerts';
 import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
+import AutoChangeBanner from './shell/AutoChangeBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { colourText } from '../../i18n/areas/colour';
@@ -1299,6 +1300,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             {/* Centre column: Canvas (or GridView) + Bottom Filmstrip/Info Dock */}
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {store.collage && collageEditingId && <button type="button" className="min-h-10 shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-left text-sm font-semibold text-[var(--brand-accent)]" onClick={() => setCollageEditingId(null)}>← Back to collage pages</button>}
+              {!store.collage && !store.gridViewOpen && !pairPhotos && !canvasOnlyShown && <AutoChangeBanner photo={activePhoto} status={store.autoStatus} comparing={store.compareMode}
+                onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />}
               {store.collage && !collageEditingId ? (
                 <CollageEditor document={store.collage} photos={store.photos} projects={store.projects.filter((p) => p.id !== store.activeProjectId)}
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}

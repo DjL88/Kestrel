@@ -797,7 +797,15 @@ export interface WorkspaceStore {
    * What Auto last did for the open photo (the Auto button or Auto-pilot), so a press is always answered: working,
    * applied, left unchanged with the reason, or not possible with the reason. Absent until Auto has looked.
    */
-  autoStatus?: { photoId: string; state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string };
+  autoStatus?: {
+    photoId: string; state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string;
+    /** Set when Co-pilot or Auto-pilot looked by itself (not a press of the Auto button). */
+    mode?: 'copilot' | 'autopilot';
+    /** When this was said, in ms since the epoch. */
+    at?: number;
+    /** The time of the edit step Co-pilot or Auto-pilot recorded, so the banner can tell its step from a later one. */
+    appliedAt?: number;
+  };
   /** Cloud edits for the open project. Absent while cloud edit settings are off or no project is open. */
   cloudEdits?: { choice: import('../../core/cloudEditsChoice').CloudEditsChoice; covered: number; toDo: number; running: boolean };
   features: Record<FeatureKey, boolean>;

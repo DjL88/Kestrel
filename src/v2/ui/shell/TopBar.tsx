@@ -4,7 +4,8 @@ import { CANVAS_TIPS_EVENT } from '../utils/canvasTips';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { chordLabel, type Keymap } from '../commands/keymap';
-import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
+import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
+import FlightModeChip from './FlightModeChip';
 import { useIsPro } from '../../../components/BrandLogo';
 
 interface TopBarProps {
@@ -193,8 +194,6 @@ export default function TopBar({
     fn();
     setOpenMenu(null);
   };
-
-  const modes: AssistMode[] = ['solo', 'copilot', 'autopilot'];
 
   return (
     <header
@@ -487,6 +486,7 @@ export default function TopBar({
             </button>
           ))}
         </div>
+        <FlightModeChip value={assistMode} onChange={onSetAssistMode} />
         {presence}
         {importInBar && (
           <button
