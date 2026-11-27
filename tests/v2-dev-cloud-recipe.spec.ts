@@ -43,6 +43,26 @@ test('asked once, then a run goes up, comes back as edit settings, and the cloud
 
   await expect(page.getByRole('status')).toHaveText("Applied the cloud's edit settings. Undo takes them back.", { timeout: 30_000 });
   await expect(page.getByTestId('applied')).not.toHaveText('');
+  // Dave, 27 Nov: the cloud's work is visible. What changed, in plain words, and a quick compare beside the photo.
+  const result = page.getByTestId('cloud-recipe-result');
+  await expect(result).toContainText('What changed');
+  await expect(page.getByTestId('cloud-recipe-changes')).toHaveText(/^[A-Z][a-z ]+ [+\u2212][0-9.]+( · [A-Z][a-z ]+ [+\u2212][0-9.]+)*$/);
+  // The control plane confirmed its copy was deleted, and that reached the result.
+  expect(JSON.parse(await page.getByTestId('applied').textContent() ?? '{}').inputDeleted).toBe(true);
+  const compare = page.getByTestId('cloud-recipe-compare');
+  const box = (await compare.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(page.getByTestId('previewing')).not.toHaveText('', { timeout: 5_000 });
+  await expect(compare).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.up();
+  await expect(page.getByTestId('previewing')).toHaveText('');
+  // And from the keyboard: held with Space, back on release.
+  await compare.focus();
+  await page.keyboard.down(' ');
+  await expect(page.getByTestId('previewing')).not.toHaveText('');
+  await page.keyboard.up(' ');
+  await expect(page.getByTestId('previewing')).toHaveText('');
   const after = await cloud(page);
   expect(after.log).toEqual(expect.arrayContaining(['POST /v1/cloud/jobs', 'PUT bucket:inputs/job-1', 'POST /v1/cloud/jobs/job-1/start', 'GET bucket:results/job-1', 'POST /v1/cloud/jobs/job-1/finish']));
   expect(after.objects, 'the upload and the result are gone once the run ends').toEqual([]);
