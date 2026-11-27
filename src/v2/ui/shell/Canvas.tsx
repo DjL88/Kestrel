@@ -403,9 +403,9 @@ export default function Canvas({
     const baseY = parseFloat(base.paddingTop) || 0;
     const z = canvasZoom;
     const side = { left: pic.left - box.left, right: box.right - (pic.left + pic.width), top: pic.top - box.top, bottom: box.bottom - (pic.top + pic.height) };
-    // offsetWidth/Height, as Fit is measured: a scrollbar coming or going must not move the margins either.
-    const fitX = (stage.offsetWidth - box.width / z) / 2;
-    const fitY = (stage.offsetHeight - box.height / z) / 2;
+    // clientWidth/Height, as Fit is measured: the area inside the stage's scrollbars, which it always keeps.
+    const fitX = (stage.clientWidth - box.width / z) / 2;
+    const fitY = (stage.clientHeight - box.height / z) / 2;
     const pad = (fit: number, near: number, min: number) => Math.max(min, fit + near / z - near);
     stage.dataset.basePad = `${baseX},${baseY}`;
     stage.style.padding = `${pad(fitY, side.top, baseY)}px ${pad(fitX, side.right, baseX)}px ${pad(fitY, side.bottom, baseY)}px ${pad(fitX, side.left, baseX)}px`;
@@ -579,17 +579,19 @@ export default function Canvas({
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
-      // Measured with any scrollbar counted as room (offsetWidth/Height). Zoom is a multiple of Fit, so when a scrollbar
-      // came and went as the picture crossed the stage's size, Fit shrank, the picture shrank, the scrollbar went, Fit
-      // grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%"). The Fit margins added while zoomed in are
-      // not less room either: measure inside the stage's own padding.
+      // Zoom is a multiple of Fit, so when a scrollbar came and went as the picture crossed the stage's size, Fit shrank,
+      // the picture shrank, the scrollbar went, Fit grew, and the picture shook (Dave, 27 Nov: "oscillates a bit at 22%").
+      // The stage now always keeps its scrollbars, so the area inside them never changes. The Fit margins added while
+      // zoomed in are not less room either: measure inside the stage's own padding.
       const el = entry.target as HTMLElement;
       const [baseX, baseY] = (el.dataset.basePad ?? '').split(',').map(Number);
       const style = getComputedStyle(el);
       const padX = el.style.padding && Number.isFinite(baseX) ? baseX : parseFloat(style.paddingLeft) || 0;
       const padY = el.style.padding && Number.isFinite(baseY) ? baseY : parseFloat(style.paddingTop) || 0;
-      const width = Math.max(0, el.offsetWidth - 2 * padX);
-      const height = Math.max(0, el.offsetHeight - 2 * padY);
+      // The area inside its scrollbars (clientWidth): the stage always keeps them (overflow: scroll below), so this is the
+      // same at Fit and zoomed in, and Fit is sized for exactly the area the picture is shown in.
+      const width = Math.max(0, el.clientWidth - 2 * padX);
+      const height = Math.max(0, el.clientHeight - 2 * padY);
       setStageSize((was) => (Math.abs(was.width - width) < 0.5 && Math.abs(was.height - height) < 0.5 ? was : { width, height }));
     });
     observer.observe(stage);
@@ -2290,6 +2292,9 @@ export default function Canvas({
       <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
         ref={attachStage}
+        // Its scrollbars are always there (thin, on a clear track). When they came and went as the zoom crossed Fit, the
+        // area the picture is shown in changed by their width, and zooming out moved the picture sideways near Fit (Dave,
+        // Windows; headless test browsers hide scrollbars, so only a headed run showed it).
         data-testid="canvas-stage"
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
@@ -2300,7 +2305,7 @@ export default function Canvas({
           if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
           if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
         }}
-        className={`relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
+        className={`relative flex flex-1 overflow-scroll inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
         style={{
           // The page itself never pinch-zooms over the photo or its margin: the canvas takes that gesture.
           touchAction: stageGestures ? 'none' : undefined,
