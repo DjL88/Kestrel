@@ -60,10 +60,10 @@ test('a refusal after Apple answered is explained in plain English', () => {
   assert.match(appleFirebaseFailureMessage(null), /Nothing changed/);
 });
 
-test('the desktop opener scope allows the Apple sign-in page on every site origin (a build can be pointed at either)', () => {
+test('the desktop opener scope allows the Apple sign-in page on the one public origin', () => {
   const site = JSON.parse(readFileSync(new URL('../../config/public-site.json', import.meta.url), 'utf8')) as { origin: string; firebaseOrigin: string };
   const caps = JSON.parse(readFileSync(new URL('../../src-tauri/capabilities/desktop.json', import.meta.url), 'utf8')) as { permissions: Array<string | { identifier: string; allow?: Array<{ url: string }> }> };
   const allowed = caps.permissions.flatMap((p) => typeof p === 'object' && p.identifier === 'opener:allow-open-url' ? p.allow!.map((a) => a.url) : []);
-  for (const origin of [site.origin, site.firebaseOrigin]) assert.ok(allowed.includes(`${origin}/apple-signin?*`), `${origin}/apple-signin?* missing from desktop.json`);
+  assert.ok(allowed.includes(`${site.origin}/apple-signin?*`), `${site.origin}/apple-signin?* missing from desktop.json`);
   assert.equal(new Set(allowed).size, allowed.length, 'duplicate opener entries');
 });
