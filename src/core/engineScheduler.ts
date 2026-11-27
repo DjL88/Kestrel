@@ -63,6 +63,11 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
    */
   interactive?: boolean;
   /**
+   * Small, quick work for what is on screen now (the thumbnail of a tile the person can see). Always admitted, whatever
+   * the load or other work, up to LIGHT_AT_ONCE at a time, so tiles appear one by one ahead of develops and analysis.
+   */
+  light?: boolean;
+  /**
    * How long one photo may go without a new stage or progress before the watchdog stops it, fails it with a plain
    * message and gives its slot back (default STALL_MS; cloud work STALL_CLOUD_MS). Work that takes longer than this
    * legitimately reports progress as it goes.
@@ -101,6 +106,7 @@ interface WorkBatch {
   resource: EngineResource;
   reservation: Reservation;
   interactive: boolean;
+  light: boolean;
   pauseable: boolean;
   paused: boolean;
   pauseRequested: boolean;
@@ -126,6 +132,9 @@ interface WorkBatch {
   retry(): Promise<SchedulerTicket | null>;
   finish(result: 'done' | 'failed' | 'cancelled'): void;
 }
+
+/** How many light jobs (on-screen thumbnails) run at once. */
+export const LIGHT_AT_ONCE = 3;
 
 /** A photo with no new stage or progress for this long is stuck: the watchdog fails it and frees its slot. */
 export const STALL_MS = 5 * 60_000;
@@ -175,6 +184,7 @@ export function createEngineScheduler(options: {
   const admitted = (job: WorkBatch): boolean => {
     admissionChecks += 1;
     if (job.forced) { blockedReason = null; return true; }
+    if (job.light) return [...jobs.values()].filter(other => other.active && other.light).length < LIGHT_AT_ONCE;
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
     const busy = occupied.filter(other => other.resource !== 'io');
@@ -186,6 +196,9 @@ export function createEngineScheduler(options: {
       // A job the person started themselves (one photo: denoise, tap to select, find subject...) starts as soon as no
       // other such job runs; background work yields to it, one photo at a time.
       if (job.interactive && !busy.some(other => other.interactive)) { blockedReason = null; return true; }
+    } else if (!occupied.some(other => other.resource === 'io' && !other.light)) {
+      // Reading files is never held by the load either: with no other read running, one starts.
+      blockedReason = null; return true;
     }
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
@@ -502,6 +515,7 @@ export function createEngineScheduler(options: {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
       interactive: definition.interactive === true && items.length === 1,
+      light: definition.light === true,
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
       lastActivity: now(), stallMs: definition.stallMs, cloud: (definition.location ?? 'local') === 'cloud',

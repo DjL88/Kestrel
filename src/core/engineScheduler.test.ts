@@ -525,3 +525,27 @@ test('quiet helpers outside the scheduler wait for the person\'s work, by listen
   await waiting;
   assert.equal(clear, true);
 });
+
+test('thumbnails of the tiles on screen start at once on a busy computer, beside other work, three at a time', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let started = 0;
+  const develop = await scheduler.submit(batch('Develop full size', 1, async () => { started += 1; await held; }));
+  const reading = await scheduler.submit(batch('Import', 1, async () => { started += 1; await held; }, { resource: 'io' }));
+  await until(() => started === 2, 'a develop and a file read run (each never held by the load)');
+  let thumbsRunning = 0; let most = 0;
+  let open!: () => void;
+  const gate = new Promise<void>(resolve => { open = resolve; });
+  const tiles = await Promise.all(Array.from({ length: 5 }, (_, i) => scheduler.submit(batch(`Tile ${i}`, 1, async () => {
+    thumbsRunning += 1; most = Math.max(most, thumbsRunning); await gate; thumbsRunning -= 1;
+  }, { resource: 'io', light: true, priority: 500 }))));
+  await until(() => thumbsRunning === 3, 'three tiles run beside the develop and the import');
+  open();
+  for (const tile of tiles) assert.equal(await tile.finished, 'done');
+  assert.equal(most, 3, 'never more than three at once');
+  release();
+  assert.equal(await develop.finished, 'done');
+  assert.equal(await reading.finished, 'done');
+});

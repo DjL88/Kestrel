@@ -62,6 +62,7 @@ import type { MenuAction } from './commands/menuMap';
 import type { FeedbackRequest } from './shell/ContributorFeedback';
 import { describeFeedbackScreen, describeFeedbackTarget } from '../../core/feedbackTarget';
 import { activeLanguage } from '../../core/locale';
+import { useThumbnailsOnScreen } from './utils/useThumbnailsOnScreen';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
 // the background once the list has drawn (preloadEditorParts), so opening a project does not wait for it either.
@@ -129,6 +130,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
+  // The tiles on screen (filmstrip or grid) get their thumbnails first.
+  useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
