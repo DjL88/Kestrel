@@ -2071,6 +2071,11 @@ export const nl: AreaTranslation<typeof source> = {
     forgetLink: 'InFlight vragen mijn accountgegevens te wissen',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Voorgestelde uitsnede: gestippelde rand op de foto. Er verandert niets totdat u akkoord gaat.',
+    accept: 'Uitsnede accepteren',
+    dismiss: 'Negeren',
+  },
   maskCanvas: {
     outline: (n) => `${n} · omtrek op de foto`,
     overlayShown: (n) => `${n} · overlay zichtbaar (gearceerd gebied = waar het werkt)`,

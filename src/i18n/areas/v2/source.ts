@@ -2155,6 +2155,11 @@ export const source = {
     forgetLink: 'Ask InFlight to erase my account data',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Suggested crop: dashed outline on the photo. Nothing changes until you accept.',
+    accept: 'Accept crop',
+    dismiss: 'Dismiss',
+  },
   maskCanvas: {
     outline: (n: string) => `${n} · outline on the photo`,
     overlayShown: (n: string) => `${n} · overlay shown (hatched area is where it applies)`,

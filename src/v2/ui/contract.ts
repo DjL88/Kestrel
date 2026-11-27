@@ -502,6 +502,8 @@ export interface Photo {
   capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
+  /** Where Auto found the subject (fractions of the picture), so the canvas can suggest a crop. Never applied by itself. */
+  cropSuggestion?: { box: { x0: number; y0: number; x1: number; y1: number } };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
   histogram?: PhotoHistogram | null;
   /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,

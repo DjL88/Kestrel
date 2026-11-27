@@ -30,6 +30,9 @@ import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import CropSuggestionLayer from './CropSuggestionLayer';
+import { proposeCrop } from '../../../core/proposeCrop';
+import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
@@ -820,6 +823,16 @@ export default function Canvas({
     pictureAspect && (size.crop.borderPlacement ?? 'all') !== 'auto' ? { pictureAspect, frameAspect: frameAspectOf(size) } : undefined;
   // Until the shape is known, an unknown Original is not drawn as a square.
   const shapePending = unknownOriginal(activeSize) && !pictureAspect;
+  // Auto's crop suggestion for the active format: only over an untouched single-frame crop, only until dismissed, and
+  // never applied by itself. It is worked out here because the frame's shape decides the rectangle.
+  const [dismissedCropFor, setDismissedCropFor] = useState<string[]>([]);
+  const cropKey = `${photo.id}:${activeSize.id}`;
+  const frameShape = frameAspectOf(activeSize);
+  const cropProposal = pictureAspect && photo.cropSuggestion && !dismissedCropFor.includes(cropKey) && splitCountFor(activeSize.id) === 1
+    && isUntouchedCrop(activeSize.crop) && (activeSize.crop.borderPlacement ?? 'all') !== 'auto'
+    ? proposeCrop({ box: photo.cropSuggestion.box, imageWidth: pictureAspect * 1000, imageHeight: 1000, aspect: frameShape }) : null;
+  const cropPatch = cropProposal && pictureAspect ? cropPatchForRect(cropProposal, pictureAspect, frameShape) : null;
+  const shownCropRect = cropProposal && cropPatch ? cropProposal : null;
   const filterCss = buildPreviewFilterCss(group.recipe, hoveredLook);
   const overflowIssues = detectOverlayOverflow(group.overlay, photo, photo.sizes);
   const watermarkPreset =
@@ -1496,11 +1509,11 @@ export default function Canvas({
   const shownColourAreas = colourAreas?.length ? colourAreas : undefined;
   const renderCanvasMarks = (picture: { width: number; height: number }) => {
     const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
-    if (!cameraFocusArea && !shownColourAreas) return marks;
-    return <>{marks}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
+    if (!cameraFocusArea && !shownColourAreas && !shownCropRect) return marks;
+    return <>{marks}{shownCropRect && !renderPickLayer && <CropSuggestionLayer picture={picture} rect={shownCropRect} />}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
       {shownColourAreas && <ColourAreaMarks picture={picture} areas={shownColourAreas} />}</>;
   };
-  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas;
+  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas || !!shownCropRect;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
@@ -2498,6 +2511,19 @@ export default function Canvas({
           </span>
         )}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && renderMaskLabel()}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && shownCropRect && cropPatch && (
+          <div data-testid="crop-suggestion" className="flex min-w-0 items-center gap-1.5 font-medium text-[var(--text-primary)]">
+            <span role="status" className="truncate">{STRINGS.cropSuggestion.label}</span>
+            <button type="button" data-testid="crop-suggestion-accept" className={STATUS_BUTTON}
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onUpdateCrop(photo.id, activeSize.id, cropPatch); }}>
+              {STRINGS.cropSuggestion.accept}
+            </button>
+            <button type="button" data-testid="crop-suggestion-dismiss" className={STATUS_BUTTON}
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setDismissedCropFor((keys) => [...keys, cropKey]); }}>
+              {STRINGS.cropSuggestion.dismiss}
+            </button>
+          </div>
+        )}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
           <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
             onClick={() => setShowCameraFocus((shown) => !shown)} className={STATUS_BUTTON}>

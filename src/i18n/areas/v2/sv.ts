@@ -2071,6 +2071,11 @@ export const sv: AreaTranslation<typeof source> = {
     forgetLink: 'Be InFlight radera mina kontouppgifter',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Föreslagen beskärning: streckad ram på fotot. Inget ändras förrän du godkänner.',
+    accept: 'Godkänn beskärning',
+    dismiss: 'Avvisa',
+  },
   maskCanvas: {
     outline: (n) => `${n} · kontur på fotot`,
     overlayShown: (n) => `${n} · överlägg visas (skrafferat område = där den verkar)`,

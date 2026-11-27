@@ -2071,6 +2071,11 @@ export const pt: AreaTranslation<typeof source> = {
     forgetLink: 'Pedir ao InFlight que apague os meus dados de conta',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Recorte sugerido: contorno tracejado na foto. Nada muda até aceitar.',
+    accept: 'Aceitar recorte',
+    dismiss: 'Dispensar',
+  },
   maskCanvas: {
     outline: (n) => `${n} · contorno na foto`,
     overlayShown: (n) => `${n} · sobreposição visível (a área tracejada é onde se aplica)`,

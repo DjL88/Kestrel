@@ -2072,6 +2072,11 @@ export const fi: AreaTranslation<typeof source> = {
     forgetLink: 'Pyydä InFlightia poistamaan tilitietoni',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Ehdotettu rajaus: katkoviivakehys kuvassa. Mikään ei muutu, ennen kuin hyväksyt.',
+    accept: 'Hyväksy rajaus',
+    dismiss: 'Hylkää',
+  },
   maskCanvas: {
     outline: (n) => `${n} · ääriviiva kuvassa`,
     overlayShown: (n) => `${n} · peittokuva näkyy (viivoitettu alue = vaikutusalue)`,

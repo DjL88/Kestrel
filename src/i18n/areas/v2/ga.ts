@@ -2074,6 +2074,11 @@ export const ga: AreaTranslation<typeof source> = {
     forgetLink: 'Iarr ar InFlight sonraí mo chuntais a scriosadh',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Bearradh molta: imlíne bhriste ar an ngrianghraf. Ní athraíonn aon rud go nglacfaidh tú leis.',
+    accept: 'Glac leis an mbearradh',
+    dismiss: 'Diúltaigh',
+  },
   maskCanvas: {
     outline: (n) => `${n} · imlíne ar an ngrianghraf`,
     overlayShown: (n) => `${n} · forleagan le feiceáil (is é an limistéar stríocach an áit a bhfeidhmíonn sé)`,
