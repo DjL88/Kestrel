@@ -105,6 +105,8 @@ export const ga: AreaTranslation<typeof source> = {
     enlargementTask: 'Réamhamharc an mhéadaithe á dhéanamh',
     exportNotQueued: 'Níorbh fhéidir an easpórtáil seo a thosú.',
     pickerTimingTitle: 'Uainiú an roghnóra fillteán (an gléas seo amháin)',
+    waitBusy: 'Ag fanacht: tá an ríomhaire gnóthach, mar sin tosóidh sé seo nuair a chríochnóidh an tasc roimhe.',
+    waitMemory: 'Ag fanacht: tá an chuimhne íseal, mar sin tosóidh sé seo nuair a chríochnóidh an tasc roimhe.',
     pickerTiming: (app, picker) => `D’iarr InFlight an roghnóir fillteán ${app} s tar éis Sábháil comhaid; d’fhreagair an roghnóir ${picker} s níos déanaí (an t-am roghnaithe san áireamh).`,
     exportFolderUnwritable: (folder, reason) => `Níorbh fhéidir le InFlight an fillteán easpórtála a dhéanamh in ${folder}${reason ? ` (${reason})` : ''}. Roghnaigh fillteán eile, nó seiceáil go bhfuil an tiomántán ceangailte agus nach bhfuil sé inléite amháin. Níor easpórtáladh aon rud.`,
     destinationUnavailable: 'Níl an ceann scríbe easpórtála sin ar fáil. Roghnaigh ZIP áitiúil, comhaid ar leith nó fillteán ar an ríomhaire.',

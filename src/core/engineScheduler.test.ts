@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTaskStore } from './taskStore.ts';
-import { createEngineScheduler, limitsForDevice, type BatchDefinition } from './engineScheduler.ts';
+import { createEngineScheduler, limitsForDevice, personWorkClear, type BatchDefinition } from './engineScheduler.ts';
 
 const pause = (ms = 1) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check: () => boolean, reason: string, tries = 1000) {
@@ -194,28 +194,57 @@ test('scan-wide jobs expose individual photo stage updates without applying part
   assert.deepEqual(task.items?.map(item => [item.id, item.state]), [['dog-one','done'],['dog-two','done']]);
 });
 
-test('pressure defers background admission without lowering processing quality', async () => {
+const BUSY = { cpu: 1, availableMemoryBytes: 300 * 1024 ** 2, availableGpuBytes: 64 * 1024 ** 2, availableDiskBytes: 8 * 1024 ** 3 };
+
+test('with other programs at 100% CPU and little memory, one job still runs and the next says why it waits', async () => {
   const store = createTaskStore();
-  const scheduler = createEngineScheduler({
-    taskStore: store,
-    limits: { cpu: 2, gpu: 1, io: 1 },
-    resourceSample: {
-      cpu: 0.96, availableMemoryBytes: 3 * 1024 ** 3,
-      availableGpuBytes: 2 * 1024 ** 3, availableDiskBytes: 8 * 1024 ** 3,
-    },
-  });
-  let ran = false;
-  const ticket = await scheduler.submit(batch('Heavy import', 3, async () => { ran = true; }));
-  assert.equal(store.list().find(task => task.id === ticket.taskId)?.state, 'queued');
-  assert.equal(ran, false);
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let first = 0; let second = 0;
+  const one = await scheduler.submit(batch('Develop full size', 1, async () => { first += 1; await held; }));
+  await until(() => first === 1, 'the first job starts on a busy computer');
+  const two = await scheduler.submit(batch('Colour check', 1, async () => { second += 1; }));
+  const waiting = store.list().find(task => task.id === two.taskId);
+  assert.equal(waiting?.state, 'queued', 'a second job does not pile onto a busy computer');
+  assert.match(waiting?.detail ?? '', /^Waiting: (the computer is busy|memory is low)/);
+  release();
+  assert.equal(await one.finished, 'done');
+  assert.equal(await two.finished, 'done', 'it runs when the first is done');
+  assert.equal(second, 1);
+  // Quality is never lowered: the same work ran, just one at a time.
   assert.equal(scheduler.resourceStatus().measured, true);
-  assert.equal(scheduler.resourceStatus().blockedReason, 'cpu');
-  scheduler.updateResourceSample({
-    cpu: 0.2, availableMemoryBytes: 3 * 1024 ** 3,
-    availableGpuBytes: 2 * 1024 ** 3, availableDiskBytes: 8 * 1024 ** 3,
-  });
-  assert.equal(await ticket.finished, 'done');
-  assert.equal(ran, true);
+});
+
+test('a job the person started (TrueDetail on one photo) starts at once beside background work on a busy computer', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let background = 0; let denoised = false;
+  const scan = await scheduler.submit(batch('Checking colour', 3, async () => { background += 1; await held; }));
+  await until(() => background === 1, 'background work runs');
+  const denoise = await scheduler.submit(batch('Denoising', 1, async () => { denoised = true; }, { interactive: true }));
+  assert.equal(await denoise.finished, 'done', 'it did not wait for the background work or the machine');
+  assert.equal(denoised, true);
+  release();
+  assert.equal(await scan.finished, 'done');
+});
+
+test('a second job the person started waits for the first, never two at once', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const order: string[] = [];
+  const a = await scheduler.submit(batch('Denoising A', 1, async () => { order.push('a'); await held; }, { interactive: true }));
+  await until(() => order.length === 1, 'first interactive job starts');
+  const b = await scheduler.submit(batch('Denoising B', 1, async () => { order.push('b'); }, { interactive: true }));
+  assert.equal(store.list().find(task => task.id === b.taskId)?.state, 'queued');
+  release();
+  assert.equal(await a.finished, 'done');
+  assert.equal(await b.finished, 'done');
+  assert.deepEqual(order, ['a', 'b']);
 });
 
 test('unknown device memory serialises CPU and GPU heavy jobs instead of inventing available RAM', async () => {
@@ -235,16 +264,24 @@ test('unknown device memory serialises CPU and GPU heavy jobs instead of inventi
   assert.deepEqual(order, ['cpu start', 'gpu start']);
 });
 
-test('measured insufficient available RAM blocks even priority jobs until pressure clears', async () => {
+test('measured low memory never stops the only job, and a second waits until memory clears', async () => {
   const store = createTaskStore();
-  const scheduler = createEngineScheduler({ taskStore: store, limits:{cpu:1,gpu:1,io:1},
+  const scheduler = createEngineScheduler({ taskStore: store, limits:{cpu:2,gpu:1,io:1},
     resourceSample:{cpu:0.1,availableMemoryBytes: 600 * 1024 ** 2,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3} });
-  const ticket = await scheduler.submit(batch('RAW import',1,async()=>{}, {priority:100}));
-  assert.equal(store.list().find(task => task.id === ticket.taskId)?.state, 'queued');
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let started = 0;
+  const first = await scheduler.submit(batch('RAW import',1,async()=>{ started += 1; await held; }, {priority:100}));
+  await until(() => started === 1, 'the only job runs despite low memory');
+  const second = await scheduler.submit(batch('Thumbnails',1,async()=>{ started += 1; }));
+  const waiting = store.list().find(task => task.id === second.taskId);
+  assert.equal(waiting?.state, 'queued');
+  assert.match(waiting?.detail ?? '', /^Waiting: memory is low/);
   scheduler.updateResourceSample({cpu:0.1,availableMemoryBytes: 2*1024**3,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3});
-  assert.equal(await ticket.finished, 'done');
+  assert.equal(await second.finished, 'done', 'it starts beside the first once memory clears');
+  release();
+  assert.equal(await first.finished, 'done');
 });
-
 
 test('retry of journalled partial failure reuses the original fingerprint and verifies saved outputs', async () => {
   const { scheduler } = build();
@@ -428,4 +465,63 @@ test('work that keeps reporting progress is never stopped by the watchdog, howev
     }
   }, { kind: 'denoise', stallMs: 60_000 }));
   assert.equal(await job.finished, 'done', 'alive throughout, so never stopped');
+});
+
+test('a task waiting for capacity costs nothing: no admission checks run until something changes', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY, watchdogMs: 0 });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let started = 0;
+  const one = await scheduler.submit(batch('Develop full size', 1, async () => { started += 1; await held; }));
+  await until(() => started === 1, 'first job runs');
+  const two = await scheduler.submit(batch('Colour check', 1, async () => { started += 1; }));
+  const settled = scheduler.admissionChecks();
+  await pause(300);
+  assert.equal(scheduler.admissionChecks(), settled, 'nothing re-checks while the task waits (no timer chain, no loop)');
+  scheduler.updateResourceSample(BUSY);
+  const afterSample = scheduler.admissionChecks() - settled;
+  assert.ok(afterSample >= 1 && afterSample <= 2, `one new sample costs one look per waiting task, not a loop (${afterSample})`);
+  release();
+  assert.equal(await one.finished, 'done');
+  assert.equal(await two.finished, 'done');
+});
+
+test('Start now starts a task waiting for capacity at once, beside the one running', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let second = false;
+  let started = 0;
+  const one = await scheduler.submit(batch('Develop full size', 1, async () => { started += 1; await held; }));
+  await until(() => started === 1, 'first job runs');
+  const two = await scheduler.submit(batch('Colour check', 1, async () => { second = true; }));
+  const id = Number(two.taskId);
+  assert.equal(scheduler.isWaitingForCapacity(id), true);
+  assert.equal(scheduler.startNow(id), true, 'the person overrides the load check');
+  assert.equal(await two.finished, 'done', 'it ran while the first still held its slot');
+  assert.equal(second, true);
+  assert.equal(scheduler.startNow(id), false, 'nothing left to start');
+  release();
+  assert.equal(await one.finished, 'done');
+});
+
+test('quiet helpers outside the scheduler wait for the person\'s work, by listening rather than polling', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 } });
+  assert.equal(scheduler.personWorkPending(), false);
+  await personWorkClear(scheduler);
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const denoise = await scheduler.submit(batch('Denoising', 1, async () => { await held; }, { interactive: true }));
+  await until(() => scheduler.personWorkPending(), 'the person\'s work is running');
+  let clear = false;
+  const waiting = personWorkClear(scheduler).then(() => { clear = true; });
+  await pause(50);
+  assert.equal(clear, false, 'still waiting while TrueDetail runs');
+  release();
+  assert.equal(await denoise.finished, 'done');
+  await waiting;
+  assert.equal(clear, true);
 });

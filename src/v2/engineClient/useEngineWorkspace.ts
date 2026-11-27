@@ -213,6 +213,9 @@ import { shootTiers } from '../../core/shootTiers';
 import { createReadAhead, importLanes } from '../../core/importReadAhead';
 import { startNativeResourceSampling } from '../../providers/nativeResourceSample';
 
+// A task held back by the computer's capacity says why in Tasks, in the person's language.
+engineScheduler.setWaitWords((reason) => (reason === 'memory' ? engineText.workspace.waitMemory : engineText.workspace.waitBusy));
+
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
 const GUARDED_KEEPS_LIMIT = 60;
 

@@ -105,6 +105,8 @@ export const cy: AreaTranslation<typeof source> = {
     enlargementTask: 'Yn creu rhagolwg y chwyddiad',
     exportNotQueued: 'Doedd dim modd dechrau’r allforio hwn.',
     pickerTimingTitle: 'Amseriad y dewisydd ffolder (y ddyfais hon yn unig)',
+    waitBusy: 'Yn aros: mae’r cyfrifiadur yn brysur, felly bydd hyn yn dechrau pan fydd y dasg o’i blaen yn gorffen.',
+    waitMemory: 'Yn aros: mae’r cof yn isel, felly bydd hyn yn dechrau pan fydd y dasg o’i blaen yn gorffen.',
     pickerTiming: (app, picker) => `Gofynnodd InFlight am y dewisydd ffolder ${app} e ar ôl Cadw ffeiliau; atebodd y dewisydd ${picker} e yn ddiweddarach (gan gynnwys yr amser yn dewis).`,
     exportFolderUnwritable: (folder, reason) => `Doedd InFlight ddim yn gallu gwneud y ffolder allforio yn ${folder}${reason ? ` (${reason})` : ''}. Dewiswch ffolder arall, neu gwiriwch fod y gyriant wedi’i gysylltu ac nad yw’n ddarllen-yn-unig. Ni allforiwyd dim.`,
     destinationUnavailable: 'Dydy’r cyrchfan allforio hwnnw ddim ar gael. Dewiswch ZIP lleol, ffeiliau ar wahân neu ffolder ar y cyfrifiadur.',

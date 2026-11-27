@@ -11,6 +11,11 @@ export type LiveDraftRequest =
   | { type: 'base'; slot: string; key: string; base: ImageBitmap; lensCentre: LensCentre }
   | { type: 'base-file'; slot: string; key: string; blob: Blob; framing: PhotoFraming; longEdge: number }
   | { type: 'release'; slot: string }
+  /** The photo at full resolution, for the zoomed-in detail: its file, decoded in the worker. */
+  | { type: 'detail-source'; slot: string; key: string; blob: Blob }
+  /** One region of the framed photo, at the size it is shown, with the edit. */
+  | { type: 'detail'; id: number; slot: string; key: string; framing: PhotoFraming; region: { x: number; y: number; width: number; height: number };
+      scale: number; edit: PhotoEdit; view: { x: number; y: number; w: number; h: number }; aspect: number; lensCentre: LensCentre }
   | { type: 'draw'; id: number; slot: string; key: string; edge: number; edit: PhotoEdit };
 
 /** Where the lens's centre falls in the framed picture (photoFraming.ts lensCentre). */
@@ -33,6 +38,11 @@ export interface LiveDraftClient {
   /** Draw this step at `edge` pixels on the long side. Null when overtaken, when the worker has no base, or on failure. */
   draw(slot: string, key: string, edge: number, edit: PhotoEdit): Promise<ImageBitmap | null>;
   release(slot: string): void;
+  /** Keep this photo's full-resolution file in the worker for detail (once per slot and key). */
+  sendDetailSource(slot: string, key: string, blob: Blob): void;
+  detailSourceKey(slot: string): string | undefined;
+  /** Draw one region at full detail; newest wins per slot, null when overtaken or on failure. */
+  drawDetail(request: Omit<Extract<LiveDraftRequest, { type: 'detail' }>, 'type' | 'id'>): Promise<ImageBitmap | null>;
 }
 
 export function liveDraftSupported(): boolean {
@@ -43,6 +53,8 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
   let worker: WorkerLike | null = null;
   let nextId = 0;
   const bases = new Map<string, string>();
+  const detailSources = new Map<string, string>();
+  const detailLatest = new Map<string, number>();
   const waiting = new Map<number, (bitmap: ImageBitmap | null) => void>();
   /** Per slot: the draw being worked on, and the newest step waiting behind it. */
   const busy = new Set<string>();
@@ -64,6 +76,7 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
       for (const done of waiting.values()) done(null);
       waiting.clear();
       bases.clear();
+      detailSources.clear();
       started.terminate();
       if (worker === started) worker = null;
     };
@@ -110,8 +123,32 @@ export function createLiveDraftClient(start: () => WorkerLike): LiveDraftClient 
         queued.set(slot, { send, resolve });
       });
     },
+    sendDetailSource(slot, key, blob) {
+      detailSources.set(slot, key);
+      ensure().postMessage({ type: 'detail-source', slot, key, blob } satisfies LiveDraftRequest);
+    },
+    detailSourceKey: (slot) => detailSources.get(slot),
+    drawDetail(request) {
+      return new Promise<ImageBitmap | null>((resolve) => {
+        if (detailSources.get(request.slot) !== request.key) { resolve(null); return; }
+        const id = (nextId += 1);
+        detailLatest.set(request.slot, id);
+        waiting.set(id, (bitmap) => {
+          // Overtaken while it was drawn: the newer request's answer is the one shown.
+          if (detailLatest.get(request.slot) !== id) { bitmap?.close(); resolve(null); return; }
+          resolve(bitmap);
+        });
+        try {
+          ensure().postMessage({ type: 'detail', id, ...request } satisfies LiveDraftRequest);
+        } catch {
+          waiting.delete(id);
+          resolve(null);
+        }
+      });
+    },
     release(slot) {
       bases.delete(slot);
+      detailSources.delete(slot);
       queued.get(slot)?.resolve(null);
       queued.delete(slot);
       worker?.postMessage({ type: 'release', slot } satisfies LiveDraftRequest);

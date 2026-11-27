@@ -113,6 +113,10 @@ interface WorkBatch {
   lastActivity: number;
   stallMs: number | undefined;
   cloud: boolean;
+  /** The waiting reason last shown on this task, so it is written once rather than on every pump. */
+  waitShown?: string;
+  /** The person chose Start now: it starts at once, whatever the load and however many other jobs run. */
+  forced?: boolean;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -167,9 +171,22 @@ export function createEngineScheduler(options: {
   let resourceSample = options.resourceSample ?? null;
   let mode: ProcessingMode = options.mode ?? 'balanced';
   let blockedReason: string | null = null;
+  let admissionChecks = 0;
   const admitted = (job: WorkBatch): boolean => {
+    admissionChecks += 1;
+    if (job.forced) { blockedReason = null; return true; }
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
+    const busy = occupied.filter(other => other.resource !== 'io');
+    if (job.resource !== 'io') {
+      // Never starve: with none of InFlight's own heavy work running, one job always starts, however busy other
+      // programs keep the computer. The measurements only decide whether MORE than one runs at once. (Owner's test: at
+      // 100% CPU from other programs, TrueDetail, the full-size develop and the colour check all sat "Queued" for ever.)
+      if (!busy.length) { blockedReason = null; return true; }
+      // A job the person started themselves (one photo: denoise, tap to select, find subject...) starts as soon as no
+      // other such job runs; background work yields to it, one photo at a time.
+      if (job.interactive && !busy.some(other => other.interactive)) { blockedReason = null; return true; }
+    }
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
       gpuBytes: sum.gpuBytes + other.reservation.gpuBytes,
@@ -193,6 +210,11 @@ export function createEngineScheduler(options: {
     return safe;
   };
   const jobs = new Map<number, WorkBatch>();
+  // The words for a task waiting on the computer's capacity; the app supplies them in the person's language.
+  let waitWords: (reason: string) => string = (reason) => (reason === 'memory'
+    ? 'Waiting: memory is low, so this starts when the task before it finishes.'
+    : 'Waiting: the computer is busy, so this starts when the task before it finishes.');
+  const capacityReasons = new Set(['cpu', 'gpu', 'memory', 'gpu-memory', 'disk', 'thermal']);
   const failedJobs = new Map<number, WorkBatch>();
   // The signal handed to each running photograph. Engine work called with one of these is already inside a
   // batch: it must run there, not queue a second batch behind the one waiting for it (one heavy job at a time).
@@ -256,6 +278,17 @@ export function createEngineScheduler(options: {
     (watchdog as { unref?: () => void }).unref?.();
   };
 
+  /** Queued tasks held back by the computer's capacity say so, instead of a silent "Queued". */
+  const showWaiting = () => {
+    const reason = blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
+    for (const job of jobs.values()) {
+      if (job.active || job.paused || job.cancelled || !job.items.some(item => item.state === 'queued')) continue;
+      const words = reason ? waitWords(reason) : undefined;
+      if (!words || job.waitShown === words) continue;
+      job.waitShown = words;
+      job.handle.patch({ detail: words });
+    }
+  };
   const pump = () => {
     if (pausedAll) return;
     // Each dispatch covers only one photograph, then reconsider priority.
@@ -266,11 +299,12 @@ export function createEngineScheduler(options: {
         j.items.some(item => item.state === 'queued') && admitted(j));
       eligible.sort((a, b) => b.priority - a.priority || a.order - b.order);
       const job = eligible[0];
-      if (!job) break;
+      if (!job) { showWaiting(); break; }
       const index = job.items.findIndex(item => item.state === 'queued');
       if (index < 0) break;
       dispatched = true;
       job.active = true;
+      job.waitShown = undefined;
       job.order = ++sequence;
       job.lastActivity = now();
       used[job.resource]++;
@@ -544,6 +578,15 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /** Start now: the person's choice overrides the load check (and the one-at-a-time limit) for this task. */
+  const startNow = (id: number): boolean => {
+    const job = jobs.get(id);
+    if (!job || job.cancelled || job.paused || job.active || !job.items.some(item => item.state === 'queued')) return false;
+    job.forced = true;
+    job.priority = ++highest;
+    pump();
+    return true;
+  };
   const reorder = (ids: readonly number[]): boolean => {
     if (new Set(ids).size !== ids.length || ids.some(id => !jobs.has(id) || jobs.get(id)?.active)) return false;
     for (const id of [...ids].reverse()) {
@@ -565,7 +608,14 @@ export function createEngineScheduler(options: {
     pump();
   };
   return {
-    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    submit, pause, resume, jumpQueue, startNow, reorder, setCpuLimit,
+    /** Whether this task is waiting for the computer's capacity (it then offers Start now). */
+    isWaitingForCapacity: (id: number) => { const job = jobs.get(id); return Boolean(job && !job.active && !job.cancelled && job.waitShown); },
+    /** Whether work the person started (one photo: TrueDetail, tap to select...) is running or waiting. Quiet
+     * background helpers outside the scheduler (the species scan) step aside while it is. */
+    personWorkPending: () => [...jobs.values()].some(job => job.interactive && !job.cancelled && (job.active || job.items.some(item => item.state === 'queued'))),
+    /** How many admission checks have run (tests: waiting must not re-check in a loop). */
+    admissionChecks: () => admissionChecks,
     /** Look for stuck photos now (the watchdog does this every 30 s). */
     checkStalls,
     cpuLimit: () => limits.cpu,
@@ -587,7 +637,13 @@ export function createEngineScheduler(options: {
     resumeAll() {
       pausedAll = false;
       for (const job of jobs.values()) if (job.paused || job.pauseRequested) resume(job.id);
+      // Resume all also clears a hold: the first task waiting for capacity starts if nothing of InFlight's is running,
+      // so the person never has to restart the app to get work moving.
       pump();
+      if (![...jobs.values()].some(job => job.active)) {
+        const first = [...jobs.values()].filter(job => job.waitShown && !job.paused && !job.cancelled).sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
+        if (first) startNow(first.id);
+      }
     },
     list: () => store.list(),
     subscribe: store.subscribe,
@@ -602,6 +658,8 @@ export function createEngineScheduler(options: {
       pump();
     },
     setProcessingMode(next: ProcessingMode) { mode = next; pump(); },
+    /** The waiting words in the person's language (reason: cpu, memory, thermal...). */
+    setWaitWords(words: (reason: string) => string) { waitWords = words; },
     resourceStatus: () => ({ active: { ...used }, measured: resourceSample !== null, mode, blockedReason }),
   };
 }
@@ -611,3 +669,11 @@ export const engineScheduler = createEngineScheduler({
   limits: limitsForDevice({ hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory,
     mobile: typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent) }),
 });
+
+/** Resolves once no work the person started is running or waiting. It listens to Tasks; it never polls. */
+export function personWorkClear(scheduler: { personWorkPending(): boolean; subscribe(listener: () => void): () => void } = engineScheduler): Promise<void> {
+  if (!scheduler.personWorkPending()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = scheduler.subscribe(() => { if (!scheduler.personWorkPending()) { stop(); resolve(); } });
+  });
+}
