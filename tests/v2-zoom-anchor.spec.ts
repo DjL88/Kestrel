@@ -25,6 +25,10 @@ async function importPicture(page: Page, size = { width: 3000, height: 2000 }) {
   await (await chooser).setFiles([{ name: 'checks.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1, { timeout: 30000 });
   await expect(root.getByTestId('zoom-percent')).not.toHaveText('100%', { timeout: 30000 });
+  // The picture has its size on screen before anything is measured: on a slow start the first box read 0×0, and the
+  // corner test then compared Fit against nothing ("off by 808 px").
+  await expect.poll(async () => (await pictureBox(page).catch(() => ({ width: 0 }))).width, { timeout: 30000 }).toBeGreaterThan(50);
+  await page.waitForTimeout(150);
   return root;
 }
 
