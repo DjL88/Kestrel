@@ -336,7 +336,8 @@ export default function ProjectsHub({
             ref={createPanel}
             tabIndex={-1}
             onSubmit={handleCreate}
-            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[calc(100dvh-2rem)]"
+            // Wider from tablet up (Dave, 27 Nov: it was narrow and scrolled on a 1366×768 laptop); a phone keeps one column.
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[calc(100dvh-2rem)] md:max-w-[56rem]"
           >
             <h2 id="create-proj-title" className="shrink-0 px-4 py-3 text-base font-bold text-[var(--text-primary)] sm:px-6">
               {STRINGS.hub.modalTitle}
@@ -344,6 +345,8 @@ export default function ProjectsHub({
             <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
               <fieldset className="space-y-2">
                 <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
+                {/* Photo shoot is the main choice: a full-width card first (and first in keyboard order); Collage or album and
+                    Tethered shoot share the row below, 50/50, and stack on a narrow phone (Dave, 27 Nov). */}
                 <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
                   {([
                     ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
@@ -351,14 +354,17 @@ export default function ProjectsHub({
                     ['tethered', STRINGS.hub.kindTetheredTitle, STRINGS.hub.kindTetheredBody],
                   ] as const).map(([kind, title, description]) => {
                     const selected = projectKind === kind;
+                    const main = kind === 'photography';
                     return (
-                      <label key={kind} data-testid={`project-kind-${kind}`}
-                        className={`relative flex cursor-pointer flex-col gap-2 rounded-[var(--radius-lg)] border-2 p-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-hover)]'}`}>
+                      <label key={kind} data-testid={`project-kind-${kind}`} data-main={main ? 'true' : undefined}
+                        className={`relative flex cursor-pointer flex-col gap-2 ${main ? 'min-[420px]:col-span-2 md:flex-row md:items-center md:gap-4' : ''} rounded-[var(--radius-lg)] border-2 p-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-hover)]'}`}>
                         <input type="radio" className="sr-only" name="project-kind" value={kind} checked={selected}
                           onChange={() => setProjectKind(kind)} />
-                        <ProjectKindPicture kind={kind} selected={selected} />
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
-                        <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
+                        <span className={main ? 'block md:w-56 md:shrink-0' : 'contents'}><ProjectKindPicture kind={kind} selected={selected} /></span>
+                        <span className={main ? 'flex min-w-0 flex-col gap-2' : 'contents'}>
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+                          <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
+                        </span>
                         {selected && (
                           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
                             <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
@@ -374,6 +380,7 @@ export default function ProjectsHub({
                   value={projectMode} onChange={setProjectMode} />
                 <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hub.modeChangeLater}</p>
               </div>
+              <div className="space-y-4 md:grid md:grid-cols-2 md:items-start md:gap-4 md:space-y-0">
               <div className="space-y-1.5">
                 <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
                   {STRINGS.hub.modalNameLabel}
@@ -388,6 +395,7 @@ export default function ProjectsHub({
                   className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-base text-[var(--text-primary)] sm:text-sm"
                 />
               </div>
+              <div className="space-y-1.5 md:pt-[1.375rem]">
               <button
                 type="button"
                 onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
@@ -398,6 +406,8 @@ export default function ProjectsHub({
                 <span>{STRINGS.hubMore.fromFolder}</span>
               </button>
               <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
+              </div>
+              </div>
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2 sm:px-6">
               <button
