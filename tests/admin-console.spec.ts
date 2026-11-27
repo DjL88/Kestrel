@@ -181,3 +181,26 @@ test('turning something off puts focus on Go back first, so Enter does not switc
   await expect(ask).toBeHidden();
   expect(posts.filter((p) => p.path === '/v1/admin/switches/set')).toEqual([]);
 });
+
+test('a feature the server is not set up for reads "Not set up yet", with no error anywhere', async ({ page }) => {
+  // The server now answers these with 200 and configured: false, not a 503 (which set off the owner's error alert).
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  const notSet = (reason: string) => ({ configured: false, reason });
+  await signInAdmin(page, origin, {
+    '/v1/admin/learning': notSet('Model training is not set up on this server.'),
+    '/v1/admin/paddle/key': notSet('Renewing the Paddle key by itself is not set up on this server.'),
+    '/v1/admin/mail': notSet('App email is not set up on this server.'),
+    '/v1/admin/tax': notSet('Tax reporting needs the Firestore commerce ledger, which this server does not have.'),
+  });
+  await expect(page.locator('#needs-unknown')).toBeHidden();
+  await openPage(page, 'Advanced');
+  await page.getByText('Model training', { exact: true }).click();
+  await expect(page.locator('#learning-unavailable')).toHaveText('Not set up on this server yet.');
+  await expect(page.locator('#learning-run')).toBeDisabled();
+  await page.getByText('Tax', { exact: true }).click();
+  await expect(page.locator('#tax-unavailable')).toContainText('does not have');
+  await expect(page.locator('#status')).toBeEmpty();
+  expect(errors).toEqual([]);
+});

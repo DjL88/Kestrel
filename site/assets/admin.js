@@ -41,6 +41,17 @@ async function api(path, body) {
   return result;
 }
 
+/**
+ * A look-up for a feature this server may not be set up for. The server answers 200 with `configured: false` (never a
+ * server error, so the owner's error alert stays for real faults); here that becomes the section's "not set up" path,
+ * the same one an older server's 503 takes.
+ */
+async function lookUp(path) {
+  const answer = await api(path);
+  if (answer?.configured === false) throw Object.assign(new Error(answer.reason || 'Not set up yet.'), { status: 503, notSetUp: true });
+  return answer;
+}
+
 function say(message) { status.textContent = message; }
 
 /** Runs an action from a form or button, keeps the control disabled meanwhile, and reports errors in words. */
@@ -316,7 +327,7 @@ function renderToday(needs, unknown) {
 
 async function loadRefunds() {
   let refunds;
-  try { ({ refunds } = await api('admin/balance-refunds')); } catch (error) {
+  try { ({ refunds } = await lookUp('admin/balance-refunds')); } catch (error) {
     if (error instanceof SignedOut) throw error;
     // 503: account deletion is not set up on this server, so nothing can be owed.
     snapshot.refunds = error.status === 503 ? undefined : null;
@@ -559,7 +570,7 @@ async function loadUsage() {
 
 async function loadPaddleKey() {
   let k;
-  try { k = await api('admin/paddle/key'); } catch (error) {
+  try { k = await lookUp('admin/paddle/key'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.paddleKey = undefined;
     $('paddle-key-state').textContent = '';
@@ -825,7 +836,7 @@ async function loadPriceReview() {
   $('price-review-table').hidden = true;
   $('price-review-rows').replaceChildren();
   let review;
-  try { ({ review } = await api('admin/pricing/review')); } catch (error) {
+  try { ({ review } = await lookUp('admin/pricing/review')); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('price-review-status').textContent = error.message;
     return;
@@ -864,7 +875,7 @@ ossForm.elements.quarter.value = Math.floor(new Date().getMonth() / 3) + 1;
 
 async function loadTax() {
   let summary;
-  try { summary = await api('admin/tax'); } catch (error) {
+  try { summary = await lookUp('admin/tax'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('tax-body').hidden = true;
     $('tax-unavailable').hidden = false;
@@ -1032,7 +1043,7 @@ let complianceMaxBytes = 8_000_000;
 
 async function loadCompliance() {
   let c;
-  try { c = await api('admin/compliance/documents'); } catch (error) {
+  try { c = await lookUp('admin/compliance/documents'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     $('compliance-unavailable').hidden = false; $('compliance-form').hidden = true; $('compliance-empty').hidden = true;
     $('compliance-table').tBodies[0].replaceChildren(); return;
@@ -1072,7 +1083,7 @@ act($('compliance-form'), 'submit', async () => {
 
 async function loadMail() {
   let m;
-  try { m = await api('admin/mail'); } catch (error) {
+  try { m = await lookUp('admin/mail'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.mail = undefined;
     $('mail-unavailable').hidden = false; $('mail-warning').hidden = true; $('mail-facts').replaceChildren(); return;
@@ -1094,7 +1105,7 @@ const WHY = { count: 'Enough new photos', weekly: 'Weekly', manual: 'Train now' 
 const RESULT = { reserved: 'Starting', submitted: 'Running', succeeded: 'Finished', failed: 'Failed (the money set aside still counts)', 'not-started': 'Not started (nothing charged)' };
 async function loadLearning() {
   let s;
-  try { s = await api('admin/learning'); } catch (error) {
+  try { s = await lookUp('admin/learning'); } catch (error) {
     if (error instanceof SignedOut) throw error;
     snapshot.learning = undefined;
     $('learning-unavailable').hidden = false; $('learning-run').disabled = true; $('learning-facts').replaceChildren(); return;
