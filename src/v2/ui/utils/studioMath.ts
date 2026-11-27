@@ -1,6 +1,7 @@
 // Pure logic helpers for InFlight UI shell (unit-tested with node:test).
 // Zero DOM, zero network, zero canvas pixel processing.
 
+import { cameraName, lensName } from './nameRules';
 import type {
   CropTransform,
   EditGroup,
@@ -215,6 +216,9 @@ export function photoSearchText(photo: Photo): string {
     photo.category,
     photo.exif.camera,
     photo.exif.lens,
+    // The friendly names too (Settings › Auto-correct), so "Z5 II" and "Z5_2" both find the photo.
+    cameraName(photo.exif.camera),
+    lensName(photo.exif.lens),
   ].join(' ');
 }
 

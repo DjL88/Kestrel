@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { cameraName, lensName, useNameRulesVersion } from '../utils/nameRules';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import VehicleRow from './VehicleRow';
@@ -57,6 +58,8 @@ export default function InfoPanel({
   speciesPlace,
   onSetSpeciesArea,
 }: InfoPanelProps) {
+  // Camera and lens names follow Settings › Auto-correct as soon as it changes.
+  useNameRulesVersion();
   const [editingSpecies, setEditingSpecies] = useState(false);
   // Owner, 26 Nov: the camera and analysis first; the histogram and the file on a second tab. Kept while photos change.
   const [view, setView] = useState<'details' | 'file'>('details');
@@ -274,8 +277,9 @@ export default function InfoPanel({
       <section className="space-y-1.5">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cameraSection}</h3>
         <dl className="space-y-1.5 text-xs">
-          <MetaRow label="Camera" value={photo.exif.camera} />
-          <MetaRow label="Lens" value={photo.exif.lens} />
+          {/* Friendly names (Settings › Auto-correct), with the camera's own words beneath when they differ. */}
+          <NamedRow label="Camera" raw={photo.exif.camera} friendly={cameraName(photo.exif.camera)} testId="info-camera" />
+          <NamedRow label="Lens" raw={photo.exif.lens} friendly={lensName(photo.exif.lens)} testId="info-lens" />
           <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
           <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
           <MetaRow label="Captured" value={photo.exif.capturedAt} />
@@ -401,6 +405,20 @@ export default function InfoPanel({
       )}
       </div>
       )}
+    </div>
+  );
+}
+
+/** A name row: the friendly name, and the raw value from the file beneath it when the two differ. Display only. */
+function NamedRow({ label, raw, friendly, testId }: { label: string; raw: string; friendly: string; testId: string }) {
+  const shown = friendly || raw;
+  return (
+    <div className="flex items-start justify-between gap-3" data-testid={testId}>
+      <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
+      <dd className="min-w-0 text-right">
+        <span className="text-[var(--text-primary)]">{shown}</span>
+        {shown !== raw && <span className="block font-mono text-[0.625rem] text-[var(--text-muted)]" data-testid={`${testId}-raw`}>{raw}</span>}
+      </dd>
     </div>
   );
 }
