@@ -74,6 +74,8 @@ export const fi: AreaTranslation<typeof source> = {
       unreadable: 'InFlight ei voinut lukea kansiota. Mitään ei muutettu.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Valmistellaan 1 pikkukuva' : `Valmistellaan ${count} pikkukuvaa`),
+    thumbnailsGroup: 'Valmistellaan pikkukuvia',
+    checksGroup: 'Tarkistetaan kuvia ja niiden värejä',
     thumbnailStage: 'Luetaan ja pienennetään tätä kuvaa',
     thumbnailFailed: (filename) => `Pikkukuvaa ei voitu tehdä tiedostosta ${filename}. Yhdistä alkuperäinen uudelleen ja yritä taas.`,
     rawJpegXl: 'Tämä RAW käyttää JPEG XL -pakkausta, jota InFlight ei vielä osaa lukea. Alkuperäiseen ei ole koskettu.',

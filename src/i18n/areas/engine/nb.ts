@@ -74,6 +74,8 @@ export const nb: AreaTranslation<typeof source> = {
       unreadable: 'InFlight kunne ikke lese mappen. Ingenting ble endret.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniatyrbilde' : `Forbereder ${count} miniatyrbilder`),
+    thumbnailsGroup: 'Forbereder miniatyrbilder',
+    checksGroup: 'Sjekker bilder og fargene deres',
     thumbnailStage: 'Leser og forminsker dette bildet',
     thumbnailFailed: (filename) => `Kunne ikke lage miniatyrbildet for ${filename}. Koble til originalen på nytt og prøv igjen.`,
     rawJpegXl: 'Denne RAW-filen bruker JPEG XL-komprimering, som InFlight ikke kan lese ennå. Originalen er urørt.',

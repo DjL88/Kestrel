@@ -74,6 +74,8 @@ export const ga: AreaTranslation<typeof source> = {
       unreadable: 'Níorbh fhéidir le InFlight an fillteán sin a léamh. Níor athraíodh aon rud.',
     },
     thumbnailsTask: (count) => (count === 1 ? '1 mhionsamhail á hullmhú' : `${count} mionsamhail á n-ullmhú`),
+    thumbnailsGroup: 'Mionsamhlacha á n-ullmhú',
+    checksGroup: 'Grianghraif agus a ndath á seiceáil',
     thumbnailStage: 'An grianghraf seo á léamh agus á laghdú',
     thumbnailFailed: (filename) => `Níorbh fhéidir an mhionsamhail do ${filename} a dhéanamh. Athnasc an bunchomhad agus bain triail eile as.`,
     rawJpegXl: 'Úsáideann an RAW seo comhbhrú JPEG XL, nach féidir le InFlight a léamh fós. Níl an bunchomhad athraithe.',

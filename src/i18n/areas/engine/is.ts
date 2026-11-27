@@ -74,6 +74,8 @@ export const is: AreaTranslation<typeof source> = {
       unreadable: 'InFlight gat ekki lesið möppuna. Engu var breytt.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Undirbý 1 smámynd' : `Undirbý ${count} smámyndir`),
+    thumbnailsGroup: 'Undirbý smámyndir',
+    checksGroup: 'Athuga myndir og liti þeirra',
     thumbnailStage: 'Les og minnka þessa mynd',
     thumbnailFailed: (filename) => `Ekki tókst að búa til smámynd fyrir ${filename}. Tengdu frumritið aftur og reyndu aftur.`,
     rawJpegXl: 'Þessi RAW-skrá notar JPEG XL-þjöppun sem InFlight getur ekki lesið enn. Frumritið er óbreytt.',

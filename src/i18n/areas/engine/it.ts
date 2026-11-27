@@ -74,6 +74,8 @@ export const it: AreaTranslation<typeof source> = {
       unreadable: 'InFlight non è riuscito a leggere quella cartella. Non è stato modificato nulla.',
     },
     thumbnailsTask: (count) => (count === 1 ? 'Preparazione di 1 miniatura' : `Preparazione di ${count} miniature`),
+    thumbnailsGroup: 'Preparazione delle miniature',
+    checksGroup: 'Controllo delle foto e del loro colore',
     thumbnailStage: 'Lettura e riduzione di questa foto',
     thumbnailFailed: (filename) => `Impossibile creare la miniatura di ${filename}. Ricollega l’originale e riprova.`,
     rawJpegXl: 'Questo RAW usa la compressione JPEG XL, che InFlight non sa ancora leggere. L’originale non è stato toccato.',

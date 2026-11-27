@@ -94,6 +94,8 @@ export const source = {
       unreadable: 'InFlight could not read that folder. Nothing was changed.',
     },
     thumbnailsTask: (count: number) => (count === 1 ? 'Preparing 1 thumbnail' : `Preparing ${count} thumbnails`),
+    thumbnailsGroup: 'Preparing thumbnails',
+    checksGroup: 'Checking photos and their colour',
     thumbnailStage: 'Reading and scaling this photo',
     thumbnailFailed: (filename: string) => `Could not make the thumbnail for ${filename}. Reconnect the original and try again.`,
     rawJpegXl: 'This RAW uses JPEG XL compression, which InFlight can’t read yet. The original is untouched.',
