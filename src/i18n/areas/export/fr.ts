@@ -15,7 +15,7 @@ export const fr: AreaTranslation<typeof source> = {
     copyright: "Droits d’auteur",
     includeKeywords: "Inclure des mots-clés",
     keywords: "Mots-clés (séparés par des virgules ; vide = mots-clés confirmés)",
-    help: "Les sujets confirmés peuvent remplir le titre et les mots-clés. Les suppositions non confirmées de l’IA ne sont jamais exportées. Ces informations sont dans le fichier, pas sur l’image.",
+    help: "Les sujets confirmés peuvent remplir le titre et les mots-clés. Les suggestions non confirmées des modèles ne sont jamais exportées. Ces informations sont dans le fichier, pas sur l’image.",
   },
   originals: {
     title: "Fichiers originaux de l’appareil",

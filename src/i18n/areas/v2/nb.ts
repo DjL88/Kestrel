@@ -624,9 +624,9 @@ export const nb: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Grundig visuell gjennomgang',
     localReviewButton: 'Sjekk bildet på denne enheten',
-    runReviewSub: 'Interne RAW-modeller + tilkoblet KI · Ikke-generativ',
+    runReviewSub: "RAW-modeller på enheten + din egen KI, hvis tilkoblet · Ingenting generert",
     ongoingBadge: 'Løpende analyse aktiv — oppdateres mens du justerer glidebrytere',
-    noGenAiNote: 'Ingen generativ KI. Bruker bare masker, støyreduksjon, tone og fargekorrigering.',
+    noGenAiNote: "Ingenting genereres. Bruker bare masker, støyreduksjon, tone og fargekorrigering.",
     applyAllSuggestions: 'Bruk foreslått oppskrift',
     applySingle: 'Bruk',
     applied: 'Brukt',
@@ -1166,8 +1166,8 @@ export const nb: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Når du er pålogget og tilkoblet, sender denne knappen en arbeidskopi (aldri originalen) til InFlight-skyen bare for denne jobben og kontrollerer resultatet på denne enheten. Hvis skyen ikke er tilgjengelig, kjøres det her.',
     denoiseDeviceNote: "Kjører på denne enheten.",
     denoiseCloudAllowance: (basic, pro) => `Sky: ${basic} bilder i måneden med Basic, ${pro} med Pro.`,
-    aiDenoiseInUse: 'KI-støyreduksjon brukes på motivet. Den lagres bare på denne enheten.',
-    aiDenoiseOff: 'Slå av KI-støyreduksjon',
+    aiDenoiseInUse: "Lært støyreduksjon brukes på motivet. Den lagres bare på denne enheten.",
+    aiDenoiseOff: "Slå av lært støyreduksjon",
     rawAiDenoise: 'Grundig RAW-støyreduksjon',
     luminanceDenoise: 'Luminansstøy',
     colourDenoise: 'Fargestøy',
@@ -2202,6 +2202,11 @@ export const nb: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Fra ${project}`,
   },
 
+  promise: {
+    heading: "Dette lover InFlight",
+    body: "InFlight dikter aldri opp eller erstatter det som er i bildet ditt, og skriver aldri innhold laget av en modell inn i filenes metadata. Originalene dine endres aldri. Modeller måler og foreslår (motiv, fokus, art, støy). Støyreduksjon og skarphet arbeider ut fra bildets egne piksler; den valgfrie lærte støyreduksjonen renser bare pikslene som allerede er der, og brukes bare når en kontroll viser at ekte detaljer er bevart. Det eneste unntaket er Flekkfjerning, som kopierer fra et annet sted i ditt eget bilde, og bare der du selv setter den.",
+  },
+
   setup: {
     title: "Hurtigoppsett",
     stepOf: (n, total) => `Trinn ${n} av ${total}`,
@@ -2211,7 +2216,7 @@ export const nb: AreaTranslation<typeof source> = {
     back: "Tilbake",
     finish: "Ferdig",
     runAgain: "Kjør hurtigoppsettet på nytt",
-    runAgainDesc: "Språk, hva du fotograferer, Pro, sky, flymodus og KI-tillegg. Omtrent ett minutt; alle trinn kan hoppes over.",
+    runAgainDesc: "Språk, hva du fotograferer, Pro, sky, flymodus og valgfrie nedlastinger. Omtrent ett minutt; alle trinn kan hoppes over.",
     appliedFromAccount: "Innstillingene fra kontoen din gjelder nå også på denne enheten.",
     language: {
       title: "Velg språk",

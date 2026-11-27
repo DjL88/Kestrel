@@ -291,7 +291,7 @@ export const da: AreaTranslation<typeof source> = {
     tone: 'Tone',
     detail: 'Detaljer',
     brightnessTitle: 'Justér lysstyrken i mellemtonerne og bevar rent sort og hvidt; brug Eksponering til det samlede lys',
-    denoiseTitle: 'Udglatter farvede prikker i billeder med høj ISO; lover ikke AI-gendannelse af detaljer',
+    denoiseTitle: "Udglatter farvede prikker i billeder med høj ISO. Tilføjer ingen detaljer.",
     denoiseHelp: 'Udglatter kun farveprikker. Kanter og fin tekstur forbliver, som de er.',
     exportFocus: 'Fokuspunkt til eksport',
     cancelPlacement: 'Annuller placering',

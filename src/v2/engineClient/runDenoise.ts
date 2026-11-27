@@ -88,7 +88,7 @@ export function trueDetailNote(regions: readonly RegionChoice[] | undefined, sub
     const choice = regions.find(r => r.region === region);
     if (!choice) return null;
     if (choice.strength <= 0) return `${name} kept as it was (${choice.kept})`;
-    return choice.source === 'conventional' ? `${name} ${choice.strength.toFixed(2)}` : `${name} AI denoise (${choice.source}) at ${Math.round(choice.strength * 100)}%`;
+    return choice.source === 'conventional' ? `${name} ${choice.strength.toFixed(2)}` : `${name} learned denoise (${choice.source}) at ${Math.round(choice.strength * 100)}%`;
   };
   const parts = [part('background', 'background'), part('subject', 'subjects'), eyes ? part('eyes', eyes === 1 ? 'eye' : 'eyes') : null].filter(Boolean);
   return `TrueDetail regional denoise on this device (${who}${eyes ? `, ${eyes} eye${eyes === 1 ? '' : 's'} protected` : ''}): ${parts.join('; ')}.`;
@@ -232,7 +232,7 @@ async function denoiseVerifiedSource(
   // TrueDetail: when the opt-in NAFNet pack is on this device, run it on the subject's area at full size, so the
   // guardian can compare it with the built-in denoise region by region.
   const learnedOutcome = subject ? await runLearnedOnSubject(source, framing, original, subject.alpha, signal,
-    (done, total) => progress?.(done, total, `AI denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
+    (done, total) => progress?.(done, total, `Learned denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
   signal?.throwIfAborted();
   // Judge the learned result where it was made, too: the working copy is scaled down and hides the fine detail a
   // learned denoiser can smooth away. Only the blend strengths that pass at full size are offered to the guardian.

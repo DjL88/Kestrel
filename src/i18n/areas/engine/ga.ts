@@ -51,8 +51,8 @@ export const ga: AreaTranslation<typeof source> = {
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
     mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
     workerUnavailable: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin níor athraíodh aon rud (reodh sé InFlight é a rith anseo). Bain triail eile as tar éis InFlight a atosú.',
-    learnedNoWorker: 'Níorbh fhéidir an laghdú torainn AI a rith sa chúlra ar an ngléas seo, mar sin níor cuireadh ach an laghdú torainn ionsuite i gcomparáid.',
-    learnedLostDetail: 'Ag lánmhéid, shlíoc laghdú torainn AI fíormhionsonraí den ábhar, mar sin úsáideadh an laghdú torainn ionsuite ina ionad.',
+    learnedNoWorker: "Níorbh fhéidir an laghdú torainn foghlamtha a rith sa chúlra ar an ngléas seo, mar sin níor cuireadh ach an laghdú torainn ionsuite i gcomparáid.",
+    learnedLostDetail: "Ag lánmhéid, shlíoc an laghdú torainn foghlamtha fíormhionsonraí den ábhar, mar sin úsáideadh an laghdú torainn ionsuite ina ionad.",
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {

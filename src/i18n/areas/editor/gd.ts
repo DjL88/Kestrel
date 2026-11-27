@@ -295,7 +295,7 @@ export const gd: AreaTranslation<typeof source> = {
     tone: 'Tòna',
     detail: 'Mion-fhiosrachadh',
     brightnessTitle: 'Gleus soilleireachd nam meadhan-thònaichean is cùm dubh is geal fìor-ghlan; cleachd an Nochdadh airson an t-solais air fad',
-    denoiseTitle: 'Nì e breacadh dathte rèidh ann an dealbhan le ISO àrd; chan eil e a’ cumail a-mach gun aisig e mion-fhiosrachadh le AI',
+    denoiseTitle: "Nì e breacadh dathte rèidh ann an dealbhan le ISO àrd. Cha chuir e mion-fhiosrachadh ris.",
     denoiseHelp: 'Nì e breacadh datha rèidh a-mhàin. Fanaidh oirean is inneach mìn mar a tha iad.',
     exportFocus: 'Fòcas an às-phortaidh',
     cancelPlacement: 'Sguir dhen t-suidheachadh',

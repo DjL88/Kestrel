@@ -624,9 +624,9 @@ export const es: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Revisión visual profunda',
     localReviewButton: 'Revisar la foto en este dispositivo',
-    runReviewSub: 'Modelos RAW internos + IA conectada · No generativa',
+    runReviewSub: "Modelos RAW en el dispositivo + tu propia IA, si está conectada · Nada generado",
     ongoingBadge: 'Análisis continuo activo — se actualiza al mover los controles',
-    noGenAiNote: 'Sin IA generativa. Solo usa máscaras, reducción de ruido, tono y corrección de color.',
+    noGenAiNote: "No se genera nada. Solo usa máscaras, reducción de ruido, tono y corrección de color.",
     applyAllSuggestions: 'Aplicar la receta sugerida',
     applySingle: 'Aplicar',
     applied: 'Aplicado',
@@ -1166,8 +1166,8 @@ export const es: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Si ha iniciado sesión y está en línea, este botón envía una copia de trabajo (nunca el original) a la nube de InFlight solo para esta tarea. El resultado se comprueba en este dispositivo. Si la nube no está disponible, se ejecuta aquí.',
     denoiseDeviceNote: "Se ejecuta en este dispositivo.",
     denoiseCloudAllowance: (basic, pro) => `Nube: ${basic} fotos al mes con Basic, ${pro} con Pro.`,
-    aiDenoiseInUse: 'La reducción de ruido con IA se aplica al sujeto. Solo se guarda en este dispositivo.',
-    aiDenoiseOff: 'Desactivar la reducción de ruido con IA',
+    aiDenoiseInUse: "La reducción de ruido aprendida se aplica al sujeto. Solo se guarda en este dispositivo.",
+    aiDenoiseOff: "Desactivar la reducción de ruido aprendida",
     rawAiDenoise: 'Reducción profunda de ruido RAW',
     luminanceDenoise: 'Ruido de luminancia',
     colourDenoise: 'Ruido de color',
@@ -2202,6 +2202,11 @@ export const es: AreaTranslation<typeof source> = {
     photosFrom: (project) => `De ${project}`,
   },
 
+  promise: {
+    heading: "Lo que promete InFlight",
+    body: "InFlight nunca inventa ni sustituye lo que hay en tu foto, y nunca escribe contenido hecho por un modelo en los metadatos de tus archivos. Tus originales nunca cambian. Los modelos miden y sugieren (sujeto, enfoque, especie, ruido). La reducción de ruido y el enfoque trabajan con los propios píxeles de tu foto; la reducción de ruido aprendida, opcional, solo limpia los píxeles que ya están, y solo se usa si una comprobación muestra que el detalle real se conserva. La única excepción es Corrección de manchas, que copia de otra parte de tu propia foto, y solo donde tú la colocas.",
+  },
+
   setup: {
     title: "Configuración rápida",
     stepOf: (n, total) => `Paso ${n} de ${total}`,
@@ -2211,7 +2216,7 @@ export const es: AreaTranslation<typeof source> = {
     back: "Atrás",
     finish: "Terminar",
     runAgain: "Repetir la configuración rápida",
-    runAgainDesc: "Idioma, lo que fotografías, Pro, nube, modo de vuelo y extras de IA. Más o menos un minuto; puedes omitir cualquier paso.",
+    runAgainDesc: "Idioma, lo que fotografías, Pro, nube, modo de vuelo y descargas opcionales. Más o menos un minuto; puedes omitir cualquier paso.",
     appliedFromAccount: "Los ajustes de tu cuenta también están en este dispositivo.",
     language: {
       title: "Elige tu idioma",

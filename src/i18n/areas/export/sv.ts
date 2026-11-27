@@ -15,7 +15,7 @@ export const sv: AreaTranslation<typeof source> = {
     copyright: "Upphovsrätt",
     includeKeywords: "Inkludera nyckelord",
     keywords: "Nyckelord (kommaseparerade; tomt = bekräftade taggar)",
-    help: "Bekräftade motiv kan fylla i titel och nyckelord. Obekräftade AI-gissningar exporteras aldrig. Informationen sparas i filen, inte på fotot.",
+    help: "Bekräftade motiv kan fylla i titel och nyckelord. Obekräftade förslag från modeller exporteras aldrig. Informationen sparas i filen, inte på fotot.",
   },
   originals: {
     title: "Kamerans originalfiler",

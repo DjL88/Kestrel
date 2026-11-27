@@ -624,9 +624,9 @@ export const nl: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Diepe beeldbeoordeling',
     localReviewButton: 'Foto op dit apparaat controleren',
-    runReviewSub: 'Interne RAW-modellen + gekoppelde AI · Niet-generatief',
+    runReviewSub: "RAW-modellen op het apparaat + je eigen AI, indien gekoppeld · Niets gegenereerd",
     ongoingBadge: 'Doorlopende analyse actief — werkt bij terwijl u schuifregelaars verplaatst',
-    noGenAiNote: 'Geen generatieve AI. Gebruikt alleen maskers, ruisonderdrukking, toon en kleurcorrectie.',
+    noGenAiNote: "Er wordt niets gegenereerd. Gebruikt alleen maskers, ruisonderdrukking, toon en kleurcorrectie.",
     applyAllSuggestions: 'Voorgesteld recept toepassen',
     applySingle: 'Toepassen',
     applied: 'Toegepast',
@@ -1166,8 +1166,8 @@ export const nl: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: "Draait op dit apparaat.",
     denoiseCloudAllowance: (basic, pro) => `Cloud: ${basic} foto’s per maand met Basic, ${pro} met Pro.`,
-    aiDenoiseInUse: 'AI-ruisreductie wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.',
-    aiDenoiseOff: 'AI-ruisreductie uitzetten',
+    aiDenoiseInUse: "Aangeleerde ruisreductie wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.",
+    aiDenoiseOff: "Aangeleerde ruisreductie uitzetten",
     rawAiDenoise: 'Diepe RAW-ruisonderdrukking',
     luminanceDenoise: 'Luminantieruis',
     colourDenoise: 'Kleurruis',
@@ -2202,6 +2202,11 @@ export const nl: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Uit ${project}`,
   },
 
+  promise: {
+    heading: "Wat InFlight belooft",
+    body: "InFlight verzint of vervangt nooit wat er in je foto staat, en schrijft nooit door een model gemaakte inhoud in de metadata van je bestanden. Je originelen worden nooit gewijzigd. Modellen meten en stellen voor (onderwerp, scherpte, soort, ruis). Ruisonderdrukking en verscherpen werken met de eigen pixels van je foto; de optionele aangeleerde ruisonderdrukking maakt alleen de pixels schoon die er al zijn, en wordt alleen gebruikt als een controle laat zien dat echt detail behouden blijft. De enige uitzondering is Vlekken herstellen, dat kopieert van een andere plek in je eigen foto, en alleen waar jij het zelf plaatst.",
+  },
+
   setup: {
     title: "Snelle installatie",
     stepOf: (n, total) => `Stap ${n} van ${total}`,
@@ -2211,7 +2216,7 @@ export const nl: AreaTranslation<typeof source> = {
     back: "Terug",
     finish: "Klaar",
     runAgain: "Snelle installatie opnieuw doen",
-    runAgainDesc: "Taal, wat je fotografeert, Pro, cloud, vliegmodus en AI-extra’s. Ongeveer een minuut; elke stap kun je overslaan.",
+    runAgainDesc: "Taal, wat je fotografeert, Pro, cloud, vliegmodus en optionele downloads. Ongeveer een minuut; elke stap kun je overslaan.",
     appliedFromAccount: "De instellingen van je account staan nu ook op dit apparaat.",
     language: {
       title: "Kies je taal",

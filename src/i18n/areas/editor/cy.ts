@@ -287,7 +287,7 @@ export const cy: AreaTranslation<typeof source> = {
     tone: 'Tôn',
     detail: 'Manylder',
     brightnessTitle: 'Addasu disgleirdeb y tonau canol gan gadw du a gwyn pur; defnyddiwch Amlygiad ar gyfer y golau cyffredinol',
-    denoiseTitle: 'Yn llyfnhau brychni lliw mewn lluniau ISO uchel; nid yw’n honni adfer manylder drwy AI',
+    denoiseTitle: "Yn llyfnhau brychni lliw mewn lluniau ISO uchel. Nid yw’n ychwanegu manylder.",
     denoiseHelp: 'Yn llyfnhau brychni lliw yn unig. Mae ymylon a gwead mân yn aros fel y maen nhw.',
     exportFocus: 'Ffocws allforio',
     cancelPlacement: 'Canslo’r gosod',

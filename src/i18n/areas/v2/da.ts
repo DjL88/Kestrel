@@ -624,9 +624,9 @@ export const da: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Dyb visuel gennemgang',
     localReviewButton: 'Tjek foto på denne enhed',
-    runReviewSub: 'Interne RAW-modeller + tilsluttet AI · Ikke-generativ',
+    runReviewSub: "RAW-modeller på enheden + din egen AI, hvis tilsluttet · Intet genereret",
     ongoingBadge: 'Løbende analyse aktiv — opdateres, mens du justerer skydere',
-    noGenAiNote: 'Ingen generativ AI. Bruger kun masker, støjreduktion, toner og farvekorrektion.',
+    noGenAiNote: "Intet genereres. Bruger kun masker, støjreduktion, toner og farvekorrektion.",
     applyAllSuggestions: 'Anvend foreslået opskrift',
     applySingle: 'Anvend',
     applied: 'Anvendt',
@@ -1166,8 +1166,8 @@ export const da: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Når du er logget ind og online, sender denne knap en arbejdskopi (aldrig originalen) til InFlight-skyen kun til dette job og kontrollerer resultatet på denne enhed. Hvis skyen ikke er tilgængelig, kører det her.',
     denoiseDeviceNote: "Kører på denne enhed.",
     denoiseCloudAllowance: (basic, pro) => `Sky: ${basic} billeder om måneden med Basic, ${pro} med Pro.`,
-    aiDenoiseInUse: 'AI-støjreduktion bruges på motivet. Den gemmes kun på denne enhed.',
-    aiDenoiseOff: 'Slå AI-støjreduktion fra',
+    aiDenoiseInUse: "Lært støjreduktion bruges på motivet. Den gemmes kun på denne enhed.",
+    aiDenoiseOff: "Slå lært støjreduktion fra",
     rawAiDenoise: 'Dyb RAW-støjreduktion',
     luminanceDenoise: 'Luminansstøj',
     colourDenoise: 'Farvestøj',
@@ -2202,6 +2202,11 @@ export const da: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Fra ${project}`,
   },
 
+  promise: {
+    heading: "Det lover InFlight",
+    body: "InFlight finder aldrig på eller erstatter det, der er i dit billede, og skriver aldrig indhold lavet af en model i dine filers metadata. Dine originaler ændres aldrig. Modeller måler og foreslår (motiv, fokus, art, støj). Støjreduktion og skarphed arbejder ud fra dit billedes egne pixels; den valgfrie lærte støjreduktion renser kun de pixels, der allerede er der, og bruges kun, når en kontrol viser, at de ægte detaljer er bevaret. Den eneste undtagelse er Pletfjernelse, som kopierer fra et andet sted i dit eget billede, og kun hvor du selv sætter den.",
+  },
+
   setup: {
     title: "Hurtig opsætning",
     stepOf: (n, total) => `Trin ${n} af ${total}`,
@@ -2211,7 +2216,7 @@ export const da: AreaTranslation<typeof source> = {
     back: "Tilbage",
     finish: "Færdig",
     runAgain: "Kør hurtig opsætning igen",
-    runAgainDesc: "Sprog, hvad du fotograferer, Pro, sky, flyvetilstand og AI-ekstra. Omkring et minut; alle trin kan springes over.",
+    runAgainDesc: "Sprog, hvad du fotograferer, Pro, sky, flyvetilstand og valgfrie downloads. Omkring et minut; alle trin kan springes over.",
     appliedFromAccount: "Indstillingerne fra din konto gælder nu også på denne enhed.",
     language: {
       title: "Vælg dit sprog",

@@ -624,9 +624,9 @@ export const fr: AreaTranslation<typeof source> = {
     },
     runReviewButton: 'Analyse visuelle approfondie',
     localReviewButton: 'Vérifier la photo sur cet appareil',
-    runReviewSub: 'Modèles RAW internes + IA connectée · Non générative',
+    runReviewSub: "Modèles RAW sur l’appareil + votre propre IA, si connectée · Rien de généré",
     ongoingBadge: 'Analyse continue active — mise à jour pendant vos réglages',
-    noGenAiNote: 'Aucune IA générative. Utilise seulement masques, réduction du bruit, tonalité et étalonnage des couleurs.',
+    noGenAiNote: "Rien n’est généré. Utilise seulement masques, réduction du bruit, tonalité et étalonnage des couleurs.",
     applyAllSuggestions: 'Appliquer la recette suggérée',
     applySingle: 'Appliquer',
     applied: 'Appliqué',
@@ -1166,8 +1166,8 @@ export const fr: AreaTranslation<typeof source> = {
     denoiseCloudNote: 'Si vous êtes connecté et en ligne, ce bouton envoie une copie de travail (jamais l’original) au cloud InFlight pour cette seule tâche, et le résultat est vérifié sur cet appareil. Si le cloud est indisponible, le traitement se fait ici.',
     denoiseDeviceNote: "S’exécute sur cet appareil.",
     denoiseCloudAllowance: (basic, pro) => `Cloud : ${basic} photos par mois avec Basic, ${pro} avec Pro.`,
-    aiDenoiseInUse: 'La réduction du bruit par IA est appliquée au sujet. Elle est enregistrée sur cet appareil uniquement.',
-    aiDenoiseOff: 'Désactiver la réduction du bruit par IA',
+    aiDenoiseInUse: "La réduction du bruit apprise est appliquée au sujet. Elle est enregistrée sur cet appareil uniquement.",
+    aiDenoiseOff: "Désactiver la réduction du bruit apprise",
     rawAiDenoise: 'Réduction du bruit RAW approfondie',
     luminanceDenoise: 'Bruit de luminance',
     colourDenoise: 'Bruit de couleur',
@@ -2202,6 +2202,11 @@ export const fr: AreaTranslation<typeof source> = {
     photosFrom: (project) => `Extrait de ${project}`,
   },
 
+  promise: {
+    heading: "Ce que promet InFlight",
+    body: "InFlight n’invente et ne remplace jamais ce qui se trouve dans votre photo, et n’écrit jamais de contenu produit par un modèle dans les métadonnées de vos fichiers. Vos originaux ne sont jamais modifiés. Les modèles mesurent et suggèrent (sujet, mise au point, espèce, bruit). La réduction du bruit et la netteté partent des propres pixels de votre photo ; la réduction du bruit apprise, facultative, ne fait que nettoyer les pixels déjà présents, et ne sert que si un contrôle montre que les vrais détails sont restés. Seule exception : Correction des taches, qui copie depuis un autre endroit de votre propre photo, et seulement là où vous la placez vous-même.",
+  },
+
   setup: {
     title: "Configuration rapide",
     stepOf: (n, total) => `Étape ${n} sur ${total}`,
@@ -2211,7 +2216,7 @@ export const fr: AreaTranslation<typeof source> = {
     back: "Retour",
     finish: "Terminer",
     runAgain: "Relancer la configuration rapide",
-    runAgainDesc: "Langue, ce que vous photographiez, Pro, cloud, mode de vol et extras d’IA. Environ une minute ; chaque étape peut être passée.",
+    runAgainDesc: "Langue, ce que vous photographiez, Pro, cloud, mode de vol et téléchargements facultatifs. Environ une minute ; chaque étape peut être passée.",
     appliedFromAccount: "Les réglages de votre compte s’appliquent aussi à cet appareil.",
     language: {
       title: "Choisissez votre langue",

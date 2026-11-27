@@ -15,7 +15,7 @@ export const it: AreaTranslation<typeof source> = {
     copyright: "Copyright",
     includeKeywords: "Includi parole chiave",
     keywords: "Parole chiave (separate da virgole; vuoto = tag confermati)",
-    help: "I soggetti confermati possono compilare titolo e parole chiave. Le ipotesi IA non confermate non vengono esportate. I dati sono nel file, non sovrapposti alla foto.",
+    help: "I soggetti confermati possono compilare titolo e parole chiave. I suggerimenti dei modelli non confermati non vengono esportati. I dati sono nel file, non sovrapposti alla foto.",
   },
   originals: {
     title: "File originali della fotocamera",

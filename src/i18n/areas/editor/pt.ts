@@ -291,7 +291,7 @@ export const pt: AreaTranslation<typeof source> = {
     tone: 'Tom',
     detail: 'Detalhe',
     brightnessTitle: 'Ajustar o brilho dos meios-tons mantendo o preto e o branco puros; use a Exposição para a luz geral',
-    denoiseTitle: 'Suaviza os salpicos de cor em fotografias de ISO alto; não promete recuperar detalhe com IA',
+    denoiseTitle: "Suaviza os salpicos de cor em fotografias de ISO alto. Não acrescenta detalhe.",
     denoiseHelp: 'Suaviza só os salpicos de cor. As arestas e a textura fina ficam como estão.',
     exportFocus: 'Ponto de interesse da exportação',
     cancelPlacement: 'Cancelar a colocação',

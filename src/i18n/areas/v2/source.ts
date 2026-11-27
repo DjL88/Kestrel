@@ -662,9 +662,9 @@ export const source = {
     },
     runReviewButton: 'Deep Vision Review',
     localReviewButton: 'Check photo on this device',
-    runReviewSub: 'Internal RAW models + connected AI · Non-generative',
+    runReviewSub: "On-device RAW models + your own AI helper, if connected · Nothing generated",
     ongoingBadge: 'Ongoing analysis active — updates as you adjust sliders',
-    noGenAiNote: 'Zero generative AI. Uses masking, denoise, tone, and colour grading only.',
+    noGenAiNote: "Nothing is generated. Uses masking, denoise, tone and colour grading only.",
     applyAllSuggestions: 'Apply suggested recipe',
     applySingle: 'Apply',
     applied: 'Applied',
@@ -1203,8 +1203,8 @@ export const source = {
     denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: "Runs on this device.",
     denoiseCloudAllowance: (basic: string, pro: string) => `Cloud: ${basic} photos a month on Basic, ${pro} on Pro.`,
-    aiDenoiseInUse: 'AI denoise is in use on the subject. It is stored on this device only.',
-    aiDenoiseOff: 'Turn off AI denoise',
+    aiDenoiseInUse: "Learned denoise is in use on the subject. It is stored on this device only.",
+    aiDenoiseOff: "Turn off learned denoise",
     rawAiDenoise: 'RAW Deep Denoise',
     luminanceDenoise: 'Luminance denoise',
     colourDenoise: 'Colour noise',
@@ -2293,6 +2293,13 @@ export const source = {
   },
 
   // Quick setup at first run (src/core/quickSetup.ts). Every step can be skipped; it can be run again from Settings.
+  // The promise about models and your photos (owner, 27 Nov 2026): the same words on the home page, in Settings ›
+  // Privacy and under Export › Advanced. Keep it true: tools/i18n/promise.test.mjs checks the three places agree.
+  promise: {
+    heading: "What InFlight promises",
+    body: "InFlight never invents or replaces what’s in your photo, and never writes model-made content into your files’ metadata. Your originals are never changed. Models measure and suggest (subject, focus, species, noise). Noise reduction and sharpening work from your photo’s own pixels; the optional learned noise reduction only cleans the pixels already there, and is used only when a check shows real detail survived. The one exception is Spot healing, which copies from elsewhere in your own photo, and only where you place it yourself.",
+  },
+
   setup: {
     title: 'Quick setup',
     stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
@@ -2302,7 +2309,7 @@ export const source = {
     back: 'Back',
     finish: 'Finish',
     runAgain: 'Run quick setup again',
-    runAgainDesc: 'Language, what you shoot, Pro, cloud, Flight mode and AI extras. About a minute; every step can be skipped.',
+    runAgainDesc: "Language, what you shoot, Pro, cloud, Flight mode and optional downloads. About a minute; every step can be skipped.",
     appliedFromAccount: 'Your settings from your account are on this device too.',
     language: { title: 'Choose your language', body: 'You can change it later in Settings.', restartNote: 'InFlight restarts in the new language and carries on with setup.' },
     about: {
@@ -2322,7 +2329,7 @@ export const source = {
     },
     pro: {
       title: 'Basic is free. Pro adds more.',
-      body: 'Basic stays free and fully usable: import, cull, edit, export and the on-device AI, offline. Pro adds 2.5 GB of cloud storage, more cloud processing each month and the online helper.',
+      body: 'Basic stays free and fully usable: import, cull, edit, export and the on-device models, offline. Pro adds 2.5 GB of cloud storage, more cloud processing each month and the online helper.',
       monthly: (price: string) => `Monthly: ${price}`,
       annual: (price: string) => `Yearly: ${price}`,
       cancelNote: 'Cancel any time. Your projects, edits and exports are never locked.',
