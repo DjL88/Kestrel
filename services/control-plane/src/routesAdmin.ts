@@ -15,7 +15,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './
 import type { AppContext } from './appContext.ts';
 
 export function adminRoutes(ctx: AppContext): Route[] {
-  const { options, config, commerce, store, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  const { options, config, commerce, store, now, paddleSandbox, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
   return [
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
@@ -347,6 +347,8 @@ export function adminRoutes(ctx: AppContext): Route[] {
         paymentsConnected: !!options.payments,
         proSubscribers,
         spend: sp && spentPence !== null ? { month, spentPence, ceilingPence: sp.ceilingPence } : null,
+        // The last website contact message that could not be emailed to the owner (it is still in Messages); null once one goes.
+        contactMailProblem: await (async () => { try { const v = JSON.parse((await store.getSetting('contact_mail_problem')) || 'null'); return v && typeof v.problem === 'string' ? { atMs: Number(v.atMs) || null, problem: v.problem } : null; } catch { return null; } })(),
       });
     },
   },
@@ -383,7 +385,9 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/switches', summary: 'On/off switches for the managed backend features', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'switches.read');
-      const switches = await Promise.all(SWITCHES.map(async (w) => ({ key: w.key, label: w.label, note: w.note, on: await switchOn(w.key), configured: switchConfigured(w.key) })));
+      const testOnly = (key: string) => paddleSandbox && (key === 'pro-checkout' || key === 'cloud-top-ups');
+      const switches = await Promise.all(SWITCHES.map(async (w) => ({ key: w.key, label: w.label, note: w.note, on: await switchOn(w.key), configured: switchConfigured(w.key),
+        ...(testOnly(w.key) ? { testOnly: 'Test payments (sandbox): only testers can buy' } : {}) })));
       return adminDone(claims, 'switches.read', '', { switches });
     },
   },

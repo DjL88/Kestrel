@@ -96,6 +96,39 @@ test('?v2 Zoom to eye moves the view to a clear eye on a synthetic subject and z
   expect(Math.abs(eye.y - (stage!.y + stage!.height / 2))).toBeLessThan(stage!.height * 0.2);
 });
 
+// Dave, 27 Nov: + with no pointer holds the eye where it is when one was found (else the subject, else the middle).
+test('?v2 + holds a found eye where it is on screen, step after step', async ({ page }) => {
+  const root = await importPicture(page, 'Eye hold', `
+    ctx.fillStyle = '#cfe0ee'; ctx.fillRect(0, 0, 2400, 1600);
+    ctx.fillStyle = '#8a5a2b'; ctx.beginPath(); ctx.ellipse(1500, 900, 600, 420, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#9b6a35'; ctx.beginPath(); ctx.ellipse(1850, 560, 240, 210, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0b0b0b'; ctx.beginPath(); ctx.arc(1930, 520, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(1940, 510, 8, 0, Math.PI * 2); ctx.fill();`);
+  const zoom = root.getByTestId('zoom-percent');
+  // Wait for the look-ahead's answer: the menu's eye item says what it found (it reads Zoom to eye while still looking).
+  await zoom.click();
+  await expect(root.getByTestId('zoom-menu-eye')).toHaveAttribute('data-zoom-focus', 'eye', { timeout: 30000 });
+  await page.keyboard.press('Escape');
+  const eyeAt = () => page.evaluate(() => {
+    const frame = document.querySelector('[data-testid="canvas-frame"]')!;
+    const pics = [...frame.querySelectorAll('img, canvas')] as (HTMLImageElement | HTMLCanvasElement)[];
+    const r = pics.sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0].getBoundingClientRect();
+    return { x: r.left + (1930 / 2400) * r.width, y: r.top + (520 / 1600) * r.height, width: r.width };
+  });
+  const zoomIn = root.getByRole('button', { name: 'Zoom in', exact: true });
+  const start = await eyeAt();
+  for (let step = 1; step <= 4; step += 1) {
+    const was = await zoom.textContent();
+    await zoomIn.click();
+    await expect(zoom).not.toHaveText(was!);
+    await page.waitForTimeout(150);
+    const now = await eyeAt();
+    // Found from the preview, so within a few pixels of where it was drawn; the hold itself is exact.
+    expect(Math.hypot(now.x - start.x, now.y - start.y), `+ step ${step}: the eye moved`).toBeLessThanOrEqual(40);
+  }
+  expect((await eyeAt()).width).toBeGreaterThan(start.width * 2);
+});
+
 async function importPicture(page: import('@playwright/test').Page, name: string, draw: string) {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');

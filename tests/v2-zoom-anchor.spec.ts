@@ -40,6 +40,19 @@ const pictureBox = (page: Page) => page.evaluate(() => {
   return { left: r.left, top: r.top, width: r.width, height: r.height };
 });
 
+type Box = { left: number; top: number; width: number; height: number };
+/**
+ * Zooming out (Dave, 27 Nov): the picture moves steadily back to where it sits at Fit. Its centre's offset from the Fit
+ * centre shrinks in step with the zoom: offset after = offset before × (width after − Fit width) / (width before − Fit
+ * width), so it is centred exactly when Fit is reached. Returns how far, in px, each axis is from that.
+ */
+function offTowardsFit(fit: Box, before: Box, after: Box) {
+  const centre = (b: Box) => ({ x: b.left + b.width / 2, y: b.top + b.height / 2 });
+  const [f, b, a] = [centre(fit), centre(before), centre(after)];
+  const share = Math.max(0, after.width - fit.width) / Math.max(1e-6, before.width - fit.width);
+  return { x: Math.abs(a.x - (f.x + (b.x - f.x) * share)), y: Math.abs(a.y - (f.y + (b.y - f.y) * share)) };
+}
+
 /** A touchpad pinch: Ctrl held, many small wheel steps sent as fast as a touchpad does (negative zooms in). */
 async function pinch(page: Page, steps: number, deltaY: number) {
   await page.keyboard.down('Control');
@@ -48,7 +61,7 @@ async function pinch(page: Page, steps: number, deltaY: number) {
   await page.waitForTimeout(250);
 }
 
-test('a touchpad pinch (Ctrl+wheel) keeps the picture point under the fingers in place, in and back out', async ({ page }) => {
+test('a touchpad pinch (Ctrl+wheel) in keeps the picture point under the fingers in place; out heads back to Fit', async ({ page }) => {
   const root = await importPicture(page);
   const start = await pictureBox(page);
   // A point off the middle of the picture, so a zoom about the centre would visibly move it.
@@ -69,8 +82,11 @@ test('a touchpad pinch (Ctrl+wheel) keeps the picture point under the fingers in
   // 200 px before).
   expect(await drift(), 'the point under the fingers moved while zooming in').toBeLessThanOrEqual(4);
   await pinch(page, 12, 12);
-  expect((await pictureBox(page)).width).toBeLessThan(zoomedIn.width / 2);
-  expect(await drift(), 'the point under the fingers moved while zooming out').toBeLessThanOrEqual(4);
+  const out = await pictureBox(page);
+  expect(out.width).toBeLessThan(zoomedIn.width / 2);
+  const off = offTowardsFit(start, zoomedIn, out);
+  expect(off.x, 'pinching out, the picture moved back towards Fit steadily (across)').toBeLessThanOrEqual(4);
+  expect(off.y, 'pinching out, the picture moved back towards Fit steadily (up and down)').toBeLessThanOrEqual(4);
 
   // The page itself never zoomed: the browser's own pinch-zoom was held back.
   expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
@@ -82,22 +98,29 @@ test('two-finger scroll (a plain wheel without Ctrl) pans the zoomed picture and
   const at = await pictureBox(page);
   await page.mouse.move(at.left + at.width / 2, at.top + at.height / 2);
   await pinch(page, 24, -12);
+  // The pinch zoomed in, well past the view, so there is room to pan (a slow runner once panned a picture still at Fit).
+  await expect.poll(async () => (await pictureBox(page)).width, { timeout: 10000 }).toBeGreaterThan(at.width * 3);
   const zoomed = await root.getByTestId('zoom-percent').textContent();
   const before = await pictureBox(page);
   // Small, smooth deltas with a sideways part, as a touchpad's two-finger scroll sends them.
   for (let step = 0; step < 10; step += 1) await page.mouse.wheel(7, 9);
-  await page.waitForTimeout(250);
+  // Chromium animates wheel scrolling, and a loaded runner takes longer than a fixed wait to finish it.
+  await expect.poll(async () => {
+    const now = await pictureBox(page);
+    return Math.abs(now.top - before.top) + Math.abs(now.left - before.left);
+  }, { timeout: 5000 }).toBeGreaterThan(20);
   const after = await pictureBox(page);
   expect(after.width).toBeCloseTo(before.width, 0);
-  expect(Math.abs(after.top - before.top) + Math.abs(after.left - before.left)).toBeGreaterThan(20);
   await expect(root.getByTestId('zoom-percent')).toHaveText(zoomed!);
 });
 
 // Dave, 27 Nov (installed build, a portrait 2672×4000 puffin): after zooming to the eye, + moved the head to the bottom
-// edge and a second + jumped to the photo's top-left corner. The buttons zoom about the middle of the view; a pinch
-// about the fingers; both while the portrait photo is larger than the view.
-test('on a portrait photo larger than the view, + and − hold the middle of the view and a pinch holds the fingers', async ({ page }) => {
+// edge and a second + jumped to the photo's top-left corner. His rules: + (no pointer) holds the eye, else the subject,
+// else the middle of the picture; a pinch holds the fingers; − heads steadily back to Fit. A checkerboard has no eye or
+// subject, so + holds the middle of the picture.
+test('on a portrait photo larger than the view, + holds the middle of the picture, a pinch the fingers, and − heads back to Fit', async ({ page }) => {
   const root = await importPicture(page, { width: 2672, height: 4000 });
+  const fit = await pictureBox(page);
   const middle = () => page.evaluate(() => {
     const stage = document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement;
     const r = stage.getBoundingClientRect();
@@ -118,12 +141,14 @@ test('on a portrait photo larger than the view, + and − hold the middle of the
   // Far enough in that the portrait photo is taller and wider than the view; each step checked.
   for (let step = 0; step < 8; step += 1) {
     const was = await percent.textContent();
-    const drift = await track(await middle());
+    const box = await pictureBox(page);
+    const drift = await track({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
     await zoomIn.click();
     await expect(percent).not.toHaveText(was!);
     await page.waitForTimeout(150);
-    expect(await drift(), `+ step ${step + 1}: the middle of the view moved`).toBeLessThanOrEqual(4);
+    expect(await drift(), `+ step ${step + 1}: the middle of the picture moved`).toBeLessThanOrEqual(4);
   }
+  void middle;
   const big = await pictureBox(page);
   const view = await page.evaluate(() => (document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement).getBoundingClientRect().toJSON());
   expect(big.height).toBeGreaterThan(view.height);
@@ -136,11 +161,12 @@ test('on a portrait photo larger than the view, + and − hold the middle of the
   expect(await pinchDrift(), 'the pinch point moved').toBeLessThanOrEqual(4);
   for (let step = 0; step < 3; step += 1) {
     const was = await percent.textContent();
-    const drift = await track(await middle());
+    const before = await pictureBox(page);
     await zoomOut.click();
     await expect(percent).not.toHaveText(was!);
     await page.waitForTimeout(150);
-    expect(await drift(), `− step ${step + 1}: the middle of the view moved`).toBeLessThanOrEqual(4);
+    const off = offTowardsFit(fit, before, await pictureBox(page));
+    expect(Math.max(off.x, off.y), `− step ${step + 1}: the picture did not head steadily back to Fit`).toBeLessThanOrEqual(4);
   }
 });
 
@@ -159,9 +185,9 @@ test('100% is one photo pixel per screen pixel on a photo larger than 18 MP', as
   expect(Math.abs(box.width * scale - 8256)).toBeLessThanOrEqual(2);
 });
 
-// Dave, 27 Nov (installed build): after Zoom to eye, zooming out jumped the view to the photo's bottom-right. Zoomed in
-// near a corner, each step out keeps the middle of the view where it was until the picture's edge comes to rest where
-// it sits at Fit (it can go no further), never jumping; at Fit the photo is centred.
+// Dave, 27 Nov (installed build): after Zoom to eye, zooming out jumped the view to the photo's bottom-right, and near
+// Fit it jumped sideways. Zoomed in near a corner, each step out moves the picture steadily back to where it sits at
+// Fit, never jumping, and at Fit the photo is centred.
 test('zooming out from near a corner never jumps, and the photo ends centred at Fit', async ({ page }) => {
   const root = await importPicture(page);
   const fit = await pictureBox(page);
@@ -169,26 +195,30 @@ test('zooming out from near a corner never jumps, and the photo ends centred at 
   const corner = { x: Math.round(fit.left + fit.width * 0.85), y: Math.round(fit.top + fit.height * 0.85) };
   await page.mouse.move(corner.x, corner.y);
   await pinch(page, 24, -12);
-  const middle = { x: Math.round(stage.left + stage.width / 2), y: Math.round(stage.top + stage.height / 2) };
+  void stage;
   const zoomOut = root.getByRole('button', { name: 'Zoom out', exact: true });
   for (let step = 1; step <= 20; step += 1) {
     const before = await pictureBox(page);
     if (before.width <= fit.width + 1) break;
-    const share = { fx: (middle.x - before.left) / before.width, fy: (middle.y - before.top) / before.height };
     await zoomOut.click();
     await page.waitForTimeout(150);
-    const after = await pictureBox(page);
-    const dx = Math.abs(after.left + share.fx * after.width - middle.x);
-    const dy = Math.abs(after.top + share.fy * after.height - middle.y);
-    // Held in place, or the picture's edge has come to rest where it sits at Fit.
-    const restX = Math.abs(after.left - fit.left) < 2 || Math.abs(after.left + after.width - (fit.left + fit.width)) < 2 || after.width <= fit.width + 1;
-    const restY = Math.abs(after.top - fit.top) < 2 || Math.abs(after.top + after.height - (fit.top + fit.height)) < 2 || after.height <= fit.height + 1;
-    expect(dx <= 4 || restX, `step ${step}: the view jumped sideways by ${dx.toFixed(1)} px`).toBe(true);
-    expect(dy <= 4 || restY, `step ${step}: the view jumped up or down by ${dy.toFixed(1)} px`).toBe(true);
+    const off = offTowardsFit(fit, before, await pictureBox(page));
+    expect(off.x, `step ${step}: the picture jumped sideways by ${off.x.toFixed(1)} px`).toBeLessThanOrEqual(4);
+    expect(off.y, `step ${step}: the picture jumped up or down by ${off.y.toFixed(1)} px`).toBeLessThanOrEqual(4);
   }
   await root.getByTestId('zoom-fit').click();
   await page.waitForTimeout(200);
   const end = await pictureBox(page);
   expect(Math.abs(end.left + end.width / 2 - (fit.left + fit.width / 2)), 'Fit is centred across').toBeLessThanOrEqual(2);
   expect(Math.abs(end.top + end.height / 2 - (fit.top + fit.height / 2)), 'Fit is centred up and down').toBeLessThanOrEqual(2);
+});
+
+// Headed (as on Windows, where scrollbars take room): the filmstrip's tool row overflowed while an import was finishing,
+// its scrollbar came and went, and the canvas changed height by about 10 px, moving Fit. The canvas keeps its size.
+test('the canvas keeps its size while an import finishes, so Fit does not move', async ({ page }) => {
+  await importPicture(page);
+  const height = () => page.evaluate(() => (document.querySelector('.inflight-v2 [data-testid="canvas-stage"]') as HTMLElement).offsetHeight);
+  const first = await height();
+  await page.waitForTimeout(6000);
+  expect(await height(), 'the canvas grew or shrank once the import finished').toBe(first);
 });

@@ -48,7 +48,9 @@ test('?v2 Tasks keeps each row in place while batches run, wait, and finish', as
     await page.waitForTimeout(50);
     expect(await rowIds(page), `after photograph ${photo + 1}`).toEqual(initial);
   }
-  await expect(rows.filter({ hasText: 'Completed' })).toHaveCount(3);
+  // The state label exactly ('Completed · On this device'): a plain 'Completed' also matches a running batch's
+  // '2 of 3 completed' (hasText ignores case), and the tab was then changed with two batches still running.
+  await expect(rows.filter({ hasText: /Completed · On this device/ })).toHaveCount(3);
   expect(await rowIds(page)).toEqual(initial);
 
   // Finished rows move to Completed only when the person changes tab.
