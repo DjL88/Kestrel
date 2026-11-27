@@ -157,9 +157,38 @@ jobs:
         run: |
           node --test scripts/release-signing.test.mjs
           node scripts/release-signing.mjs
-      - uses: tauri-apps/tauri-action@v0
+      # Intel Macs: pyke ships no Intel Mac runtime for ort any more, so both halves of the universal app link Microsoft's
+      # ONNX Runtime 1.23.2 (its last Intel Mac release), from its signed NuGet package pinned by size and SHA-512, joined into
+      # one universal library (scripts/macos/fetch-onnxruntime.sh). Kept outside the checkout, so the tree stays clean.
+      - name: ONNX Runtime for both Mac architectures (Microsoft 1.23.2, pinned)
+        id: ort
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          bash scripts/macos/fetch-onnxruntime.sh "$RUNNER_TEMP/onnxruntime"
+          printf '{"bundle":{"macOS":{"frameworks":["%s"]}}}\n' "$RUNNER_TEMP/onnxruntime/libonnxruntime.dylib" > "$RUNNER_TEMP/onnxruntime-frameworks.json"
+          echo "args=--config $RUNNER_TEMP/onnxruntime-frameworks.json" >> "$GITHUB_OUTPUT"
+          # The app build links it instead of downloading one (set for the macOS job only).
+          echo "ORT_LIB_LOCATION=$RUNNER_TEMP/onnxruntime" >> "$GITHUB_ENV"
+          echo "ORT_PREFER_DYNAMIC_LINK=1" >> "$GITHUB_ENV"
+      # Proof that the native models run on both kinds of Mac, not only that they link: one small model (u2netp, in git),
+      # one inference, built for each architecture and run natively and, for Intel, under Rosetta.
+      - name: Native models run on Apple silicon and on Intel (Rosetta)
+        if: matrix.os == 'macos-latest'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORT_LIB_LOCATION: ${{ runner.temp }}/onnxruntime
+          ORT_PREFER_DYNAMIC_LINK: '1'
+          CARGO_TARGET_DIR: ${{ runner.temp }}/ort-smoke
+        run: |
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --example ort_smoke --manifest-path crates/kestrel-vision/Cargo.toml --target "$target"
+            bin="$CARGO_TARGET_DIR/$target/release/examples/ort_smoke"
+            lipo -info "$bin"
+            if [ "$target" = x86_64-apple-darwin ]; then arch=x86_64; else arch=arm64; fi
+            DYLD_LIBRARY_PATH="$ORT_LIB_LOCATION" arch "-$arch" "$bin" src/assets/models/u2netp.onnx
+          done
+      - uses: tauri-apps/tauri-action@v0
         with:
           # The action picks bun when it sees bun.lock, and bun is not installed on the runners; build with npm like CI.
           tauriScript: npm run tauri
@@ -169,4 +198,24 @@ jobs:
           releaseDraft: true
           # Windows updates use the NSIS installer, the same one people install, so an update never adds a second MSI copy.
           updaterJsonPreferNsis: true
-          args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}
+          args: ${{ matrix.args }} ${{ steps.signing.outputs.args }} ${{ steps.ort.outputs.args }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The app itself carries the library in Contents/Frameworks, finds it there, and that copy runs on both kinds of Mac.
+      - name: The Mac app carries ONNX Runtime and finds it
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          app="$(ls -d src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app | head -1)"
+          exe="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+          lib="$app/Contents/Frameworks/libonnxruntime.dylib"
+          test -f "$lib"
+          lipo -info "$lib" | grep -q x86_64
+          lipo -info "$lib" | grep -q arm64
+          lipo -info "$exe" | grep -q x86_64
+          lipo -info "$exe" | grep -q arm64
+          otool -L "$exe" | grep '@rpath/libonnxruntime.dylib'
+          otool -l "$exe" | grep -A2 LC_RPATH | grep '@executable_path/../Frameworks'
+          for pair in arm64:aarch64-apple-darwin x86_64:x86_64-apple-darwin; do
+            DYLD_LIBRARY_PATH="$app/Contents/Frameworks" arch "-${pair%%:*}" "$RUNNER_TEMP/ort-smoke/${pair#*:}/release/examples/ort_smoke" src/assets/models/u2netp.onnx
+          done
