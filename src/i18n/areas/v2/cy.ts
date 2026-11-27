@@ -1363,6 +1363,10 @@ export const cy: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} o ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} o ${included.toLocaleString()} golygiad cwmwl y mis hwn`,
     limitMeter: "Pa mor agos at y terfyn",
+    defaultProjectName: "Prosiect InFlight",
+    defaultMemberName: "Fi",
+    listFailed: "Ni ellid gwirio beth sydd yn y cwmwl. Ni newidiwyd dim.",
+    skipped: (n: number) => `Heb eu storio, ni ellid gwneud rhagolwg: ${n}`,
   },
   autoEdit: {
     label: "Awto",

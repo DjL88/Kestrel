@@ -44,15 +44,19 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
   const [message, setMessage] = useState('');
   const [full, setFull] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [listFailed, setListFailed] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const stop = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     const linked = localProjectId ? readSharedLink(localProjectId) : null;
+    setListFailed(false);
     if (!linked) { setStored(new Set()); return; }
+    // A failed listing must never look like an empty cloud (that would offer to send everything again): say so instead.
     try { setStored(new Set((await client.cloudPhotos(linked)).map((photo) => photo.photoKey))); }
-    catch (error) { setStored(new Set()); setMessage(error instanceof Error ? error.message : t.problem); }
-  }, [client, localProjectId, t.problem]);
+    catch { setStored(null); setListFailed(true); }
+  }, [client, localProjectId]);
   useEffect(() => {
     if (!open) return;
     setMessage(''); setFull(false); setConfirmRemove(false); setStored(null);
@@ -61,9 +65,21 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
   }, [open, load]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) { event.preventDefault(); event.stopPropagation(); onClose(); return; }
+      if (event.key !== 'Tab') return;
+      // Keep Tab inside the dialog.
+      const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])') ?? []);
+      if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (!dialogRef.current?.contains(active)) { event.preventDefault(); first.focus(); }
+      else if (event.shiftKey && active === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('keydown', onKey, true); previous?.focus(); };
   }, [open, busy, onClose]);
   if (!open) return null;
 
@@ -82,17 +98,19 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
     stop.current = abort;
     const row = tasks.start(t.taskTitle, { total: toStore.length, kind: 'cloud', location: 'cloud', priority: 1, cancel: () => abort.abort() });
     let done = 0;
+    let skipped = 0;
     try {
       let linked = readSharedLink(localProjectId);
       if (!linked) {
-        linked = await client.create(projectName.trim() || 'InFlight project', (await displayName()) ?? 'Me');
+        linked = await client.create(projectName.trim() || t.defaultProjectName, (await displayName()) ?? t.defaultMemberName);
         writeSharedLink(localProjectId, linked);
         markOwnCloudProject(localProjectId);
       }
       for (const photo of toStore) {
         if (abort.signal.aborted) break;
         const preview = await renderPreview(photo.id);
-        if (preview) {
+        if (!preview) { skipped += 1; }
+        else {
           const thumb = await galleryThumbnail(preview);
           if (thumb) await client.cloudUpload(linked, photo.sharedKey!, 'thumb', thumb, photo.filename);
           await client.cloudUpload(linked, photo.sharedKey!, 'preview', preview, photo.filename);
@@ -100,7 +118,7 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
         }
         row.progress(done, toStore.length, t.progress(done, toStore.length));
       }
-      const said = t.stored(done, toStore.length);
+      const said = skipped ? `${t.stored(done, toStore.length)} ${t.skipped(skipped)}` : t.stored(done, toStore.length);
       row.finish(said);
       setMessage(said);
     } catch (error) {
@@ -137,7 +155,7 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="v2-store-cloud-title" data-testid="store-cloud-dialog"
+      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="v2-store-cloud-title" data-testid="store-cloud-dialog"
         className="max-h-[90dvh] w-full max-w-md space-y-3 overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
         <div className="flex items-center justify-between gap-3">
           <h2 id="v2-store-cloud-title" className="text-base font-semibold">{t.heading}</h2>
@@ -166,7 +184,9 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
           </div>
         </fieldset>
 
-        {stored === null ? (
+        {listFailed ? (
+          <p role="alert" data-testid="store-cloud-list-failed" className="text-sm text-[var(--text-secondary)]">{t.listFailed}</p>
+        ) : stored === null ? (
           <p role="status" className="text-sm text-[var(--text-secondary)]">{t.checking}</p>
         ) : (
           <div className="space-y-1 text-sm" data-testid="store-cloud-summary">

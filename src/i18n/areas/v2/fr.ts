@@ -1363,6 +1363,10 @@ export const fr: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} sur ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} sur ${included.toLocaleString()} retouches cloud ce mois-ci`,
     limitMeter: "Proximité de la limite",
+    defaultProjectName: "Projet InFlight",
+    defaultMemberName: "Moi",
+    listFailed: "Impossible de vérifier ce qui est dans le cloud. Rien n'a été modifié.",
+    skipped: (n: number) => `Ignorées, aperçu impossible à créer : ${n}`,
   },
   autoEdit: {
     label: "Auto",

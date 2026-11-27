@@ -1363,6 +1363,10 @@ export const is: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} af ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} af ${included.toLocaleString()} skýjabreytingar í þessum mánuði`,
     limitMeter: "Hve nálægt mörkunum",
+    defaultProjectName: "InFlight-verkefni",
+    defaultMemberName: "Ég",
+    listFailed: "Ekki tókst að athuga hvað er í skýinu. Engu var breytt.",
+    skipped: (n: number) => `Sleppt, ekki tókst að búa til forskoðun: ${n}`,
   },
   autoEdit: {
     label: "Sjálfvirkt",

@@ -1363,6 +1363,10 @@ export const nl: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} van ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} van ${included.toLocaleString()} cloudbewerkingen deze maand`,
     limitMeter: "Hoe dicht bij de limiet",
+    defaultProjectName: "InFlight-project",
+    defaultMemberName: "Ik",
+    listFailed: "Kon niet controleren wat er in de cloud staat. Er is niets gewijzigd.",
+    skipped: (n: number) => `Overgeslagen, geen voorbeeld te maken: ${n}`,
   },
   autoEdit: {
     label: "Auto",

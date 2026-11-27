@@ -510,7 +510,7 @@ export default function TopBar({
             ) : (
               <span data-testid="cloud-limit-note" className="v2-phone-hide inline-flex shrink-0 flex-col justify-center gap-0.5 whitespace-nowrap text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{storeInCloud.limit.kind === 'storage'
-                  ? STRINGS.storeCloud.limitStorage(formatBytes(storeInCloud.limit.used).replace(/ GB$/, ''), formatBytes(storeInCloud.limit.included))
+                  ? STRINGS.storeCloud.limitStorage(formatBytes(storeInCloud.limit.used), formatBytes(storeInCloud.limit.included))
                   : STRINGS.storeCloud.limitEdits(storeInCloud.limit.used, storeInCloud.limit.included)}</span>
                 <meter min={0} max={100} value={storeInCloud.limit.percent} aria-label={STRINGS.storeCloud.limitMeter} className="h-1.5 w-full" />
               </span>

@@ -1363,6 +1363,10 @@ export const pt: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} de ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} de ${included.toLocaleString()} edições na nuvem este mês`,
     limitMeter: "Proximidade do limite",
+    defaultProjectName: "Projeto InFlight",
+    defaultMemberName: "Eu",
+    listFailed: "Não foi possível verificar o que está na nuvem. Nada foi alterado.",
+    skipped: (n: number) => `Ignoradas, não foi possível criar a pré-visualização: ${n}`,
   },
   autoEdit: {
     label: "Auto",

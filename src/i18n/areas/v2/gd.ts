@@ -1364,6 +1364,10 @@ export const gd: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} à ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} à ${included.toLocaleString()} deasachaidhean neòil air a’ mhìos seo`,
     limitMeter: "Cho faisg ’s a tha e air a’ chrìoch",
+    defaultProjectName: "Pròiseact InFlight",
+    defaultMemberName: "Mi",
+    listFailed: "Cha b’ urrainn dhuinn sgrùdadh dè a tha anns an neul. Cha deach dad atharrachadh.",
+    skipped: (n: number) => `Air leum, cha do ghabh ro-shealladh a dhèanamh: ${n}`,
   },
   autoEdit: {
     label: "Fèin",

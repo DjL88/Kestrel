@@ -1366,6 +1366,10 @@ export const ga: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} de ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} de ${included.toLocaleString()} eagarthóireacht scamaill an mhí seo`,
     limitMeter: "Cé chomh gar don teorainn",
+    defaultProjectName: "Tionscadal InFlight",
+    defaultMemberName: "Mise",
+    listFailed: "Níorbh fhéidir a sheiceáil cad atá sa scamall. Níor athraíodh aon rud.",
+    skipped: (n: number) => `Scipeáilte, níorbh fhéidir réamhamharc a dhéanamh: ${n}`,
   },
   autoEdit: {
     label: "Uath",

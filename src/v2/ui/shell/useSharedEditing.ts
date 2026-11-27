@@ -4,7 +4,7 @@ import { combineWithShared, isUntouched, readRecipeSide, sharedPayloadHash, shar
 import { flushOutbox, markConflict, outboxSummary, queueEdit, readOutbox, settleEdit, type OutboxEntry, type OutboxSummary } from '../../../core/sharedOutbox';
 import type { CollabRole } from '../../../core/collabRoles';
 import { CollabError, type CollabClient } from '../../../providers/collabClient';
-import { readSharedLink } from '../dialogs/sharedLinks';
+import { readCollabLink } from '../dialogs/sharedLinks';
 
 /**
  * Check-out and safe sync for the photo on screen in a shared project (#1387 C02/C03). Opening a photo checks whether
@@ -71,7 +71,7 @@ function deviceId(): string {
 
 export function useSharedEditing(client: CollabClient, localProjectId: string | null, photoId: string | null, sharedKey: string | undefined, source: EditSource, changeSignal: unknown, refreshKey: number, photos: readonly { id: string; sharedKey?: string }[] = []) {
   const [state, setState] = useState<SharedEditingState>({ kind: 'off' });
-  const shared = localProjectId && client.configured && source.sharedEditOf && source.applySharedEdit ? readSharedLink(localProjectId) : null;
+  const shared = localProjectId && client.configured && source.sharedEditOf && source.applySharedEdit ? readCollabLink(localProjectId) : null;
   const session = useRef<{ project: string; key: string; photoId: string; token: string | null; opened: boolean; lastChangeMs: number; publishTimer: ReturnType<typeof setTimeout> | null; closed: boolean } | null>(null);
   const stateRef = useRef(state); stateRef.current = state;
   const roles = useRef(new Map<string, CollabRole>());

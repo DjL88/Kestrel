@@ -1405,6 +1405,10 @@ export const source = {
     limitStorage: (used: string, included: string) => `${used} of ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} of ${included.toLocaleString()} cloud edits this month`,
     limitMeter: "How close to the limit",
+    defaultProjectName: "InFlight project",
+    defaultMemberName: "Me",
+    listFailed: "Could not check what is in the cloud. Nothing was changed.",
+    skipped: (n: number) => `Skipped, no preview could be made: ${n}`,
   },
   autoEdit: {
     label: "Auto",

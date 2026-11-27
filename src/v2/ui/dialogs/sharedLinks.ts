@@ -34,6 +34,14 @@ function readOwn(): string[] {
  */
 export function isOwnCloudProject(localProjectId: string): boolean { return readOwn().includes(localProjectId); }
 
+/**
+ * The shared project to live-sync with (presence, shared edits, comments). A project stored in the cloud only for the
+ * person's own devices is never synced this way: only the previews they chose go up, not every edit and mark.
+ */
+export function readCollabLink(localProjectId: string): string | null {
+  return isOwnCloudProject(localProjectId) ? null : readSharedLink(localProjectId);
+}
+
 export function markOwnCloudProject(localProjectId: string): void {
   try { globalThis.localStorage?.setItem(OWN_KEY, JSON.stringify([...new Set([...readOwn(), localProjectId])])); } catch { /* not remembered: the project only shows as shared on this device */ }
 }

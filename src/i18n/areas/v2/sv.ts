@@ -1363,6 +1363,10 @@ export const sv: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} av ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} av ${included.toLocaleString()} molnredigeringar den här månaden`,
     limitMeter: "Hur nära gränsen",
+    defaultProjectName: "InFlight-projekt",
+    defaultMemberName: "Jag",
+    listFailed: "Det gick inte att kontrollera vad som finns i molnet. Inget har ändrats.",
+    skipped: (n: number) => `Hoppade över, ingen förhandsvisning kunde skapas: ${n}`,
   },
   autoEdit: {
     label: "Auto",

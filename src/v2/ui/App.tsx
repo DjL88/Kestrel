@@ -32,7 +32,7 @@ import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { colourText } from '../../i18n/areas/colour';
-import { isOwnCloudProject, readSharedLink } from './dialogs/sharedLinks';
+import { isOwnCloudProject, readCollabLink, readSharedLink } from './dialogs/sharedLinks';
 import { COLLABORATION_UI, cloudLimitNote } from '../../core/storeInCloud';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
@@ -283,7 +283,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
   const goToNoticePhoto = (projectId: string, photoKey: string) => {
-    if (!store.activeProjectId || readSharedLink(store.activeProjectId) !== projectId) return false;
+    if (!store.activeProjectId || readCollabLink(store.activeProjectId) !== projectId) return false;
     const photo = store.photos.find((candidate) => candidate.sharedKey === photoKey);
     if (photo) actions.selectPhoto(photo.id);
     return Boolean(photo);
@@ -744,7 +744,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const renderPanelBody = (panelId: PanelId) => {
     const inner = renderPanelInner(panelId);
     const comments = (panelId === 'copilot' || panelId === 'info') && sharedEditing.state.kind !== 'off' ? (
-      <SharedComments client={sharing} project={store.activeProjectId ? readSharedLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
+      <SharedComments client={sharing} project={store.activeProjectId ? readCollabLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
         recipe={activePhoto ? getActiveGroup(activePhoto).recipe : null} canEdit={!editLocked} onApply={(id, delta, label) => actions.updateRecipe(id, delta, label)} />
     ) : null;
     if (!EDITING_PANELS.includes(panelId)) return <>{comments}{inner}</>;

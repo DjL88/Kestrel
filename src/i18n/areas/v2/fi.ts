@@ -1364,6 +1364,10 @@ export const fi: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} / ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} / ${included.toLocaleString()} pilvimuokkausta tässä kuussa`,
     limitMeter: "Kuinka lähellä rajaa",
+    defaultProjectName: "InFlight-projekti",
+    defaultMemberName: "Minä",
+    listFailed: "Pilven sisältöä ei voitu tarkistaa. Mitään ei muutettu.",
+    skipped: (n: number) => `Ohitettu, esikatselua ei voitu tehdä: ${n}`,
   },
   autoEdit: {
     label: "Auto",

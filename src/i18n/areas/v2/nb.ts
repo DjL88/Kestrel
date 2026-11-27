@@ -1363,6 +1363,10 @@ export const nb: AreaTranslation<typeof source> = {
     limitStorage: (used: string, included: string) => `${used} av ${included}`,
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} av ${included.toLocaleString()} sky-redigeringer denne måneden`,
     limitMeter: "Hvor nær grensen",
+    defaultProjectName: "InFlight-prosjekt",
+    defaultMemberName: "Meg",
+    listFailed: "Kunne ikke sjekke hva som er i skyen. Ingenting er endret.",
+    skipped: (n: number) => `Hoppet over, forhåndsvisning kunne ikke lages: ${n}`,
   },
   autoEdit: {
     label: "Auto",
