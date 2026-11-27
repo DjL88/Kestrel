@@ -84,7 +84,8 @@ async function photos(page: Page, count: number) {
  * to 690 ms). So this checks a ratchet that may only be tightened: none over 150 ms and at most 8 over 50 ms (doubled on
  * the 2-core CI runners, where the page has one core to itself).
  */
-test('?v2 with the processor saturated and an import running, the editor answers every action at once', async ({ page }) => {
+// Tagged @stress: CI runs it on its own (.github/workflows/ci.yml), as it keeps the processor busy on purpose.
+test('?v2 with the processor saturated and an import running, the editor answers every action at once @stress', async ({ page }) => {
   test.setTimeout(300_000);
   await desktopHeaders(page);
   await page.goto('/?v2');
