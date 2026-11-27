@@ -2,10 +2,17 @@ import { test, expect } from '@playwright/test';
 
 // Owner's Windows test, 26 Nov: Camera & Capture and Analysis Summary first; the histogram, the file and its
 // connection, DNG copy and Edit in another app on a second tab.
-test('?v2 Info opens on the camera and analysis; the histogram and file are on the second tab', async ({ page }) => {
+test('?v2 Info opens on the camera and analysis; the histogram and file are on the second tab', async ({ page }, testInfo) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  // Info is in the left tools on a wide screen; a phone has it under More in the tools along the bottom.
+  const mobileTools = root.getByRole('navigation', { name: 'Mobile studio tools' });
+  if (testInfo.project.name === 'phone') {
+    await mobileTools.getByRole('button', { name: 'More', exact: true }).click();
+    await root.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: 'Info', exact: true }).click();
+  } else {
+    await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  }
 
   const tabs = root.getByRole('tablist', { name: 'Photo information' });
   const details = tabs.getByRole('tab', { name: 'Details' });
