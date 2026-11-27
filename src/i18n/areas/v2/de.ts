@@ -2068,6 +2068,8 @@ export const de: AreaTranslation<typeof source> = {
     reading: "Das Foto wird einmal für das Antippen gelesen. Das kann etwa eine halbe Minute dauern; Oval und Verlauf funktionieren weiter.",
     ready: "Tippen Sie auf das Motiv im Foto. Im Modus Entfernen (oder mit Alt) nimmt ein Tippen einen Teil weg.",
     working: "Auswahl wird aktualisiert…",
+    refining: "Kante wird verfeinert… Die Auswahl steht bereits; ihr Umriss wird feiner, sobald dies fertig ist.",
+    refineSkipped: "Die feinere Kante wurde weggelassen: Gerade ist nicht genug Arbeitsspeicher frei. Die Auswahl bleibt, wie sie ist.",
     addMode: "Teil hinzufügen",
     removeMode: "Teil entfernen",
     newSubject: "Neues Motiv",

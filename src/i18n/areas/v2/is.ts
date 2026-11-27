@@ -2068,6 +2068,8 @@ export const is: AreaTranslation<typeof source> = {
     reading: "Myndin er lesin einu sinni fyrir Ýta til að velja. Það getur tekið um hálfa mínútu; Sporöskja og Litaskipti virka á meðan.",
     ready: "Ýttu á myndefnið á myndinni. Í Fjarlægja-ham (eða með Alt) fjarlægir ýting hluta.",
     working: "Uppfæri valið…",
+    refining: "Fínstilli brúnina… Valið er þegar tilbúið; útlínan verður fínni þegar þessu lýkur.",
+    refineSkipped: "Fínni brúninni var sleppt: það er ekki nóg laust minni núna. Valið helst óbreytt.",
     addMode: "Bæta við hluta",
     removeMode: "Fjarlægja hluta",
     newSubject: "Nýtt myndefni",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { newId } from '../../core/ids';
 import { engineText } from '../../i18n/areas/engine';
+import { v2Text } from '../../i18n/areas/v2';
 import { createSubjectMask, framingKey, type Mask } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -155,11 +156,25 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
       // A first tap selects the whole subject: with the fine-edge pack (desktop), its finer edge replaces the outline,
       // only when both models found the same subject, and only while no later tap has changed this subject.
       if (!isWholeSubjectPrompt(prompt)) return;
-      void import('../../providers/fineEdgeMask').then((m) => m.refineSubjectGrid(reading.framed, grid, detail)).then((refined) => {
-        if (!refined) return;
-        const now = sessionRef.current?.subjects.find(item => item.maskId === subject.maskId);
-        if (!now || now.taps.length !== 1) return;
-        saveOutline(photoId, reading.framing, { ...createSubjectMask(subject.maskId, refined.grid, reading.framing, confidence, refined.detail), feather: 0.3 });
+      // In a background worker (src/providers/fineEdgeMask.ts), so the photo can be worked on while it runs; the panel
+      // says so meanwhile. Skipped, in plain words, when there is not enough free memory for it.
+      const setRefining = (refining: boolean) => setState(current => current.session?.photoId === photoId
+        ? { ...current, session: { ...current.session, refining } } : current);
+      void import('../../providers/fineEdgeMask').then(async (m) => {
+        if (await m.fineEdgeStatus() !== 'ready') return;
+        setRefining(true);
+        try {
+          const refined = await m.refineSubjectGrid(reading.framed, grid, detail).catch((problem: unknown) => {
+            if (problem instanceof m.FineEdgeSkipped) setNotice(v2Text.tapSelect.refineSkipped);
+            return null;
+          });
+          if (!refined) return;
+          const now = sessionRef.current?.subjects.find(item => item.maskId === subject.maskId);
+          if (!now || now.taps.length !== 1) return;
+          saveOutline(photoId, reading.framing, { ...createSubjectMask(subject.maskId, refined.grid, reading.framing, confidence, refined.detail), feather: 0.3 });
+        } finally {
+          setRefining(false);
+        }
       }).catch(() => undefined);
     }).catch((error: unknown) => {
       setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);

@@ -2069,6 +2069,8 @@ export const fi: AreaTranslation<typeof source> = {
     reading: "Kuva luetaan kerran napautusvalintaa varten. Tämä voi kestää noin puoli minuuttia; Soikio ja Liukuma toimivat sillä välin.",
     ready: "Napauta kuvan kohdetta. Poista-tilassa (tai Alt pohjassa) napautus poistaa osan.",
     working: "Päivitetään valintaa…",
+    refining: "Reunaa tarkennetaan… Valinta on jo tehty; sen ääriviiva tarkentuu, kun tämä on valmis.",
+    refineSkipped: "Tarkempi reuna jätettiin pois: vapaata muistia ei ole nyt tarpeeksi. Valinta säilyy ennallaan.",
     addMode: "Lisää osa",
     removeMode: "Poista osa",
     newSubject: "Uusi kohde",

@@ -40,3 +40,17 @@ export function startNativeResourceSampling(
   void tick();
   return () => { stopped = true; if (timer) clearTimeout(timer); update(null); };
 }
+
+/** The machine's free memory now, from the desktop app; null where there is no measurement (a browser, an older build). */
+export async function freeMemoryBytes(
+  read: () => Promise<{ availableMemoryBytes: number }> = async () => (await import('@tauri-apps/api/core')).invoke('resource_sample'),
+  available: () => boolean = hasNativeRaw,
+): Promise<number | null> {
+  if (!available()) return null;
+  try {
+    const { availableMemoryBytes } = await read();
+    return Number.isFinite(availableMemoryBytes) && availableMemoryBytes >= 0 ? availableMemoryBytes : null;
+  } catch {
+    return null;
+  }
+}

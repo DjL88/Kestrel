@@ -2068,6 +2068,8 @@ export const it: AreaTranslation<typeof source> = {
     reading: "Lettura unica della foto per Tocca per selezionare. Può richiedere circa mezzo minuto; Ovale e Sfumatura funzionano comunque.",
     ready: "Tocca il soggetto nella foto. In modalità Rimuovi (o con Alt) un tocco toglie una parte.",
     working: "Aggiornamento della selezione…",
+    refining: "Rifinitura del bordo… La selezione è già fatta; il suo contorno diventerà più fine al termine.",
+    refineSkipped: "Il bordo più fine è stato tralasciato: al momento non c’è abbastanza memoria libera. La selezione resta com’è.",
     addMode: "Aggiungi parte",
     removeMode: "Rimuovi parte",
     newSubject: "Nuovo soggetto",

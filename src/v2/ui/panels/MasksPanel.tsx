@@ -339,7 +339,7 @@ function TapSelectSection({ photo, state, actions }: { photo: Photo; state: TapS
       {state.pack === 'ready' && session && (
         <div className="space-y-2">
           <p role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-            {session.phase === 'reading' ? words.reading : session.phase === 'working' ? words.working : session.phase === 'failed' ? (state.message ?? words.failed) : words.ready}
+            {session.phase === 'reading' ? words.reading : session.phase === 'working' ? words.working : session.phase === 'failed' ? (state.message ?? words.failed) : session.refining ? words.refining : words.ready}
           </p>
           {session.subjects.length > 0 && <p className="text-[11px] text-[var(--text-muted)]">{words.subjects(session.subjects.length)}</p>}
           <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={words.tool}>

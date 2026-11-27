@@ -709,6 +709,8 @@ export interface TapSelectState {
     subjects: Array<{ maskId: string; taps: TapPoint[] }>;
     /** Index into subjects of the one taps go to; a new subject starts on the next added tap. */
     active: number;
+    /** The fine-edge pack is refining the first tap's outline in the background; taps still work meanwhile. */
+    refining?: boolean;
   };
 }
 

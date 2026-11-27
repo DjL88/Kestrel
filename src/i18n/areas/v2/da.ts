@@ -2068,6 +2068,8 @@ export const da: AreaTranslation<typeof source> = {
     reading: "Fotoet læses én gang til Tryk for at vælge. Det kan tage et halvt minut; Oval og Forløb virker imens.",
     ready: "Tryk på motivet i fotoet. I tilstanden Fjern (eller med Alt) fjerner et tryk en del.",
     working: "Opdaterer markeringen…",
+    refining: "Forfiner kanten… Markeringen er allerede lavet; dens omrids bliver finere, når dette er færdigt.",
+    refineSkipped: "Den finere kant blev udeladt: der er ikke nok ledig hukommelse lige nu. Markeringen bevares, som den er.",
     addMode: "Tilføj del",
     removeMode: "Fjern del",
     newSubject: "Nyt motiv",

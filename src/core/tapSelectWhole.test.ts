@@ -82,3 +82,35 @@ test('the selection keeps the model’s soft edge and a fine outline over the bi
   // A 48-cell grid alone is 21 px a cell at this size; the fine outline keeps the edge within a few pixels.
   assert.ok(worst < 6, `the edge strays ${worst.toFixed(1)} px`);
 });
+
+test('a thin beak in the selection stays inside it: in the mask the editor applies, and inside the outline drawn', async () => {
+  const { maskCoverageGuide } = await import('./maskCoverageGuide.ts');
+  // The bird, plus a beak: a wedge 12 mask pixels deep at the face, narrowing to a point 34 pixels out (about the
+  // shape of a puffin's beak at this size). The model's whole-bird candidate includes it.
+  const beakAt = (x: number, y: number) => {
+    const t = (x - 204) / 34; // 0 at the face, 1 at the tip
+    if (t < 0 || t > 1) return 1;
+    return Math.abs(y - 100) - 6 * (1 - t); // < 0 inside the wedge
+  };
+  const plane = W * H;
+  const masks = new Float32Array(plane);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) masks[y * W + x] = -Math.min(bird(x, y) * 60, beakAt(x, y) * 4);
+  const chosen = chooseSamMask(masks, Float32Array.from([0.9]), W, H, { x: 150, y: 120, add: true });
+  const mask = createSubjectMask('m', samMaskToGrid(chosen), '', 'high', samMaskDetail(chosen)) as Mask;
+  // As the editor applies it, at 2,048 px wide.
+  const outW = 2048, outH = 1536;
+  const alpha = effectiveAlpha({ ...mask, feather: 0.3 }, [mask], outW, outH, { aspect: outH / outW, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const along = (t: number) => ({ x: 204 + 34 * t, y: 100 });
+  for (const t of [0.1, 0.3, 0.5, 0.7]) {
+    const p = along(t);
+    const a = alpha[Math.floor((p.y / H) * outH) * outW + Math.floor((p.x / W) * outW)];
+    assert.ok(a >= 0.5, `the beak ${Math.round(t * 100)}% of the way to the tip is selected (${a.toFixed(2)})`);
+  }
+  // The outline drawn over the picture leaves the beak inside: no line crosses it short of its tip.
+  const guide = maskCoverageGuide([mask], 'm', 4000, 3000, 'outline')!;
+  for (const t of [0.1, 0.3, 0.5, 0.7]) {
+    const p = along(t);
+    const i = (Math.floor((p.y / H) * guide.height) * guide.width + Math.floor((p.x / W) * guide.width)) * 4;
+    assert.equal(guide.rgba[i + 3], 0, `no line across the beak ${Math.round(t * 100)}% of the way to the tip`);
+  }
+});

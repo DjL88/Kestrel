@@ -2068,6 +2068,8 @@ export const fr: AreaTranslation<typeof source> = {
     reading: "Lecture unique de la photo pour Toucher pour sélectionner. Cela peut prendre environ une demi-minute ; Ovale et Dégradé restent utilisables.",
     ready: "Touchez le sujet sur la photo. En mode Retirer (ou avec Alt), un toucher retire une partie.",
     working: "Mise à jour de la sélection…",
+    refining: "Affinage du contour… La sélection est déjà faite ; son contour s’affinera quand ce sera terminé.",
+    refineSkipped: "Le contour plus fin a été laissé de côté : il n’y a pas assez de mémoire libre pour le moment. La sélection reste telle quelle.",
     addMode: "Ajouter une partie",
     removeMode: "Retirer une partie",
     newSubject: "Nouveau sujet",

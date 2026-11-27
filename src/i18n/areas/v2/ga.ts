@@ -2071,6 +2071,8 @@ export const ga: AreaTranslation<typeof source> = {
     reading: "Ag léamh an ghrianghraif uair amháin le haghaidh tapáil chun roghnú. D’fhéadfadh sé leathnóiméad a thógáil; oibríonn Ubhchruth agus Grádán fós.",
     ready: "Tapáil an t-ábhar ar an ngrianghraf. I mód Bain (nó le Alt) baineann tapáil cuid.",
     working: "An rogha á nuashonrú…",
+    refining: "An imeall á mhionú… Tá an rogha déanta cheana; beidh a imlíne níos míne nuair a bheidh sé seo críochnaithe.",
+    refineSkipped: "Fágadh an t-imeall níos míne ar lár: níl go leor cuimhne saor ann faoi láthair. Coinnítear an rogha mar atá.",
     addMode: "Cuir cuid leis",
     removeMode: "Bain cuid",
     newSubject: "Ábhar nua",
