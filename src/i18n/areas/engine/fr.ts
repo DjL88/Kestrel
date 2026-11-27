@@ -55,6 +55,12 @@ export const fr: AreaTranslation<typeof source> = {
     learnedNoWorker: "La réduction du bruit apprise n’a pas pu s’exécuter en arrière-plan sur cet appareil : seule la réduction du bruit intégrée a été comparée.",
     learnedLostDetail: "En taille réelle, la réduction du bruit apprise a lissé de vrais détails du sujet : la réduction du bruit intégrée a donc été utilisée.",
     leftAsItWas: (notes) => `Laissé tel quel. ${notes}`,
+    measured: (m, n, iso) => `Bruit mesuré : ${m}${iso ? ` à ISO ${iso}` : ''}. Il commence à se voir à partir de ${n}.`,
+    anyway: (m, s, iso) => `Débruité malgré tout, avec une force douce (${s}). Bruit mesuré : ${m}${iso ? ` à ISO ${iso}` : ''}, sous le seuil où il commence à se voir.`,
+    notDeveloped: (f) => `${f} n’a pas encore été développée à partir des données de capteur du RAW, donc son bruit ne peut pas être mesuré. Développez-la d’abord en taille réelle, ou attendez la fin du développement en cours, puis relancez le débruitage. Rien n’a été changé.`,
+    wholeFrameLarge: "Le sujet occupait trop de place dans le cadre pour être écarté, donc l’image entière a été lue.",
+    wholeFrameNoSubject: "Aucun sujet n’a été trouvé, donc l’image entière a été lue, sujet compris.",
+    measuredStage: (m, s) => `Bruit mesuré ${m}, force ${s}`,
   },
   workspace: {
     templateNotSaved: 'InFlight n’a pas pu enregistrer le modèle sur cet appareil.',

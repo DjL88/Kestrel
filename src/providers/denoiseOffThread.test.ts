@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseWorkerLike } from './denoiseOffThread';
 import { createDenoiseWorkerState, handleDenoiseWorkerMessage, learnedVerdicts, openDenoiseSession, type DenoiseJob } from '../v2/engineClient/denoiseCompute';
-import { estimateNoiseSigma } from '../core/noiseEstimate';
+import { estimateNoiseSigma, measureBackgroundNoise } from '../core/noiseEstimate';
 import { createSubjectMask, type SubjectGrid } from '../core/maskTypes';
 import { DEFAULT_EDIT } from '../core/photoEdits';
 import { fullContext, maskAlpha } from '../core/masks';
@@ -65,6 +65,10 @@ test('worker and in-thread denoise give identical pixels, noise and verification
   const worker = new ClonedWorker();
   const compute = createDenoiseCompute({ createWorker: () => worker });
   assert.equal(await compute.measureNoise(photo.data, photo.width, photo.height), estimateNoiseSigma(photo.data, photo.width, photo.height));
+  const exclude = new Uint8Array(photo.width * photo.height).fill(0, 0);
+  for (let i = 0; i < exclude.length / 3; i += 1) exclude[i] = 1;
+  assert.deepEqual(await compute.measureBackground(photo.data, photo.width, photo.height, exclude), measureBackgroundNoise(photo.data, photo.width, photo.height, exclude));
+  assert.deepEqual(await compute.measureBackground(photo.data, photo.width, photo.height), measureBackgroundNoise(photo.data, photo.width, photo.height));
   for (const withSubject of [false, true]) {
     const local = openDenoiseSession(job(photo, withSubject));
     const remote = await compute.open(job(photo, withSubject));

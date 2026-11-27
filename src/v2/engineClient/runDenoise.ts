@@ -9,7 +9,7 @@ import { saveLayerAsset } from '../../core/layerAssetVault';
 import type { LearnedBlend } from '../../engine/denoiseAction';
 import { runLearnedOnSubject } from './trueDetailLearned';
 import { isNeutralEdit, type PhotoEdit } from '../../core/photoEdits';
-import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
+import { cropRectangle, DEFAULT_FRAMING, drawFramedPhoto, type PhotoFraming } from '../../core/photoFraming';
 import { createSubjectMask, framingKey, isCombined, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
@@ -21,46 +21,48 @@ import { decodeHeifForDisplay } from '../../providers/heifDecode';
 import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
-import { luminanceStrengthFor, VISIBLE_NOISE_SIGMA } from '../../core/noiseEstimate';
+import { ANYWAY_DENOISE_STRENGTH, anywayLuminanceStrength, luminanceStrengthFor, VISIBLE_NOISE_SIGMA, type NoiseMeasurement } from '../../core/noiseEstimate';
+import { mosaicExclusion, noiseLayout, type SubjectCoverage } from './noiseSampling';
+import { language } from '../../i18n/messages';
+import { fullDevelopPossible } from './fullDevelop';
+import { canDevelopRaw } from '../../providers/rawDevelop';
+import { isDesktopApp } from '../../providers/desktopShell';
 import { engineText } from '../../i18n/areas/engine';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } from '../../providers/denoiseOffThread';
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /**
- * Noise at full size, measured off the interface thread: nine crops drawn 1:1 from across the whole picture (a 3x3
- * grid), side by side in one mosaic. Only the centre used to be measured, so noise in the shadows or the background
- * round a clean, sharp subject went unseen (Dave, 27 Nov: DJL3766). Each crop is a whole number of the estimator's
- * 16 px blocks, so no block spans two crops.
+ * Noise at full size, measured off the interface thread: a grid of crops drawn 1:1 from across the whole framed picture
+ * (`noiseLayout`), side by side in one mosaic. Only the centre used to be measured, so noise in the shadows or the
+ * background round a clean, sharp subject went unseen (Dave, 27 Nov: DJL3766). When the subject is known, its pixels are
+ * left out, so the flattest parts of the background decide (`measureBackgroundNoise`); the estimator falls back to the
+ * whole frame, and says so, when the subject leaves too little background.
  */
-async function measureFullSizeNoise(source: HTMLImageElement, compute: DenoiseCompute): Promise<number | null> {
-  const width = source.naturalWidth;
-  const height = source.naturalHeight;
-  const tile = Math.floor(Math.min(512, width / 3, height / 3) / 16) * 16;
-  if (tile < 64) {
-    // A small picture: measure all of it.
-    const size = Math.min(width, height);
-    if (size < 64) return null;
-    const whole = document.createElement('canvas');
-    whole.width = width; whole.height = height;
-    const ctx = whole.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return null;
-    ctx.drawImage(source, 0, 0);
-    return compute.measureNoise(ctx.getImageData(0, 0, width, height).data, width, height);
-  }
+async function measureFullSizeNoise(source: HTMLImageElement, framing: PhotoFraming, compute: DenoiseCompute, subject?: SubjectCoverage): Promise<NoiseMeasurement> {
+  const rotated = framing.turns % 2 !== 0;
+  const crop = cropRectangle(rotated ? source.naturalHeight : source.naturalWidth, rotated ? source.naturalWidth : source.naturalHeight, framing);
+  const layout = noiseLayout(crop.width, crop.height);
+  if (!layout) return { sigma: null, blocks: 0, subjectBlocks: 0, subjectLeftOut: false };
+  const width = layout.tileWidth * layout.cols;
+  const height = layout.tileHeight * layout.rows;
   const mosaic = document.createElement('canvas');
-  mosaic.width = tile * 3; mosaic.height = tile * 3;
+  mosaic.width = width; mosaic.height = height;
   const ctx = mosaic.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      // The middle of each third of the picture.
-      const sx = Math.round(((col + 0.5) * width) / 3 - tile / 2);
-      const sy = Math.round(((row + 0.5) * height) / 3 - tile / 2);
-      ctx.drawImage(source, sx, sy, tile, tile, col * tile, row * tile, tile, tile);
-    }
-  }
-  return compute.measureNoise(ctx.getImageData(0, 0, tile * 3, tile * 3).data, tile * 3, tile * 3);
+  if (!ctx) return { sigma: null, blocks: 0, subjectBlocks: 0, subjectLeftOut: false };
+  // Plain crops of the source are exact; a turned, straightened or cropped picture is drawn through the same framing the editor uses.
+  const plain = framing.turns === 0 && framing.straighten === 0 && crop.x === 0 && crop.y === 0 &&
+    crop.width === source.naturalWidth && crop.height === source.naturalHeight;
+  const tile = plain ? null : document.createElement('canvas');
+  layout.tiles.forEach(({ sx, sy }, index) => {
+    const dx = (index % layout.cols) * layout.tileWidth;
+    const dy = Math.floor(index / layout.cols) * layout.tileHeight;
+    if (plain) { ctx.drawImage(source, sx, sy, layout.tileWidth, layout.tileHeight, dx, dy, layout.tileWidth, layout.tileHeight); return; }
+    drawFramedPhoto(source, tile!, framing, { region: { x: sx, y: sy, width: layout.tileWidth, height: layout.tileHeight }, scale: 1 });
+    ctx.drawImage(tile!, dx, dy);
+  });
+  const exclude = subject ? mosaicExclusion(layout, crop.width, crop.height, subject) : undefined;
+  return compute.measureBackground(ctx.getImageData(0, 0, width, height).data, width, height, exclude);
 }
 
 /** Lets the editor handle input between the two canvas reads denoise still does on this thread. */
@@ -113,7 +115,24 @@ export interface DenoiseOutcome {
   /** The learned denoiser's stored result, when the guardian chose it for the subject or eyes. */
   trueDetailAi?: TrueDetailAi;
   notes: string[];
+  /** Nothing was changed because no visible noise was found: the panel offers "Denoise anyway". */
+  noVisibleNoise?: boolean;
+  /** Nothing was measured because the RAW has not been developed from its sensor data yet, and a develop can be made: the panel says to develop it or wait for the develop. */
+  notDeveloped?: boolean;
+  /** One plain line for a "Denoise anyway" result that was applied: what was measured and the gentle strength used. */
+  anywayNote?: string;
 }
+
+/** What the person asked for beyond the plain press of the button. */
+export interface DenoiseOptions {
+  /** Denoise a photo whose noise read as not visible, at a gentle strength, through the same verified recipe. */
+  anyway?: boolean;
+  /** Said once noise has been measured (the Tasks row detail): the value and the strength chosen. */
+  onMeasured?: (text: string) => void;
+}
+
+/** A measured value for a sentence, with the decimal mark of the person's language. */
+const formatMeasure = (value: number) => new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
 /** The signed-in account's session, or null. Cloud is attempted only with one: signing in and pressing the button is the consent for that job. */
 export type CloudAccess = { connection: CloudConnection; online: boolean } | null;
@@ -125,7 +144,7 @@ export type CloudAccess = { connection: CloudConnection; online: boolean } | nul
  */
 export async function runV2Denoise(
   frame: PhotoFrame, provider: BrowserPreviewProvider, cloud: CloudAccess, signal?: AbortSignal,
-  progress?: (done: number, total: number, label: string) => void,
+  progress?: (done: number, total: number, label: string) => void, options: DenoiseOptions = {},
 ): Promise<DenoiseOutcome | null> {
   const source = await loadDenoiseSource(frame, provider,
     () => fullResolutionRasterFormat(frame.filename)
@@ -138,12 +157,21 @@ export async function runV2Denoise(
           try { return await loadImage(url); }
           finally { URL.revokeObjectURL(url); }
         }, signal), loadImage, signal);
+  if (!source && !frame.isDemo && !signal?.aborted && isRawPreviewFile(frame.filename) &&
+      !provider.isOfflineFallback(frame.stableKey) && !provider.isDeveloped(frame.stableKey) &&
+      fullDevelopPossible(frame, canDevelopRaw(), provider.hasBlob(frame.stableKey) || frame.sourceKind !== 'file' || isDesktopApp())) {
+    // A RAW that has not been developed from its sensor data yet, on a build that can develop it: its small camera
+    // preview hides the noise, so say so in plain words (and not "could not read the original") and change nothing.
+    // Where no develop can be made (no decoder, original not reachable) this stays the plain "could not read" error,
+    // because waiting or developing would never help.
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notDeveloped: true, notes: [engineText.denoise.notDeveloped(frame.filename)] };
+  }
   if (!source || !Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight) ||
       source.naturalWidth <= 0 || source.naturalHeight <= 0) return null;
   // The pixel work (noise, every candidate render and check) runs in a Web Worker so the editor keeps responding.
   const compute = createDenoiseCompute({ signal });
   try {
-    const outcome = await denoiseVerifiedSource(frame, source, cloud, compute, signal, progress);
+    const outcome = await denoiseVerifiedSource(frame, source, cloud, compute, signal, progress, options);
     if (outcome && compute.onMainThread) outcome.notes.push(MAIN_THREAD_DENOISE_NOTE);
     return outcome;
   } finally {
@@ -154,7 +182,7 @@ export async function runV2Denoise(
 /** Everything after the source passed its provenance checks. */
 async function denoiseVerifiedSource(
   frame: PhotoFrame, source: HTMLImageElement, cloud: CloudAccess, compute: DenoiseCompute, signal?: AbortSignal,
-  progress?: (done: number, total: number, label: string) => void,
+  progress?: (done: number, total: number, label: string) => void, options: DenoiseOptions = {},
 ): Promise<DenoiseOutcome | null> {
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
@@ -167,20 +195,14 @@ async function denoiseVerifiedSource(
   if (!context || canvas.width < 16 || canvas.height < 16) return null;
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   const original: Pixels = { data: new Uint8ClampedArray(image.data), width: image.width, height: image.height };
-  // Noise is judged at full size (a 1:1 centre crop), where the photographer sees it; the downscaled working copy hides it.
   await yieldToInterface();
   signal?.throwIfAborted();
-  const sigma = await measureFullSizeNoise(source, compute);
-  signal?.throwIfAborted();
-  const luminance = luminanceStrengthFor(sigma, frame.exif?.iso);
-  if (sigma !== null && luminance === 0) {
-    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [`${engineText.denoise.noVisibleNoise} (${sigma.toFixed(2)} measured, ${VISIBLE_NOISE_SIGMA} needed${frame.exif?.iso ? `, ISO ${frame.exif.iso}` : ''})`] };
-  }
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
   const previousBackground = existing.find(mask => mask.id === `${id}-background`);
-  const asked = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
-  const lumaPerStrength = asked > 0 ? luminance / asked : 0;
+  const wanted = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
+  // "Denoise anyway" is gentle: never above the gentle default, even if an earlier run left a stronger setting.
+  const asked = options.anyway ? Math.min(wanted, ANYWAY_DENOISE_STRENGTH) : wanted;
   const remaining = existing.filter(mask => !isAutoDenoiseLayer(mask.id, id));
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !isCombined(mask) &&
@@ -229,6 +251,27 @@ async function denoiseVerifiedSource(
     // Do not replace an established protected recipe with global smoothing.
     return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.protectionLost] };
   }
+  // Noise is judged at full size, where the photographer sees it; the downscaled working copy hides it. The subject is
+  // left out when it is known, so the flattest background decides, not a clean sharp subject or a textured one.
+  await yieldToInterface();
+  signal?.throwIfAborted();
+  const measurement = await measureFullSizeNoise(source, framing, compute,
+    combinedAlpha ? { alpha: combinedAlpha, width: original.width, height: original.height } : undefined);
+  signal?.throwIfAborted();
+  const sigma = measurement.sigma;
+  const iso = typeof frame.exif?.iso === 'number' && frame.exif.iso > 0 ? frame.exif.iso : undefined;
+  // Said whenever the reading may include the subject, so a clean sharp subject never passes for a clean background.
+  const wholeFrameWords = sigma === null ? '' : !combinedAlpha ? engineText.denoise.wholeFrameNoSubject
+    : measurement.subjectBlocks > 0 && !measurement.subjectLeftOut ? engineText.denoise.wholeFrameLarge : '';
+  const measuredWords = sigma !== null
+    ? [engineText.denoise.measured(formatMeasure(sigma), formatMeasure(VISIBLE_NOISE_SIGMA), iso ? String(iso) : null), wholeFrameWords].filter(Boolean).join(' ')
+    : '';
+  const luminance = options.anyway ? anywayLuminanceStrength(sigma, iso) : luminanceStrengthFor(sigma, iso);
+  if (sigma !== null && luminance === 0) {
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, noVisibleNoise: true, notes: [engineText.denoise.noVisibleNoise, measuredWords] };
+  }
+  if (sigma !== null) options.onMeasured?.([engineText.denoise.measuredStage(formatMeasure(sigma), formatMeasure(luminance)), wholeFrameWords].filter(Boolean).join('. '));
+  const lumaPerStrength = asked > 0 ? luminance / asked : 0;
   // TrueDetail: when the opt-in NAFNet pack is on this device, run it on the subject's area at full size, so the
   // guardian can compare it with the built-in denoise region by region.
   const learnedOutcome = subject ? await runLearnedOnSubject(source, framing, original, subject.alpha, signal,
@@ -291,5 +334,7 @@ async function denoiseVerifiedSource(
   }
   else if (detectionUnavailable) notes.unshift(engineText.denoise.global);
   if (!result.verification.ok) notes.push(engineText.denoise.failedCheck);
-  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes, ...(trueDetailAi ? { trueDetailAi } : {}) };
+  const anywayNote = options.anyway && sigma !== null && result.verification.ok
+    ? engineText.denoise.anyway(formatMeasure(sigma), formatMeasure(strength), iso ? String(iso) : null) : undefined;
+  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes, ...(trueDetailAi ? { trueDetailAi } : {}), ...(anywayNote ? { anywayNote } : {}) };
 }

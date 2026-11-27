@@ -5,7 +5,7 @@ import type { CourseCorrection } from '../../engine/enhancementVerifier';
 import { assessDenoiseCandidate, type LearnedBlend } from '../../engine/denoiseAction';
 import { fullContext } from '../../core/masks';
 import { blendLearned, trueDetailAiWeight } from '../../core/trueDetailAi';
-import { estimateNoiseSigma } from '../../core/noiseEstimate';
+import { estimateNoiseSigma, measureBackgroundNoise } from '../../core/noiseEstimate';
 import { qualifyLearned } from '../../core/trueDetailHybrid';
 import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
 
@@ -72,6 +72,8 @@ export const learnedVerdicts = (original: Pixels, learned: Pixels, alpha: Float3
 
 export type DenoiseWorkerRequest =
   | { id: number; type: 'noise'; rgba: Uint8ClampedArray; width: number; height: number }
+  /** Noise from the flattest background, with the subject (non-zero bytes of `exclude`) left out. */
+  | { id: number; type: 'background-noise'; rgba: Uint8ClampedArray; width: number; height: number; exclude?: Uint8Array }
   | { id: number; type: 'open'; session: number; job: DenoiseJob }
   | { id: number; type: 'render' | 'assess' | 'composed'; session: number; edit: Partial<PhotoEdit>; masks: Mask[]; blend?: LearnedBlend }
   | { id: number; type: 'close'; session: number }
@@ -96,6 +98,8 @@ export function handleDenoiseWorkerMessage(state: DenoiseWorkerState, request: D
     switch (request.type) {
       case 'noise':
         return { reply: { id: request.id, ok: true, value: estimateNoiseSigma(request.rgba, request.width, request.height) }, transfer: [] };
+      case 'background-noise':
+        return { reply: { id: request.id, ok: true, value: measureBackgroundNoise(request.rgba, request.width, request.height, request.exclude) }, transfer: [] };
       case 'qualify':
         return { reply: { id: request.id, ok: true, value: learnedVerdicts(request.original, request.learned, request.alpha, request.strengths) }, transfer: [] };
       case 'open': {
