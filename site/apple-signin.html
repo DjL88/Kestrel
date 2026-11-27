@@ -24,11 +24,12 @@
 <script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_GB/appleid.auth.js"></script>
 <script>
   // Opened by the InFlight desktop app. Runs Apple's sign-in here (Apple only returns to this registered address), then
-  // hands Apple's answer to the app's one-shot listener on this computer only (localhost). Nothing is stored or sent
+  // hands Apple's answer to the app's one-shot listener on this computer only (127.0.0.1). Nothing is stored or sent
   // anywhere else. The app checks the state and the nonce, which it alone can verify.
   (function () {
     var SERVICES_ID = 'app.kestrel.photo.web';
-    var APP = 'http://localhost:53682/oauth-callback';
+    // 127.0.0.1, not "localhost": the app listens on IPv4 only, and Safari can try the IPv6 address first and stop.
+    var APP = 'http://127.0.0.1:53682/oauth-callback';
     var params = new URLSearchParams(location.search);
     var state = params.get('state') || '';
     var nonce = params.get('nonce') || '';
@@ -43,7 +44,11 @@
       var out = new URLSearchParams(answer);
       out.set('state', state);
       message.textContent = 'Returning to InFlight…';
-      location.replace(APP + '?' + out.toString());
+      var target = APP + '?' + out.toString();
+      location.replace(target);
+      setTimeout(function () {
+        message.textContent = 'If InFlight did not come forward, it may not be listening any more. Go back to InFlight and choose Continue with Apple again.';
+      }, 8000);
     }
     if (!window.AppleID) { message.textContent = 'Apple sign-in could not load. Check your connection and try again from InFlight.'; return; }
     AppleID.auth.init({ clientId: SERVICES_ID, scope: 'name email', redirectURI: location.origin + '/apple-signin', state: state, nonce: nonce, usePopup: true });

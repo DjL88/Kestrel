@@ -5,7 +5,7 @@
  * The existing fetch script fails closed on missing bytes or SHA-256 mismatch.
  */
 import { spawnSync } from 'node:child_process';
-import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, missingDriveSettings, releaseModelSource } from './build-desktop-guard.mjs';
+import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, assertSiteOriginAllowed, missingDriveSettings, releaseModelSource } from './build-desktop-guard.mjs';
 import { loadEnv } from 'vite';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_HOST, completePacks, fetchList, readList } from './fetch-bundled-models.mjs';
@@ -19,7 +19,7 @@ try {
 assertReleaseBuildArgs(process.argv.slice(2));
 // The same .env files Vite reads for the app, plus the environment, so the check sees what the build will see.
 const buildEnv = { ...loadEnv('production', root, 'VITE_'), ...process.env };
-if ((process.env.KESTREL_RELEASE ?? '1') !== '0') assertReleaseOnlineSettings(buildEnv);
+if ((process.env.KESTREL_RELEASE ?? '1') !== '0') { assertReleaseOnlineSettings(buildEnv); assertSiteOriginAllowed(buildEnv, JSON.parse(readFileSync(new URL('../config/public-site.json', import.meta.url), 'utf8')).origin); }
 const noDrives = missingDriveSettings(buildEnv);
 if (noDrives.length) console.warn('Note: cloud drive sign-in will be off for: ' + noDrives.join(', ') + ' (add them to .env.local; see docs/CLOUD-CONNECTORS.md).');
 const prepared = spawnSync(npm, ['run', 'model:species'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });

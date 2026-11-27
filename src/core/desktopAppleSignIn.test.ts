@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from './desktopAppleSignIn.ts';
+import { readFileSync } from 'node:fs';
+import { appleFirebaseFailureMessage, appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from './desktopAppleSignIn.ts';
 
 const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
 const token = (claims: Record<string, unknown>) => `${b64({ alg: 'RS256' })}.${b64(claims)}.c2ln`;
@@ -41,4 +42,28 @@ test('answers for another attempt, app or nonce are refused, and a cancel says n
     const bad = token({ iss: 'https://appleid.apple.com', aud: 'app.kestrel.photo.web', nonce: 'abc123', ...claims });
     assert.throws(() => appleAnswerFromQuery(`code=c&state=s1&id_token=${bad}`, expected), /not for this sign-in/);
   }
+});
+
+test('the website page hands back to 127.0.0.1 (the listener is IPv4 only; Safari may try ::1 for "localhost") on the listener\'s port and path', () => {
+  const page = readFileSync(new URL('../../site/apple-signin.html', import.meta.url), 'utf8');
+  const rust = readFileSync(new URL('../../src-tauri/src/oauth_loopback.rs', import.meta.url), 'utf8');
+  const port = /pub const PORT: u16 = (\d+);/.exec(rust)![1];
+  const path = /CALLBACK_PATH: &str = "([^"]+)"/.exec(rust)![1];
+  assert.ok(page.includes(`var APP = 'http://127.0.0.1:${port}${path}';`));
+  assert.ok(!/http:\/\/localhost/.test(page.replace(/\/\/.*$/gm, '')));
+});
+
+test('a refusal after Apple answered is explained in plain English', () => {
+  assert.match(appleFirebaseFailureMessage({ code: 'auth/network-request-failed' }), /internet connection/);
+  assert.match(appleFirebaseFailureMessage({ code: 'auth/invalid-credential' }), /auth\/invalid-credential/);
+  assert.match(appleFirebaseFailureMessage(new Error('boom')), /did not finish: boom/);
+  assert.match(appleFirebaseFailureMessage(null), /Nothing changed/);
+});
+
+test('the desktop opener scope allows the Apple sign-in page on the one public origin', () => {
+  const site = JSON.parse(readFileSync(new URL('../../config/public-site.json', import.meta.url), 'utf8')) as { origin: string; firebaseOrigin: string };
+  const caps = JSON.parse(readFileSync(new URL('../../src-tauri/capabilities/desktop.json', import.meta.url), 'utf8')) as { permissions: Array<string | { identifier: string; allow?: Array<{ url: string }> }> };
+  const allowed = caps.permissions.flatMap((p) => typeof p === 'object' && p.identifier === 'opener:allow-open-url' ? p.allow!.map((a) => a.url) : []);
+  assert.ok(allowed.includes(`${site.origin}/apple-signin?*`), `${site.origin}/apple-signin?* missing from desktop.json`);
+  assert.equal(new Set(allowed).size, allowed.length, 'duplicate opener entries');
 });

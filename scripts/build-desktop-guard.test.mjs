@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, RELEASE_ONLINE_SETTINGS, RELEASE_MODEL_SOURCE, releaseModelSource } from './build-desktop-guard.mjs';
+import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, assertSiteOriginAllowed, RELEASE_ONLINE_SETTINGS, RELEASE_MODEL_SOURCE, releaseModelSource } from './build-desktop-guard.mjs';
 
 test('normal release arguments are accepted', () => {
   assert.doesNotThrow(() => assertReleaseBuildArgs([]));
@@ -41,4 +41,10 @@ test('missing cloud drive ids are listed as a note, never a refusal', async () =
   const { missingDriveSettings } = await import('./build-desktop-guard.mjs');
   assert.deepEqual(missingDriveSettings({ VITE_DROPBOX_APP_KEY: 'abc', VITE_ONEDRIVE_CLIENT_ID: ' ' }),
     ['VITE_GOOGLE_DRIVE_CLIENT_ID', 'VITE_GOOGLE_DRIVE_CLIENT_SECRET', 'VITE_ONEDRIVE_CLIENT_ID']);
+});
+
+test('a release build refuses a site address other than the public origin, and says what to set', () => {
+  assert.doesNotThrow(() => assertSiteOriginAllowed({ VITE_KESTREL_SITE_URL: 'https://inflight.studio/' }, 'https://inflight.studio'));
+  assert.throws(() => assertSiteOriginAllowed({ VITE_KESTREL_SITE_URL: 'https://kestrel-hosting-kestrel.web.app' }, 'https://inflight.studio'), /VITE_KESTREL_SITE_URL=https:\/\/inflight\.studio/);
+  assert.throws(() => assertSiteOriginAllowed({ VITE_KESTREL_SITE_URL: 'nonsense' }, 'https://inflight.studio'), /Not allowed/);
 });

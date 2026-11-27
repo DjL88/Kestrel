@@ -67,3 +67,12 @@ export function appleAnswerFromQuery(query: string, expected: { state: string; s
   const name = [params.get('first_name'), params.get('last_name')].map((part) => part?.trim()).filter(Boolean).join(' ').slice(0, 120);
   return name ? { idToken, displayName: name } : { idToken };
 }
+
+/** Plain-English text for a failure after Apple answered (Firebase refused it, or the network was down). */
+export function appleFirebaseFailureMessage(error: unknown): string {
+  const code = typeof (error as { code?: unknown })?.code === 'string' ? (error as { code: string }).code : '';
+  if (code === 'auth/network-request-failed') return 'InFlight could not reach its sign-in service. Check your internet connection and try again.';
+  if (code === 'auth/invalid-credential' || code === 'auth/invalid-id-token' || code === 'auth/operation-not-allowed') return `Apple confirmed you, but InFlight's sign-in service refused the answer (${code}). Nothing changed. Try again, or use email or Google.`;
+  if (code === 'auth/account-exists-with-different-credential') return 'This email already has an InFlight account that signs in another way. Sign in that way, then add Apple in Settings.';
+  return error instanceof Error && error.message ? `Apple sign-in did not finish: ${error.message}` : 'Apple sign-in did not finish. Nothing changed; try again.';
+}

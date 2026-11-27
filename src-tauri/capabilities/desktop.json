@@ -20,10 +20,8 @@
       { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" },
       { "url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize*" },
       { "url": "https://inflight.studio/pro-checkout?_ptxn=*" },
-      { "url": "https://inflight.studio/pro-checkout?_ptxn=*" },
       { "url": "https://customer-portal.paddle.com/*" },
       { "url": "https://sandbox-customer-portal.paddle.com/*" },
-      { "url": "https://inflight.studio/apple-signin?*" },
       { "url": "https://inflight.studio/apple-signin?*" }
     ] },
     "updater:default",

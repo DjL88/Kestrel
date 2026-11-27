@@ -57,3 +57,17 @@ export function assertReleaseOnlineSettings(env) {
     throw new Error('Release build is missing online settings: ' + missing.join(', ') + '. Add them to .env.local (see .env.example and infra/gcp/README.md), or set KESTREL_RELEASE=0 for a local test build.');
   }
 }
+
+/**
+ * The site address baked into a release build must be the one public origin (config/public-site.json), which is the one
+ * the desktop opener scope allows. Any other address makes Apple sign-in fail with "Not allowed to open url".
+ */
+export function assertSiteOriginAllowed(env, publicOrigin) {
+  const raw = typeof env.VITE_KESTREL_SITE_URL === 'string' ? env.VITE_KESTREL_SITE_URL.trim() : '';
+  if (!raw) return;
+  let origin = '';
+  try { origin = new URL(raw).origin; } catch { /* reported below */ }
+  if (origin !== publicOrigin) {
+    throw new Error(`VITE_KESTREL_SITE_URL is ${raw}, but desktop builds may only open ${publicOrigin} (Apple sign-in would fail with "Not allowed to open url"). Set VITE_KESTREL_SITE_URL=${publicOrigin} in .env.local, or KESTREL_RELEASE=0 for a local test build.`);
+  }
+}
