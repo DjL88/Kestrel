@@ -276,5 +276,15 @@ function orientationSegment(orientation: number): Uint8Array<ArrayBuffer> {
   return segment;
 }
 
+/**
+ * A JPEG's size as it is shown (its own Orientation applied), from its first 256 KB, or null when it is not a JPEG or
+ * the header cannot be read. Lets a thumbnail be shrunk while it is decoded, off the page, without decoding it twice.
+ */
+export async function shownJpegSize(picture: Blob): Promise<{ width: number; height: number } | null> {
+  const facts = jpegFacts(new DataView(await picture.slice(0, 256 * 1024).arrayBuffer()));
+  if (!facts || !facts.width || !facts.height) return null;
+  return (facts.orientation ?? 1) >= 5 ? { width: facts.height, height: facts.width } : { width: facts.width, height: facts.height };
+}
+
 /** The old name, kept so existing callers keep working. */
 export const extractNefPreview = extractRawPreview;
