@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
-  title: "Täplien korjaus",
+  title: "Poista täplät",
   intro: "Peittää pölyn, oksan tai sotkuisen istumapaikan samasta kuvasta läheltä kopioiduilla pikseleillä. Mitään ei keksitä, eikä alkuperäistä tiedostoa koskaan muuteta.",
   start: "Merkitse täpliä",
   stop: "Valmis",

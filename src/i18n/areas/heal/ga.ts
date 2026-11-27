@@ -4,7 +4,7 @@ import type { source } from './source';
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
-  title: "Deisiú spotaí",
+  title: "Bain spotaí",
   intro: "Clúdaíonn sé deannach, craobhóg nó bruscar timpeall an fhara le picteilíní a cóipeáladh ó áit in aice láimhe sa ghrianghraf céanna. Ní chumtar aon rud, agus ní athraítear an bunchomhad riamh.",
   start: "Cuir spotaí",
   stop: "Críochnaithe",

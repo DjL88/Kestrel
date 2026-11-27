@@ -87,9 +87,10 @@ export default function MasksPanel({
 
       <p role="status" className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">{STRINGS.panelWords.maskStatus}</p>
 
-      {/* Auto-detect mask triggers */}
-      <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+      {/* Two groups of ways to add a mask (Dave, 27 Nov), each a labelled region in keyboard order: Smart (AI), where
+          InFlight finds the area, then Manual, where you draw it. Spot removal replaces pixels, so it is in Enhance. */}
+      <section aria-labelledby="masks-smart-heading" data-testid="masks-group-smart" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5">
+        <h3 id="masks-smart-heading" className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.masks.autoDetectHeading}
         </h3>
         <div className="grid grid-cols-1 gap-1.5">
@@ -125,13 +126,12 @@ export default function MasksPanel({
             </button>
           ))}
         </div>
-      </div>
+        {tapSelect && <TapSelectSection photo={photo} state={tapSelect} actions={tapActions ?? {}} />}
+      </section>
 
-      {tapSelect && <TapSelectSection photo={photo} state={tapSelect} actions={tapActions ?? {}} />}
-
-      {/* Manual refinement tools */}
-      <div className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+      {/* Manual: drawn by hand (Brush paints where an adjustment applies, so it is a mask) */}
+      <section aria-labelledby="masks-manual-heading" data-testid="masks-group-manual" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5">
+        <h3 id="masks-manual-heading" className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.masks.manualToolsHeading}
         </h3>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
@@ -158,7 +158,7 @@ export default function MasksPanel({
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Active Mask Layers */}
       <div className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
