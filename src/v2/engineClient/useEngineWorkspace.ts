@@ -75,6 +75,8 @@ import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
 import { usePictureSearch } from './usePictureSearch';
 import { declinePhotoTag } from '../../core/photoTags';
+import { inGroups, ratedFirstOrder } from '../../core/importOrder';
+import { readSidecarRatings } from '../../providers/importRatings';
 import { folderNameOf, linkedRangeOpener, linkedReader, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { applyDesktopRelink, framesNeedingRelink, pickRelinkFolder, planDesktopRelink, tauriRelinkFs } from './desktopRelink';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
@@ -338,6 +340,9 @@ function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBra
 
 /** The photo with its rank within the shoot, when Auto pick ranked it. */
 const withTier = (tier: Photo['tier'] | undefined, photo: Photo): Photo => (tier ? { ...photo, tier } : photo);
+
+/** Photos read and added to the project together in one scheduler item (one project update per group). */
+const IMPORT_GROUP_SIZE = 6;
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   // A real measurement of the machine for the task scheduler (desktop app), so heavy jobs can run side by side when there
@@ -2332,70 +2337,90 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const pendingNames = new Map(additions.map((file) => [pickedKey(file), file.name]));
     recordPendingImport(projectKey, [...pendingNames.values()], true);
     importingInto.current = projectKey;
-    // Several photos are read at once (src/core/importReadAhead.ts) while each is still added in its own turn below.
+    // Rated photos are read first (ratings from XMP sidecars, read only), in groups so the project is updated once per
+    // group. Only the reading order changes: each photo keeps its picked-list position, which gives its id and capture-order
+    // sequence number, and the catalogue sorts this import's photos by it as they arrive.
+    const ratings = additions.length > 1 ? await readSidecarRatings(additions, files, { signal: controller.signal }).catch(() => []) : [];
+    const order = ratedFirstOrder(additions.map((_, index) => ratings[index]));
+    const committedKeys = new Set<string>();
+    // Several photos are read at once (src/core/importReadAhead.ts), by position in that order.
     const reads = createReadAhead(additions.length, importLanes(deviceMemoryBudget(), navigator.hardwareConcurrency),
-      async (index) => {
+      async (position) => {
         // Which project's provider registered this photo's original while it was read (the read may run ahead of its turn).
         const readIn = provider.current;
-        const result = await loadLocalFileListShoot([additions[index]], sourceProvider, sourceCatalogue,
+        const result = await loadLocalFileListShoot([additions[order[position]]], sourceProvider, sourceCatalogue,
           undefined, { allowPartial: true, signal: controller.signal });
         return { result, readIn };
       });
     try {
-      // An actual scheduler item for each photograph: complete the original
-      // fingerprint, preview and catalogue registration before advancing.
-      // Unlike a visibility-only bulk task, this releases the CPU slot at each
-      // boundary so someone can continue editing while 300 files import.
+      // An actual scheduler item for each small group of photographs: complete each original's fingerprint, preview and
+      // catalogue registration before advancing. This releases the CPU slot at each group boundary so someone can
+      // continue editing while 300 files import.
+      const groups = inGroups(order.map((index, position) => ({ index, position, file: additions[index] })), IMPORT_GROUP_SIZE);
       const ticket = await engineScheduler.submit({
         title: engineText.workspace.importTask(additions.length),
         // Above background work (the open photo's Co-pilot check 8, culling 5, RAW develop 9-10), which otherwise took
         // the one heavy slot at every photo boundary as soon as the first photos arrived (owner's 2,000-NEF test:
         // "only 2 came in, then everything crawled"). Below what the person asks for now (denoise 12 and up).
         kind: 'import', resource: 'cpu', priority: 11, pauseable: additions.length > 1,
-        items: additions.map((file, index) => ({ file, index })),
+        items: groups.map((group) => ({ group })),
         // Source file handles are intentionally NOT copied into the journal or
         // snapshot; a picker token cannot be persisted as a verified original.
         snapshot: { projectKey, importId },
-        itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
+        itemId: item => item.group.length === 1 ? pickedKey(item.group[0].file) : `${pickedKey(item.group[0].file)}+${item.group.length - 1}`,
+        itemLabel: item => item.group.length === 1 ? item.group[0].file.name : `${item.group[0].file.name} and ${item.group.length - 1} more`,
         runItem: async (item, _, ctx) => {
-          ctx.stage(engineText.workspace.importReadStage);
-          const { result, readIn } = await reads.take(item.index);
-          ctx.checkCancelled();
-          // Read before the project was left and reopened: its original was registered in the provider of the time,
-          // which reopening replaced. Register it in the open project's provider too (from its stored copy or its path),
-          // or the photo would say "Original not connected, preview only". A closed project does this when it opens.
-          if (readIn !== provider.current && provider.current && stateRef.current?.shoot.id === projectKey && result.frames.length) {
-            await rehydrateLocalFramesFromStore(result.frames, provider.current, sourceCatalogue, { checkPaths: false }).catch(() => false);
+          const frames: PhotoFrame[] = [];
+          const failed: string[] = [];
+          const unreadable: string[] = [];
+          const keys: string[] = [];
+          for (const entry of item.group) {
+            const key = pickedKey(entry.file);
+            if (committedKeys.has(key)) continue; // A retried group does not add its finished photos twice.
+            ctx.stage(engineText.workspace.importReadStage);
+            let taken;
+            try { taken = await reads.take(entry.position); } catch (reason) { ctx.checkCancelled(); failed.push(reason instanceof Error ? reason.message : entry.file.name); continue; }
+            const { result, readIn } = taken;
             ctx.checkCancelled();
+            // Read before the project was left and reopened: its original was registered in the provider of the time,
+            // which reopening replaced. Register it in the open project's provider too (from its stored copy or its path),
+            // or the photo would say "Original not connected, preview only". A closed project does this when it opens.
+            if (readIn !== provider.current && provider.current && stateRef.current?.shoot.id === projectKey && result.frames.length) {
+              await rehydrateLocalFramesFromStore(result.frames, provider.current, sourceCatalogue, { checkPaths: false }).catch(() => false);
+              ctx.checkCancelled();
+            }
+            if (!result.frames.length) { failed.push(engineText.workspace.importOneFailed(entry.file.name)); continue; }
+            if (result.failedNames.length) { unreadable.push(...result.failedNames); continue; }
+            // Brought back from another editor: where it came from, and the original's capture details (the PNG has none).
+            const cloudPhoto = cloudImports.current.get(key);
+            const externalEdit = externalReturns.current.get(key);
+            const fromFrame = externalEdit ? stateRef.current?.frames.find((candidate) => candidate.id === externalEdit.fromFrameId) : undefined;
+            // Id and capture-order index come from the picked-list position, whatever order the photos were read in.
+            frames.push(...result.frames.map(frame => ({
+              ...frame, id: `file-${entry.index + 1}-${frame.filename}`,
+              sequenceIndex: entry.index + 1,
+              ...(cloudPhoto ? { cloudPhoto } : {}),
+              ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
+              ...(attach?.(key) ?? {}),
+            })));
+            keys.push(key);
+            if (result.unstoredKeys.length) warnings.push(`${entry.file.name} could not be stored for reopening. Relink it when needed.`);
           }
-          if (!result.frames.length) throw new Error(engineText.workspace.importOneFailed(item.file.name));
-          if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
-          // A one-photo loader has index one. Give each imported frame its
-          // distinct stable project index before inserting it into React.
-          const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
-          // Brought back from another editor: where it came from, and the original's capture details (the PNG has none).
-          const externalEdit = externalReturns.current.get(pickedKey(item.file));
-          const fromFrame = externalEdit ? stateRef.current?.frames.find((candidate) => candidate.id === externalEdit.fromFrameId) : undefined;
-          const frames = result.frames.map(frame => ({
-            ...frame, id: `file-${item.index + 1}-${frame.filename}`,
-            sequenceIndex: item.index + 1,
-            ...(cloudPhoto ? { cloudPhoto } : {}),
-            ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
-            ...(attach?.(pickedKey(item.file)) ?? {}),
-          }));
-          if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
-          ctx.commitIfCurrent(() => {
+          if (frames.length) ctx.commitIfCurrent(() => {
             if (ctx.signal.aborted) return;
             importedFrames.push(...frames);
             for (const frame of frames) importingIds.current.add(frame.id);
-            // To the project, wherever it is: on screen, closed (written to its catalogue) or reopening (held).
-            // Failed-only retry can happen long after the initial batch finished; recompute burst relationships
-            // for that newly added photograph, but not for every file in a 300-photo import.
+            for (const key of keys) { committedKeys.add(key); pendingNames.delete(key); }
+            // One update for the whole group. To the project, wherever it is: on screen, closed (written to its catalogue)
+            // or reopening (held). Failed-only retry can happen long after the initial batch finished; recompute burst
+            // relationships for those newly added photographs, but not for every file in a 300-photo import.
             handoff.add(projectKey, importBatch(frames, initialImportFinished ? [...importedFrames] : undefined));
-            pendingNames.delete(pickedKey(item.file));
             recordPendingImport(projectKey, [...pendingNames.values()]);
           });
+          // What was added stays added; the group is then reported as failed so only what is missing is tried again.
+          if (failed.length) throw new Error(failed[0]);
+          if (unreadable.length) throw new Error(engineText.workspace.importUnreadable(unreadable.join(', ')));
         },
       });
       controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
