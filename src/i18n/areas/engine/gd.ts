@@ -50,6 +50,8 @@ export const gd: AreaTranslation<typeof source> = {
     global: 'Cha robh iomall cuspair sam bith earbsach, mar sin chaidh lùghdachadh gràinne a chur air an dealbh air fad gu cothromach.',
     failedCheck: 'Cha deach an toradh tron dearbhadh càileachd. Chaidh na deasachaidhean agad a chumail.',
     mainThread: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin dh’fhaodadh InFlight stad greis.',
+    workerUnavailable: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin cha deach dad atharrachadh (reòthadh InFlight nan ruitheadh e an seo). Feuch a-rithist an dèidh InFlight ath-thòiseachadh.',
+    learnedNoWorker: 'Cha b’ urrainn dhan lùghdachadh gràinne AI ruith sa chùlaibh air an uidheam seo, mar sin cha deach ach an lùghdachadh gràinne togte a choimeas.',
     learnedLostDetail: 'Aig làn-mheud, rinn lùghdachadh gràinne AI fìor mhion-fhiosrachadh air a’ chuspair rèidh, mar sin chaidh an lùghdachadh gràinne a-staigh a chleachdadh na àite.',
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
   },

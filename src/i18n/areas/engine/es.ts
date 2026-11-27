@@ -50,6 +50,8 @@ export const es: AreaTranslation<typeof source> = {
     global: 'Ningún contorno de sujeto era fiable, así que la reducción de ruido se aplicó por igual a toda la foto.',
     failedCheck: 'El resultado no superó el control de calidad. Se conservaron sus ediciones.',
     mainThread: 'Este dispositivo no pudo reducir el ruido en segundo plano, así que InFlight pudo detenerse un momento mientras trabajaba.',
+    workerUnavailable: 'Este dispositivo no pudo reducir el ruido en segundo plano, así que no se cambió nada (hacerlo aquí bloquearía InFlight). Vuelve a intentarlo después de reiniciar InFlight.',
+    learnedNoWorker: 'La reducción de ruido con IA no pudo ejecutarse en segundo plano en este dispositivo, así que solo se comparó la reducción de ruido integrada.',
     learnedLostDetail: 'A tamaño completo, la reducción de ruido con IA suavizó detalles reales del sujeto, así que se usó la reducción de ruido integrada.',
     leftAsItWas: (notes) => `Se dejó como estaba. ${notes}`,
   },
