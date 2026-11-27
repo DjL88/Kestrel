@@ -198,6 +198,6 @@ Review this assessment:
 |---|---|
 | Name | David Leitch |
 | Role | Sole trader, trading as InFlight; person accountable for online safety |
-| Signature | Type your full name here, or sign a printed copy |
-| Date | ______________________ |
+| Signature | ______________________ |
+| Date | 27 November 2026 |
 | Solicitor reviewed (name, firm, date) | ______________________ |
