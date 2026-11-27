@@ -13,13 +13,14 @@ import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
 import { framingKey } from '../../core/maskTypes';
 import { naturalAuto, sameRecipe, stageNaturalRecipe } from '../../core/naturalAuto';
+import { autoReasonKey } from '../../core/autoReasons';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import type { SubjectDetail, SubjectGrid } from '../../core/maskTypes';
 import type { PhotoFrame } from '../../core/types';
-import { describePlan, planAuto, type AutoPlan } from '../../core/unifiedAuto';
+import { describePlan, planAuto, settleAfterRender, type AutoPlan } from '../../core/unifiedAuto';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
 import type { SpeciesGuess } from '../../core/speciesPalette';
 import { expectationForSpecies } from '../../core/colourMatch';
@@ -78,12 +79,21 @@ const withTimeout = <T>(work: Promise<T>, ms: number, onTimeout: () => T | Promi
  * cannot be read, is too small, or is a RAW without a sensor development; null only when cancelled. RAW advice uses the
  * sensor-developed preview only, never the embedded camera JPEG. Original files are read only.
  */
-/** Auto's headline in the person's language. The verdict decides it; its internal reason is never shown as the headline. */
-function headlineFor(plan: AutoPlan): string {
+/** One of the checks' English reasons in the person's language; null when it is not one InFlight knows. */
+function reasonWords(reason: string | null | undefined): string | null {
+  const key = autoReasonKey(reason);
+  return key ? engineText.auto.reasons[key] : null;
+}
+
+/**
+ * Auto's headline in the person's language. The verdict decides it. When nothing changed, the headline says why in plain
+ * words (the cause, not one generic sentence); an unknown reason falls back to the generic line, never to raw English.
+ */
+function headlineFor(plan: AutoPlan, heldDark: boolean): string {
   switch (plan.verdict.kind) {
     case 'improved': return plan.verdict.outcome === 'gentler' ? engineText.auto.appliedGentler : engineText.auto.applied;
-    case 'looks-good': return engineText.auto.looksGood;
-    default: return engineText.auto.cannotImprove;
+    case 'looks-good': return heldDark ? engineText.auto.reasons.keptDark : engineText.auto.looksGood;
+    default: return reasonWords(plan.verdict.reason) ?? engineText.auto.cannotImprove;
   }
 }
 
@@ -160,10 +170,12 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Scene tags (golden hour, snow, fog, night, black and white...) are hints that only hold edits back.
   const sceneHints = sceneHintsFromPhotoTags(frame);
   const basePolicy = preservationPolicy(photographyObservations);
-  const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || sceneHints.preserveDark === true };
   // Marked (inflight:auto:*), so a trace or the stress test shows how long Auto's steps hold the page.
   const natural = timedStep('auto:natural', () => naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints }));
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
+  // A scene tag InFlight measured itself (style.low-key) is not the person's intent: where the frame also measures as
+  // low-key it does not stop the subject being lifted, as in naturalAuto. The person's own tag, night and astro still do.
+  const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || (sceneHints.preserveDark === true && !(sceneHints.darkMeasuredOnly === true && natural.lowKey)) };
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
   const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
@@ -229,23 +241,22 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
   const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
   const rendered = recipes.length ? timedStep('auto:render', () => renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation)) : { before: '', candidates: [], rejected: [] };
-  if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
-    && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
-    plan = naturalPlan;
-  }
-  if (!rendered.candidates.some(candidate => candidate.edit === plan.proposal)) {
-    // Never leave a preferred plan pointing at a rejected render. A surviving
-    // alternative remains preview-only unless it was the checked preferred plan.
-    plan = { ...plan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: rendered.rejected[0] ?? 'No preferred rendered edit passed all checks' } };
-  }
+  plan = settleAfterRender({
+    plan, naturalPlan, base, recipeCount: recipes.length,
+    candidateEdits: rendered.candidates.map((candidate) => candidate.edit), rejected: rendered.rejected,
+  });
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
+  // A tag or the person's own words ("low key", night) took a lift away: say so, rather than "looks good" or "unsafe".
+  const heldDark = natural.heldBack === 'dark-on-purpose';
+  const rejectedWords = rendered.rejected.slice(0, 3).map((reason) => reasonWords(reason) ?? reason);
+  const planReason = plan.verdict.kind === 'cannot-improve-safely' ? reasonWords(plan.verdict.reason) : null;
   const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...(rendered.rejected.length ? [engineText.auto.withheld, ...rendered.rejected.slice(0, 3)] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    ...rendered, plan, improved, detail: [...described.detail, ...(planReason && !rendered.candidates.length ? [planReason] : []), ...(rendered.rejected.length ? [engineText.auto.withheld, ...rejectedWords] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
     headline: rendered.candidates.length ? engineText.auto.ready
-      : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
+      : recipes.length ? (rendered.rejected.length ? (reasonWords(rendered.rejected[0]) ?? engineText.auto.noneDifferent) : engineText.auto.noneDifferent) : headlineFor(plan, heldDark),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
     leanings: leaned.applied,

@@ -269,3 +269,49 @@ test('sharpening the out-of-focus background is still refused, with or without a
   const verdict = assessNaturalAuto(before, crunchy, scene.width, scene.height, high(scene));
   assert.equal(verdict.safe, false, verdict.reason);
 });
+
+// The owner's kingfisher again (27 Nov 2026, after #1899 shipped the lift): the Info panel showed InFlight's own "Low-key" tag
+// (measured on the pixels, source 'computed'), and that tag was read as "the photographer wants it dark", which removed
+// the lift. InFlight's own measurement is not the person's intent: where the frame also measures as low-key, the dim
+// subject is still lifted and the dark background stays dark. The person's own tag, night and astro still hold the lift.
+test('InFlight\'s own low-key tag does not stop a dim subject being lifted; a tag the person chose still does', async () => {
+  const { darkBackgroundBird } = await import('./syntheticScenes');
+  for (const withMask of [true, false]) {
+    for (const level of [50, 70]) {
+      const scene = darkBackgroundBird(level);
+      const segmentation = withMask ? high(scene) : null;
+      const input = { pixels: scene.pixels, width: scene.width, height: scene.height, segmentation };
+      const plain = naturalAuto(input);
+      const ours = naturalAuto({ ...input, sceneHints: { preserveDark: true, darkMeasuredOnly: true } });
+      assert.ok(plain.edit.exposure > 0, `the case being guarded: a dim bird is lifted (${level})`);
+      assert.equal(ours.edit.exposure, plain.edit.exposure, 'the same lift with our own tag');
+      assert.equal(ours.heldBack, null);
+      assert.ok(ours.notes.some((note) => note.includes('InFlight\'s own measurement')), 'it says why it is still lifting');
+      assert.equal(ours.edit.shadows, 0, 'the background is still not opened');
+      const chosen = naturalAuto({ ...input, sceneHints: { preserveDark: true } });
+      assert.equal(chosen.edit.exposure, 0, 'a tag the person chose keeps it dark');
+      assert.equal(chosen.heldBack, 'dark-on-purpose', 'and Auto can say so');
+      const after = renderRecipePreview(scene.pixels, scene.width, scene.height, { ...DEFAULT_EDIT, ...ours.edit });
+      assert.ok(regionMean(after, (i) => scene.subject[i] === 0) < 24, 'the dark background stays dark');
+    }
+  }
+});
+
+test('our own low-key tag is no excuse to lift a frame that does not measure as low-key', () => {
+  const scene = underexposedFlat();
+  const input = { pixels: scene.pixels, width: scene.width, height: scene.height };
+  const plain = naturalAuto(input);
+  assert.ok(plain.edit.exposure > 0 && !plain.lowKey, 'the case being guarded: a dim, flat frame that is not low-key is lifted');
+  const held = naturalAuto({ ...input, sceneHints: { preserveDark: true, darkMeasuredOnly: true } });
+  assert.equal(held.edit.exposure, 0, 'the tag says dark and the frame does not say otherwise, so the hold stays');
+  assert.equal(held.heldBack, 'dark-on-purpose');
+});
+
+test('a well-lit bird on black, with the splash, is left alone and the hint changes nothing', async () => {
+  const { darkBackgroundBird } = await import('./syntheticScenes');
+  const scene = darkBackgroundBird(130);
+  const base = { pixels: scene.pixels, width: scene.width, height: scene.height, segmentation: high(scene) };
+  const plain = naturalAuto(base), tagged = naturalAuto({ ...base, sceneHints: { preserveDark: true, darkMeasuredOnly: true } });
+  assert.deepEqual(tagged.edit, plain.edit);
+  assert.equal(tagged.heldBack, null, 'nothing was taken away, so nothing is blamed on the tag');
+});
