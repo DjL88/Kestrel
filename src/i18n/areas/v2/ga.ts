@@ -1506,7 +1506,16 @@ export const ga: AreaTranslation<typeof source> = {
       storage: 'Stóráil',
       keyboard: 'Méarchlár',
       language: 'Teanga',
+      formats: "Formáidí easpórtála",
       privacy: 'Príobháideachas',
+    },
+    formats: {
+      intro: "Roghnaigh na formáidí réamhdhéanta a thaispeántar in Formáidí agus Easpórtáil. Coinnítear na cinn fholaithe: taispeáin arís iad am ar bith. Taispeántar formáid atá in úsáid cheana ag grianghraf ar an ngrianghraf sin fós.",
+      showAll: "Taispeáin uile",
+      hideSocial: "Folaigh formáidí sóisialta",
+      show: (label) => `Taispeáin ${label}`,
+      groupPrint: "Priontáil",
+      groupVideo: "Físeán",
     },
     appearance: {
       calmMotionLabel: 'Níos lú gluaiseachta',

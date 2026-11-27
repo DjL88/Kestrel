@@ -1503,7 +1503,16 @@ export const sv: AreaTranslation<typeof source> = {
       storage: 'Lagring',
       keyboard: 'Tangentbord',
       language: 'Språk',
+      formats: "Exportformat",
       privacy: 'Integritet',
+    },
+    formats: {
+      intro: "Välj vilka färdiga format som visas i Format och Exportera. Dolda format sparas: visa dem igen när du vill. Ett format som en bild redan använder visas fortfarande för den bilden.",
+      showAll: "Visa alla",
+      hideSocial: "Dölj format för sociala medier",
+      show: (label) => `Visa ${label}`,
+      groupPrint: "Utskrift",
+      groupVideo: "Video",
     },
     appearance: {
       calmMotionLabel: 'Mindre rörelse',

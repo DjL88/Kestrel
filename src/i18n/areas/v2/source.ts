@@ -1560,7 +1560,16 @@ export const source = {
       storage: 'Storage',
       keyboard: 'Keyboard',
       language: 'Language',
+      formats: "Export formats",
       privacy: 'Privacy',
+    },
+    formats: {
+      intro: "Choose which ready-made formats appear in Formats and Export. Hidden ones are kept: show them again at any time. A format a photo already uses still shows on that photo.",
+      showAll: "Show all",
+      hideSocial: "Hide social formats",
+      show: (label: string) => `Show ${label}`,
+      groupPrint: "Print",
+      groupVideo: "Video",
     },
     appearance: {
       themeLabel: 'Interface theme',

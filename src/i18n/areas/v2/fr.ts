@@ -1503,7 +1503,16 @@ export const fr: AreaTranslation<typeof source> = {
       storage: 'Stockage',
       keyboard: 'Clavier',
       language: 'Langue',
+      formats: "Formats d’export",
       privacy: 'Confidentialité',
+    },
+    formats: {
+      intro: "Choisissez les formats prédéfinis qui apparaissent dans Formats et Exporter. Les formats masqués sont conservés : affichez-les de nouveau à tout moment. Un format déjà utilisé par une photo reste affiché pour cette photo.",
+      showAll: "Tout afficher",
+      hideSocial: "Masquer les formats réseaux sociaux",
+      show: (label) => `Afficher ${label}`,
+      groupPrint: "Impression",
+      groupVideo: "Vidéo",
     },
     appearance: {
       calmMotionLabel: 'Réduire les animations',

@@ -1503,7 +1503,16 @@ export const is: AreaTranslation<typeof source> = {
       storage: 'Geymsla',
       keyboard: 'Lyklaborð',
       language: 'Tungumál',
+      formats: "Útflutningssnið",
       privacy: 'Persónuvernd',
+    },
+    formats: {
+      intro: "Veldu hvaða tilbúnu snið birtast í Sniðum og Útflutningi. Falin snið eru geymd: sýndu þau aftur hvenær sem er. Snið sem mynd notar nú þegar birtist áfram á þeirri mynd.",
+      showAll: "Sýna öll",
+      hideSocial: "Fela snið fyrir samfélagsmiðla",
+      show: (label) => `Sýna ${label}`,
+      groupPrint: "Prentun",
+      groupVideo: "Myndskeið",
     },
     appearance: {
       calmMotionLabel: 'Minni hreyfing',

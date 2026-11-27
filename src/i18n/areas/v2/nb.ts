@@ -1503,7 +1503,16 @@ export const nb: AreaTranslation<typeof source> = {
       storage: 'Lagring',
       keyboard: 'Tastatur',
       language: 'Språk',
+      formats: "Eksportformater",
       privacy: 'Personvern',
+    },
+    formats: {
+      intro: "Velg hvilke ferdige formater som vises i Formater og Eksport. Skjulte formater beholdes: vis dem igjen når som helst. Et format et bilde allerede bruker, vises fortsatt på det bildet.",
+      showAll: "Vis alle",
+      hideSocial: "Skjul formater for sosiale medier",
+      show: (label) => `Vis ${label}`,
+      groupPrint: "Utskrift",
+      groupVideo: "Video",
     },
     appearance: {
       calmMotionLabel: 'Mindre bevegelse',
