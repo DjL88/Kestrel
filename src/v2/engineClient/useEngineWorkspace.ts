@@ -1086,6 +1086,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, [projectId]);
   const runExportAction = useCallback(async (request: ExportRequest) => {
+    const clickedAt = Date.now();
     const current = stateRef.current;
     if (!current) return;
     if (activePhotoExport.current !== null && request.destination !== 'local-individual' && request.destination !== 'local-folder') {
@@ -1134,7 +1135,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const submittedEnv = structuredClone(env);
       try {
         const ticket = await scheduleV2PhotoExports({
-          request, plan, frames: current.frames, provider: sourceProvider,
+          request, plan, frames: current.frames, provider: sourceProvider, clickedAt,
           buildOverlay: (frame, submittedRequest) => buildOverlayDraw(frame, submittedRequest, submittedEnv),
         });
         if (!ticket) { setNotice(engineText.workspace.noFolder); return; }
