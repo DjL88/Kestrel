@@ -83,6 +83,8 @@ export interface AppOptions {
   paddleClient?: { environment: PaddleEnvironment; clientToken: string };
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
+  /** How many Pro subscriptions are current (Paddle status active or trialing), by plan, for the admin console's Today. */
+  proSubscriberCounts?: () => Promise<{ monthly: number; annual: number }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
   /** Server-owned Paddle checkout for cloud top-ups (commerce/topUpCheckout.ts); off until 'cloud-top-ups' is switched on. */
@@ -178,18 +180,19 @@ export class CollabApiError extends ApiError {
  * it is listed so the admin console shows the gate, it is never "configured", and so it can never be switched on.
  */
 export const SWITCHES = [
-  { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
-  { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
-  { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
-  { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can subscribe to Pro (monthly or annual) through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
-  { key: 'cloud-top-ups', label: 'Cloud top-ups (Paddle)', note: 'People can add £5, £10 or £20 to their prepaid cloud balance through Paddle\'s checkout. Switching off stops new top-ups only; payments already made are still verified and credited.' },
-  { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
-  { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
-  { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
-  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-  { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
-  { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
+  // Plain words for the owner's console: what each switch does for people. The technical name stays in `key`.
+  { key: 'managed-ai', label: 'Online photo helper', note: 'Lets people ask Google Gemini about one photo at a time, only if they agree. It sends a small copy with no camera or location details. Costs count towards the monthly spending cap.' },
+  { key: 'cloud-processing', label: 'Cloud editing power', note: 'Runs heavy jobs (noise removal, enlarging, masks) in the cloud for Pro. Costs count towards the monthly spending cap.' },
+  { key: 'safe-copy', label: 'Safe copy (backup)', note: 'People can choose to back up to InFlight\'s UK storage. Off stops new backups only; people can always see and delete their copy.' },
+  { key: 'learning-signal', label: 'Share corrections to improve InFlight', note: 'People can choose to share anonymous fixes they make. Off stops sharing; opting out and deleting keep working.' },
+  { key: 'pro-checkout', label: 'Selling Pro', note: 'People can subscribe to Pro, monthly or yearly, through Paddle, which handles the tax. Off stops new sign-ups only; existing subscribers keep Pro.' },
+  { key: 'cloud-top-ups', label: 'Cloud top-ups', note: 'People can add £5, £10 or £20 of cloud credit through Paddle. Off stops new top-ups only; credit already bought still works.' },
+  { key: 'email', label: 'Emails from InFlight', note: 'Sends share invitations, and alerts or news only when a phone alert cannot reach someone. Stays under Google\'s daily limit. No address is stored.' },
+  { key: 'push', label: 'Phone and browser alerts', note: 'Tells people about comments and client feedback on shared projects, where they turned alerts on. Names and counts only, never comment text or photos.' },
+  { key: 'product-news', label: 'News to everyone', note: 'Lets you send InFlight news from Messages: as an alert where people allow it, or by email if they asked for email news.' },
+  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and hand photos over to edit. Off stops new sharing; members can still see past versions.' },
+  { key: 'vertex-learning', label: 'Model training', note: 'Trains InFlight\'s shared models from measurements and decisions people agreed to share, never photos. Runs in batches and refuses any batch that would pass £20 this month.' },
+  { key: 'pro-cloud-storage', planned: true, label: 'Pro cloud storage (not built yet)', note: 'Would keep a project\'s originals in InFlight\'s UK cloud to open anywhere. Cannot be switched on until it is built and you approve the cost.' },
 ] as const;
 export const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
 export type SwitchKey = typeof SWITCHES[number]['key'];
