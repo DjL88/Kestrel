@@ -28,7 +28,7 @@ import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
 import { guardianNote, type AssistGuardian } from './assistGuardian';
 import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable } from './autoUnavailable';
-import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
+import { colourAreas, colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { isRawPreviewFile, shownFileFormat } from '../../core/rawFormats';
@@ -174,6 +174,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
     // The warnings are said in words from the colour check, never as the check's internal codes.
     colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
     colourCheck: run.colour ? colourWords(run.colour) : undefined,
+    ...(run.colour && colourAreas(run.colour).length ? { colourAreas: colourAreas(run.colour) } : {}),
     kelvinEstimate: '',
     suggestions,
   };

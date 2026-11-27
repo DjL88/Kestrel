@@ -991,6 +991,10 @@ export const sv: AreaTranslation<typeof source> = {
     groupChanged: "Ändrad",
     groupResetShort: "Återställ",
     groupReset: (name) => `Återställ ${name}`,
+    cvdOn: "På",
+    cvdOff: "Av",
+    cvdOnHint: "Färger beskrivs med ord här, och röda och gröna områden som liknar varandra ramas in och numreras på bilden.",
+    cvdOffHint: "Slå på för att få färgerna beskrivna med ord medan du redigerar.",
     resetPhoto: 'Återställ foto',
     stopsSuffix: 'EV',
     tooltips: {

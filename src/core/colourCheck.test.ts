@@ -82,6 +82,11 @@ test('red and green areas of the same lightness are flagged as alike for colour-
   const finding = find(alike.findings, 'redGreenAlike');
   assert.ok(finding, 'a red berry on green leaves');
   assert.ok(finding.families.includes('red') || finding.families.includes('brown') || finding.families.includes('orange'));
+  // Each colour's area is where it sits, so the editor can outline it: the first band fills the top half.
+  assert.ok(finding.areas);
+  const [top, bottom] = finding.areas;
+  assert.ok(top.y < 0.05 && Math.abs(top.y + top.height - 0.5) < 0.05 && top.width >= 0.85, JSON.stringify(top));
+  assert.ok(Math.abs(bottom.y - 0.5) < 0.05 && bottom.y + bottom.height > 0.9, JSON.stringify(bottom));
   // Blue against yellow stays distinct for red–green colour blindness.
   const distinct = checkColour({ after: bands([[0.5, [40, 90, 200]], [0.5, [220, 200, 50]]]) });
   assert.equal(find(distinct.findings, 'redGreenAlike'), undefined);

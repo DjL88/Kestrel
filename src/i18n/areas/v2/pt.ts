@@ -991,6 +991,10 @@ export const pt: AreaTranslation<typeof source> = {
     groupChanged: "Alterado",
     groupResetShort: "Repor",
     groupReset: (name) => `Repor ${name}`,
+    cvdOn: "Ligado",
+    cvdOff: "Desligado",
+    cvdOnHint: "As cores são indicadas por palavras aqui, e as zonas vermelhas e verdes que se parecem são contornadas e numeradas na fotografia.",
+    cvdOffHint: "Ative para ter as cores indicadas por palavras enquanto edita.",
     resetPhoto: 'Repor a fotografia',
     stopsSuffix: 'EV',
     tooltips: {

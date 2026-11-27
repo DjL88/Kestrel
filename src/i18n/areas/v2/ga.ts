@@ -994,6 +994,10 @@ export const ga: AreaTranslation<typeof source> = {
     groupChanged: "Athraithe",
     groupResetShort: "Athshocraigh",
     groupReset: (name) => `Athshocraigh ${name}`,
+    cvdOn: "Ar siúl",
+    cvdOff: "Múchta",
+    cvdOnHint: "Ainmnítear dathanna i bhfocail anseo, agus cuirtear imlíne agus uimhir ar limistéir dhearga agus ghlasa atá cosúil lena chéile ar an ngrianghraf.",
+    cvdOffHint: "Cas air chun dathanna a ainmniú i bhfocail agus tú ag eagarthóireacht.",
     resetPhoto: 'Athshocraigh an grianghraf',
     stopsSuffix: 'EV',
     tooltips: {

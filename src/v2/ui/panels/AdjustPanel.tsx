@@ -11,12 +11,16 @@ import { CalibrationControl, EffectsControls } from './EffectsControls';
 import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
 import UserLooksSection, { type UserLookActions } from './UserLooksSection';
+import ColourVisionToggle from './ColourVisionToggle';
+import ColourWordsList from './ColourWordsList';
 
 interface AdjustPanelProps {
   photo: Photo | null;
   selectedPhotoCount: number;
   looks: LookPreset[];
   cvdGuidance: boolean;
+  /** Turns Colour-vision support on or off here; it is the same setting as Settings → Assistance. */
+  onToggleCvdGuidance?: () => void;
   hideReadouts: boolean;
   /** Settings → Show advanced controls: colour grading and channel curves. */
   showAdvanced?: boolean;
@@ -130,6 +134,7 @@ export default function AdjustPanel({
   selectedPhotoCount,
   looks,
   cvdGuidance,
+  onToggleCvdGuidance,
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
@@ -172,6 +177,12 @@ export default function AdjustPanel({
 
   return (
     <div className="space-y-5">
+      {onToggleCvdGuidance && (
+        <div className="space-y-2">
+          <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
+          {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
+        </div>
+      )}
       {selectedPhotoCount > 1 && (
         <div className="rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] px-2.5 py-1.5 text-[0.6875rem] font-medium text-[var(--brand-accent)]">
           Group edit active: sliders apply to {selectedPhotoCount} selected photos

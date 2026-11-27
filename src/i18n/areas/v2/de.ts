@@ -991,6 +991,10 @@ export const de: AreaTranslation<typeof source> = {
     groupChanged: "Geändert",
     groupResetShort: "Zurücksetzen",
     groupReset: (name) => `${name} zurücksetzen`,
+    cvdOn: "Ein",
+    cvdOff: "Aus",
+    cvdOnHint: "Farben werden hier in Worten benannt, und rote und grüne Bereiche, die sich ähneln, werden auf dem Foto umrandet und nummeriert.",
+    cvdOffHint: "Schalten Sie dies ein, um Farben beim Bearbeiten in Worten benannt zu bekommen.",
     resetPhoto: 'Foto zurücksetzen',
     stopsSuffix: 'LW',
     tooltips: {

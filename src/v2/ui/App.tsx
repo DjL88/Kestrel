@@ -30,6 +30,7 @@ import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup, viewPhotos } from './utils/studioMath';
+import { colourText } from '../../i18n/areas/colour';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
@@ -738,6 +739,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       </>
     );
   };
+  /** ColourSense's one-tap fix: a small warmth step back, as an ordinary named edit that Undo takes back. */
+  const nudgeWarmth = (photoId: string, direction: 'cooler' | 'warmer') => {
+    const photo = store.photos.find((entry) => entry.id === photoId);
+    if (!photo) return;
+    const current = getActiveGroup(photo).recipe.temperature;
+    const next = Math.max(-100, Math.min(100, current + (direction === 'cooler' ? -10 : 10)));
+    actions.updateRecipe(photoId, { temperature: next }, direction === 'cooler' ? colourText.fixCooler : colourText.fixWarmer);
+  };
+  const toggleCvd = () => actions.updateSettings({ cvdGuidance: !store.settings.cvdGuidance });
   const renderPanelInner = (panelId: PanelId) => {
     switch (panelId) {
       case 'copilot':
@@ -753,6 +763,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
+            onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
@@ -778,6 +789,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             selectedPhotoCount={store.selectedPhotoIds.length}
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
+            onToggleCvdGuidance={toggleCvd}
             hideReadouts={store.settings.calmReadouts}
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
@@ -926,6 +938,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdGuidance={store.settings.cvdGuidance}
             onRefreshReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
+            onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
           />
         );
       case 'history':
@@ -1255,6 +1268,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  colourAreas={store.settings.cvdGuidance ? activePhoto?.assistCritique.colourAreas : undefined}
                   onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}

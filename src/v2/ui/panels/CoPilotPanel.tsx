@@ -28,6 +28,8 @@ interface CoPilotPanelProps {
   onRunDeepVisionReview: (photoId: string) => void;
   onRequestLocalAuto?: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
+  /** One tap back after an applied suggestion moved the subject's colour warmer or cooler (ColourSense). */
+  onNudgeWarmth?: (photoId: string, direction: 'cooler' | 'warmer') => void;
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
   /** Watch: shows a suggestion's steps so far on the photo without applying them. Null clears the preview. */
   onStepPreview?: (delta: Partial<EditRecipe> | null) => void;
@@ -60,6 +62,7 @@ export default function CoPilotPanel({
   onRunDeepVisionReview,
   onRequestLocalAuto,
   onApplySuggestion,
+  onNudgeWarmth,
   onDismissSuggestion,
   onStepPreview,
   onResetStyle,
@@ -144,7 +147,8 @@ export default function CoPilotPanel({
                     <p className="line-clamp-2 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>
                   </div>
                 </div>
-                <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
+                <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance}
+                  onFix={sug.applied && onNudgeWarmth ? (direction) => onNudgeWarmth(photo.id, direction) : undefined} />
                 <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
                 <ColourSenseLine note={sug.secondOpinion} cvdGuidance={cvdGuidance} testId="second-opinion" />
                 {sug.styleNote && (

@@ -991,6 +991,10 @@ export const da: AreaTranslation<typeof source> = {
     groupChanged: "Ændret",
     groupResetShort: "Nulstil",
     groupReset: (name) => `Nulstil ${name}`,
+    cvdOn: "Til",
+    cvdOff: "Fra",
+    cvdOnHint: "Farver bliver navngivet med ord her, og røde og grønne områder, der ligner hinanden, bliver omridset og nummereret på billedet.",
+    cvdOffHint: "Slå til for at få farverne navngivet med ord, mens du redigerer.",
     resetPhoto: 'Nulstil foto',
     stopsSuffix: 'EV',
     tooltips: {

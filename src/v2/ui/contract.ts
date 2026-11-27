@@ -511,6 +511,9 @@ export interface Photo {
     colourConfidence: string;
     /** The colour check in words (main colours and findings). Shown only with the Colour-vision support setting on. */
     colourCheck?: ColourWords;
+    /** Red and green areas that look alike to many colour-blind viewers, numbered and named, in the picture's fractions.
+     * Outlined on the photo only with Colour-vision support on. */
+    colourAreas?: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }>;
     kelvinEstimate: string;
     suggestions: AssistSuggestion[];
   };
