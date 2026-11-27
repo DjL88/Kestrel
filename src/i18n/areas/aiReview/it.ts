@@ -17,7 +17,7 @@ export const it: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (chiave AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Compatibile con OpenAI, o un modello su questo computer (Ollama, LM Studio)',
-    inflight: "Assistente online di InFlight (solo tester invitati)",
+    inflight: "Assistente online di InFlight",
   },
   key: 'Chiave API',
   keyOptional: 'Chiave API (lascia vuoto per un modello su questo computer)',

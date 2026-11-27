@@ -1,11 +1,12 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AI_REVIEW_CONSENT_VERSION } from '../../../core/aiReview';
 import { aiReviewText as t } from '../../../i18n/areas/aiReview';
 import {
   availableAiProviderKinds, consentFor, DEFAULT_AI_MODEL, destinationHost, normalisedOpenAiBaseUrl, staysOnThisComputer,
   type AiProviderKind, type AiProviderSettings,
 } from '../../../providers/aiProviders';
-import { forgetAiSettings, saveAiSettings, useAiSettings } from '../../../providers/aiSettings';
+import { forgetAiSettings, saveAiSettings } from '../../../providers/aiSettings';
+import { useOnlineHelperShown, useUsableAiSettings } from '../../../providers/onlineHelperState';
 
 /** One tap fills in the address of a model running on this computer. */
 const LOCAL_PRESETS = [
@@ -24,7 +25,10 @@ const hint = 'mt-1 text-[0.6875rem] text-[var(--text-muted)]';
  * the person agrees, in the Assist panel, to the exact destination shown here.
  */
 export function AiProviderSetup() {
-  const saved = useAiSettings();
+  // InFlight's own online helper is invite-only: offered, and a saved choice of it used, only while the server says it
+  // is available to this account and the device is online. Otherwise it is simply not there.
+  const helperShown = useOnlineHelperShown();
+  const saved = useUsableAiSettings();
   const id = useId();
   const [editing, setEditing] = useState(!saved);
   const [kind, setKind] = useState<AiProviderKind>(saved?.kind ?? 'openai');
@@ -33,6 +37,7 @@ export function AiProviderSetup() {
   const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? LOCAL_PRESETS[0].url);
   const [badUrl, setBadUrl] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  useEffect(() => { if (kind === 'inflight' && !helperShown) setKind('openai'); }, [kind, helperShown]);
 
   if (saved && !editing) {
     return (
@@ -73,7 +78,7 @@ export function AiProviderSetup() {
         const next = event.target.value as AiProviderKind;
         setKind(next); setModel(DEFAULT_AI_MODEL[next]); setBadUrl(false);
       }}>
-        {availableAiProviderKinds().map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
+        {availableAiProviderKinds(helperShown).map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
       </select>
       {kind === 'openai' && (
         <div>

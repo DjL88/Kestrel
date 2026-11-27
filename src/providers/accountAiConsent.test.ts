@@ -34,7 +34,7 @@ function makeServer(consent: boolean, enabledPlan = true, cloudPlan = false, quo
 test('online AI setting reads live default-off consent; no photos, cookies or stored sessions', async () => {
   const mock = makeServer(false);
   const value = await readAccountAiConsent('https://control.example', 'firebase-id', mock.fetcher);
-  assert.deepEqual(value, { consent: false, planAvailable: true });
+  assert.deepEqual(value, { consent: false, planAvailable: true, onlineHelper: 'unavailable' });
   assert.deepEqual(mock.calls.map(c => [c.path, c.method]), [
     ['/v1/auth/firebase', 'POST'], ['/v1/me/entitlements', 'GET'],
   ]);
@@ -69,7 +69,7 @@ test('explicit opt-in and live revocation use the control plane, not local flags
   assert.equal(await setAccountAiConsent('https://control.example', 'firebase-id', true, mock.fetcher), true);
   assert.equal(mock.current(), true);
   assert.deepEqual(await readAccountAiConsent('https://control.example', 'firebase-id', mock.fetcher),
-    { consent: true, planAvailable: true });
+    { consent: true, planAvailable: true, onlineHelper: 'unavailable' });
   assert.equal(await setAccountAiConsent('https://control.example', 'firebase-id', false, mock.fetcher), false);
   assert.equal(mock.current(), false);
   const writes = mock.calls.filter(c => c.path === '/v1/me/ai-consent');
@@ -80,7 +80,7 @@ test('explicit opt-in and live revocation use the control plane, not local flags
 test('no eligible plan is explained independently of the default-off privacy preference', async () => {
   const mock = makeServer(false, false);
   assert.deepEqual(await readAccountAiConsent('https://control.example', 'firebase-id', mock.fetcher),
-    { consent: false, planAvailable: false });
+    { consent: false, planAvailable: false, onlineHelper: 'unavailable' });
 });
 
 test('never contacts arbitrary HTTP sites or authenticates without Firebase login', async () => {
@@ -107,4 +107,13 @@ test('network failures fail closed with an unknown state, never optimistically o
   const broken = (async () => { throw new Error('Offline'); }) as typeof fetch;
   await assert.rejects(readAccountAiConsent('https://control.example', 'firebase-id', broken), /Could not reach/);
   await assert.rejects(setAccountAiConsent('https://control.example', 'firebase-id', false, broken), /Could not reach/);
+});
+
+test('the online helper is available only when the server says so, read from the same answer as the plan', async () => {
+  const fetcher = (async (url: string) => {
+    if (String(url).endsWith('/v1/auth/firebase')) return new Response(JSON.stringify({ accessToken: 'session' }), { status: 200 });
+    return new Response(JSON.stringify({ plans: [{ plan: 'paid', status: 'active', managedAi: true }], aiConsent: false, onlineHelper: 'available' }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const status = await readAccountAiConsent('https://cp.example.test', 'firebase-id', fetcher);
+  assert.equal(status.onlineHelper, 'available');
 });

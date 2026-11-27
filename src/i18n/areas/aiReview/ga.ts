@@ -17,7 +17,7 @@ export const ga: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (eochair AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Comhoiriúnach le OpenAI, nó samhail ar an ríomhaire seo (Ollama, LM Studio)',
-    inflight: "Cúntóir ar líne InFlight (tástálaithe le cuireadh amháin)",
+    inflight: "Cúntóir ar líne InFlight",
   },
   key: 'Eochair API',
   keyOptional: 'Eochair API (fág folamh í do shamhail ar an ríomhaire seo)',

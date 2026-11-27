@@ -17,7 +17,7 @@ export const cy: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (allwedd AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Yn gydnaws ag OpenAI, neu fodel ar y cyfrifiadur hwn (Ollama, LM Studio)',
-    inflight: "Cynorthwyydd ar-lein InFlight (profwyr gwahoddedig yn unig)",
+    inflight: "Cynorthwyydd ar-lein InFlight",
   },
   key: 'Allwedd API',
   keyOptional: 'Allwedd API (gadewch yn wag ar gyfer model ar y cyfrifiadur hwn)',
