@@ -1364,6 +1364,14 @@ export const nl: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} van ${included.toLocaleString()} cloudbewerkingen deze maand`,
     limitMeter: "Hoe dicht bij de limiet",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Controleert deze foto op dit apparaat en past in één stap een natuurlijke bewerking toe. Ongedaan maken haalt die weg.",
+    working: "Deze foto bekijken…",
+    states: { working: "Deze foto bekijken…", applied: "Auto toegepast.", unchanged: "Niets gewijzigd.", unavailable: "Auto kon niet draaien." },
+    beforeAfter: "Voor / Na",
+    undo: "Ongedaan maken",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Uit Lightroom binnengehaald",

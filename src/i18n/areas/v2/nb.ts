@@ -1364,6 +1364,14 @@ export const nb: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} av ${included.toLocaleString()} sky-redigeringer denne måneden`,
     limitMeter: "Hvor nær grensen",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Sjekker dette bildet på denne enheten og bruker en naturlig redigering i ett trinn. Angre tar den tilbake.",
+    working: "Ser på dette bildet…",
+    states: { working: "Ser på dette bildet…", applied: "Auto brukt.", unchanged: "Ingenting endret.", unavailable: "Auto kunne ikke kjøre." },
+    beforeAfter: "Før / Etter",
+    undo: "Angre",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Hentet fra Lightroom",

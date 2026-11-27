@@ -793,6 +793,11 @@ export interface WorkspaceStore {
   canvasLayoutMode: 'single' | 'all-formats';
   bottomTab: 'filmstrip' | 'info';
   assistMode: AssistMode;
+  /**
+   * What Auto last did for the open photo (the Auto button or Auto-pilot), so a press is always answered: working,
+   * applied, left unchanged with the reason, or not possible with the reason. Absent until Auto has looked.
+   */
+  autoStatus?: { photoId: string; state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string };
   /** Cloud edits for the open project. Absent while cloud edit settings are off or no project is open. */
   cloudEdits?: { choice: import('../../core/cloudEditsChoice').CloudEditsChoice; covered: number; toDo: number; running: boolean };
   features: Record<FeatureKey, boolean>;
@@ -989,6 +994,8 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** One-click Auto: checks the photo on this device and applies Natural Auto as one undoable step, or says why not. */
+  autoEdit?: (photoId: string) => void;
   /** Bring your own AI (present only in the real workspace): agree, by host name, to send a small preview there. */
   agreeAiSecondOpinion?: () => void;
   /** Ask the person's own AI about this photo's colour and light. Advisory only: nothing changes until Apply. */

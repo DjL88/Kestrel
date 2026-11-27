@@ -1364,6 +1364,14 @@ export const de: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} von ${included.toLocaleString()} Cloud-Bearbeitungen in diesem Monat`,
     limitMeter: "Wie nah an der Grenze",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Prüft dieses Foto auf diesem Gerät und wendet in einem Schritt eine natürliche Bearbeitung an. Rückgängig nimmt sie zurück.",
+    working: "Sieht sich dieses Foto an…",
+    states: { working: "Sieht sich dieses Foto an…", applied: "Auto angewendet.", unchanged: "Nichts geändert.", unavailable: "Auto konnte nicht laufen." },
+    beforeAfter: "Vorher / Nachher",
+    undo: "Rückgängig",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Aus Lightroom übernommen",

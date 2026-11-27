@@ -1367,6 +1367,14 @@ export const ga: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} de ${included.toLocaleString()} eagarthóireacht scamaill an mhí seo`,
     limitMeter: "Cé chomh gar don teorainn",
   },
+  autoEdit: {
+    label: "Uath",
+    hint: "Seiceálann sé an grianghraf seo ar an ngléas seo agus cuireann sé eagarthóireacht nádúrtha i bhfeidhm in aon chéim. Baineann Cealaigh é.",
+    working: "Ag féachaint ar an ngrianghraf seo…",
+    states: { working: "Ag féachaint ar an ngrianghraf seo…", applied: "Uath curtha i bhfeidhm.", unchanged: "Níor athraigh aon rud.", unavailable: "Níorbh fhéidir Uath a rith." },
+    beforeAfter: "Roimh / Tar éis",
+    undo: "Cealaigh",
+  },
   history: {
     byAuto: "Uathoibríoch",
     byLightroom: "Tugtha isteach ó Lightroom",

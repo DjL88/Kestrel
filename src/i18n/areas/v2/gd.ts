@@ -1365,6 +1365,14 @@ export const gd: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} à ${included.toLocaleString()} deasachaidhean neòil air a’ mhìos seo`,
     limitMeter: "Cho faisg ’s a tha e air a’ chrìoch",
   },
+  autoEdit: {
+    label: "Fèin",
+    hint: "Sgrùdaidh e an dealbh seo air an uidheam seo agus cuiridh e deasachadh nàdarra an sàs ann an aon cheum. Bheir Neo-dhèan air falbh e.",
+    working: "A’ coimhead air an dealbh seo…",
+    states: { working: "A’ coimhead air an dealbh seo…", applied: "Fèin air a chur an sàs.", unchanged: "Cha do dh’atharraich dad.", unavailable: "Cha b’ urrainn dha Fèin ruith." },
+    beforeAfter: "Ron / Às dèidh",
+    undo: "Neo-dhèan",
+  },
   history: {
     byAuto: "Fèin-obrachail",
     byLightroom: "Air a thoirt a-steach o Lightroom",

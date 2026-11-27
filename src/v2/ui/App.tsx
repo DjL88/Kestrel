@@ -832,6 +832,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdGuidance={store.settings.cvdGuidance}
             onToggleCvdGuidance={toggleCvd}
             colourVerdict={colourVerdictProps}
+            autoEdit={actions.autoEdit && !editLocked ? {
+              status: store.autoStatus, onAuto: actions.autoEdit, onUndo: actions.undo,
+              comparing: store.compareMode, onToggleCompare: () => actions.setCompareMode(!store.compareMode),
+            } : undefined}
             hideReadouts={store.settings.calmReadouts}
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}

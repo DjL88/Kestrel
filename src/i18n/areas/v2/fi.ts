@@ -1365,6 +1365,14 @@ export const fi: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} / ${included.toLocaleString()} pilvimuokkausta tässä kuussa`,
     limitMeter: "Kuinka lähellä rajaa",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Tarkistaa tämän kuvan tällä laitteella ja tekee luonnollisen muokkauksen yhdellä kerralla. Kumoa palauttaa sen.",
+    working: "Katsotaan tätä kuvaa…",
+    states: { working: "Katsotaan tätä kuvaa…", applied: "Auto käytetty.", unchanged: "Mikään ei muuttunut.", unavailable: "Autoa ei voitu ajaa." },
+    beforeAfter: "Ennen / Jälkeen",
+    undo: "Kumoa",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Tuotu Lightroomista",

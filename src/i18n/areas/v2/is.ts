@@ -1364,6 +1364,14 @@ export const is: AreaTranslation<typeof source> = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} af ${included.toLocaleString()} skýjabreytingar í þessum mánuði`,
     limitMeter: "Hve nálægt mörkunum",
   },
+  autoEdit: {
+    label: "Sjálfvirkt",
+    hint: "Athugar þessa mynd á þessu tæki og gerir náttúrulega breytingu í einu skrefi. Afturkalla tekur hana til baka.",
+    working: "Skoða þessa mynd…",
+    states: { working: "Skoða þessa mynd…", applied: "Sjálfvirkt notað.", unchanged: "Ekkert breyttist.", unavailable: "Sjálfvirkt gat ekki keyrt." },
+    beforeAfter: "Fyrir / Eftir",
+    undo: "Afturkalla",
+  },
   history: {
     byAuto: "Sjálfvirkt",
     byLightroom: "Sótt úr Lightroom",

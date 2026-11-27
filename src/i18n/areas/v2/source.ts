@@ -1406,6 +1406,14 @@ export const source = {
     limitEdits: (used: number, included: number) => `${used.toLocaleString()} of ${included.toLocaleString()} cloud edits this month`,
     limitMeter: "How close to the limit",
   },
+  autoEdit: {
+    label: "Auto",
+    hint: "Checks this photo on this device and applies a natural edit in one step. Undo takes it back.",
+    working: "Looking at this photo…",
+    states: { working: "Looking at this photo…", applied: "Auto applied.", unchanged: "Nothing changed.", unavailable: "Auto could not run." },
+    beforeAfter: "Before / After",
+    undo: "Undo",
+  },
   history: {
     byAuto: "Auto",
     byLightroom: "Brought in from Lightroom",
