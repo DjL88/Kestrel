@@ -53,6 +53,21 @@ export function ortPlanFor(host: OrtHost, runtimes = 1): OrtPlan {
   return { threads, executionProviders: gpu ? ['webgpu', 'wasm'] : ['wasm'] };
 }
 
+/**
+ * The plan for a model that runs in a worker. In the desktop app it is always one thread.
+ *
+ * onnxruntime runs its threads as workers it starts from inside the model's own worker. In the packaged desktop app
+ * (pages served by Tauri's own protocol, http://tauri.localhost on Windows) a worker started from inside a worker
+ * cannot load the app's files: the request is aborted, no error reaches the page, and onnxruntime waits for its threads
+ * for ever at 0% CPU. That was "Finds subjects", Auto pick and tap to select hanging in the installed app while the
+ * same build passed every test served over http. With one thread no inner worker is started; several model workers
+ * still share the cores. Models on the page itself keep their threads.
+ */
+export function ortWorkerPlanFor(host: OrtHost, runtimes = 1): OrtPlan {
+  const plan = ortPlanFor(host, runtimes);
+  return host.desktop ? { ...plan, threads: 1 } : plan;
+}
+
 /** A plan that arrived in a worker message: anything unexpected falls back to today's single-thread CPU path. */
 export function readOrtPlan(value: unknown): OrtPlan {
   if (!value || typeof value !== 'object') return ORT_SINGLE_THREAD;
