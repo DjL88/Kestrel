@@ -1,6 +1,6 @@
 import { createOffThreadSession, type ModelTensor, type OffThreadSession } from './offThreadSession';
 import { EFFICIENTSAM_TI } from '../core/optionalModels';
-import { SAM_INPUT, bestSamMask, samInput, samMaskSize, samPoints, unionSamMasks, type SamBox, type SamMask, type SamPrompt } from '../core/efficientSam';
+import { SAM_INPUT, bestSamMask, chooseSamMask, wholeSubjectTap, samInput, samMaskSize, samPoints, unionSamMasks, type SamBox, type SamMask, type SamPrompt } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
 
@@ -114,7 +114,8 @@ export async function selectSubjects(key: string, subjects: readonly SamPrompt[]
       orig_im_size: { data: BigInt64Array.from([BigInt(mask.h), BigInt(mask.w)]), dims: [2] },
     });
     if (!out.output_masks || !out.iou_predictions) throw new Error('The tap-to-select model returned an unexpected result.');
-    results.push(bestSamMask(out.output_masks.data, out.iou_predictions.data, mask.w, mask.h));
+    // A first tap takes the whole subject; later taps refine it (core/efficientSam.ts chooseSamMask).
+    results.push(chooseSamMask(out.output_masks.data, out.iou_predictions.data, mask.w, mask.h, wholeSubjectTap(subject)));
   }
   return results;
 }

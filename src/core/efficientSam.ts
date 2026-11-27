@@ -66,6 +66,68 @@ export interface SamMask {
   score: number;
   /** Share of the frame covered. */
   coverage: number;
+  /** The model's own soft edge (0..255, from its logits), so an outline follows the subject between mask pixels. */
+  soft?: Uint8Array;
+}
+
+/**
+ * A first tap with nothing else to go on means "this subject", not "this patch of it". The model offers several
+ * candidates, from a small part to the whole object; it often rates the part highest (the white chest of a puffin). So
+ * for that prompt the largest candidate the model rates nearly as well as its best is chosen, as long as it holds the
+ * tapped point and is still an object (not most of the frame). Parts then come from more taps, and any other prompt keeps
+ * the model's best.
+ */
+export const WHOLE_SUBJECT_SCORE_MARGIN = 0.12;
+export const WHOLE_SUBJECT_MIN_SCORE = 0.5;
+export const WHOLE_SUBJECT_MAX_COVERAGE = 0.85;
+
+/** Is this the first tap of a subject: one tap that adds, no box? */
+export const isWholeSubjectPrompt = (prompt: SamPrompt) =>
+  !prompt.box && (prompt.taps ?? []).length === 1 && Boolean(prompt.taps?.[0]?.add);
+/** The tap of a first-tap prompt (see isWholeSubjectPrompt), else null. */
+export const wholeSubjectTap = (prompt: SamPrompt): SamTap | null => isWholeSubjectPrompt(prompt) ? prompt.taps![0] : null;
+
+/**
+ * Pick one of the decoder's candidates and keep its soft edge. `masks` is [candidates, h, w]. `wholeSubjectAt` is the
+ * tap of a first-tap prompt (wholeSubjectTap), in mask pixels; with null the model's best is taken.
+ */
+export function chooseSamMask(masks: Float32Array, scores: Float32Array, w: number, h: number, wholeSubjectAt: SamTap | null): SamMask {
+  const plane = w * h;
+  const candidates = scores.length;
+  if (!candidates || masks.length !== candidates * plane) throw new Error('The selection model returned an unexpected result.');
+  let best = 0;
+  for (let i = 1; i < candidates; i += 1) if (scores[i] > scores[best]) best = i;
+  const areas: number[] = [];
+  for (let c = 0; c < candidates; c += 1) {
+    let inside = 0;
+    for (let i = 0; i < plane; i += 1) if (masks[c * plane + i] >= 0) inside += 1;
+    areas.push(inside);
+  }
+  let chosen = best;
+  if (wholeSubjectAt) {
+    const tapped = Math.min(h - 1, Math.max(0, Math.floor(wholeSubjectAt.y))) * w + Math.min(w - 1, Math.max(0, Math.floor(wholeSubjectAt.x)));
+    const holdsTap = (c: number) => masks[c * plane + tapped] >= 0;
+    const object = (c: number) => holdsTap(c) && areas[c] / plane <= WHOLE_SUBJECT_MAX_COVERAGE;
+    // The best-rated candidate that is an object at the tap; then the largest one rated nearly as well.
+    let reference = -1;
+    for (let c = 0; c < candidates; c += 1) if (object(c) && (reference < 0 || scores[c] > scores[reference])) reference = c;
+    if (reference >= 0) {
+      chosen = reference;
+      for (let c = 0; c < candidates; c += 1) {
+        const close = scores[c] >= scores[reference] - WHOLE_SUBJECT_SCORE_MARGIN && scores[c] >= WHOLE_SUBJECT_MIN_SCORE;
+        if (object(c) && close && areas[c] > areas[chosen]) chosen = c;
+      }
+    }
+  }
+  const data = new Uint8Array(plane);
+  const soft = new Uint8Array(plane);
+  for (let i = 0; i < plane; i += 1) {
+    const v = masks[chosen * plane + i];
+    if (v >= 0) data[i] = 1;
+    soft[i] = Math.round(255 / (1 + Math.exp(-v)));
+  }
+  const score = Number.isFinite(scores[chosen]) ? Math.max(0, Math.min(1, scores[chosen])) : 0;
+  return { w, h, data, score, coverage: areas[chosen] / plane, soft };
 }
 
 /** Pick the candidate the model rates best and threshold it at logit 0. `masks` is [candidates, h, w]. */
