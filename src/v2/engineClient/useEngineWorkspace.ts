@@ -204,6 +204,8 @@ import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest, Photo } from '../ui/contract';
 import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
 import { cloudRecipeChanges } from './cloudRecipeChanges';
+import { cloudEditsPhotos, parseCloudEditsChoice, type CloudEditsChoice } from '../../core/cloudEditsChoice';
+import { CloudJobError } from '../../core/cloudJobProblem';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
@@ -1811,7 +1813,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       : undefined;
     return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel, ...(previewNote ? { previewNote } : {}) };
   }, []);
-  const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative') => {
+  const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative', inBatch = false) => {
     const cloudText = v2Text.cloudResult;
     const held = cloudRecipeOffers.current.get(photoId);
     cloudRecipeOffers.current.delete(photoId);
@@ -1823,28 +1825,97 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // One row in Tasks for the job (Dave, 27 Nov: he could not tell the cloud had been used): how long it took and
     // whether the cloud confirmed its copy was deleted.
     const startedAt = performance.now();
-    const row = tasks.start(cloudText.taskTitle, { kind: 'cloud', location: 'cloud' });
+    // A project's Cloud edits run has its own single row for all its photos.
+    const row = inBatch ? null : tasks.start(cloudText.taskTitle, { kind: 'cloud', location: 'cloud' });
     let outcome: Awaited<ReturnType<typeof sendCloudRecipe>>;
     try {
       outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection));
     } catch (error) {
-      row.fail(error instanceof Error ? error.message : cloudText.taskFailed);
+      row?.fail(error instanceof Error ? error.message : cloudText.taskFailed);
       throw error;
     }
     const seconds = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
     const copy = outcome.inputDeleted ? cloudText.copyDeleted : cloudText.copyNotConfirmed;
-    const finish = (said: string) => { row.finish(cloudText.taskDone(seconds, said, copy)); };
-    if (outcome.status === 'refused') { finish(cloudText.refusedShort); return { message: 'The cloud sent back settings this device could not check, so nothing was changed.' }; }
-    if (outcome.status === 'empty') { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.' }; }
+    const finish = (said: string) => { row?.finish(cloudText.taskDone(seconds, said, copy)); };
+    const copyDeleted = outcome.inputDeleted === true;
+    if (outcome.status === 'refused') { finish(cloudText.refusedShort); return { message: 'The cloud sent back settings this device could not check, so nothing was changed.', copyDeleted }; }
+    if (outcome.status === 'empty') { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.', copyDeleted }; }
     const unchanged = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) && framingKey(current.framing) === held.framing;
     const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-    if (!latest || !unchanged(latest)) { finish(cloudText.notAppliedShort); return { message: 'The photo was edited while the cloud worked, so its settings were not applied.' }; }
+    if (!latest || !unchanged(latest)) { finish(cloudText.notAppliedShort); return { message: 'The photo was edited while the cloud worked, so its settings were not applied.', copyDeleted }; }
     const changes = cloudRecipeChanges(editToRecipe(held.edit), outcome.recipe.settings, v2Text.history.sliders);
-    if (!changes.lines.length) { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.' }; }
+    if (!changes.lines.length) { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.', copyDeleted }; }
     editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent, outcome.previewSource));
     finish(cloudText.appliedShort(changes.lines.length));
-    return { message: 'Applied the cloud\'s edit settings. Undo takes them back.', changes: changes.lines, before: changes.before };
+    return { message: 'Applied the cloud\'s edit settings. Undo takes them back.', changes: changes.lines, before: changes.before, copyDeleted };
   }, [editFrames]);
+
+  // Cloud edits for the whole project (Dave, 27 Nov): the project says which photos (Nothing, Best only, Top 50, All),
+  // and one run does them one after another under a single row in Tasks. A photo is sent once: what a run has sent is
+  // kept with the project. A photo the person has already edited is left alone, and so is one edited while the cloud worked.
+  const cloudEditsChoice = parseCloudEditsChoice(state?.shoot.cloudEdits);
+  const cloudEditsPlan = useMemo(() => {
+    const covered = state ? cloudEditsPhotos(cloudEditsChoice, state.frames.filter(isCullOriginal)) : [];
+    const done = new Set(state?.shoot.cloudEditsDone ?? []);
+    const untouched = new Set((state?.frames ?? []).filter((frame) => sameRecipe(frame.edit ?? DEFAULT_EDIT, DEFAULT_EDIT)).map((frame) => frame.id));
+    return { covered, toDo: covered.filter((id) => !done.has(id) && untouched.has(id)) };
+  }, [state, cloudEditsChoice]);
+  const cloudEditsPlanRef = useRef(cloudEditsPlan);
+  cloudEditsPlanRef.current = cloudEditsPlan;
+  const [cloudEditsRunning, setCloudEditsRunning] = useState(false);
+  const cloudEditsBusy = useRef(false);
+  const runCloudEditsFor = useCallback(async (): Promise<string> => {
+    const cloudText = v2Text.cloudResult;
+    if (cloudEditsBusy.current) return cloudText.batchAlready;
+    const ids = [...cloudEditsPlanRef.current.toDo];
+    if (!ids.length) return cloudText.batchNothing;
+    if (readCloudConsent().answer !== 'yes') throw new Error("Say yes to using InFlight's cloud first. Nothing was sent.");
+    if (!accountConnection()) throw new Error('Sign in to use Cloud edits. Nothing was sent.');
+    if (navigator.onLine === false) throw new Error('You are offline. Nothing was sent.');
+    cloudEditsBusy.current = true;
+    setCloudEditsRunning(true);
+    const stop = new AbortController();
+    const row = tasks.start(cloudText.batchTitle, { total: ids.length, kind: 'cloud', location: 'cloud', priority: 1, cancel: () => stop.abort() });
+    let applied = 0, sent = 0, notConfirmed = 0, failures = 0;
+    const sentIds: string[] = [];
+    const keep = () => { if (sentIds.length) mutate((current) => ({ ...current, shoot: { ...current.shoot, cloudEditsDone: [...new Set([...(current.shoot.cloudEditsDone ?? []), ...sentIds])] } })); };
+    try {
+      for (let index = 0; index < ids.length; index += 1) {
+        if (stop.signal.aborted) break;
+        const photoId = ids[index];
+        try {
+          const offer = await prepareCloudRecipeFor(photoId);
+          if (offer.status === 'ready' && !stop.signal.aborted) {
+            const result = await sendCloudRecipeFor(photoId, 'send', true);
+            sent += 1;
+            sentIds.push(photoId);
+            if (result.changes?.length) applied += 1;
+            if (!result.copyDeleted) notConfirmed += 1;
+          }
+          failures = 0;
+        } catch (error) {
+          // Out of allowance, signed out or offline: stop here and say so. Nothing more is sent.
+          const stopNow = (error instanceof CloudJobError && error.problem.topUp) || !navigator.onLine || !accountConnection();
+          failures += 1;
+          if (stopNow || failures >= 3) {
+            keep();
+            const why = error instanceof Error ? error.message : cloudText.taskFailed;
+            row.fail(cloudText.batchStopped(sent, ids.length, why));
+            throw error instanceof Error ? error : new Error(why);
+          }
+        }
+        row.progress(index + 1, ids.length, cloudText.batchProgress(index + 1, ids.length));
+      }
+      keep();
+      const copies = sent === 0 ? '' : notConfirmed === 0 ? cloudText.copiesDeleted : cloudText.copiesNotConfirmed(notConfirmed);
+      const said = cloudText.batchDone(sent, ids.length, applied, copies);
+      row.finish(said);
+      return said;
+    } finally {
+      cloudEditsBusy.current = false;
+      setCloudEditsRunning(false);
+    }
+  }, [mutate, prepareCloudRecipeFor, sendCloudRecipeFor]);
 
   // Personal editing style (x-spec-personal-style, on by default; an admin flag can switch it off): when Auto's edit is applied, the
   // photo is remembered; when the person moves on, what they kept, undid or corrected is learnt on this device only.
@@ -1914,6 +1985,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
+  // Auto-pilot means automatic: with the project's choice made and the one-time yes given, the run starts by itself once
+  // importing and Auto pick are quiet (Best and Top 50 follow Auto pick's ranking, so it waits for that). A run that
+  // stopped (allowance used up, offline) is not started again by itself in this session; the button still works.
+  const cloudEditsAutoBlocked = useRef(new Set<string>());
+  const projectKey = state?.shoot.id ?? '';
+  const backgroundBusy = taskList.some((task) => (task.kind === 'import' || task.kind === 'cull') && (task.state === 'running' || task.state === 'queued' || task.state === 'paused'));
+  useEffect(() => {
+    if (!cloudRecipeOn || screen !== 'editor' || assistMode !== 'autopilot' || !projectKey || backgroundBusy || cloudEditsRunning) return;
+    if (!cloudEditsPlan.toDo.length || cloudEditsAutoBlocked.current.has(projectKey)) return;
+    if (readCloudConsent().answer !== 'yes' || !accountConnection() || navigator.onLine === false) return;
+    const timer = window.setTimeout(() => {
+      void runCloudEditsFor().catch((error) => {
+        cloudEditsAutoBlocked.current.add(projectKey);
+        setNotice(error instanceof Error ? error.message : v2Text.cloudResult.taskFailed);
+      });
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [cloudRecipeOn, screen, assistMode, projectKey, backgroundBusy, cloudEditsRunning, cloudEditsPlan.toDo.length, runCloudEditsFor]);
   const assistProjectId = state?.shoot.id;
   const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
   // Photos Auto-pilot already told the person it left alone (edited elsewhere), so the notice is said once each.
@@ -2997,9 +3086,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })();
     },
     openProject: (id) => { void openProject(id); },
-    createProject: (name, kind = 'photography', mode) => {
+    createProject: (name, kind = 'photography', mode, cloudEdits) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
-      const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
+      const withCloud = cloudEdits && cloudEdits !== 'none' && cloudRecipeOn ? { ...empty, shoot: { ...empty.shoot, cloudEdits } } : empty;
+      const withMode = mode ? { ...withCloud, shoot: { ...withCloud.shoot, assistMode: mode } } : withCloud;
       const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } }
         : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, projectType: 'tethered' as const } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
@@ -3490,7 +3580,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     ...(cullRulesOn ? { rankCulling, applyCullRules: applyCullRulesFor } : {}),
     ...(cloudRecipeOn ? {
       prepareCloudRecipe: prepareCloudRecipeFor,
-      sendCloudRecipe: sendCloudRecipeFor,
+      sendCloudRecipe: (photoId: string, choice: 'send' | 'alternative') => sendCloudRecipeFor(photoId, choice),
+      setCloudEdits: (choice: CloudEditsChoice) => { if (stateRef.current) mutate((current) => ({ ...current, shoot: { ...current.shoot, cloudEdits: choice } })); },
+      runCloudEdits: runCloudEditsFor,
       setCloudRecipeFullFile: (on: boolean) => saveFullFileConsent(on).on,
       cloudRecipeFullFileOn: () => readFullFileConsent().on,
       cloudConsent: () => readCloudConsent().answer,
@@ -4068,6 +4160,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
+    ...(cloudRecipeOn && state ? { cloudEdits: { choice: cloudEditsChoice, covered: cloudEditsPlan.covered.length, toDo: cloudEditsPlan.toDo.length, running: cloudEditsRunning } } : {}),
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => { const shown = shownLogoId({ ...readOverlay(undefined), watermarkPresetId }, watermarkLibrary.map((preset) => preset.id)); const logo = watermarkLibrary.find((preset) => preset.id === shown); return { id, name, logoLabel: logo?.label ?? 'Logo not on this device', logoMissing: !logo }; }) } : {}),

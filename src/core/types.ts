@@ -242,6 +242,10 @@ export interface ShootDescriptor {
   inbox?: boolean;
   /** The Flight mode chosen for this project. Absent on older projects, which follow Settings' default. */
   assistMode?: 'solo' | 'copilot' | 'autopilot';
+  /** Cloud edits for this project (src/core/cloudEditsChoice.ts). Absent means Nothing. */
+  cloudEdits?: import('./cloudEditsChoice').CloudEditsChoice;
+  /** Photos a Cloud edits run has already sent, so no photo is sent (or counted against the month) twice. */
+  cloudEditsDone?: string[];
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
   collage?: import('./collage').CollageDocument;
 }

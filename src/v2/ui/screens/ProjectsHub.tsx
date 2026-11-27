@@ -9,13 +9,17 @@ import { footerKiteLogo } from '../footerKiteLogo';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import WelcomeCard from './WelcomeCard';
 import FlightModePicker from '../panels/FlightModePicker';
+import { CloudEditsChoicePicker } from '../panels/CloudEditsProjectCard';
+import type { CloudEditsChoice } from '../../../core/cloudEditsChoice';
 
 interface ProjectsHubProps {
   projects: Project[];
   hubState: HubViewState;
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
-  onCreateProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode) => void;
+  onCreateProject: (name: string, kind?: 'photography' | 'collage' | 'tethered', mode?: AssistMode, cloudEdits?: CloudEditsChoice) => void;
+  /** Cloud edits can be chosen for a new project (cloud edit settings are on for this account). */
+  cloudEditsOffered?: boolean;
   /** The Flight mode a new project starts in (Settings → Assistance); the person can pick another when creating it. */
   defaultAssistMode?: AssistMode;
   onCreateFromFolder: () => void;
@@ -45,6 +49,7 @@ export default function ProjectsHub({
   theme,
   onOpenProject,
   onCreateProject,
+  cloudEditsOffered = false,
   defaultAssistMode = 'copilot',
   onCreateFromFolder,
   onQuickStart,
@@ -74,6 +79,8 @@ export default function ProjectsHub({
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
   const [projectKind, setProjectKind] = useState<'photography' | 'collage' | 'tethered'>('photography');
   const [projectMode, setProjectMode] = useState<AssistMode>(defaultAssistMode);
+  // Never chosen for the person: Nothing until they pick.
+  const [projectCloudEdits, setProjectCloudEdits] = useState<CloudEditsChoice>('none');
   const openCreate = () => { setProjectMode(defaultAssistMode); setModalOpen(true); };
 
   const [view, setView] = useState<'projects' | 'archived' | 'deleted'>('projects');
@@ -98,7 +105,8 @@ export default function ProjectsHub({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-    onCreateProject(projectName, projectKind, projectMode);
+    onCreateProject(projectName, projectKind, projectMode, cloudEditsOffered && projectKind === 'photography' ? projectCloudEdits : undefined);
+    setProjectCloudEdits('none');
     setProjectName('');
     setModalOpen(false);
   };
@@ -380,6 +388,12 @@ export default function ProjectsHub({
                   value={projectMode} onChange={setProjectMode} />
                 <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hub.modeChangeLater}</p>
               </div>
+              {cloudEditsOffered && projectKind === 'photography' && (
+                <div className="space-y-1">
+                  <CloudEditsChoicePicker name="new-project-cloud-edits" value={projectCloudEdits} onChange={setProjectCloudEdits} />
+                  <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.cloudEdits.changeLater}</p>
+                </div>
+              )}
               <div className="space-y-4 md:grid md:grid-cols-2 md:items-start md:gap-4 md:space-y-0">
               <div className="space-y-1.5">
                 <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
