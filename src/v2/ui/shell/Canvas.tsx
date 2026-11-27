@@ -30,6 +30,9 @@ import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import CropSuggestionLayer from './CropSuggestionLayer';
+import { proposeCrop } from '../../../core/proposeCrop';
+import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
@@ -604,6 +607,8 @@ export default function Canvas({
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
+  // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
+  const [dismissedCropFor, setDismissedCropFor] = useState<string[]>([]);
 
   // Palm rejection for Apple Pencil and other pens. While the pen is on the glass, or for a moment after it lifts, a touch
   // is the hand holding it, so it never swipes to another photo, pinches or moves a crop. A palm that landed before the
@@ -820,6 +825,15 @@ export default function Canvas({
     pictureAspect && (size.crop.borderPlacement ?? 'all') !== 'auto' ? { pictureAspect, frameAspect: frameAspectOf(size) } : undefined;
   // Until the shape is known, an unknown Original is not drawn as a square.
   const shapePending = unknownOriginal(activeSize) && !pictureAspect;
+  // Auto's crop suggestion for the active format: only over an untouched single-frame crop, only until dismissed, and
+  // never applied by itself. It is worked out here because the frame's shape decides the rectangle.
+  const cropKey = `${photo.id}:${activeSize.id}`;
+  const frameShape = frameAspectOf(activeSize);
+  const cropProposal = pictureAspect && photo.cropSuggestion && !dismissedCropFor.includes(cropKey) && splitCountFor(activeSize.id) === 1
+    && isUntouchedCrop(activeSize.crop) && (activeSize.crop.borderPlacement ?? 'all') !== 'auto'
+    ? proposeCrop({ box: photo.cropSuggestion.box, imageWidth: pictureAspect * 1000, imageHeight: 1000, aspect: frameShape }) : null;
+  const cropPatch = cropProposal && pictureAspect ? cropPatchForRect(cropProposal, pictureAspect, frameShape) : null;
+  const shownCropRect = cropProposal && cropPatch ? cropProposal : null;
   const filterCss = buildPreviewFilterCss(group.recipe, hoveredLook);
   const overflowIssues = detectOverlayOverflow(group.overlay, photo, photo.sizes);
   const watermarkPreset =
@@ -1496,11 +1510,11 @@ export default function Canvas({
   const shownColourAreas = colourAreas?.length ? colourAreas : undefined;
   const renderCanvasMarks = (picture: { width: number; height: number }) => {
     const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
-    if (!cameraFocusArea && !shownColourAreas) return marks;
-    return <>{marks}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
+    if (!cameraFocusArea && !shownColourAreas && !shownCropRect) return marks;
+    return <>{marks}{shownCropRect && !renderPickLayer && <CropSuggestionLayer picture={picture} rect={shownCropRect} />}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
       {shownColourAreas && <ColourAreaMarks picture={picture} areas={shownColourAreas} />}</>;
   };
-  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas;
+  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas || !!shownCropRect;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
@@ -2498,6 +2512,19 @@ export default function Canvas({
           </span>
         )}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && renderMaskLabel()}
+        {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && shownCropRect && cropPatch && (
+          <div data-testid="crop-suggestion" className="flex min-w-0 items-center gap-1.5 font-medium text-[var(--text-primary)]">
+            <span role="status" className="truncate">{STRINGS.cropSuggestion.label}</span>
+            <button type="button" data-testid="crop-suggestion-accept" className={STATUS_BUTTON}
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onUpdateCrop(photo.id, activeSize.id, cropPatch); }}>
+              {STRINGS.cropSuggestion.accept}
+            </button>
+            <button type="button" data-testid="crop-suggestion-dismiss" className={STATUS_BUTTON}
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setDismissedCropFor((keys) => [...keys, cropKey]); }}>
+              {STRINGS.cropSuggestion.dismiss}
+            </button>
+          </div>
+        )}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && photo.cameraFocus?.area && (
           <button type="button" data-testid="camera-focus-toggle" aria-pressed={showCameraFocus}
             onClick={() => setShowCameraFocus((shown) => !shown)} className={STATUS_BUTTON}>

@@ -2115,6 +2115,11 @@ export const de: AreaTranslation<typeof source> = {
     forgetLink: 'InFlight bitten, meine Kontodaten zu löschen',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Vorgeschlagener Zuschnitt: gestrichelter Rahmen auf dem Foto. Nichts ändert sich, bis Sie zustimmen.',
+    accept: 'Zuschnitt übernehmen',
+    dismiss: 'Verwerfen',
+  },
   maskCanvas: {
     outline: (n) => `${n} · Umriss auf dem Foto`,
     overlayShown: (n) => `${n} · Überlagerung sichtbar (schraffierte Fläche = Wirkungsbereich)`,
