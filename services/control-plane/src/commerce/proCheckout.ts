@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { ProPurchaseOrder } from './proSettlement.ts';
-import type { paddleApi } from './paddle.ts';
+import { discountLive, type paddleApi } from './paddle.ts';
 
 /** The major version recorded on new orders. A subscription covers whichever version is current while it is paid. */
 export const PRO_MAJOR_VERSION_ON_SALE = 1;
@@ -15,7 +15,7 @@ export type ProPlan = typeof PRO_PLANS[number];
 export interface StoredProOrder extends ProPurchaseOrder {
   transactionId: string;
   createdAt: string;
-  /** The Paddle discount applied because the offer was on when this checkout started (for example Black Friday). */
+  /** The Paddle discount applied because Paddle said it was live when this checkout started (for example Black Friday). */
   discountId?: string;
 }
 
@@ -25,7 +25,7 @@ export interface ProOrders {
 }
 
 interface Dependencies {
-  paddle: Pick<ReturnType<typeof paddleApi>, 'createTransaction'>;
+  paddle: Pick<ReturnType<typeof paddleApi>, 'createTransaction'> & Partial<Pick<ReturnType<typeof paddleApi>, 'getDiscount'>>;
   orders: ProOrders;
   /** The Paddle recurring prices (set in the Paddle dashboard). A plan without a price is not offered. */
   priceIds: Partial<Record<ProPlan, string>>;
@@ -34,8 +34,9 @@ interface Dependencies {
   /** Verified settlement (re-fetches the transaction from Paddle); safe to call repeatedly. */
   settle: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
   /**
-   * Optional offer discount (a Paddle discount ID such as dsc_…, made in the Paddle dashboard). It is applied only to a
-   * checkout started while the offer is on (the admin flag proPromo, with its dates), by someone signed in at that time.
+   * Optional offer discount (a Paddle discount ID such as dsc_…, made in the Paddle dashboard). Paddle decides when it
+   * runs: it is applied only while Paddle reports it active, before its expiry and under its usage limit. There is no
+   * date or price of our own. Buyers can also type any Paddle discount code on Paddle's checkout form.
    */
   promoDiscountId?: string;
   now?: () => number;
@@ -50,16 +51,39 @@ export function paddleProCheckout(deps: Dependencies) {
   const now = deps.now ?? Date.now;
   if (new URL(deps.checkoutUrl).protocol !== 'https:') throw new Error('The checkout page must use HTTPS.');
   if (!PRO_PLANS.some((plan) => deps.priceIds[plan])) throw new Error('No Pro subscription price is set.');
+  // Paddle's view of the offer, re-read at most every five minutes. A failed read counts as no offer (full price).
+  const OFFER_TTL_MS = 5 * 60_000;
+  let cached: { at: number; live: boolean; expiresAt: string | null } | null = null;
+  async function offer(): Promise<{ live: boolean; expiresAt: string | null }> {
+    if (!deps.promoDiscountId || !deps.paddle.getDiscount) return { live: false, expiresAt: null };
+    const t = now();
+    if (!cached || t - cached.at >= OFFER_TTL_MS) {
+      try {
+        const d = await deps.paddle.getDiscount(deps.promoDiscountId);
+        cached = { at: t, live: discountLive(d, t), expiresAt: d.expires_at ?? null };
+      } catch { cached = { at: t, live: false, expiresAt: null }; }
+    }
+    // The expiry can pass between reads.
+    const live = cached.live && !(cached.expiresAt && Date.parse(cached.expiresAt) <= t);
+    return { live, expiresAt: live ? cached.expiresAt : null };
+  }
   return {
+    /** The offer as Paddle has it, for the website banner: its last day (UTC), or null when there is none or no end. */
+    async offer(): Promise<{ live: boolean; lastDay: string | null }> {
+      const o = await offer();
+      // Paddle's expiry is an exact moment; the last full day is the day before it, unless it ends after midnight.
+      const lastDay = o.expiresAt ? new Date(Date.parse(o.expiresAt) - 1).toISOString().slice(0, 10) : null;
+      return { live: o.live, lastDay };
+    },
     /** The plans that can be bought now. */
     plans: PRO_PLANS.filter((plan) => !!deps.priceIds[plan]),
-    async start(input: { accountId: string; emailHash: string; promo?: boolean; plan: ProPlan }) {
+    async start(input: { accountId: string; emailHash: string; plan: ProPlan }) {
       const priceId = deps.priceIds[input.plan];
       if (!priceId) throw new Error('That Pro plan is not on sale.');
       const at = new Date(now()).toISOString();
       const reference = 'paddle_' + randomBytes(12).toString('hex');
       const invoiceNumber = 'INF-' + at.slice(0, 10).replaceAll('-', '') + '-' + reference.slice(7, 17).toUpperCase();
-      const discountId = input.promo && deps.promoDiscountId ? deps.promoDiscountId : undefined;
+      const discountId = (await offer()).live ? deps.promoDiscountId : undefined;
       const created = await deps.paddle.createTransaction({
         priceId, checkoutUrl: deps.checkoutUrl, ...(discountId ? { discountId } : {}),
         customData: { reference, accountId: input.accountId, product: 'pro', plan: input.plan, majorVersion: String(PRO_MAJOR_VERSION_ON_SALE) },

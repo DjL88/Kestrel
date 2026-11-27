@@ -465,6 +465,13 @@ export function generalRoutes(ctx: AppContext): Route[] {
     },
   },
   {
+    method: 'GET', path: '/v1/billing/offer', summary: 'The current Pro offer for the website banner, read from the Paddle discount (its status and expiry). No offer: live false.', auth: 'none',
+    handler: async () => {
+      const offer = options.proCheckout?.offer ? await options.proCheckout.offer() : { live: false, lastDay: null };
+      return { status: 200, headers: { 'cache-control': 'public, max-age=300' }, body: offer };
+    },
+  },
+  {
     method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction or adjustment is fetched back from Paddle before Pro is granted, or removed after a full refund or chargeback.', auth: 'none',
     handler: async (req) => {
       if (!options.settlePaddle || !options.paddleWebhookSecret) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
