@@ -113,6 +113,20 @@ export function mergeDetections(all: Detection[], threshold = 0.5): Detection[] 
 }
 
 /** Edge strength inside a box, in a fixed-size view so photos and subjects of any size compare fairly. Higher is sharper. */
+/**
+ * The part of the picture the sharpness of a subject is measured on (its box with 10% room, within the picture), and the
+ * fixed size it is measured at (at most 160 px), so a big subject and a small one compare fairly.
+ */
+export function sharpnessCrop(width: number, height: number, box: Box): { region: Box; width: number; height: number } {
+  const pad = 0.1;
+  const x = Math.max(0, box.x - box.w * pad);
+  const y = Math.max(0, box.y - box.h * pad);
+  const cw = Math.min(width - x, box.w * (1 + 2 * pad));
+  const ch = Math.min(height - y, box.h * (1 + 2 * pad));
+  const scale = Math.min(1, 160 / Math.max(cw, ch));
+  return { region: { x, y, w: cw, h: ch }, width: Math.max(4, Math.round(cw * scale)), height: Math.max(4, Math.round(ch * scale)) };
+}
+
 export function boxSharpness(rgba: Uint8ClampedArray, width: number, height: number): number {
   if (width < 4 || height < 4) return 0;
   const luma = new Float32Array(width * height);
