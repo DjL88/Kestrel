@@ -105,6 +105,8 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         const canPause = Boolean(task.pauseable && (task.status === 'running' || task.status === 'queued'));
         const canResume = Boolean(task.pauseable && task.status === 'paused');
         const canPrioritise = task.status === 'queued' || task.status === 'running';
+        // Waiting for the computer's capacity: the person may start it anyway.
+        const canStartNow = task.status === 'queued' && engineScheduler.isWaitingForCapacity(taskId);
         const seconds = timing(task, clock);
         const queueIndex = queuedOrder.indexOf(taskId);
         return (
@@ -148,6 +150,8 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
                 className={controlStyle} aria-label={STRINGS.taskControls.pauseLabel(task.label)}>{STRINGS.taskControls.pause}</button>}
               {canResume && <button type="button" onClick={() => engineScheduler.resume(taskId)}
                 className={controlStyle} aria-label={STRINGS.taskControls.resumeLabel(task.label)}>{STRINGS.taskControls.resume}</button>}
+              {canStartNow && <button type="button" onClick={() => engineScheduler.startNow(taskId)} data-testid="task-start-now"
+                className={controlStyle} aria-label={STRINGS.taskControls.startNowLabel(task.label)}>{STRINGS.taskControls.startNow}</button>}
               {canPrioritise && task.pauseable && <button type="button" onClick={() => jump(taskId)}
                 className={controlStyle} aria-label={STRINGS.taskControls.jumpLabel(task.label)}>{STRINGS.taskControls.jumpQueue}</button>}
               {queueIndex > 0 && <button type="button" onClick={() => applyQueueOrder(moveQueuedTask(queuedOrder, taskId, -1))}

@@ -78,10 +78,13 @@ export function sha256Plain(input: Uint8Array): string {
 }
 
 /** SHA-256 as hex, using the browser's own implementation when it is available. */
-export async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+export async function sha256Hex(bytes: ArrayBuffer | Uint8Array): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (subtle) {
-    const digest = await subtle.digest('SHA-256', bytes);
+    // The browser's digest takes no shared memory: such bytes are copied first.
+    const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const input = view.buffer instanceof ArrayBuffer ? view as Uint8Array<ArrayBuffer> : new Uint8Array(view);
+    const digest = await subtle.digest('SHA-256', input);
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
   }
   return sha256Plain(new Uint8Array(bytes));

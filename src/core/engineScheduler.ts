@@ -115,6 +115,8 @@ interface WorkBatch {
   cloud: boolean;
   /** The waiting reason last shown on this task, so it is written once rather than on every pump. */
   waitShown?: string;
+  /** The person chose Start now: it starts at once, whatever the load and however many other jobs run. */
+  forced?: boolean;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -169,7 +171,10 @@ export function createEngineScheduler(options: {
   let resourceSample = options.resourceSample ?? null;
   let mode: ProcessingMode = options.mode ?? 'balanced';
   let blockedReason: string | null = null;
+  let admissionChecks = 0;
   const admitted = (job: WorkBatch): boolean => {
+    admissionChecks += 1;
+    if (job.forced) { blockedReason = null; return true; }
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
     const busy = occupied.filter(other => other.resource !== 'io');
@@ -573,6 +578,15 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /** Start now: the person's choice overrides the load check (and the one-at-a-time limit) for this task. */
+  const startNow = (id: number): boolean => {
+    const job = jobs.get(id);
+    if (!job || job.cancelled || job.paused || job.active || !job.items.some(item => item.state === 'queued')) return false;
+    job.forced = true;
+    job.priority = ++highest;
+    pump();
+    return true;
+  };
   const reorder = (ids: readonly number[]): boolean => {
     if (new Set(ids).size !== ids.length || ids.some(id => !jobs.has(id) || jobs.get(id)?.active)) return false;
     for (const id of [...ids].reverse()) {
@@ -594,7 +608,14 @@ export function createEngineScheduler(options: {
     pump();
   };
   return {
-    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    submit, pause, resume, jumpQueue, startNow, reorder, setCpuLimit,
+    /** Whether this task is waiting for the computer's capacity (it then offers Start now). */
+    isWaitingForCapacity: (id: number) => { const job = jobs.get(id); return Boolean(job && !job.active && !job.cancelled && job.waitShown); },
+    /** Whether work the person started (one photo: TrueDetail, tap to select...) is running or waiting. Quiet
+     * background helpers outside the scheduler (the species scan) step aside while it is. */
+    personWorkPending: () => [...jobs.values()].some(job => job.interactive && !job.cancelled && (job.active || job.items.some(item => item.state === 'queued'))),
+    /** How many admission checks have run (tests: waiting must not re-check in a loop). */
+    admissionChecks: () => admissionChecks,
     /** Look for stuck photos now (the watchdog does this every 30 s). */
     checkStalls,
     cpuLimit: () => limits.cpu,
@@ -616,7 +637,13 @@ export function createEngineScheduler(options: {
     resumeAll() {
       pausedAll = false;
       for (const job of jobs.values()) if (job.paused || job.pauseRequested) resume(job.id);
+      // Resume all also clears a hold: the first task waiting for capacity starts if nothing of InFlight's is running,
+      // so the person never has to restart the app to get work moving.
       pump();
+      if (![...jobs.values()].some(job => job.active)) {
+        const first = [...jobs.values()].filter(job => job.waitShown && !job.paused && !job.cancelled).sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
+        if (first) startNow(first.id);
+      }
     },
     list: () => store.list(),
     subscribe: store.subscribe,
@@ -642,3 +669,11 @@ export const engineScheduler = createEngineScheduler({
   limits: limitsForDevice({ hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory,
     mobile: typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent) }),
 });
+
+/** Resolves once no work the person started is running or waiting. It listens to Tasks; it never polls. */
+export function personWorkClear(scheduler: { personWorkPending(): boolean; subscribe(listener: () => void): () => void } = engineScheduler): Promise<void> {
+  if (!scheduler.personWorkPending()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = scheduler.subscribe(() => { if (!scheduler.personWorkPending()) { stop(); resolve(); } });
+  });
+}

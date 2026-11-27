@@ -1,5 +1,5 @@
 import { createTimedSession } from './modelTiming';
-import { Sha256Stream } from '../core/sha256';
+import { Sha256Stream, sha256Hex } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { installedModel } from './modelUpdater';
@@ -106,9 +106,8 @@ function loadSession(): Promise<Loaded> {
       const response = await fetch(SPECIES_MODEL.url);
       if (!response.ok) throw new Error('The packaged species model is missing. Reinstall InFlight.');
       bytes = new Uint8Array(await response.arrayBuffer());
-      const hash = new Sha256Stream();
-      hash.update(bytes);
-      if (bytes.byteLength !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256)
+      // The browser's own SHA-256, off the page's thread (the plain-script one held it for seconds).
+      if (bytes.byteLength !== SPECIES_MODEL.bytes || await sha256Hex(bytes) !== SPECIES_MODEL.sha256)
         throw new Error('The packaged species model failed its integrity check. Reinstall InFlight.');
     } else {
       throw new Error('The species model has not been downloaded.');

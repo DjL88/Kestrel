@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTaskStore } from './taskStore.ts';
-import { createEngineScheduler, limitsForDevice, type BatchDefinition } from './engineScheduler.ts';
+import { createEngineScheduler, limitsForDevice, personWorkClear, type BatchDefinition } from './engineScheduler.ts';
 
 const pause = (ms = 1) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check: () => boolean, reason: string, tries = 1000) {
@@ -465,4 +465,63 @@ test('work that keeps reporting progress is never stopped by the watchdog, howev
     }
   }, { kind: 'denoise', stallMs: 60_000 }));
   assert.equal(await job.finished, 'done', 'alive throughout, so never stopped');
+});
+
+test('a task waiting for capacity costs nothing: no admission checks run until something changes', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY, watchdogMs: 0 });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let started = 0;
+  const one = await scheduler.submit(batch('Develop full size', 1, async () => { started += 1; await held; }));
+  await until(() => started === 1, 'first job runs');
+  const two = await scheduler.submit(batch('Colour check', 1, async () => { started += 1; }));
+  const settled = scheduler.admissionChecks();
+  await pause(300);
+  assert.equal(scheduler.admissionChecks(), settled, 'nothing re-checks while the task waits (no timer chain, no loop)');
+  scheduler.updateResourceSample(BUSY);
+  const afterSample = scheduler.admissionChecks() - settled;
+  assert.ok(afterSample >= 1 && afterSample <= 2, `one new sample costs one look per waiting task, not a loop (${afterSample})`);
+  release();
+  assert.equal(await one.finished, 'done');
+  assert.equal(await two.finished, 'done');
+});
+
+test('Start now starts a task waiting for capacity at once, beside the one running', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 2, gpu: 1, io: 1 }, resourceSample: BUSY });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let second = false;
+  let started = 0;
+  const one = await scheduler.submit(batch('Develop full size', 1, async () => { started += 1; await held; }));
+  await until(() => started === 1, 'first job runs');
+  const two = await scheduler.submit(batch('Colour check', 1, async () => { second = true; }));
+  const id = Number(two.taskId);
+  assert.equal(scheduler.isWaitingForCapacity(id), true);
+  assert.equal(scheduler.startNow(id), true, 'the person overrides the load check');
+  assert.equal(await two.finished, 'done', 'it ran while the first still held its slot');
+  assert.equal(second, true);
+  assert.equal(scheduler.startNow(id), false, 'nothing left to start');
+  release();
+  assert.equal(await one.finished, 'done');
+});
+
+test('quiet helpers outside the scheduler wait for the person\'s work, by listening rather than polling', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 } });
+  assert.equal(scheduler.personWorkPending(), false);
+  await personWorkClear(scheduler);
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const denoise = await scheduler.submit(batch('Denoising', 1, async () => { await held; }, { interactive: true }));
+  await until(() => scheduler.personWorkPending(), 'the person\'s work is running');
+  let clear = false;
+  const waiting = personWorkClear(scheduler).then(() => { clear = true; });
+  await pause(50);
+  assert.equal(clear, false, 'still waiting while TrueDetail runs');
+  release();
+  assert.equal(await denoise.finished, 'done');
+  await waiting;
+  assert.equal(clear, true);
 });
