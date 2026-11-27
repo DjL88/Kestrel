@@ -177,6 +177,8 @@ export const source = {
     denoiseNotQueued: 'Denoise could not start.',
     suggestionStale: 'The photo changed after this suggestion was made. Wait for a fresh check.',
     checkTask: (filename: string) => `Checking ${filename} and its colour`,
+    originalTooSmall: (name: string, w: number, h: number, ew: number, eh: number) => `${name} would have been ${w} × ${h} px, smaller than its Original ${ew} × ${eh} px, so it was not exported. The full-resolution develop was not available; nothing smaller was saved. Try again once Tasks is quiet.`,
+    originalCropped: (name: string, w: number, h: number) => `${name}: Original exported at ${w} × ${h} px, the part of the photo its Original crop shows.`,
     checkStage: 'Looking at exposure, colour and scene',
     secondOpinionStage: "Second opinion from the on-device vision model",
     checkFailed: 'Could not check this photo. Open Tasks for details.',

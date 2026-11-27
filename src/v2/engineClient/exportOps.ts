@@ -9,6 +9,7 @@ import type { ExportFormat } from '../../core/exportFormats';
 import { readCrops, DEFAULT_CROP } from './cropOps';
 import { framedSize, DEFAULT_FRAMING, type PhotoFraming } from '../../core/photoFraming';
 import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
+import { effectiveOutputSize } from '../ui/utils/studioMath';
 
 export interface ExportFrameInfo extends Pick<PhotoFrame, 'edit' | 'v2EditGroups'> { id: string; filename: string; isDemo?: boolean; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
@@ -43,6 +44,23 @@ export function originalExportSize(
   const longest = Math.max(width * Math.max(1, sections), height);
   const scale = maxEdge && Number.isFinite(maxEdge) && maxEdge > 0 ? Math.min(1, maxEdge / longest) : 1;
   return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
+}
+
+/**
+ * Whether an Original export came out at the size it promised. Original is the photo's own pixels: it may be smaller
+ * only by the person's own crop of the Original format (its zoom and insets), and then it says so. Smaller than that
+ * means the picture it was drawn from was not the full-resolution develop: the export must stop, never deliver a
+ * smaller file silently (owner's test: 'Original 4000 x 2672' delivered at 2723 x 1819).
+ */
+export function originalExportCheck(
+  requested: { width: number; height: number }, crop: Pick<CropTransform, 'zoom' | 'insetTop' | 'insetRight' | 'insetBottom' | 'insetLeft'>,
+  produced: { width: number; height: number },
+): { kind: 'full' } | { kind: 'cropped'; expected: { width: number; height: number } } | { kind: 'short'; expected: { width: number; height: number } } {
+  const expected = effectiveOutputSize({ ...requested, crop }, requested);
+  // One pixel of rounding either way is the same size.
+  const fits = (got: number, want: number) => got >= want - 1;
+  if (!fits(produced.width, expected.width) || !fits(produced.height, expected.height)) return { kind: 'short', expected: { width: expected.width, height: expected.height } };
+  return expected.capped ? { kind: 'cropped', expected: { width: expected.width, height: expected.height } } : { kind: 'full' };
 }
 
 /** A recorded shape, never proof that an embedded JPEG has full RAW sensor pixels. */

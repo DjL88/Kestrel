@@ -157,6 +157,8 @@ export const gd: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Cha b’ urrainnear lùghdachadh gràinne a thòiseachadh.',
     suggestionStale: 'Dh’atharraich an dealbh às dèidh a’ mholaidh seo. Fuirich airson dearbhadh ùr.',
     checkTask: (filename) => `A’ dearbhadh ${filename} is a dhath`,
+    originalTooSmall: (name, w, h, ew, eh) => `Bhiodh ${name} ${w} × ${h} px, nas lugha na an tùsail ${ew} × ${eh} px, mar sin cha deach às-phortadh. Cha robh an leasachadh làn-dùmhlachd ri fhaighinn; cha deach dad nas lugha a shàbhaladh. Feuch a-rithist nuair a bhios Saothair sàmhach.`,
+    originalCropped: (name, w, h) => `${name}: chaidh an tùsail às-phortadh aig ${w} × ${h} px, am pàirt dhen dealbh a sheallas a bhearradh tùsail.`,
     checkStage: 'A’ coimhead air nochdadh, dath is sealladh',
     secondOpinionStage: "Dàrna beachd bhon mhodail lèirsinn air an uidheam",
     checkFailed: 'Cha b’ urrainnear an dealbh seo a dhearbhadh. Mion-fhiosrachadh ann an Saothraichean.',

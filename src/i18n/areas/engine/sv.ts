@@ -157,6 +157,8 @@ export const sv: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Brusreduceringen kunde inte starta.',
     suggestionStale: 'Fotot ändrades efter det här förslaget. Vänta på en ny kontroll.',
     checkTask: (filename) => `Kontrollerar ${filename} och dess färg`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} skulle ha blivit ${w} × ${h} px, mindre än originalets ${ew} × ${eh} px, så den exporterades inte. Framkallningen i full upplösning var inte tillgänglig; inget mindre sparades. Försök igen när Uppgifter är lugnt.`,
+    originalCropped: (name, w, h) => `${name}: original exporterat i ${w} × ${h} px, den del av fotot som originalets beskärning visar.`,
     checkStage: 'Tittar på exponering, färg och motiv',
     secondOpinionStage: "Andra åsikt från bildmodellen på enheten",
     checkFailed: 'Kunde inte kontrollera det här fotot. Detaljer under Uppgifter.',

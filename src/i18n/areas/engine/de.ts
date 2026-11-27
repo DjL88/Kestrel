@@ -157,6 +157,8 @@ export const de: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Das Entrauschen konnte nicht gestartet werden.',
     suggestionStale: 'Das Foto hat sich nach diesem Vorschlag geändert. Warten Sie auf eine neue Prüfung.',
     checkTask: (filename) => `${filename} und seine Farbe werden geprüft`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} wäre ${w} × ${h} px groß geworden, kleiner als das Original mit ${ew} × ${eh} px, und wurde daher nicht exportiert. Die Entwicklung in voller Auflösung war nicht verfügbar; nichts Kleineres wurde gespeichert. Versuchen Sie es erneut, wenn die Aufgaben ruhen.`,
+    originalCropped: (name, w, h) => `${name}: Original mit ${w} × ${h} px exportiert, dem Teil des Fotos, den sein Original-Zuschnitt zeigt.`,
     checkStage: 'Belichtung, Farbe und Szene werden betrachtet',
     secondOpinionStage: "Zweite Meinung vom Bildmodell auf dem Gerät",
     checkFailed: 'Dieses Foto konnte nicht geprüft werden. Details unter Aufgaben.',

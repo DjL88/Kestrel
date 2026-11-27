@@ -157,6 +157,8 @@ export const fi: AreaTranslation<typeof source> = {
     denoiseNotQueued: 'Kohinanpoistoa ei voitu aloittaa.',
     suggestionStale: 'Kuva muuttui tämän ehdotuksen jälkeen. Odota uutta tarkistusta.',
     checkTask: (filename) => `Tarkistetaan ${filename} ja sen värit`,
+    originalTooSmall: (name, w, h, ew, eh) => `${name} olisi ollut ${w} × ${h} px, pienempi kuin alkuperäinen ${ew} × ${eh} px, joten sitä ei viety. Täyden resoluution kehitys ei ollut saatavilla; mitään pienempää ei tallennettu. Yritä uudelleen, kun Tehtävät on hiljaa.`,
+    originalCropped: (name, w, h) => `${name}: alkuperäinen viety kokoon ${w} × ${h} px, kuvan osa, jonka sen alkuperäisen rajaus näyttää.`,
     checkStage: 'Katsotaan valotusta, väriä ja näkymää',
     secondOpinionStage: "Toinen mielipide laitteen kuvamallilta",
     checkFailed: 'Tätä kuvaa ei voitu tarkistaa. Lisätietoja kohdassa Tehtävät.',
