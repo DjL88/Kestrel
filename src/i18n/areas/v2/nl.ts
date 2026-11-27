@@ -1287,6 +1287,7 @@ export const nl: AreaTranslation<typeof source> = {
     undo: "Ongedaan maken",
     willChange: (what: string) => `Wijzigt: ${what}`,
     editName: "Kleurcorrectie",
+  },
   cloudResult: {
     taskTitle: "Bewerkingsinstellingen uit de cloud",
     taskFailed: "De cloudtaak is niet afgerond.",

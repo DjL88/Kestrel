@@ -1288,6 +1288,7 @@ export const fi: AreaTranslation<typeof source> = {
     undo: "Kumoa",
     willChange: (what: string) => `Muuttaa: ${what}`,
     editName: "Värikorjaus",
+  },
   cloudResult: {
     taskTitle: "Pilven muokkausasetukset",
     taskFailed: "Pilvityö ei valmistunut.",

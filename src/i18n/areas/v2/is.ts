@@ -1287,6 +1287,7 @@ export const is: AreaTranslation<typeof source> = {
     undo: "Afturkalla",
     willChange: (what: string) => `Breytir: ${what}`,
     editName: "Litaleiðrétting",
+  },
   cloudResult: {
     taskTitle: "Breytingastillingar úr skýinu",
     taskFailed: "Verkið í skýinu kláraðist ekki.",

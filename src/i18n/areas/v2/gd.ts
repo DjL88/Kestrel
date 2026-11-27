@@ -1288,6 +1288,7 @@ export const gd: AreaTranslation<typeof source> = {
     undo: "Neo-dhèan",
     willChange: (what: string) => `Atharraichidh: ${what}`,
     editName: "Ceartachadh datha",
+  },
   cloudResult: {
     taskTitle: "Roghainnean deasachaidh on neul",
     taskFailed: "Cha deach obair an neòil a chrìochnachadh.",

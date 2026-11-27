@@ -1290,6 +1290,7 @@ export const ga: AreaTranslation<typeof source> = {
     undo: "Cealaigh",
     willChange: (what: string) => `Athraíonn: ${what}`,
     editName: "Ceartú datha",
+  },
   cloudResult: {
     taskTitle: "Socruithe eagarthóireachta ón scamall",
     taskFailed: "Níor chríochnaigh jab an scamaill.",

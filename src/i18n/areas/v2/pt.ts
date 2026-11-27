@@ -1287,6 +1287,7 @@ export const pt: AreaTranslation<typeof source> = {
     undo: "Anular",
     willChange: (what: string) => `Altera: ${what}`,
     editName: "Correção de cor",
+  },
   cloudResult: {
     taskTitle: "Definições de edição da nuvem",
     taskFailed: "O trabalho na nuvem não terminou.",

@@ -1287,6 +1287,7 @@ export const cy: AreaTranslation<typeof source> = {
     undo: "Dadwneud",
     willChange: (what: string) => `Yn newid: ${what}`,
     editName: "Cywiro lliw",
+  },
   cloudResult: {
     taskTitle: "Gosodiadau golygu’r cwmwl",
     taskFailed: "Ni orffennodd swydd y cwmwl.",

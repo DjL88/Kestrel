@@ -1287,6 +1287,7 @@ export const sv: AreaTranslation<typeof source> = {
     undo: "Ångra",
     willChange: (what: string) => `Ändrar: ${what}`,
     editName: "Färgrättning",
+  },
   cloudResult: {
     taskTitle: "Redigeringsinställningar från molnet",
     taskFailed: "Molnjobbet blev inte klart.",

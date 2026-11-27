@@ -1287,6 +1287,7 @@ export const nb: AreaTranslation<typeof source> = {
     undo: "Angre",
     willChange: (what: string) => `Endrer: ${what}`,
     editName: "Fargeretting",
+  },
   cloudResult: {
     taskTitle: "Redigeringsinnstillinger fra skyen",
     taskFailed: "Skyjobben ble ikke ferdig.",

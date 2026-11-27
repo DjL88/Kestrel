@@ -1329,6 +1329,7 @@ export const source = {
     undo: "Undo",
     willChange: (what: string) => `Changes: ${what}`,
     editName: "Colour correction",
+  },
   cloudResult: {
     taskTitle: "Cloud edit settings",
     taskFailed: "The cloud job did not finish.",
