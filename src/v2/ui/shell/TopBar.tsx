@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { CANVAS_TIPS_EVENT } from '../utils/canvasTips';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { chordLabel, type Keymap } from '../commands/keymap';
@@ -401,6 +402,11 @@ export default function TopBar({
                   label={STRINGS.topBar.viewActions.compareBeforeAfter}
                   checked={compareMode}
                   onClick={() => runAndClose(onToggleCompare)}
+                />
+                <MenuItem
+                  icon="info"
+                  label={STRINGS.topBar.viewActions.showCanvasTips}
+                  onClick={() => runAndClose(() => window.dispatchEvent(new Event(CANVAS_TIPS_EVENT)))}
                 />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
