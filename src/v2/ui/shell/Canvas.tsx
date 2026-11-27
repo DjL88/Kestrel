@@ -1866,11 +1866,20 @@ export default function Canvas({
             )}
 
             {gridMode !== 'off' && (
-              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
-                  <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                  <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
-                ])}
+              /* Readable on any photo (Dave, 27 Nov: lost on a busy mid-grey burrow): a solid light line over a darker halo, so
+                 one of the two always stands out. The canvas zooms with CSS zoom, which would thicken the lines as it zooms
+                 in, so the widths are divided by it: one screen pixel at every zoom, kept crisp. */
+              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" shapeRendering="crispEdges">
+                {(['halo', 'line'] as const).map((layer) => (
+                  <g key={layer} data-grid-layer={layer} fill="none" vectorEffect="non-scaling-stroke"
+                    stroke={layer === 'halo' ? 'black' : 'white'} strokeOpacity={layer === 'halo' ? 0.5 : 0.9}
+                    strokeWidth={(layer === 'halo' ? 3 : 1) / Math.max(0.01, canvasZoom)}>
+                    {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
+                      <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" vectorEffect="non-scaling-stroke" />,
+                      <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} vectorEffect="non-scaling-stroke" />,
+                    ])}
+                  </g>
+                ))}
               </svg>
             )}
 
