@@ -766,7 +766,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               onOpenSettings: () => actions.setSettingsOpen(true, 'aiProviders'),
             }}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
-              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
+              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn,
+                consent: actions.cloudConsent, setConsent: actions.setCloudConsent, onTopUp: () => actions.setSettingsOpen(true, 'account') }
               : undefined}
           />
         );

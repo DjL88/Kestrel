@@ -1,4 +1,5 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
+import { CloudJobError, cloudJobProblem, type CloudJobStep } from '../core/cloudJobProblem';
 
 const JOBS_PATH = '/v1/cloud/jobs';
 const CLEANUP_TIMEOUT_MS = 5_000;
@@ -59,7 +60,7 @@ function waitForNextPoll(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 async function readResult(response: Response, maxBytes: number, signal: AbortSignal): Promise<Blob> {
-  if (!response.ok || !response.body) throw new Error('Cloud processing result could not be downloaded.');
+  if (!response.ok || !response.body) throw fail('result', response.status);
   const reader = response.body.getReader();
   const parts: BlobPart[] = [];
   let bytes = 0;
@@ -80,8 +81,32 @@ async function readResult(response: Response, maxBytes: number, signal: AbortSig
   return new Blob(parts);
 }
 
-/** Transfer one explicitly approved job. The engine must verify its result before applying it. */
+/** The control plane's error code from a refused request, or '' when it sent none. */
+async function errorCode(response: Response): Promise<string> {
+  try {
+    const body = await response.json() as { error?: { code?: unknown } };
+    return typeof body?.error?.code === 'string' ? body.error.code : '';
+  } catch { return ''; }
+}
+
+const fail = (step: CloudJobStep, status = 0, code = '') => new CloudJobError(cloudJobProblem(step, status, code));
+
+/**
+ * Transfer one explicitly approved job. The engine must verify its result before applying it. Every failure the person
+ * could act on is a `CloudJobError` in plain words (src/core/cloudJobProblem.ts); a cancel by the caller stays an abort.
+ */
 export async function runCloudJob(connection: CloudJobConnection, job: CloudJob): Promise<Blob> {
+  try {
+    return await runCloudJobSteps(connection, job);
+  } catch (error) {
+    if (error instanceof CloudJobError || job.signal?.aborted) throw error;
+    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw fail('timeout');
+    if (error instanceof TypeError) throw fail('network');
+    throw error;
+  }
+}
+
+async function runCloudJobSteps(connection: CloudJobConnection, job: CloudJob): Promise<Blob> {
   const base = parseControlPlaneUrl(connection.baseUrl);
   if (!base || !connection.session.trim() || job.userConsent !== true || job.input.size === 0
     || !Number.isSafeInteger(job.maxResultBytes) || job.maxResultBytes < 1) {
@@ -105,7 +130,7 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
   const created = await request(JOBS_PATH, 'POST', signal, JSON.stringify({
     kind: job.kind, inputBytes: job.input.size, userConsent: true, ...(job.inputKind ? { inputKind: job.inputKind } : {}),
   }));
-  if (!created.ok) throw new Error(`Cloud processing could not start (${created.status}).`);
+  if (!created.ok) throw fail('start', created.status, await errorCode(created));
   const upload = object(await created.json());
   const id = upload.jobId;
   if (typeof id !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(id)) throw new Error('Invalid cloud processing job.');
@@ -120,13 +145,15 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
       body: job.input,
       signal,
     });
-    if (!uploaded.ok) throw new Error('Cloud processing upload failed.');
+    if (!uploaded.ok) throw fail('upload', uploaded.status);
     let start = await request(`${path}/start`, 'POST', signal);
-    if (start.status === 409 && (await start.json())?.error?.code === 'CLOUD_INPUT_MISSING') {
+    let startCode = start.ok ? '' : await errorCode(start);
+    if (start.status === 409 && startCode === 'CLOUD_INPUT_MISSING') {
       await waitForNextPoll(interval, signal);
       start = await request(`${path}/start`, 'POST', signal);
+      startCode = start.ok ? '' : await errorCode(start);
     }
-    if (!start.ok) throw new Error('Cloud processing did not start.');
+    if (!start.ok) throw fail('start', start.status, startCode);
     let canRetryStatus = true;
     for (;;) {
       const response = await request(path, 'GET', signal);
@@ -136,7 +163,7 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
         await waitForNextPoll(interval, signal);
         continue;
       }
-      if (!response.ok) throw new Error('Cloud processing status is unavailable.');
+      if (!response.ok) throw fail('status', response.status, await errorCode(response));
       const status = object(await response.json());
       if (status.jobId !== id || status.kind !== job.kind) throw new Error('Cloud processing returned a different job.');
       if (status.status === 'ready') {
@@ -145,7 +172,7 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
         const download = await fetcher(result.url, { ...privateFetch, signal });
         return await readResult(download, job.maxResultBytes, signal);
       }
-      if (status.status !== 'running') throw new Error('Cloud processing failed.');
+      if (status.status !== 'running') throw fail('failed');
       await waitForNextPoll(interval, signal);
     }
   } finally {

@@ -101,9 +101,9 @@ test('the client retries a transient status failure without starting the job aga
 test('a switched-off cloud or an invalid session sends no bytes to storage', async (t) => {
   const { server, runner, transfers, connection } = await setup(t);
   await assert.rejects(runCloudJob(connection, { ...job, userConsent: false }), /approval/);
-  await assert.rejects(runCloudJob({ ...connection, session: 'expired' }, job), /401/);
+  await assert.rejects(runCloudJob({ ...connection, session: 'expired' }, job), /Sign in again/);
   await server.app.store.setSetting('cloud_disabled', '1');
-  await assert.rejects(runCloudJob(connection, job), /503/);
+  await assert.rejects(runCloudJob(connection, job), /switched off for now/);
   assert.equal(runner.uploadsCreated, 0);
   assert.deepEqual(transfers, []);
 });

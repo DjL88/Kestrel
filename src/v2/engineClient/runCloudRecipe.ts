@@ -17,7 +17,15 @@ export interface RecipeSources {
   smartPreview(frame: PhotoFrame): Promise<Blob | null>;
   /** The original, read from its drive if needed. Read only when the full-file opt-in is on. */
   ensureOriginal(stableKey: string, priority?: 'selected'): Promise<Blob | undefined>;
+  /**
+   * When there is no smart preview: a JPEG copy of the photo's preview, at most 2,560 px (src/providers/recipePreviewCopy.ts).
+   * For a RAW this is usually the camera's built-in JPEG, and the offer says so.
+   */
+  previewCopy?(frame: PhotoFrame): Promise<Blob | null>;
 }
+
+/** Which picture stands in for the smart preview: InFlight's own 2,560 px develop, or a copy of the photo's preview. */
+export type PreviewSource = 'smart' | 'copy';
 
 export interface CloudRecipeOffer {
   photoId: string;
@@ -25,9 +33,11 @@ export interface CloudRecipeOffer {
   /** What Send would upload, with its size in words, e.g. "1.4 MB smart preview". */
   sendLabel?: string;
   alternativeLabel?: string;
+  /** Which picture the preview option is. */
+  previewSource?: PreviewSource;
 }
 
-interface Prepared { offer: CloudRecipeOffer; blobs: Partial<Record<RecipeUploadOption['kind'], Blob>> }
+interface Prepared { offer: CloudRecipeOffer; blobs: Partial<Record<RecipeUploadOption['kind'], Blob>>; previewSource: PreviewSource }
 
 const dimensions = (frame: Pick<PhotoFrame, 'exif'>) => ({ width: frame.exif?.width, height: frame.exif?.height });
 const previewMegapixels = (frame: Pick<PhotoFrame, 'exif'>) => {
@@ -43,13 +53,16 @@ const originalMegapixels = (frame: Pick<PhotoFrame, 'exif'>) => {
   return width && height && width > 0 && height > 0 ? width * height / 1e6 : 24;
 };
 
-export const describeOption = (option: RecipeUploadOption): string =>
-  `${formatUploadSize(option.bytes)} ${option.kind === 'original' ? 'full original' : 'smart preview'}`;
+export const describeOption = (option: RecipeUploadOption, previewSource: PreviewSource = 'smart'): string =>
+  `${formatUploadSize(option.bytes)} ${option.kind === 'original' ? 'full original' : previewSource === 'copy' ? 'preview copy (2,560 px at most)' : 'smart preview'}`;
 
 export async function prepareCloudRecipe(
   frame: PhotoFrame, sources: RecipeSources, fullFile: FullFileConsent, estimate: TransferEstimate = {},
 ): Promise<Prepared> {
-  const preview = await sources.smartPreview(frame).catch(() => null);
+  const smart = await sources.smartPreview(frame).catch(() => null);
+  const copy = smart && smart.size > 0 ? null : await sources.previewCopy?.(frame).catch(() => null) ?? null;
+  const preview = smart && smart.size > 0 ? smart : copy;
+  const previewSource: PreviewSource = smart && smart.size > 0 ? 'smart' : 'copy';
   // The original is only read when the person has opted in to sending it, and is still not sent until they press Send.
   const original = fullFile.on ? await sources.ensureOriginal(frame.stableKey, 'selected').catch(() => undefined) : undefined;
   const plan = planRecipeUpload({
@@ -59,16 +72,16 @@ export async function prepareCloudRecipe(
   const blobs: Prepared['blobs'] = {};
   if (preview) blobs['smart-preview'] = preview;
   if (original) blobs.original = original;
-  const offer: CloudRecipeOffer = { photoId: frame.id, plan };
+  const offer: CloudRecipeOffer = { photoId: frame.id, plan, previewSource };
   if (plan.status === 'ready') {
-    offer.sendLabel = describeOption(plan.send);
-    if (plan.alternative) offer.alternativeLabel = describeOption(plan.alternative);
+    offer.sendLabel = describeOption(plan.send, previewSource);
+    if (plan.alternative) offer.alternativeLabel = describeOption(plan.alternative, previewSource);
   }
-  return { offer, blobs };
+  return { offer, blobs, previewSource };
 }
 
 export type CloudRecipeOutcome =
-  | { status: 'ready'; recipe: CloudRecipe; sent: RecipeUploadOption }
+  | { status: 'ready'; recipe: CloudRecipe; sent: RecipeUploadOption; previewSource?: PreviewSource }
   | { status: 'refused'; sent: RecipeUploadOption }
   | { status: 'empty'; sent: RecipeUploadOption };
 
@@ -90,7 +103,7 @@ export async function sendCloudRecipe(
   const recipe = parseCloudRecipe(answer.bytes, { jobId: answer.jobId, input: option.kind });
   if (!recipe) return { status: 'refused', sent: option };
   if (recipeIsEmpty(recipe)) return { status: 'empty', sent: option };
-  return { status: 'ready', recipe, sent: option };
+  return { status: 'ready', recipe, sent: option, previewSource: prepared.previewSource };
 }
 
 /** The photo's edit with the recipe's settings in place. Everything the recipe does not name is kept as it was. */
@@ -99,8 +112,8 @@ export function cloudRecipeEdit(edit: PhotoEdit | undefined, recipe: CloudRecipe
 }
 
 /** Why this step is in the history, so Undo and the edit story say where it came from. */
-export function cloudRecipeWhy(recipe: CloudRecipe, sent: RecipeUploadOption): EditWhy {
-  const notes = [`Edit settings from a cloud job that worked on the ${describeOption(sent)}.`];
+export function cloudRecipeWhy(recipe: CloudRecipe, sent: RecipeUploadOption, previewSource: PreviewSource = 'smart'): EditWhy {
+  const notes = [`Edit settings from a cloud job that worked on the ${describeOption(sent, previewSource)}.`];
   if (recipe.producer) notes.push(`Made by ${recipe.producer.name} ${recipe.producer.version}.`);
   for (const note of recipe.notes ?? []) notes.push(note);
   return { by: 'auto', notes: notes.slice(0, 8) };
