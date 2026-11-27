@@ -1308,6 +1308,8 @@ export default function Canvas({
 
   const handleVideoPinDrop = (e: React.MouseEvent<HTMLDivElement>) => {
     if (activeSize.kind !== 'video' || !features.zoomVideo) return;
+    // While cropping, a click or the end of a drag positions the picture; it never moves the zoom target.
+    if (revealSizeId === activeSize.id) return;
     if (draggingType !== 'none') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.round(clamp(((e.clientX - rect.left) / rect.width) * 100, 8, 92));
@@ -1869,7 +1871,9 @@ export default function Canvas({
             onClick={handleVideoPinDrop}
             onPointerDown={(e) => {
               if (handleTouchDown(e)) return;
-              if (activeSize.kind === 'video') return;
+              // A video format outside Crop keeps its click for the zoom target. In Crop it is positioned like any other
+              // format (Dave, 27 Nov: in Crop on Video 9:16 the picture could not be moved at all).
+              if (activeSize.kind === 'video' && !revealing) return;
               // In reveal mode a drag positions the picture under the crop window; otherwise it moves the format on the canvas.
               handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget);
             }}
@@ -1885,11 +1889,11 @@ export default function Canvas({
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             data-shape-pending={shapePending ? 'true' : undefined}
             className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
-              activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
+              revealing ? 'cursor-move' : activeSize.kind === 'video' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
             }`}
             // Touch scrolling/zooming is only suppressed while this frame can actually run a photo pinch/pan
             // gesture - elsewhere (video, compare) the surrounding page must keep scrolling normally.
-            style={{ width: frameW, height: frameH, touchAction: activeSize.kind === 'photo' && !compareMode ? 'none' : 'auto' }}
+            style={{ width: frameW, height: frameH, touchAction: (activeSize.kind === 'photo' || revealing) && !compareMode ? 'none' : 'auto' }}
           >
             {revealing && (
               <div
@@ -1951,9 +1955,11 @@ export default function Canvas({
 
             </div>
 
-            {/* Video Zoom MP4 Focal Pin */}
-            {activeSize.kind === 'video' && features.zoomVideo && (
+            {/* Video Zoom MP4 focal pin: the video format's own editing mark. Not drawn while cropping (it sat in the middle
+                of the frame, over the picture being positioned), and back when Crop closes. */}
+            {activeSize.kind === 'video' && features.zoomVideo && !revealing && (
               <div
+                data-testid="video-zoom-target"
                 className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${photo.videoZoom.focalX}%`, top: `${photo.videoZoom.focalY}%` }}
               >
@@ -2231,7 +2237,8 @@ export default function Canvas({
                 onSelectSize(id);
                 onSetLayoutMode('single');
                 setRevealSizeId((current) => current === id ? null : id);
-              }, disabled: selectedSizeIds.length !== 1 || activeSize.kind !== 'photo' || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
+              // Every format can be positioned, the video format too: a double-click on its card already opened Crop there.
+              }, disabled: selectedSizeIds.length !== 1 || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
               { icon: 'arrows-horizontal', label: 'Flip selected formats', short: 'Flip', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
               { icon: 'rotate', label: 'Rotate selected formats', short: 'Rotate', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
               { icon: 'compare', label: 'Compare', short: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
