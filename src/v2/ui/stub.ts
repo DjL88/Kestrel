@@ -2175,7 +2175,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     setCanvasZoom: (canvasZoom) => {
-      setStore((prev) => ({ ...prev, canvasZoom: Math.min(16, Math.max(0.25, Number(canvasZoom.toFixed(3)))) }));
+      setStore((prev) => ({ ...prev, canvasZoom: Math.min(256, Math.max(0.25, Number(canvasZoom.toFixed(3)))) }));
     },
 
     toggleFullScreen: () => {
