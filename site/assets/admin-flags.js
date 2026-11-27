@@ -4,7 +4,7 @@
 /** Features no flag can ever switch off (src/core/features.ts NEVER_GATED). The page says so and the app enforces it. */
 export const NEVER_GATED = ['import', 'basicEditing', 'cropAndStraighten', 'export', 'localBackup'];
 /** The feature keys the app knows today, offered as suggestions. A new key is fine. */
-export const KNOWN_FLAGS = ['watermark', 'macroPad', 'masks', 'subjectDetection', 'autoTab', 'speciesId', 'onlineAi', 'smartCulling', 'accountData', 'sitePlanChoices', 'proPromo', ...NEVER_GATED];
+export const KNOWN_FLAGS = ['watermark', 'macroPad', 'masks', 'subjectDetection', 'autoTab', 'speciesId', 'onlineAi', 'smartCulling', 'accountData', 'sitePlanChoices', ...NEVER_GATED];
 
 const DAY = 86_400_000;
 const KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;

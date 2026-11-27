@@ -28,7 +28,8 @@ const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); ret
 const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID') };
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
-// Optional offer (for example Black Friday): a Paddle discount ID. It applies only while the admin flag proPromo is on.
+// Optional offer (for example Black Friday): a Paddle discount ID. Paddle's own status, expiry and usage limit decide
+// when it applies; there are no offer dates or prices in InFlight.
 const paddlePromoDiscountId = /^dsc_[a-z0-9]{10,60}$/.test(process.env.KCP_PADDLE_PROMO_DISCOUNT_ID?.trim() ?? '') ? process.env.KCP_PADDLE_PROMO_DISCOUNT_ID!.trim() : undefined;
 // The key is renewed by the kestrel-paddle-key-rotation job (infra/gcp/paddle-key-rotation.tf). When
 // KCP_PADDLE_KEY_PROJECT is set the server re-reads the latest secret version every 5 minutes, so a new key takes over

@@ -84,7 +84,7 @@ export interface AppOptions {
   /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
   paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'>;
+  proCheckout?: Pick<ReturnType<typeof paddleProCheckout>, 'start' | 'status'> & Partial<Pick<ReturnType<typeof paddleProCheckout>, 'offer'>>;
   /** Server-owned Paddle checkout for cloud top-ups (commerce/topUpCheckout.ts); off until 'cloud-top-ups' is switched on. */
   topUpCheckout?: Pick<ReturnType<typeof import('./commerce/topUpCheckout.ts').paddleTopUps>, 'start' | 'status' | 'amounts'>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */

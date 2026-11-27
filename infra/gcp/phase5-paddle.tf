@@ -51,7 +51,7 @@ variable "phase5_paddle_annual_price_id" {
   }
 }
 # Optional offer discount (dsc_..., e.g. Black Friday), made in Paddle → Catalog → Discounts. Not a secret. It applies
-# only to a Pro checkout started while the admin flag proPromo is on. Empty means no offer discount.
+# applies while Paddle says it is active, before its expiry and under its usage limit (set those in Paddle). Empty means no offer.
 variable "phase5_paddle_promo_discount_id" {
   type    = string
   default = ""

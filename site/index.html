@@ -754,7 +754,10 @@
     try {
       const response = await fetch('/v1/flags/public', { cache: 'no-store' });
       if (!response.ok) return;
-      const view = planChoicesView(await response.json(), Date.now());
+      const flags = await response.json();
+      // The offer comes from Paddle's discount (its dates). If it cannot be read, no banner.
+      const offer = await fetch('/v1/billing/offer').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const view = planChoicesView(flags, Date.now(), offer);
       if (!view.showChoices) return;
       document.getElementById('choose').hidden = false;
       const banner = document.getElementById('promo-banner');
