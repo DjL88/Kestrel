@@ -4,7 +4,7 @@
  * must still meter and authorise every cloud request itself (see spendGuard.ts).
  *
  * Software (owner decision, 26 Nov 2026): Basic is free for good. Pro is sold only as a subscription, £2.99 a month or
- * £29 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
+ * £29.99 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
  * Basic again; projects, edits and exports are never locked. One-off licences sold before then are still honoured.
  *
  * Cloud, the same for everyone who signs in (unused free photos and downloads carry over for one month, owner 26 Nov 2026):
@@ -23,7 +23,7 @@ export const SOFTWARE_PRICES = {
   /** Pro, paid monthly. */
   proMonthlyPence: 299,
   /** Pro, paid yearly. */
-  proAnnualPence: 2900,
+  proAnnualPence: 2999,
 } as const;
 
 /** Cloud photos included each calendar month (UTC). */
@@ -175,6 +175,20 @@ export function usageSummary(usage: CloudUsage): UsageSummary {
     balanceAfterPence: Math.max(0, balance - charge),
     paused: charge > balance,
   };
+}
+
+/**
+ * True when nothing more can go into cloud storage: the included amount is used (Basic has none) and the balance cannot
+ * pay a month of what is stored beyond it, which the control plane needs before an upload (cloudStorageBilling.ts).
+ * False when the server does not report storage. Nothing stored is ever removed or made smaller because of this.
+ */
+export function storageFull(usage: Pick<CloudUsage, 'plan' | 'storedBytes' | 'balancePence'>): boolean {
+  if (usage.storedBytes === undefined) return false;
+  const free = freeStorageBytes(usage.plan);
+  const stored = whole(usage.storedBytes);
+  if (stored < free) return false;
+  const monthPence = ((stored - free) / GB) * PAYG_PENCE.storagePerGbMonth;
+  return whole(usage.balancePence) <= Math.ceil(monthPence);
 }
 
 export interface TaskEstimate {

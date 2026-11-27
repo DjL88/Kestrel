@@ -54,6 +54,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
     textOffsetX: num(value.textOffsetX, 0, -40, 40), textOffsetY: num(value.textOffsetY, 0, -40, 40),
     textColour: value.textColour === 'dark' ? 'dark' : 'light',
     textScrim: value.textScrim !== false,
+    ...(value.rawCameraNames === true ? { rawCameraNames: true } : {}),
     rows: uniqueRows,
     watermarkEnabled: value.watermarkEnabled === true,
     watermarkPresetId: typeof value.watermarkPresetId === 'string' ? value.watermarkPresetId : base.watermarkPresetId,

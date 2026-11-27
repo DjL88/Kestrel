@@ -9,7 +9,6 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { verifyGoogleIdToken } from './googleIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { COMPLIANCE_MAX_BYTES } from './complianceDocs.ts';
-import { caseSummary } from './contentSafety.ts';
 import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth } from './vertexLearning.ts';
 import { ApiError, parseJson, send } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './appShared.ts';
@@ -20,7 +19,7 @@ import { readFile } from 'node:fs/promises';
 export const TECHNICAL_OVERVIEW_PATH = new URL('../../../docs/TECHNICAL-OVERVIEW.md', import.meta.url);
 
 export function adminRoutes(ctx: AppContext): Route[] {
-  const { options, config, commerce, store, now, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  const { options, config, commerce, store, now, paddleSandbox, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
   return [
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
@@ -41,47 +40,15 @@ export function adminRoutes(ctx: AppContext): Route[] {
       return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
     },
   },
-  // ---- Safety review. Admins see details only: no route ever returns a held or blocked picture.
+  // ---- Reports about shared content. InFlight does not scan photos.
   {
-    method: 'GET', path: '/v1/admin/safety', summary: 'Safety cases and gallery reports, as metadata only (never the pictures)', auth: 'admin',
+    method: 'GET', path: '/v1/admin/safety', summary: 'Gallery reports, as metadata only (never the pictures)', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'safety.read');
       const service = options.safety?.service;
-      const checks = service ? { hashMatchers: service.checks.hashMatchers.map((m) => m.name), classifier: service.checks.classifier?.name ?? null, reporter: service.checks.reporter !== null } : null;
       return adminDone(claims, 'safety.read', '', {
-        checks, publishingRefused: !!options.requireAdminSwitch && !service?.configured,
-        cases: service ? (await service.cases()).map(caseSummary) : [],
         notices: service ? (await service.notices()).map(({ receiptHash: _r, ...n }) => n) : [],
       });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/decide', summary: 'Release or uphold a picture held by the AI check, from its details only', auth: 'admin', body: Schemas.SafetyDecide,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.decide');
-      const body = parseJson(Schemas.SafetyDecide, req.rawBody);
-      const c = await safety(() => safetyCfg().decide(params.id, claims.sub, body.outcome, body.reason));
-      return adminDone(claims, 'safety.decide', `${c.caseId} ${c.status}`, { case: caseSummary(c) });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/report', summary: 'Send (or retry) the CyberTipline report for a hash match', auth: 'admin',
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.report');
-      const storage = options.gallery?.storage;
-      if (!storage?.read || !storage.copy) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'The evidence store is not set up on this server.');
-      const scannable = { read: storage.read.bind(storage), copy: storage.copy.bind(storage), delete: storage.delete.bind(storage) };
-      const c = await safety(() => safetyCfg().report(params.id, scannable));
-      return adminDone(claims, 'safety.report', `${c.caseId} ${c.ncmec?.reportId ?? ''}`, { case: caseSummary(c) });
-    },
-  },
-  {
-    method: 'POST', path: '/v1/admin/safety/cases/:id/manual-report', summary: 'Record a report made by hand to NCMEC or the NCA', auth: 'admin', body: Schemas.SafetyManualReport,
-    handler: async (req, params) => {
-      const claims = await admin(req, 'safety.manual-report');
-      const body = parseJson(Schemas.SafetyManualReport, req.rawBody);
-      const c = await safety(() => safetyCfg().recordManualReport(params.id, claims.sub, body));
-      return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
     },
   },
   // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.
@@ -379,6 +346,14 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/overview', summary: 'Counts for the admin console', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'overview');
+      // For the console's Today summary. A figure that cannot be read is null ("not known"), never zero.
+      const t = now();
+      const month = new Date(t).toISOString().slice(0, 7);
+      const sp = options.spend;
+      const [proSubscribers, spentPence] = await Promise.all([
+        options.proSubscriberCounts ? options.proSubscriberCounts().catch(() => null) : Promise.resolve(null),
+        sp ? sp.guard.spent(t).catch(() => null) : Promise.resolve(null),
+      ]);
       return adminDone(claims, 'overview', '', {
         ...(await store.counts()),
         aiDisabled: (await store.getSetting('ai_disabled')) === '1',
@@ -386,6 +361,10 @@ export function adminRoutes(ctx: AppContext): Route[] {
         store: store.kind,
         licenceIssuing: !!config.licencePrivateKey,
         paymentsConnected: !!options.payments,
+        proSubscribers,
+        spend: sp && spentPence !== null ? { month, spentPence, ceilingPence: sp.ceilingPence } : null,
+        // The last website contact message that could not be emailed to the owner (it is still in Messages); null once one goes.
+        contactMailProblem: await (async () => { try { const v = JSON.parse((await store.getSetting('contact_mail_problem')) || 'null'); return v && typeof v.problem === 'string' ? { atMs: Number(v.atMs) || null, problem: v.problem } : null; } catch { return null; } })(),
       });
     },
   },
@@ -422,7 +401,9 @@ export function adminRoutes(ctx: AppContext): Route[] {
     method: 'GET', path: '/v1/admin/switches', summary: 'On/off switches for the managed backend features', auth: 'admin',
     handler: async (req) => {
       const claims = await admin(req, 'switches.read');
-      const switches = await Promise.all(SWITCHES.map(async (w) => ({ key: w.key, label: w.label, note: w.note, on: await switchOn(w.key), configured: switchConfigured(w.key) })));
+      const testOnly = (key: string) => paddleSandbox && (key === 'pro-checkout' || key === 'cloud-top-ups');
+      const switches = await Promise.all(SWITCHES.map(async (w) => ({ key: w.key, label: w.label, note: w.note, on: await switchOn(w.key), configured: switchConfigured(w.key),
+        ...(testOnly(w.key) ? { testOnly: 'Test payments (sandbox): only testers can buy' } : {}) })));
       return adminDone(claims, 'switches.read', '', { switches });
     },
   },

@@ -143,8 +143,18 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /** The built-in kind check has looked at this photo (used when no species model is offered; src/core/autoTags.ts
+   * kindCandidates). Says nothing about a species name. */
+  kindChecked?: boolean;
+  /** Which version of the species scan last reported on this photo (src/core/autoTags.ts SPECIES_SCAN_VERSION). */
+  speciesScanVersion?: number;
   /** Where the automatic species name was matched against (the project's place when it was named). Absent on older photos: not known. */
   speciesArea?: import('./speciesArea').SpeciesArea;
+  /** The species model's own best guess when it was not sure enough to name the photo alone, kept only at or above
+   * src/core/speciesNearby.ts GUESS_FLOOR. Lets sure shots taken at the same moment confirm it. Never shown as a name by itself. */
+  speciesGuess?: import('./speciesNearby').SpeciesGuess;
+  /** The automatic name came from sure shots taken at the same moment that agreed with this photo's own guess. */
+  speciesNearby?: boolean;
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;
@@ -213,7 +223,8 @@ export interface PhotoFrame {
 
 export interface ShootDescriptor {
   /** Absent on legacy photography projects. */
-  projectType?: 'photography' | 'collage' | 'album';
+  /** 'tethered': a live shoot, where photos arrive from the camera (USB, camera Wi-Fi, a watched folder) as they are taken. */
+  projectType?: 'photography' | 'collage' | 'album' | 'tethered';
   id: string;
   title: string;
   sourceKind: 'demo' | 'local-files' | 'local-folder';

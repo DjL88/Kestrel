@@ -17,7 +17,8 @@ variable "phase5_paddle_environment" {
   }
 }
 # Retired 26 Nov 2026: the one-off Pro price (pri_...). Pro is now sold only as a subscription, so the server no longer
-# offers this price; one-off licences already sold are still honoured from their stored orders. Kept so tfvars parse.
+# offers this price, and it is no longer passed to the server (KCP_PADDLE_PRO_PRICE_ID). One-off licences already sold
+# are still honoured from their stored orders. Kept only so older tfvars still parse; it can be cleared to "".
 variable "phase5_paddle_pro_price_id" {
   type    = string
   default = ""
@@ -50,8 +51,19 @@ variable "phase5_paddle_annual_price_id" {
     error_message = "phase5_paddle_annual_price_id is empty or a Paddle price ID (pri_...)."
   }
 }
+# Test payments: while phase5_paddle_environment is "sandbox", anyone could pay with Paddle's public test card, so only
+# testers may start a checkout: the /admin admins (kcp-admin-emails) plus these sign-in emails. Set them only in the
+# private tfvars (switch-features.sh), never in Git. Ignored in production.
+variable "phase5_paddle_sandbox_testers" {
+  type    = list(string)
+  default = []
+  validation {
+    condition     = alltrue([for e in var.phase5_paddle_sandbox_testers : can(regex("^[^@ ,]+@[^@ ,]+$", e))])
+    error_message = "phase5_paddle_sandbox_testers is a list of email addresses."
+  }
+}
 # Optional offer discount (dsc_..., e.g. Black Friday), made in Paddle → Catalog → Discounts. Not a secret. It applies
-# only to a Pro checkout started while the admin flag proPromo is on. Empty means no offer discount.
+# applies while Paddle says it is active, before its expiry and under its usage limit (set those in Paddle). Empty means no offer.
 variable "phase5_paddle_promo_discount_id" {
   type    = string
   default = ""

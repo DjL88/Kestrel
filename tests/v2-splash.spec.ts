@@ -85,9 +85,10 @@ test('?v2 the welcome keeps room for the risen logo, so the heading sits just be
   let previous = Number.NaN;
   await expect.poll(async () => { const { top } = await measure(); const settled = top === previous; previous = top; return settled; }).toBe(true);
   const logo = await measure();
+  // The logo sits a little lower than it first did (Windows beta: it crowded the top edge), about 40 px down.
+  expect(logo.top).toBeGreaterThanOrEqual(32);
+  expect(logo.top).toBeLessThanOrEqual(48);
   const headingTop = (await heading.boundingBox())!.y;
-  expect(logo.top).toBeGreaterThanOrEqual(16);
-  expect(logo.top).toBeLessThanOrEqual(32);
   expect(headingTop).toBeGreaterThan(logo.bottom);
   expect(headingTop - logo.bottom).toBeLessThan(32);
 });

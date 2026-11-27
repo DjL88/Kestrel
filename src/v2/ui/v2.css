@@ -174,6 +174,8 @@
   padding-right: calc(4.5rem + env(safe-area-inset-right));
 }
 .inflight-v2[data-v2-layout="phone-landscape"] .v2-sheet-open .v2-filmstrip { display: none; }
+/* Upright tablet: a half-height bottom sheet; the filmstrip steps aside while it is open. */
+.inflight-v2[data-v2-layout="tablet-portrait"] .v2-sheet-open .v2-filmstrip { display: none; }
 
 /* Nothing shown by colour alone (owner checklist, WCAG 1.4.1): what is current or selected also carries a shape, a short
    solid bar at its edge. It is drawn from the element's own state (aria-pressed, or data-selected where the element is
@@ -233,6 +235,15 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
 .inflight-v2 .v2-tasks-wheel-sweep { animation: v2-wheel-sweep 1.6s linear infinite; transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .inflight-v2 .v2-tasks-wheel-sweep { animation: none !important; } }
 .inflight-v2[data-v2-motion="calm"] .v2-tasks-wheel-sweep { animation: none !important; }
+/* Tasks: a running task's bar has a soft light sweeping along it, so a long import visibly works; still with less movement. */
+@keyframes v2-task-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+.inflight-v2 .v2-task-progress-running::after {
+  content: ''; position: absolute; inset: 0; width: 33%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, white 45%, transparent), transparent);
+  animation: v2-task-sweep 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .inflight-v2 .v2-task-progress-running::after { animation: none !important; display: none; } }
+.inflight-v2[data-v2-motion="calm"] .v2-task-progress-running::after { animation: none !important; display: none; }
 
 /* Safe areas (viewport-fit=cover): nothing sits under a notch, a rounded corner, the status bar or the home indicator.
    The workspace keeps clear of all four edges, so the top bar, the rail and docked panels, the bottom bars and sheets and
@@ -268,3 +279,19 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
   .inflight-v2 .v2-touch-target { min-height: var(--touch-min); }
   .inflight-v2 input[type="checkbox"], .inflight-v2 input[type="radio"] { width: 24px; height: 24px; }
 }
+
+/* Filmstrip "⋯" (Windows beta): with a mouse it is small and shows on hover or keyboard focus, so it does not crowd the
+ * photo; on touch screens (no hover) it stays visible at full touch size, since there is no hover to reveal it. */
+@media (hover: hover) and (pointer: fine) {
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { min-height: 1.5rem; min-width: 1.5rem; opacity: 0; transition: opacity 120ms ease-out; }
+  .inflight-v2 .v2-strip-tile:hover .v2-strip-tile-more,
+  .inflight-v2 .v2-strip-tile:focus-within .v2-strip-tile-more { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { transition: none; }
+}
+/* The filmstrip's tool row scrolls sideways when it is too wide (a task's status chip can make it so) but never shows a
+   scrollbar: one coming and going changed the row's height, so the photo dock grew, the canvas shrank and the photo
+   moved (Dave: "zoom out moves the picture"). Wheel, trackpad, touch and keyboard focus still scroll it. */
+.inflight-v2 .v2-filmstrip-tools { scrollbar-width: none; }
+.inflight-v2 .v2-filmstrip-tools::-webkit-scrollbar { display: none; }

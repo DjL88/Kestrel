@@ -34,5 +34,7 @@ test('?v2 a RAW and its JPEG import as one photo marked RAW + JPEG; a flag cover
   await page.keyboard.press('f');
   await expect(root.getByTestId('decision-filter-flagged')).toHaveText(/Flagged \(1\)/);
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  // The paired file is part of File & Connection, on Info's second tab (owner, 26 Nov).
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   await expect(root.getByText('Z8_0001.JPG')).toBeVisible();
 });

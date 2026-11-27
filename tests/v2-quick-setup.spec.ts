@@ -32,6 +32,11 @@ test('first launch: quick setup walks language, about you, Pro, cloud, Flight mo
   await setup.getByRole('button', { name: 'Next' }).click();
 
   await expect(setup).toHaveAttribute('data-setup-step', 'extras');
+  // Lens profiles are offered next to the AI extras, ticked, in plain words (no project or host names).
+  const lens = setup.getByTestId('setup-extra-lens-profiles');
+  await expect(lens.getByRole('checkbox')).toBeChecked();
+  await expect(lens).toContainText('Lens profiles');
+  await expect(lens).not.toContainText(/lensfun|GitHub/i);
   await setup.getByRole('button', { name: /^(Finish|Download and finish)$/ }).click();
   await expect(splash).toHaveCount(0, { timeout: 5000 });
 
@@ -43,6 +48,9 @@ test('first launch: quick setup walks language, about you, Pro, cloud, Flight mo
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Assistance' }).click();
   await expect(settings.getByTestId('flight-mode-solo').getByRole('radio')).toBeChecked();
+  // The licence credit for the lens profiles lives in Settings → Privacy → Credits.
+  await settings.getByRole('tab', { name: 'Privacy' }).click();
+  await expect(settings.getByTestId('v2-credits')).toContainText('CC BY-SA 3.0');
   await settings.getByRole('tab', { name: 'Account' }).click();
   await settings.getByRole('button', { name: 'Run quick setup again' }).click();
   const again = page.getByTestId('quick-setup-dialog');

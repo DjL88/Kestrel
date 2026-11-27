@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { CANVAS_TIPS_EVENT } from '../utils/canvasTips';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { chordLabel, type Keymap } from '../commands/keymap';
@@ -55,6 +56,8 @@ interface TopBarProps {
   onExportOpenFormats?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
+  /** An upright tablet shows Import in the bar itself (its filmstrip is busy with photos). */
+  importInBar?: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onCopyRecipe: () => void;
@@ -107,6 +110,7 @@ export default function TopBar({
   onExportOpenFormats,
   onOpenSettings,
   onImport,
+  importInBar = false,
   onUndo,
   onRedo,
   onCopyRecipe,
@@ -399,6 +403,11 @@ export default function TopBar({
                   checked={compareMode}
                   onClick={() => runAndClose(onToggleCompare)}
                 />
+                <MenuItem
+                  icon="info"
+                  label={STRINGS.topBar.viewActions.showCanvasTips}
+                  onClick={() => runAndClose(() => window.dispatchEvent(new Event(CANVAS_TIPS_EVENT)))}
+                />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="panel"
@@ -468,6 +477,17 @@ export default function TopBar({
           ))}
         </div>
         {presence}
+        {importInBar && (
+          <button
+            type="button"
+            onClick={onImport}
+            data-testid="topbar-import"
+            className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)]"
+          >
+            <BrandIcon name="image-plus" size={15} />
+            <span>{STRINGS.filmstrip.importPhotos}</span>
+          </button>
+        )}
         {onShare && (
           <button
             type="button"

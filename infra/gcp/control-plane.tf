@@ -313,12 +313,13 @@ resource "google_cloud_run_v2_service" "control_plane" {
       }
       dynamic "env" {
         for_each = var.phase5_paddle_enabled ? merge(
-          { KCP_PADDLE_ENVIRONMENT = var.phase5_paddle_environment, KCP_PADDLE_PRO_PRICE_ID = var.phase5_paddle_pro_price_id },
+          { KCP_PADDLE_ENVIRONMENT = var.phase5_paddle_environment },
           var.paddle_key_rotation_enabled ? { KCP_PADDLE_KEY_PROJECT = var.project_id } : {},
           var.phase5_paddle_promo_discount_id != "" ? { KCP_PADDLE_PROMO_DISCOUNT_ID = var.phase5_paddle_promo_discount_id } : {},
           var.phase5_paddle_monthly_price_id != "" ? { KCP_PADDLE_MONTHLY_PRICE_ID = var.phase5_paddle_monthly_price_id } : {},
           var.phase5_paddle_annual_price_id != "" ? { KCP_PADDLE_ANNUAL_PRICE_ID = var.phase5_paddle_annual_price_id } : {},
           length(var.phase5_paddle_topup_price_ids) > 0 ? { KCP_PADDLE_TOPUP_PRICE_IDS = jsonencode(var.phase5_paddle_topup_price_ids) } : {},
+          length(var.phase5_paddle_sandbox_testers) > 0 ? { KCP_SANDBOX_TESTERS = join(",", var.phase5_paddle_sandbox_testers) } : {},
         ) : {}
         content {
           name  = env.key
@@ -354,14 +355,6 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
-        # Safety checks on shared and cloud photos (safety.tf). Secrets are named here, never their values.
-        for_each = local.safety_env
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-      dynamic "env" {
         for_each = var.learning_signal_enabled ? { KCP_LEARNING_ENABLED = "1" } : {}
         content {
           name  = env.key
@@ -383,8 +376,6 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
     google_secret_manager_secret_iam_member.phase5_paddle,
-    google_secret_manager_secret_iam_member.safety,
-    google_project_service.vision,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,

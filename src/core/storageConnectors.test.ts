@@ -3,15 +3,15 @@ import test from 'node:test';
 import { checkS3Settings, checkWebDavSettings, isInsideExportRoot, isInsideSyncRoot, memoryConnector, syncPath } from './storageConnectors.ts';
 
 test('every connector uses one layout, by level', () => {
-  assert.equal(syncPath('recipes', 'p1', 'img-9'), 'kestrel/v1/recipes/p1/img-9.json');
-  assert.equal(syncPath('previews', 'p1', 'img-9'), 'kestrel/v1/previews/p1/img-9.jpg');
-  assert.equal(syncPath('originals', 'p1', 'img-9'), 'kestrel/v1/originals/p1/img-9.orig');
+  assert.equal(syncPath('recipes', 'p1', 'img-9'), 'InFlight/v1/recipes/p1/img-9.json');
+  assert.equal(syncPath('previews', 'p1', 'img-9'), 'InFlight/v1/previews/p1/img-9.jpg');
+  assert.equal(syncPath('originals', 'p1', 'img-9'), 'InFlight/v1/originals/p1/img-9.orig');
 });
 
 test('an unsafe id cannot build a path that escapes the InFlight folder', () => {
   for (const bad of ['..', '../x', 'a/b', '', '.hidden', 'a b']) assert.throws(() => syncPath('recipes', bad, 'ok'), /Unsafe/);
-  assert.equal(isInsideSyncRoot('kestrel/v1/recipes/p/x.json'), true);
-  assert.equal(isInsideSyncRoot('kestrel/v1/../secret'), false);
+  assert.equal(isInsideSyncRoot('InFlight/v1/recipes/p/x.json'), true);
+  assert.equal(isInsideSyncRoot('InFlight/v1/../secret'), false);
   assert.equal(isInsideSyncRoot('other/x'), false);
 });
 
@@ -19,7 +19,7 @@ test('a connector stores, lists, reads and removes inside the root, and refuses 
   const connector = memoryConnector();
   const path = syncPath('recipes', 'p1', 'a');
   await connector.put(path, new Uint8Array([1, 2]), 'sha');
-  assert.deepEqual(await connector.list('kestrel/v1/recipes'), [path]);
+  assert.deepEqual(await connector.list('InFlight/v1/recipes'), [path]);
   assert.deepEqual([...(await connector.get(path))!], [1, 2]);
   await connector.remove(path);
   assert.equal(await connector.get(path), null);
@@ -39,7 +39,7 @@ test('S3 settings are checked with plain messages', () => {
 
 test('cross-platform traversal and alternate data streams never pass the shared path guard', async () => {
   const connector = memoryConnector();
-  for (const prefix of ['kestrel/v1/', 'export/']) for (const suffix of ['safe/..\\secret', 'safe/a:stream', 'safe/.. /secret', 'safe/a\u0000b']) {
+  for (const prefix of ['InFlight/v1/', 'export/']) for (const suffix of ['safe/..\\secret', 'safe/a:stream', 'safe/.. /secret', 'safe/a\u0000b']) {
     const path = prefix + suffix;
     assert.equal(isInsideSyncRoot(path), false);
     assert.equal(isInsideExportRoot(path), false);

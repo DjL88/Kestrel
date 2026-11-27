@@ -27,7 +27,7 @@ test('the default matrix offers GBP only until rates are refreshed, and never gu
   const { all, offered } = computePrices(DEFAULT_PRICING);
   assert.deepEqual(offered.map((row) => row.currency), ['GBP']);
   assert.ok(all.length > 1);
-  assert.deepEqual(publicPricing(DEFAULT_PRICING).currencies.GBP, { digits: 2, 'pro.monthly': 299, 'pro.annual': 2900 });
+  assert.deepEqual(publicPricing(DEFAULT_PRICING).currencies.GBP, { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999 });
 });
 
 test('conversions use the stored rate, overrides always win, and a currency without a rate is not offered', () => {

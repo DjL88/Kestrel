@@ -56,15 +56,10 @@ test('cloud edit settings (x-std-cloud-recipe) stay off until the owner switches
   assert.match(plane, /var\.cloud_processing_enabled && var\.cloud_runner_image != "" && var\.cloud_recipe_enabled \? \{ KCP_CLOUD_RECIPE_ENABLED = "1" \}/);
 });
 
-test('Cloud Vision (SafeSearch) is enabled only by safety.tf, and only when the owner switches it on', () => {
-  assert.deepEqual(files.filter((f) => code(f).includes('vision.googleapis.com')), ['safety.tf']);
-  const tf = code('safety.tf');
-  assert.match(tf, /variable "safesearch_enabled"\s*\{[^}]*default\s*=\s*false/s);
-  assert.match(tf, /variable "ncmec_environment"\s*\{[^}]*default\s*=\s*"test"/s);
-  const resource = tf.slice(tf.indexOf('resource "google_project_service" "vision"'));
-  assert.match(resource, /count\s*=\s*var\.safesearch_enabled \? 1 : 0/);
-  assert.match(tf, /var\.safesearch_enabled \? \{ KCP_SAFESEARCH_ENABLED = "1" \}/);
-  assert.match(code('control-plane.tf'), /for_each = local\.safety_env/);
+test('no image scanning service is enabled: Cloud Vision, PhotoDNA and the CyberTipline were removed (27 Nov 2026)', () => {
+  for (const needle of ['vision.googleapis.com', 'safesearch', 'photodna', 'ncmec', 'safety_env']) {
+    assert.deepEqual(files.filter((f) => code(f).toLowerCase().includes(needle)), [], needle);
+  }
 });
 
 test('the compliance document bucket is off by default, private, versioned, never deletes, and the control plane cannot delete from it', () => {
@@ -82,4 +77,9 @@ test('the compliance document bucket is off by default, private, versioned, neve
   assert.deepEqual([...new Set(roles)].sort(), ['roles/storage.objectCreator', 'roles/storage.objectViewer']);
   assert.match(code('control-plane.tf'), /KCP_COMPLIANCE_BUCKET = try\(google_storage_bucket\.compliance\[0\]\.name, ""\)/);
   assert.match(readFileSync(join(dir, 'switch-features.sh'), 'utf8'), /"compliance_documents_enabled"/);
+  assert.match(readFileSync(join(dir, 'switch-features.sh'), 'utf8'), /"cloud_processing_enabled","cloud_runner_image"/);
+});
+
+test('the retired one-off Pro price is never passed to the control plane (Pro is subscription only)', () => {
+  for (const f of files) assert.doesNotMatch(code(f), /KCP_PADDLE_PRO_PRICE_ID/, f);
 });

@@ -6,14 +6,16 @@ import { proposalFileName, proposalItemProblem, MAX_PROPOSAL_ITEMS, type Proposa
 
 /**
  * What an assistant may see of an InFlight project, read from the folder a person chose to share. It reads only the
- * project backups InFlight itself writes there (`kestrel/v1/project-backups/<project>/…kestrel.json`: decisions,
+ * project backups InFlight itself writes there (`InFlight/v1/project-backups/<project>/…inflight.json`, and older ones under `kestrel/v1`: decisions,
  * ratings, tags, edit settings): never photographs, never the rest of the disk. Anything it wants changed becomes a
- * proposal file beside them (`kestrel/v1/proposals/<project>/`), which InFlight shows in Co-pilot for the person to
+ * proposal file beside them (`InFlight/v1/proposals/<project>/`), which InFlight shows in Co-pilot for the person to
  * apply or dismiss; nothing is applied for them.
  */
 const IDENTITY = /^[a-f0-9]{64}$/;
-const BACKUP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
-const root = (folder: string) => join(folder, 'kestrel', 'v1');
+const BACKUP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.(?:inflight|kestrel)\.json$/;
+const root = (folder: string) => join(folder, 'InFlight', 'v1');
+/** The same folder under its name before the rename: still read, never written. */
+const roots = (folder: string) => [root(folder), join(folder, 'kestrel', 'v1')];
 
 export class McpInputError extends Error {}
 
@@ -24,13 +26,16 @@ const savedAtOf = (name: string) => name.slice(0, 24).replace(/^(\d{4}-\d{2}-\d{
 
 async function load(folder: string, project: string): Promise<ProjectSnapshot> {
   checkProject(project);
-  let names: string[];
-  try { names = (await readdir(join(root(folder), 'project-backups', project))).filter((name) => BACKUP.test(name)).sort(); }
-  catch { throw new McpInputError(`No project “${project}” in this folder. Use list_projects.`); }
-  // The newest readable backup; an older one stands in if the newest is damaged.
-  for (const name of names.reverse()) {
+  const found: { name: string; path: string }[] = [];
+  for (const base of roots(folder)) {
+    const dir = join(base, 'project-backups', project);
+    try { for (const name of await readdir(dir)) if (BACKUP.test(name)) found.push({ name, path: join(dir, name) }); } catch { /* not in this one */ }
+  }
+  if (!found.length) throw new McpInputError(`No project “${project}” in this folder. Use list_projects.`);
+  // The newest readable backup (by the time in its name, whichever folder it is in); an older one stands in if damaged.
+  for (const { name, path } of found.sort((a, b) => b.name.localeCompare(a.name))) {
     try {
-      const text = await readFile(join(root(folder), 'project-backups', project, name), 'utf8');
+      const text = await readFile(path, 'utf8');
       // Restoring validates every field; the title is the project's own (a restore would add "(restored)").
       const state = restoreProjectBackup(text, project);
       const title = String((JSON.parse(text) as { project: { shoot: { title: string } } }).project.shoot.title);
@@ -49,10 +54,12 @@ const counts = (photos: SyncedPhoto[]) => ({
 });
 
 export async function listProjects(folder: string) {
-  let names: string[] = [];
-  try { names = await readdir(join(root(folder), 'project-backups')); } catch { return []; }
+  const names = new Set<string>();
+  for (const base of roots(folder)) {
+    try { for (const name of await readdir(join(base, 'project-backups'))) names.add(name); } catch { /* not in this one */ }
+  }
   const out = [];
-  for (const project of names.filter((name) => IDENTITY.test(name)).sort()) {
+  for (const project of [...names].filter((name) => IDENTITY.test(name)).sort()) {
     try { const snapshot = await load(folder, project); out.push({ project, title: snapshot.title, savedAt: snapshot.savedAt, ...counts(snapshot.photos) }); } catch { /* skip an unreadable copy */ }
   }
   return out;
@@ -108,5 +115,5 @@ export async function writeProposal(folder: string, project: string, items: Prop
   await mkdir(folderPath, { recursive: true });
   const name = proposalFileName(now);
   await writeFile(join(folderPath, name), JSON.stringify({ format: 'kestrel-proposal', version: 1, source: 'assistant', createdAt: now.toISOString(), project, items }, null, 2));
-  return { saved: `kestrel/v1/proposals/${project}/${name}`, suggestions: items.length, next: 'InFlight shows these in Co-pilot when this project is open. Nothing changes until the person applies them.' };
+  return { saved: `InFlight/v1/proposals/${project}/${name}`, suggestions: items.length, next: 'InFlight shows these in Co-pilot when this project is open. Nothing changes until the person applies them.' };
 }

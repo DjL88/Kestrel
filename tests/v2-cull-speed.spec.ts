@@ -200,7 +200,10 @@ test.describe('phone memory', () => {
       await expect(strip.getByRole('option').first()).toBeVisible({ timeout: 120_000 }).catch((reason) => { throw new Error(`${reason}\n${errors.join('\n')}`); });
 
       const started = Date.now();
-      await root.getByRole('button', { name: /Auto pick/ }).first().click();
+      // A phone keeps the filmstrip row calm (focus mode, 26 Nov): Auto pick is under its More menu.
+      const rowMore = root.getByTestId('filmstrip-row-more');
+      if (await rowMore.isVisible()) await rowMore.getByText('More', { exact: true }).click();
+      await root.getByRole('button', { name: /Auto pick/ }).filter({ visible: true }).first().click();
       await expect(page.getByText(/Photos checked by Auto pick: \d+/).first()).toBeVisible({ timeout: 60_000 + PHONE_PHOTOS * 3_000 })
         .catch((reason) => { throw new Error(`${reason}\n${errors.join('\n')}`); });
       const autoPickMs = Date.now() - started;

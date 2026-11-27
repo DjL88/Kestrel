@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-// /admin → More → Technical overview and answer bank: the document read from the control plane, a Markdown download
+// /admin → Technical overview (menu): the document read from the control plane, a Markdown download
 // and Save as PDF (the browser's print window, with only the document printed).
 let server: Server;
 let origin: string;
@@ -36,17 +36,16 @@ async function signIn(page: Page) {
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible();
   return () => overviewReads;
 }
 
-test('opens from More, shows the document with its tables, and loads it only when asked', async ({ page }) => {
+test('opens from the menu, shows the document with its tables, and loads it only when asked', async ({ page }) => {
   const reads = await signIn(page);
-  expect(reads(), 'not fetched on the home list').toBe(0);
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('link', { name: 'Technical overview and answer bank' }).click();
+  expect(reads(), 'not fetched on Today').toBe(0);
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: 'Technical overview' }).click();
   const doc = page.locator('#overview-doc');
-  await expect(doc.getByRole('heading', { level: 1, name: 'InFlight technical overview and answer bank' })).toBeVisible();
+  await expect(doc.getByRole('heading', { level: 2, name: 'InFlight technical overview and answer bank' })).toBeVisible();
   await expect(doc.getByRole('heading', { name: '15. Answer bank' })).toBeAttached();
   expect(await doc.locator('table').count()).toBeGreaterThanOrEqual(10);
   await expect(doc.locator('script, iframe')).toHaveCount(0);
@@ -66,5 +65,5 @@ test('downloads the Markdown and prints only the document', async ({ page }) => 
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.top')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Save as PDF' })).toBeHidden();
-  await expect(page.locator('#overview-doc').getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.locator('#overview-doc').getByRole('heading', { level: 2 }).first()).toBeVisible();
 });

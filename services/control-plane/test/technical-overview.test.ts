@@ -26,7 +26,7 @@ test('people who are not admins cannot read the technical overview', async () =>
 });
 
 test('a server build without the overview says so instead of failing', async () => {
-  const h = await startHarness(undefined, undefined, { technicalOverviewPath: new URL('./no-such-overview.md', import.meta.url) });
+  const h = await startHarness(undefined, undefined, { appDeps: { technicalOverviewPath: new URL('./no-such-overview.md', import.meta.url) } });
   try {
     const res = await h.call('GET', '/v1/admin/technical-overview', { token: h.adminToken });
     assert.equal(res.status, 503);

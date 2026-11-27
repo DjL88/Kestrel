@@ -79,7 +79,7 @@ test('Older stored entitlement snapshots remain migratable and local content sta
   assert.equal(result.fullEditor, true);
   assert.equal(result.localProjectAccess, true);
   assert.equal(result.cloudDownloads, false);
-  assert.deepEqual(PROPOSED_UK_PRICES, { localPence: 2900, currency: 'GBP' });
+  assert.deepEqual(PROPOSED_UK_PRICES, { localPence: 2999, currency: 'GBP' });
 });
 
 test('legacy plan-less active cloud cannot authorise upload or AI without a verified subscription', () => {

@@ -5,6 +5,7 @@ import { originalSourceKey } from '../core/originalSourceKey';
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
 import { discoverPhotoPaths } from './nativeFolderDiscovery';
+import { nativeFingerprint, nativePhotoStats } from './nativeImportIo';
 
 /**
  * A photo InFlight knows about without holding it: where it is, and how to read it when it is needed.
@@ -39,9 +40,9 @@ const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ??
 export const folderNameOf = (path: string) => baseName(path.trim());
 
 /** A photo that lives at this path, read from the disk each time it is needed. */
-export async function linkedPhoto(path: string): Promise<PickedPhoto> {
+export async function linkedPhoto(path: string, known?: { size: number; modifiedMs: number }): Promise<PickedPhoto> {
   const fs = await import('@tauri-apps/plugin-fs');
-  const info = await fs.stat(path);
+  const info = known ? { size: known.size, mtime: known.modifiedMs ? new Date(known.modifiedMs) : null } : await fs.stat(path);
   const name = baseName(path);
   const lastModified = info.mtime ? info.mtime.getTime() : 0;
   return {
@@ -103,6 +104,13 @@ export interface LinkedRange {
   blob: RangeBlob;
   /** True when the file still has the size and modified time it had when opened (it did not change while being read). */
   verify(): Promise<boolean>;
+  /**
+   * The same check with the app's own fingerprint only (one native read at the drive's speed): null when the app cannot
+   * fingerprint here, so a caller that only wants the cheap route can read the file the usual way instead.
+   */
+  verifyNatively?(): Promise<boolean | null>;
+  /** True while the file keeps the size and modified time it had when opened (a stat, no read). */
+  unchanged?(): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -110,17 +118,29 @@ export interface LinkedRange {
  * Ranged reader for a linked original: only the bytes asked for are read (a RAW's embedded preview is a few MB of a
  * 30-60 MB file, which matters on external drives and network shares). Same identity rule as linkedReader.
  */
-export function linkedRangeOpener(path: string, expectedSize: number | undefined, expectedOriginalSha256: string): () => Promise<LinkedRange> {
-  return async () => {
+/** headBytes: how much of the start one read brings in (a thumbnail needs only the first 256 KB; see rangeBlob.ts). */
+export function linkedRangeOpener(path: string, expectedSize: number | undefined, expectedOriginalSha256: string): (options?: { headBytes?: number }) => Promise<LinkedRange> {
+  return async (options) => {
     const fs = await import('@tauri-apps/plugin-fs');
     const before = await fs.stat(path);
     if (!linkedSourceMatches(expectedSize, before.size)) {
       throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
     }
-    const range = await openLinkedRange(path, before.size);
+    const range = await openLinkedRange(path, before.size, '', options?.headBytes);
+    const unchanged = (after: { size: number; mtime: Date | null }) => after.size === before.size &&
+      !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
     return {
       blob: range.blob,
       close: range.close,
+      unchanged: async () => { try { return unchanged(await fs.stat(path)); } catch { return false; } },
+      verifyNatively: async () => {
+        try {
+          if (!unchanged(await fs.stat(path))) return false;
+          const actual = await nativeFingerprint(path, before.size);
+          if (!actual) return null;
+          return isSameOriginalBytes(expectedOriginalSha256, actual) && unchanged(await fs.stat(path));
+        } catch { return false; }
+      },
       verify: async () => {
         const after = await fs.stat(path);
         if (after.size !== before.size ||
@@ -128,7 +148,8 @@ export function linkedRangeOpener(path: string, expectedSize: number | undefined
         try {
           // The preview has not been displayed yet. Authenticate the entire ranged
           // original before returning it, not just its JPEG header or file metadata.
-          const actual = await hashOriginalBytes(range.blob);
+          // Read by the app itself when it can (one call, at the drive's speed), not a MiB at a time across the bridge.
+          const actual = await nativeFingerprint(path, before.size) ?? await hashOriginalBytes(range.blob);
           const final = await fs.stat(path);
           return isSameOriginalBytes(expectedOriginalSha256, actual) &&
             final.size === before.size &&
@@ -146,7 +167,7 @@ export async function pickPhotosNatively(): Promise<PickedPhoto[] | 'cancelled'>
   const chosen = await open({ multiple: true, directory: false, title: 'Choose photos', filters: [{ name: 'Photos', extensions }] });
   const paths = Array.isArray(chosen) ? chosen : typeof chosen === 'string' ? [chosen] : [];
   if (!paths.length) return 'cancelled';
-  return Promise.all(paths.map(linkedPhoto));
+  return Promise.all(paths.map((path) => linkedPhoto(path)));
 }
 
 /** Choose a folder and link photographs throughout its nested shoot folders.
@@ -173,11 +194,19 @@ export async function pickFolderNatively(options: {
       ? 'This folder contains more photos than InFlight can safely scan at once. Choose a smaller shoot folder.'
       : 'Some folders could not be read. Check drive permissions and try again.');
   }
+  // The app answers every photo's size and time in one call; one stat per photo took over two minutes for 2,000 RAWs.
+  const known = await nativePhotoStats(discovery.paths);
+  if (options.signal?.aborted) return 'cancelled';
+  if (known && known.every(Boolean)) {
+    const photos = await Promise.all(discovery.paths.map((path, index) => linkedPhoto(path, known[index]!)));
+    options.onProgress?.(photos.length, discovery.paths.length);
+    return photos;
+  }
   // Limit concurrent filesystem metadata requests for large camera cards/NAS volumes.
   const photos: PickedPhoto[] = [];
   for (let index = 0; index < discovery.paths.length; index += 8) {
     if (options.signal?.aborted) return 'cancelled';
-    const batch = await Promise.all(discovery.paths.slice(index, index + 8).map(linkedPhoto));
+    const batch = await Promise.all(discovery.paths.slice(index, index + 8).map((path) => linkedPhoto(path)));
     photos.push(...batch);
     options.onProgress?.(photos.length, discovery.paths.length);
   }

@@ -31,12 +31,13 @@ import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable }
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
-import { isRawPreviewFile } from '../../core/rawFormats';
+import { isRawPreviewFile, shownFileFormat } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
 import { editorText } from '../../i18n/areas/editor';
 import type { Leaning } from '../../core/editStyle';
 import { displaySpeciesName } from '../../core/speciesNames';
+import { STARTER_TAGS } from '../../core/subjectTags';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
@@ -174,7 +175,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
     // The warnings are said in words from the colour check, never as the check's internal codes.
     colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
     colourCheck: run.colour ? colourWords(run.colour) : undefined,
-    kelvinEstimate: engineText.notMeasured,
+    kelvinEstimate: '',
     suggestions,
   };
 }
@@ -182,6 +183,17 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
 export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean; /** The original is there but its compression can't be read yet. */ unsupported?: UnsupportedRawCompression }
 
 const NOT_RECORDED = engineText.notRecorded;
+
+/**
+ * The words beside the histogram's title: the camera's as-shot white when the RAW develop worked it out ("As shot about
+ * 5,600 K (estimated)"), otherwise nothing. It used to say "Not measured" (of the colour temperature) for every photo,
+ * which read as if the histogram itself was not measured, right above "Measured from the 16-bit RAW develop".
+ */
+export function asShotWords(frame: Pick<PhotoFrame, 'asShotWhite'>): string {
+  const kelvin = frame.asShotWhite?.kelvin;
+  return typeof kelvin === 'number' && Number.isFinite(kelvin) && kelvin > 0
+    ? STRINGS.adjust.kelvin.asShot.replace('{k}', Math.round(kelvin).toLocaleString('en-GB')) : '';
+}
 const positive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
 
 /** Only the two known import identity schemes encode the original byte count. */
@@ -217,27 +229,40 @@ export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>
   });
 }
 
+/** The tag that names the species: a species name wins over a kind word such as "Bird" or "Perched" that comes first. */
+function speciesTagOf(frame: Pick<PhotoFrame, 'tags'>): string | undefined {
+  return frame.tags?.find((entry) => !STARTER_TAGS.wildlife.some((word) => word.toLowerCase() === entry.toLowerCase())) ?? frame.tags?.[0];
+}
+
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
   // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
   const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
   if (chosen) return shown(chosen);
-  const tag = frame.tags?.[0];
+  const tag = speciesTagOf(frame);
   if (!tag) return undefined;
   return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
+/** The shown species name is InFlight's own suggestion (not one the person chose), so it can be looked at again. */
+export function speciesAutoOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): boolean {
+  const tag = speciesTagOf(frame);
+  return !frame.subjectNames?.length && !!tag && !!frame.autoTags?.includes(tag) && !STARTER_TAGS.wildlife.some((word) => word.toLowerCase() === tag.toLowerCase());
+}
+
 /** The place an automatic species name was matched against, in the person's words; nothing for a name of the person's own or an older photo. */
 export function speciesAreaLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags' | 'speciesArea'>): string | undefined {
-  const tag = frame.tags?.[0];
+  const tag = speciesTagOf(frame);
   if (!frame.speciesArea || frame.subjectNames?.length || !tag || !frame.autoTags?.includes(tag)) return undefined;
   return speciesAreaText.matchedIn(areaWords(frame.speciesArea, []));
 }
 
-export function tileStateFor(urls: FrameUrls | undefined): TileState {
+/** Importing only while the import now running is adding this photo; a photo whose thumbnail is just on its way otherwise
+ * says nothing (its tile stays a quiet empty square until the thumbnail arrives). */
+export function tileStateFor(urls: FrameUrls | undefined, beingImported = true): TileState {
   if (urls?.unsupported) return 'unsupported';
   if (urls?.failed) return 'unavailable';
-  return urls?.thumb ? 'ready' : 'importing';
+  return urls?.thumb || !beingImported ? 'ready' : 'importing';
 }
 
 /**
@@ -245,7 +270,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
+export interface PhotoExtras { /** The import now running is adding this photo (it says Importing until its thumbnail arrives). */ beingImported?: boolean; pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -309,11 +334,12 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
     thumbUrl: thumb,
-    state: tileStateFor(urls),
+    state: tileStateFor(urls, extras.beingImported ?? true),
     decision: frame.decision,
     originalConnected: extras.originalConnected ?? !urls?.failed,
     rating: Number.isFinite(rating) ? Math.max(0, Math.min(5, Math.round(rating))) : 0,
     speciesLabel: speciesLabelOf(frame),
+    ...(speciesAutoOf(frame) ? { speciesAuto: true } : {}),
     speciesAreaLabel: speciesAreaLabelOf(frame),
     ...vehicleWordsOf(frame),
     speciesName: frame.subjectNames?.[0] ?? frame.tags?.[0],
@@ -332,7 +358,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       iso: positive(exif.iso) ? exif.iso : 0,
       focalLength: exif.focalLengthMm ? `${exif.focalLengthMm}mm` : NOT_RECORDED,
       capturedAt: captured,
-      fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
+      fileFormat: shownFileFormat(frame.filename, exif.formatLabel) ?? extensionOf(frame.filename) ?? NOT_RECORDED,
       fileSizeMb: recordedFileSizeMb(frame.stableKey),
       dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
       // InFlight's RAW develop records the as-shot white only after it has validated the camera's own colour matrix, so that
@@ -376,11 +402,14 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(urls?.unsupported ? {} : extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
-    assistCritique: assist && matchesAutoSource(assist.run, frame)
-      ? assistCritiqueFor(assist, frame.edit)
-      : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
-        ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
-        : assistCritiqueFor(undefined, frame.edit),
+    assistCritique: {
+      ...(assist && matchesAutoSource(assist.run, frame)
+        ? assistCritiqueFor(assist, frame.edit)
+        : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
+          ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
+          : assistCritiqueFor(undefined, frame.edit)),
+      kelvinEstimate: asShotWords(frame),
+    },
   };
 }
 
@@ -388,7 +417,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
   const live = frames.filter((frame) => !frame.removedAt);
   return {
     id: shoot.id,
-    kind: shoot.collage ? 'collage' : 'photography',
+    kind: shoot.collage ? 'collage' : shoot.projectType === 'tethered' ? 'tethered' : 'photography',
     name: shoot.title,
     updatedAt: new Date(shoot.lastUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     coverUrl,

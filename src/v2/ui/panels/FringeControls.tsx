@@ -117,7 +117,6 @@ export function LensControls({ recipe, calmView, onChange, onUseProfile }: { rec
           <div className="space-y-1 text-[0.6875rem] leading-snug">
             <p className="text-[var(--text-primary)]">{L.using.replace('{lens}', profile.name)}</p>
             {notes.map((note) => <p key={note} className="text-[var(--text-muted)]">{note}</p>)}
-            <p className="text-[var(--text-muted)]">{L.credit}</p>
             <button type="button" onClick={() => { setOutcome(null); onChange({ lensProfile: null }); }}
               className="inline-flex items-center gap-1 font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)]">
               <BrandIcon name="restore" size={12} /><span>{L.removeProfile}</span>

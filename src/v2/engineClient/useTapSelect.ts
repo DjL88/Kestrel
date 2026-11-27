@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { newId } from '../../core/ids';
 import { engineText } from '../../i18n/areas/engine';
+import { v2Text } from '../../i18n/areas/v2';
 import { createSubjectMask, framingKey, type Mask } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
-import { samConfidence, samMaskToGrid, tapSelectPrompt } from '../../core/tapSelectMask';
+import { samConfidence, samMaskDetail, samMaskToGrid, tapSelectPrompt } from '../../core/tapSelectMask';
+import { isWholeSubjectPrompt } from '../../core/efficientSam';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadExportSource } from '../../providers/browserExport';
@@ -42,7 +44,7 @@ interface Deps {
  */
 export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScreen = null }: Deps) {
   const [state, setState] = useState<TapSelectState>({ pack: 'unavailable' });
-  const live = useRef<{ key: string; size: { w: number; h: number }; framing: string } | null>(null);
+  const live = useRef<{ key: string; size: { w: number; h: number }; framing: string; framed: HTMLCanvasElement } | null>(null);
   const sessionRef = useRef<TapSelectState['session']>(undefined);
   sessionRef.current = state.session;
 
@@ -62,21 +64,32 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
   }, []);
 
   /** Read one photo for tap to select (or join a reading already running for it). The same path for a tap and a read-ahead. */
+  /** The stored screen develop, else the picture shown now; null when there is neither. */
+  const screenSizePicture = useCallback(async (frame: PhotoFrame): Promise<HTMLImageElement | null> => {
+    const source = provider.current!;
+    const review = (await source.developedReview(frame).catch(() => null))?.review;
+    if (review) {
+      const url = URL.createObjectURL(review);
+      try { return await loadImage(url); } finally { URL.revokeObjectURL(url); }
+    }
+    const shown = await source.getFullPreviewUrl(frame, 'selected').catch(() => '');
+    return shown ? loadImage(shown).catch(() => null) : null;
+  }, [provider]);
+
   const readPhoto = useCallback(async (frame: PhotoFrame) => {
     const framing = frame.framing ?? DEFAULT_FRAMING;
     const key = keyOf(frame);
-    // A mask needs the photo's shape and content, not export-grade pixels: fall back to the shown preview for RAW/HEIF.
-    const image = await loadExportSource(frame, provider.current!).catch(async (reason) => {
-      const shown = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
-        ? await provider.current!.getFullPreviewUrl(frame, 'selected').catch(() => '') : '';
-      if (!shown) throw reason;
-      return loadImage(shown);
-    });
+    // A mask needs the photo's shape and content at READ_EDGE (2,048 px), not export-grade pixels. For a RAW or HEIF the
+    // stored 2,200 px screen develop, or else the picture already shown, is enough: a full 45 MP develop took most of the
+    // "Reading the photo once" wait. Only when neither exists is the full source developed.
+    const image = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
+      ? await screenSizePicture(frame) ?? await loadExportSource(frame, provider.current!)
+      : await loadExportSource(frame, provider.current!);
     const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
     const framed = document.createElement('canvas');
     drawFramedPhoto(image, framed, framing, { scale: Math.min(1, READ_EDGE / Math.max(width, height)) });
-    return { key, size: await encodePhoto(framed, key), framing: framingKey(framing) };
-  }, [provider]);
+    return { key, size: await encodePhoto(framed, key), framing: framingKey(framing), framed };
+  }, [provider, screenSizePicture]);
 
   // Read ahead: the photo open in the editor, once it has stayed there a moment and no other heavy work is running.
   // Not a scheduler job on purpose: with free memory unknown the scheduler runs one heavy job at a time and cannot stop
@@ -105,8 +118,8 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
     const ready = isPhotoEncoded(keyOf(frame));
     setState(current => ({ ...current, message: undefined, session: { photoId, phase: ready ? 'ready' : 'reading', mode: 'add', subjects: [], active: 0 } }));
     void (async () => {
-      const { key, size, framing } = await readPhoto(frame);
-      live.current = { key, size, framing };
+      const { key, size, framing, framed } = await readPhoto(frame);
+      live.current = { key, size, framing, framed };
       setState(current => current.session?.photoId === photoId ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
     })().catch((error: unknown) => {
       live.current = null;
@@ -131,15 +144,48 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
     const subjects = [...session.subjects];
     subjects[session.active] = { ...subject, taps };
     setState(current => ({ ...current, session: { ...session, subjects, phase: 'working' } }));
-    void selectSubjects(reading.key, [tapSelectPrompt(taps, reading.size)]).then(([result]) => {
+    const prompt = tapSelectPrompt(taps, reading.size);
+    void selectSubjects(reading.key, [prompt]).then(([result]) => {
       setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
       if (!result || result.coverage === 0) { setNotice(engineText.workspace.tapNothingSelected); return; }
-      const mask: Mask = {
-        ...createSubjectMask(subject.maskId, samMaskToGrid(result), reading.framing, samConfidence(result.score)),
-        feather: 0.3,
-      };
+      const grid = samMaskToGrid(result);
+      const detail = samMaskDetail(result);
+      const confidence = samConfidence(result.score);
+      const mask: Mask = { ...createSubjectMask(subject.maskId, grid, reading.framing, confidence, detail), feather: 0.3 };
+      saveOutline(photoId, reading.framing, mask);
+      // A first tap selects the whole subject: with the fine-edge pack (desktop), its finer edge replaces the outline,
+      // only when both models found the same subject, and only while no later tap has changed this subject.
+      if (!isWholeSubjectPrompt(prompt)) return;
+      // In a background worker (src/providers/fineEdgeMask.ts), so the photo can be worked on while it runs; the panel
+      // says so meanwhile. Skipped, in plain words, when there is not enough free memory for it.
+      const setRefining = (refining: boolean) => setState(current => current.session?.photoId === photoId
+        ? { ...current, session: { ...current.session, refining } } : current);
+      void import('../../providers/fineEdgeMask').then(async (m) => {
+        if (await m.fineEdgeStatus() !== 'ready') return;
+        setRefining(true);
+        try {
+          const refined = await m.refineSubjectGrid(reading.framed, grid, detail).catch((problem: unknown) => {
+            if (problem instanceof m.FineEdgeSkipped) setNotice(v2Text.tapSelect.refineSkipped);
+            return null;
+          });
+          if (!refined) return;
+          const now = sessionRef.current?.subjects.find(item => item.maskId === subject.maskId);
+          if (!now || now.taps.length !== 1) return;
+          saveOutline(photoId, reading.framing, { ...createSubjectMask(subject.maskId, refined.grid, reading.framing, confidence, refined.detail), feather: 0.3 });
+        } finally {
+          setRefining(false);
+        }
+      }).catch(() => undefined);
+    }).catch((error: unknown) => {
+      setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
+      setNotice(error instanceof Error ? error.message : engineText.workspace.tapNotAnswered);
+    });
+  }, [stateRef, editFrames, setNotice]);
+
+  /** Put one subject's outline on its mask layer, keeping the person's own adjustments and switches on that layer. */
+  const saveOutline = useCallback((photoId: string, framing: string, mask: Mask) => {
       editFrames([photoId], (latest) => {
-        if (framingKey(latest.framing ?? DEFAULT_FRAMING) !== reading.framing) return latest.edit;
+        if (framingKey(latest.framing ?? DEFAULT_FRAMING) !== framing) return latest.edit;
         const masks = latest.edit?.masks ?? [];
         const kept = masks.find(item => item.id === mask.id);
         // Keep the person's own adjustments and switches on an existing layer; only its outline changes.
@@ -147,11 +193,7 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice, onScre
         if (!kept && !canAddMask(masks)) return latest.edit;
         return { ...(latest.edit ?? DEFAULT_EDIT), masks: kept ? masks.map(item => item.id === mask.id ? next : item) : [...masks, next] };
       });
-    }).catch((error: unknown) => {
-      setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
-      setNotice(error instanceof Error ? error.message : engineText.workspace.tapNotAnswered);
-    });
-  }, [stateRef, editFrames, setNotice]);
+  }, [editFrames]);
 
   const setMode = useCallback((mode: 'add' | 'remove') => setState(current => current.session ? { ...current, session: { ...current.session, mode } } : current), []);
   const newSubject = useCallback(() => setState(current => current.session

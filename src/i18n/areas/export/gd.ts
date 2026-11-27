@@ -19,7 +19,7 @@ export const gd: AreaTranslation<typeof source> = {
     copyright: "Dlighe-sgrìobhaidh",
     includeKeywords: "Cuir prìomh fhaclan ann",
     keywords: "Prìomh fhaclan (le cromagan; falamh = tagaichean dearbhte)",
-    help: "Faodaidh cuspairean dearbhte an tiotal agus na prìomh fhaclan a lìonadh. Cha tèid tuairmsean AI nach deach a dhearbhadh às-phortadh. Tha am fiosrachadh san fhaidhle, chan ann air an dealbh.",
+    help: "Faodaidh cuspairean dearbhte an tiotal agus na prìomh fhaclan a lìonadh. Cha tèid molaidhean mhodailean nach deach a dhearbhadh às-phortadh. Tha am fiosrachadh san fhaidhle, chan ann air an dealbh.",
   },
   originals: {
     title: "Faidhlichean tùsail a’ chamara",

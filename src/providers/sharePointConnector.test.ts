@@ -57,14 +57,14 @@ test('files live in an InFlight folder in that library, addressed by path', asyn
   };
   const connector = sharePointConnector({ getToken: async () => 't', fetchImpl }, { driveId: 'b!main' });
   assert.deepEqual(await connector.test(), { ok: true });
-  await connector.put('kestrel/v1/recipes/p/a.json', new TextEncoder().encode('{}'), '');
-  assert.deepEqual(await connector.list('kestrel/v1/recipes/p'), ['kestrel/v1/recipes/p/a.json']);
-  await connector.remove('kestrel/v1/recipes/p/a.json');
+  await connector.put('InFlight/v1/recipes/p/a.json', new TextEncoder().encode('{}'), '');
+  assert.deepEqual(await connector.list('InFlight/v1/recipes/p'), ['InFlight/v1/recipes/p/a.json']);
+  await connector.remove('InFlight/v1/recipes/p/a.json');
   assert.deepEqual(urls, [
     'GET https://graph.microsoft.com/v1.0/drives/b!main/root',
-    'PUT https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/kestrel/v1/recipes/p/a.json:/content?@microsoft.graph.conflictBehavior=replace',
-    'GET https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/kestrel/v1/recipes/p:/children?$select=name,folder&$top=200',
-    'DELETE https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/kestrel/v1/recipes/p/a.json',
+    'PUT https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/InFlight/v1/recipes/p/a.json:/content?@microsoft.graph.conflictBehavior=replace',
+    'GET https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/InFlight/v1/recipes/p:/children?$select=name,folder&$top=200',
+    'DELETE https://graph.microsoft.com/v1.0/drives/b!main/root:/InFlight/InFlight/v1/recipes/p/a.json',
   ]);
   await assert.rejects(connector.put('../x', new Uint8Array(), ''), /outside the InFlight folder in SharePoint/);
   assert.throws(() => sharePointConnector({ getToken: async () => 't', fetchImpl }, { driveId: '../me/drive' }));

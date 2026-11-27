@@ -10,13 +10,12 @@ import { licenceIsUsable, newLicence } from './store.ts';
 import { isContributorLicence } from './entitlement.ts';
 import { accountCopy, parseSetupAnswers } from '../../../src/core/quickSetup.ts';
 import { PADDLE_TRANSACTION_ID } from './commerce/paddle.ts';
-import { caseForUploader } from './contentSafety.ts';
 import { ApiError, parseJson } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 
 export function meRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
+  const { options, config, store, now, mayBuy, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
   return [
   // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
   // originals are never on this service, so nothing here can reach them.
@@ -139,7 +138,8 @@ export function meRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await bearer(req);
       const checkout = options.proCheckout;
-      if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
+      // Test payments (sandbox): someone who is not a tester sees the same state as before Pro goes on sale.
+      if (!checkout || !(await switchOn('pro-checkout')) || !(await mayBuy(claims.sub))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Pro subscriptions are not open yet. Everything else keeps working.', true);
       if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
       const { plan } = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
       const t = now();
@@ -148,9 +148,8 @@ export function meRoutes(ctx: AppContext): Route[] {
       const account = await store.getAccount(claims.sub);
       if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to subscribe to Pro.');
       try {
-        // The offer (admin flag proPromo, with its dates) counts only for someone signed in and buying while it is on.
-        const promo = evaluateFlag('proPromo', await loadFlags(), {}, { audience: { plan: 'basic', user: account.emailHash }, nowMs: t }).on;
-        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo, plan });
+        // Any offer is a Paddle discount: Paddle's own dates and limits decide whether it applies (proCheckout.ts).
+        const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, plan });
         await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
         return { status: 201, body: started };
       } catch {
@@ -177,7 +176,7 @@ export function meRoutes(ctx: AppContext): Route[] {
     handler: async (req) => {
       const claims = await bearer(req);
       const checkout = options.topUpCheckout;
-      if (!checkout || !(await switchOn('cloud-top-ups'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
+      if (!checkout || !(await switchOn('cloud-top-ups')) || !(await mayBuy(claims.sub))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Top-ups are not open yet. Your free monthly allowances keep working.', true);
       if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
       const { pence } = parseJson(Schemas.TopUpCheckoutRequest, req.rawBody);
       if (!checkout.amounts.includes(pence)) throw new ApiError(400, 'TOP_UP_UNAVAILABLE', 'That amount is not on sale.');
@@ -376,25 +375,15 @@ export function meRoutes(ctx: AppContext): Route[] {
       return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
     },
   },
-  // ---- The uploader's side: what was held or acted on, why, and asking for another look (EU DSA Art. 17 and 20).
+  // ---- The gallery owner's side: actions taken on my galleries after a report, with the reasons (EU DSA Art. 17).
   {
-    method: 'GET', path: '/v1/me/safety', summary: 'Pictures held back from sharing, and actions on my galleries, with the reasons', auth: 'user',
+    method: 'GET', path: '/v1/me/safety', summary: 'Actions on my galleries after a report, with the reasons', auth: 'user',
     handler: async (req) => {
       const claims = await bearer(req);
       const service = safetyCfg();
       const actions = (await service.notices()).filter((n) => n.ownerAccountId === claims.sub && n.decision && n.decision.outcome !== 'no-action')
         .map((n) => ({ noticeId: n.noticeId, galleryId: n.galleryId, photoId: n.photoId, category: n.category, outcome: n.decision!.outcome, reason: n.decision!.reason, atMs: n.decision!.atMs }));
-      return { status: 200, body: { cases: (await service.cases({ accountId: claims.sub })).map(caseForUploader), actions } };
-    },
-  },
-  {
-    method: 'POST', path: '/v1/me/safety/:id/appeal', summary: 'Ask for another look at a picture held by an automatic check', auth: 'user', body: Schemas.SafetyAppeal,
-    handler: async (req, params) => {
-      const claims = await bearer(req);
-      const body = parseJson(Schemas.SafetyAppeal, req.rawBody);
-      const c = await safety(() => safetyCfg().appeal(params.id, claims.sub, body.text));
-      await audit(claims.sub, 'safety.appeal', 'allowed', c.caseId);
-      return { status: 200, body: { case: caseForUploader(c) } };
+      return { status: 200, body: { actions } };
     },
   },
 

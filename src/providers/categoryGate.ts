@@ -1,5 +1,5 @@
 import { createTimedSession } from './modelTiming';
-import { Sha256Stream } from '../core/sha256';
+import { Sha256Stream, sha256Hex } from '../core/sha256';
 import { installedModel } from './modelUpdater';
 import { GATE_MODEL, gateVectors } from '../core/categoryGate';
 import { preprocessSpecies } from '../core/speciesModel';
@@ -71,9 +71,9 @@ function load(): Promise<Loaded> {
     } else {
       throw new Error('The subject checker has not been downloaded.');
     }
-    const hash = new Sha256Stream();
-    hash.update(bytes);
-    if (!updated && (bytes.byteLength !== GATE_MODEL.bytes || hash.digest() !== GATE_MODEL.sha256)) {
+    // The browser's own SHA-256 (about 0.15 s for this 89 MB file, off the page's thread); the plain-script one took
+    // about 3 s of the page's thread each time the app started, so clicks lagged.
+    if (!updated && (bytes.byteLength !== GATE_MODEL.bytes || await sha256Hex(bytes) !== GATE_MODEL.sha256)) {
       throw new Error('The subject category model failed its integrity check, so it was not used.');
     }
     const [taxonomy, vectorFile] = await Promise.all([import('../assets/subject/taxonomy.json'), import('../assets/subject/vectors.json')]);

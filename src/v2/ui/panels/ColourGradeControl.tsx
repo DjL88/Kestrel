@@ -25,7 +25,7 @@ interface Props {
 }
 
 /** Three-way colour grading: choose a tonal range by name, then its hue and strength; one balance for all three. */
-export function ColourGradeControl({ recipe, calmView, onChange }: Props) {
+export function ColourGradeControl({ recipe, calmView, onChange, bare = false }: Props & { bare?: boolean }) {
   const [range, setRange] = React.useState<Range>('shadows');
   const grade = recipe.colourGrade ?? NEUTRAL;
   const current = grade[range];
@@ -50,7 +50,7 @@ export function ColourGradeControl({ recipe, calmView, onChange }: Props) {
     <div className="space-y-2" data-testid="colour-grade">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.heading}</h4>
+          {!bare && <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.heading}</h4>}
           <InfoPopover title={T.heading} body={T.help} />
         </div>
         <button type="button" onClick={() => onChange({ colourGrade: undefined })}

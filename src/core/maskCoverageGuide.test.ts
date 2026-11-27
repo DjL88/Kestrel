@@ -49,16 +49,44 @@ test('the outline guide draws only a line round the mask: white on the edge, a d
   // The centre and the far corner are untouched: the photo shows through.
   assert.equal(at(cx, cx)[3], 0);
   assert.equal(at(2, 2)[3], 0);
-  // Along the middle row, the first inside pixel is white and opaque, and the one just outside it is a dark ring.
+  // Along the middle row, coming in from the left: first the dark ring, then the white line, then the clear inside.
   const row = Math.round(guide.height / 2);
-  let first = -1;
-  for (let x = 0; x < guide.width && first < 0; x++) if (at(x, row)[0] === 255 && at(x, row)[3] === 255) first = x;
-  assert.ok(first > 0, 'an edge was drawn');
-  assert.deepEqual(at(first - 1, row), [0, 0, 0, 220]);
+  let white = -1;
+  for (let x = 0; x < guide.width && white < 0; x++) if (at(x, row)[0] === 255 && at(x, row)[3] >= 200) white = x;
+  assert.ok(white > 0, 'an edge was drawn');
+  let dark = -1;
+  for (let x = white - 1; x >= Math.max(0, white - 5) && dark < 0; x--) if (at(x, row)[0] < 60 && at(x, row)[3] >= 150) dark = x;
+  assert.ok(dark >= 0, 'a dark ring sits just outside the line');
+  assert.equal(at(white + 4, row)[3], 0, 'the inside stays clear');
   // Only a thin line: almost all pixels are clear.
   let painted = 0;
   for (let i = 3; i < guide.rgba.length; i += 4) if (guide.rgba[i] > 0) painted++;
   assert.ok(painted / (guide.width * guide.height) < 0.05, `${painted} painted`);
   // The fill style is unchanged and still the default.
   assert.deepEqual(maskCoverageGuide([mask], 'o', 200, 200), maskCoverageGuide([mask], 'o', 200, 200, 'fill'));
+});
+
+test('the outline is drawn finely (up to 1,024 px) and follows a curve smoothly, not in whole-pixel steps', () => {
+  // A soft-edged circle stored as a coarse subject grid (the size tap to select keeps): 64 cells across.
+  const cells = 64, values: number[] = [];
+  for (let y = 0; y < cells; y++) for (let x = 0; x < cells; x++) {
+    const r = Math.hypot((x + 0.5) / cells - 0.5, (y + 0.5) / cells - 0.5) * cells;
+    values.push(Math.max(0, Math.min(1, 0.3 * cells - r + 0.5)));
+  }
+  const grid = { w: cells, h: cells, data: btoa(String.fromCharCode(...values.map(v => Math.round(v * 255)))) };
+  const mask = { ...createMask('radial', 's'), kind: 'subject', grid, framingKey: '', confidence: 'high', strokes: [], feather: 0 } as unknown as Mask;
+  const guide = maskCoverageGuide([mask], 's', 2000, 2000, 'outline')!;
+  assert.equal(guide.width, 1024);
+  // Where the white line is strongest, its distance from the centre stays close to the circle's radius all the way round.
+  const radius = 0.3 * guide.width, centre = guide.width / 2;
+  let worst = 0, counted = 0;
+  for (let y = 0; y < guide.height; y++) for (let x = 0; x < guide.width; x++) {
+    const i = (y * guide.width + x) * 4;
+    if (guide.rgba[i] !== 255 || guide.rgba[i + 3] < 250) continue;
+    counted++;
+    worst = Math.max(worst, Math.abs(Math.hypot(x + 0.5 - centre, y + 0.5 - centre) - radius));
+  }
+  assert.ok(counted > 1000, `${counted} line pixels`);
+  // A 64-cell grid shown at 1,024 px is 16 px a cell: a staircase would stray by several pixels.
+  assert.ok(worst < 3, `the line strays ${worst.toFixed(2)} px from the curve`);
 });

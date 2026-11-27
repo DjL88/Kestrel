@@ -2,9 +2,9 @@
 
 Kestrel automatically saves reversible edits, decisions, keywords and project
 metadata to its local catalogue after changes. Independently it writes rolling
-`.kestrel.json` recovery snapshots to Kestrel's own private storage whenever
+`.inflight.json` recovery snapshots (older ones end `.kestrel.json`) to Kestrel's own private storage whenever
 available (OPFS). On any device, if the photograph source can be written to,
-Kestrel **also** saves the snapshot in the source's `kestrel/v1/project-backups/`
+Kestrel **also** saves the snapshot in the source's `InFlight/v1/project-backups/` (older builds used `kestrel/v1/`, which is still read)
 subfolder. A connected NAS on a phone is treated exactly like a writable source
 on a desktop computer.
 

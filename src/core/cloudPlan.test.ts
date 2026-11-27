@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor, photosThatFit,
-  estimateCloudTask, formatBytes, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, SOFTWARE_PRICES, usageSummary,
+  estimateCloudTask, formatBytes, storageFull, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, SOFTWARE_PRICES, usageSummary,
 } from './cloudPlan.ts';
 
 const NOW = Date.UTC(2026, 10, 25, 12, 0);
@@ -35,7 +35,7 @@ test('the allowance month resets on the 1st, UTC, including across a year end', 
 });
 
 test('Pro is a subscription only: £2.99 a month or £29 a year, with no one-off and no rent to own', () => {
-  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2900 });
+  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999 });
 });
 
 test('within the free amounts nothing is charged', () => {
@@ -94,4 +94,13 @@ test('roughly how many photos fit, rounded down so it never over-promises', () =
   assert.deepEqual(photosThatFit(2.5e9), { previews: 2500, withRawOriginals: 80, withJpegOriginals: 220 });
   assert.deepEqual(photosThatFit(100e9), { previews: 100000, withRawOriginals: 3200, withJpegOriginals: 9000 });
   assert.deepEqual(photosThatFit(0), { previews: 0, withRawOriginals: 0, withJpegOriginals: 0 });
+});
+
+test('storage is full only when the included amount is used and the balance cannot pay a month beyond it', () => {
+  assert.equal(storageFull({ plan: 'pro', storedBytes: 1.2e9, balancePence: 0 }), false, '1.2 GB of 2.5 GB');
+  assert.equal(storageFull({ plan: 'pro', storedBytes: 2.5e9, balancePence: 0 }), true, 'used up, no balance');
+  assert.equal(storageFull({ plan: 'pro', storedBytes: 2.5e9, balancePence: 500 }), false, 'a top-up makes room');
+  assert.equal(storageFull({ plan: 'pro', storedBytes: 12.5e9, balancePence: 70 }), true, '10 GB over costs 70p a month');
+  assert.equal(storageFull({ plan: 'basic', storedBytes: 0, balancePence: 0 }), true, 'Basic includes none');
+  assert.equal(storageFull({ plan: 'basic', storedBytes: undefined, balancePence: 0 }), false, 'unknown is not full');
 });

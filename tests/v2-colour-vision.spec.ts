@@ -31,6 +31,8 @@ test('Colour-vision support is off by default and, when turned on, names the col
   const openPanel = studio.getByRole('button', { name: testInfo.project.name === 'phone' ? 'Flight' : 'Co-pilot', exact: true });
   if (!await studio.getByRole('button', { name: 'Check photo on this device' }).isVisible()) await openPanel.first().click();
   await studio.getByRole('button', { name: 'Check photo on this device' }).click();
+  // The explanation sits behind the (i) beside Recommended adjustments (Dave, 27 Nov: action and advice only on this tab).
+  await studio.getByTestId('copilot-about').locator('summary').click();
   await expect(studio.getByText('Colour notes come from measuring the photo itself', { exact: false }).first()).toBeVisible();
 
   // Off by default: no colour list, and never an internal code such as "strongColour".

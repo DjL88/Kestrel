@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -55,6 +56,7 @@ async function samplePane(page: Page, pane: Locator) {
 async function exportFiles(page: Page, root: Locator) {
   const dialog = page.getByRole('dialog', { name: /export/i });
   await root.getByRole('button', { name: /^Export/ }).first().click();
+  await openExportAdvanced(dialog);
   await dialog.getByLabel('File format').selectOption('png');
   const downloaded = page.waitForEvent('download');
   await dialog.getByRole('button', { name: /export bundle/i }).click();

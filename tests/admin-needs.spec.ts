@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-// The admin console opens on a short "Needs you" list; everything else sits behind "More".
+// The admin console opens on Today: a short summary and the "Needs you" list. Other pages are in the menu.
 let server: Server;
 let origin: string;
 test.beforeAll(async () => {
@@ -29,7 +29,7 @@ async function signIn(page: Page, extra: Record<string, unknown> = {}) {
       '/v1/admin/licensees': { licences: [] }, '/v1/admin/usage': { accounts: [] },
       '/v1/admin/payments': { connected: false, transactions: [] }, '/v1/admin/messages': { messages: [] },
       '/v1/admin/pricing/review': { review: null }, '/v1/admin/audit': { entries: [] }, '/v1/admin/flags': { flags: {} },
-      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { checks: null, cases: [], notices: [] },
+      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { notices: [] },
       ...extra,
       '/v1/admin/balance-refunds': { refunds },
     };
@@ -44,17 +44,16 @@ async function signIn(page: Page, extra: Record<string, unknown> = {}) {
   return posts;
 }
 
-test('with nothing to do the console says All good and hides everything else', async ({ page }) => {
+test('with nothing to do Today says All good and the other pages stay out of the way', async ({ page }) => {
   await signIn(page);
   await expect(page.getByText('All good.', { exact: true })).toBeVisible();
   await expect(page.locator('#needs-list li')).toHaveCount(0);
   await expect(page.locator('#flags')).toBeHidden();
   await expect(page.locator('#overview')).toBeHidden();
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('link', { name: 'Switches, flags and jobs' }).click();
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: 'Advanced' }).click();
   await expect(page.locator('#flags')).toBeVisible();
   await expect(page.locator('#needs')).toBeHidden();
-  await page.getByRole('link', { name: 'Back to Needs you' }).click();
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: /^Today/ }).click();
   await expect(page.getByText('All good.', { exact: true })).toBeVisible();
 });
 
@@ -77,6 +76,6 @@ test('a refund owed after account deletion is listed and can be marked refunded'
   await page.getByRole('button', { name: 'Mark the refund to acc_test1 as paid' }).click();
   await expect(page.locator('#status')).toContainText('Marked refunded.');
   expect(posts).toContainEqual({ path: '/v1/admin/balance-refunds/acc_test1/refunded', body: { paddleReference: 'txn_test_123' } });
-  await page.getByRole('link', { name: 'Back to Needs you' }).click();
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: /^Today/ }).click();
   await expect(page.locator('#needs-list')).not.toContainText('refund');
 });

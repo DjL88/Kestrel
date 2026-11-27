@@ -4,7 +4,7 @@ import { plural } from '../../../core/locale';
  * Spot healing in the V2 editor (src/core/heal.ts). British English, the source for every translation.
  */
 export const source = {
-  title: "Spot healing",
+  title: "Remove spots",
   intro: "Covers dust, a twig or perch clutter with pixels copied from nearby in the same photo. Nothing is made up, and the original file is never changed.",
   start: "Place spots",
   stop: "Done",

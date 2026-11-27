@@ -23,10 +23,8 @@ import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 import { VertexLearningLedger, configFromEnv as vertexConfigFromEnv } from './vertexLearning.ts';
 import { createHmac } from 'node:crypto';
-import { SafetyService, ExactHashListMatcher, PhotoDnaMatcher, CloudVisionSafeSearch, NcmecCyberTipline, type HashMatcher } from './contentSafety.ts';
-import { networkCountryFrom, dbipCountryLookup } from './networkCountry.ts';
-import { readFileSync } from 'node:fs';
-import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
+import { SafetyService } from './contentSafety.ts';
+import { FirestoreMailLedger, Mailer, SmtpTransport, isMailAddress, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
 import { NoticeContacts, identityToolkitLookup, type FirebaseUserLookup } from './noticeContacts.ts';
 import { NewsBroadcaster } from './news.ts';
 
@@ -44,7 +42,7 @@ export interface WiringDeps {
   /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
   firebaseUsers?: FirebaseUserLookup;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'contactNotify' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -93,6 +91,13 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', Math.min(DEFAULT_MAIL_LIMITS.daily, cap), cap), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
     });
     out.enabled.push('email');
+    // Website contact messages to the owner (contact_notify_to, private tfvars). Its own admin switch, on by default.
+    const contactTo = env.KCP_CONTACT_NOTIFY_TO?.trim();
+    if (contactTo) {
+      if (!isMailAddress(contactTo)) throw new Error('KCP_CONTACT_NOTIFY_TO must be one email address');
+      out.contactNotify = { to: contactTo };
+      out.enabled.push('contact-email');
+    }
   }
 
   // Vertex learning batches: only when Terraform has created the job (vertex_learning_enabled). "Learn now" starts it.
@@ -169,8 +174,8 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     if (env.KCP_GALLERY_BUCKET) {
       const bucket = new GcsSafeCopyStorage(await open(env.KCP_GALLERY_BUCKET));
       out.gallery = new GalleryStore(db, bucket); out.enabled.push('gallery');
-      out.safety = await buildSafety(db, env, deps);
-      out.enabled.push(out.safety.service.configured ? 'safety-checks' : 'safety-reports-only');
+      out.safety = buildSafety(db);
+      out.enabled.push('safety-reports');
       // The cloud photo store shares the UK bucket under projects/ (the 90-day rule covers galleries/ only).
       if (env.KCP_CLOUD_PHOTOS_ENABLED === '1') {
         const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 33);
@@ -193,35 +198,7 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   return out;
 }
 
-/**
- * Acceptable-use checks for shared and cloud photos (contentSafety.ts). The report queue always exists with galleries;
- * each checker is added only when the owner has its access (see docs/SAFETY-SETUP.md). Without a hash checker,
- * production refuses to publish gallery and cloud pictures.
- */
-export async function buildSafety(db: FirestoreLike, env: NodeJS.ProcessEnv, deps: Pick<WiringDeps, 'token'>) {
-  const token = deps.token ?? (() => metadataAccessToken());
-  const secret = (name: string) => { const ref = env[name]; return ref ? secretManagerValue(ref, token) : null; };
-  const hashMatchers: HashMatcher[] = [];
-  const photoDnaKey = secret('KCP_PHOTODNA_KEY_SECRET');
-  if (photoDnaKey) {
-    let key: string | undefined;
-    const lazy: HashMatcher = { name: 'photodna', maxBytes: 4_000_000, match: async (image) => new PhotoDnaMatcher(key ??= await photoDnaKey()).match(image) };
-    hashMatchers.push(lazy);
-  }
-  if (env.KCP_SAFETY_HASH_LIST_FILE) {
-    const list = new ExactHashListMatcher(readFileSync(env.KCP_SAFETY_HASH_LIST_FILE, 'utf8').split(/\r?\n/), env.KCP_SAFETY_HASH_LIST_SOURCE || 'hash-list');
-    if (list.size === 0) throw new Error('KCP_SAFETY_HASH_LIST_FILE holds no MD5, SHA-1 or SHA-256 hashes');
-    hashMatchers.push(list);
-  }
-  const classifier = env.KCP_SAFESEARCH_ENABLED === '1' ? new CloudVisionSafeSearch(token) : null;
-  let reporter = null;
-  const ncmecPassword = secret('KCP_NCMEC_PASSWORD_SECRET');
-  if (ncmecPassword && env.KCP_NCMEC_USERNAME) {
-    if (!env.KCP_NCMEC_REPORTER_EMAIL || !env.KCP_NCMEC_COMPANY) throw new Error('KCP_NCMEC_REPORTER_EMAIL and KCP_NCMEC_COMPANY are required with the CyberTipline connection');
-    const base = env.KCP_NCMEC_ENVIRONMENT === 'production' ? 'https://report.cybertip.org/ispws' : 'https://exttest.cybertip.org/ispws';
-    const username = env.KCP_NCMEC_USERNAME, reporterEmail = env.KCP_NCMEC_REPORTER_EMAIL, companyName = env.KCP_NCMEC_COMPANY;
-    reporter = { submit: async (c: Parameters<NcmecCyberTipline['submit']>[0], evidence: Buffer) => new NcmecCyberTipline({ username, password: await ncmecPassword(), base, reporterEmail, companyName }).submit(c, evidence) };
-  }
-  const countryOf = await dbipCountryLookup().then(networkCountryFrom).catch(() => undefined);
-  return { service: new SafetyService(db, { hashMatchers, classifier, reporter }), countryOf };
+/** The report queue for shared content (contentSafety.ts). InFlight does not scan photos. */
+export function buildSafety(db: FirestoreLike) {
+  return { service: new SafetyService(db) };
 }

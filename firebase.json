@@ -2,7 +2,7 @@
   "hosting": {
     "site": "kestrel-hosting-kestrel",
     "public": "site",
-    "predeploy": ["node -e \"require('fs').copyFileSync('NOTICE.md', 'site/open-source-notices.txt')\""],
+    "predeploy": ["node scripts/site/copy-notices.mjs"],
     "cleanUrls": true,
     "rewrites": [
       {
@@ -62,6 +62,13 @@
         }
       },
       {
+        "source": "/v1/pricing/local",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
         "source": "/v1/pricing",
         "run": {
           "serviceId": "kestrel-control-plane",
@@ -70,6 +77,13 @@
       },
       {
         "source": "/v1/billing/paddle/config",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/v1/billing/offer",
         "run": {
           "serviceId": "kestrel-control-plane",
           "region": "europe-west2"

@@ -1,9 +1,8 @@
-import { createTimedSession } from './modelTiming';
+import { createOffThreadSession } from './offThreadSession';
 import { NAFNET_W32 } from '../core/optionalModels';
 import { NAFNET_CANDIDATE, NAFNET_TILE, nafnetOutput, type TrueDetailCandidate } from '../core/nafnet';
 import { runTrueDetailTiles, type TileInference, type TrueDetailOptions } from '../core/trueDetailTiles';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
-import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * NAFNet width32: one TrueDetail candidate (owner decision 8), beside the conventional denoise and, later, the
@@ -23,8 +22,10 @@ export interface NafnetSession { candidate: TrueDetailCandidate; infer: TileInfe
 export async function openNafnet(): Promise<NafnetSession | null> {
   if (await nafnetStatus() !== 'ready') return null;
   const bytes = await readOptionalModelFile(NAFNET_W32, 'model');
-  const ort = await loadOrt();
-  const session = await createTimedSession(ort, NAFNET_W32.id, bytes, ortOptions());
+  // In a worker only, never on the page: each 256 px tile takes seconds, and on the page that froze the editor and
+  // Tasks (owner's test: TrueDetail at 0%, the timer stuck at 2 min 25 s). With no worker, this throws and the caller
+  // keeps the built-in denoise.
+  const session = await createOffThreadSession(NAFNET_W32.id, bytes, { onThisThreadFallback: false, outputs: ['output'] });
   let closed = false;
   let busy = false;
   return {
@@ -33,19 +34,16 @@ export async function openNafnet(): Promise<NafnetSession | null> {
       if (closed || busy) throw new Error('The learned denoise is not available right now.');
       signal?.throwIfAborted();
       if (input.length !== 3 * NAFNET_TILE * NAFNET_TILE) throw new Error('Invalid denoise input shape');
-      const tensor = new ort.Tensor('float32', input, [1, 3, NAFNET_TILE, NAFNET_TILE]);
       busy = true;
       try {
-        const outputs = await session.run({ input: tensor });
-        try {
-          signal?.throwIfAborted();
-          return nafnetOutput(outputs.output.data as Float32Array);
-        } finally { for (const output of Object.values(outputs)) output.dispose(); }
-      } finally { tensor.dispose(); busy = false; }
+        const outputs = await session.run({ input: { data: input, dims: [1, 3, NAFNET_TILE, NAFNET_TILE] } });
+        signal?.throwIfAborted();
+        return nafnetOutput(outputs.output.data);
+      } finally { busy = false; }
     },
     async close() {
       if (busy) throw new Error('Cannot close an active denoise');
-      if (!closed) { closed = true; await session.release(); }
+      if (!closed) { closed = true; session.release(); }
     },
   };
 }

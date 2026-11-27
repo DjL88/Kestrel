@@ -41,6 +41,16 @@ variable "mail_from" {
   default     = ""
 }
 
+variable "contact_notify_to" {
+  description = "Where website contact-form messages are emailed (the owner's own address). Set in your private tfvars, not in git. Empty: messages are only kept in /admin, Messages. Needs smtp_mail_enabled."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.contact_notify_to == "" || can(regex("^[^@ ,<>]+@[^@ ,<>]+$", var.contact_notify_to))
+    error_message = "contact_notify_to is empty or one email address."
+  }
+}
+
 variable "smtp_password_secret_id" {
   description = "Secret Manager secret holding the sending account's app password (created by hand, never by Terraform)."
   type        = string
@@ -49,7 +59,7 @@ variable "smtp_password_secret_id" {
 
 locals {
   mail_enabled = var.smtp_mail_enabled
-  mail_env = local.mail_enabled ? {
+  mail_env = local.mail_enabled ? merge({
     KCP_MAIL_ENABLED         = "1"
     KCP_MAIL_FROM            = var.mail_from # empty: chosen from smtp_username (see above)
     KCP_SMTP_HOST            = "smtp.gmail.com"
@@ -57,7 +67,7 @@ locals {
     KCP_SMTP_USER            = var.smtp_username
     KCP_SMTP_PASSWORD_SECRET = "projects/${var.project_id}/secrets/${var.smtp_password_secret_id}/versions/latest"
     KCP_SITE_ORIGIN          = local.public_site.origin
-  } : {}
+  }, var.contact_notify_to != "" ? { KCP_CONTACT_NOTIFY_TO = var.contact_notify_to } : {}) : {}
 }
 
 # Only the control plane's account may read the app password.

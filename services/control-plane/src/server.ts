@@ -14,6 +14,8 @@ import { paddleTopUps, TOP_UP_AMOUNTS_PENCE, type TopUpOrder, type TopUpPence } 
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
 import { buildOptionalServices } from './wiring.ts';
+import { localPricing, readPricePreview } from './localPricing.ts';
+import { dbipCountryLookup, type CountryLookup } from './networkCountry.ts';
 
 const config = loadConfig();
 const firestore = config.store === 'firestore' ? await openFirestore(config) : undefined;
@@ -28,7 +30,8 @@ const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); ret
 const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID') };
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
-// Optional offer (for example Black Friday): a Paddle discount ID. It applies only while the admin flag proPromo is on.
+// Optional offer (for example Black Friday): a Paddle discount ID. Paddle's own status, expiry and usage limit decide
+// when it applies; there are no offer dates or prices in InFlight.
 const paddlePromoDiscountId = /^dsc_[a-z0-9]{10,60}$/.test(process.env.KCP_PADDLE_PROMO_DISCOUNT_ID?.trim() ?? '') ? process.env.KCP_PADDLE_PROMO_DISCOUNT_ID!.trim() : undefined;
 // The key is renewed by the kestrel-paddle-key-rotation job (infra/gcp/paddle-key-rotation.tf). When
 // KCP_PADDLE_KEY_PROJECT is set the server re-reads the latest secret version every 5 minutes, so a new key takes over
@@ -38,6 +41,15 @@ const paddleApiKey = paddleKey && paddleKeyProject
   ? rotatingKeySource(secretManagerSecret({ project: paddleKeyProject, secret: process.env.KCP_PADDLE_KEY_SECRET?.trim() || 'kestrel-paddle-api-key' }).latest, paddleKey)
   : paddleKey;
 const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: paddleEnvironment }) : undefined;
+// Website prices in the visitor's currency (GET /v1/pricing/local): our own offline country lookup, then Paddle's
+// pricing preview for that country only. The lookup database is read once, on the first visit that needs it.
+let countryLookup: Promise<CountryLookup> | null = null;
+const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual } : null;
+const localPrices = paddle && proPriceIds ? localPricing({
+  lookup: () => (countryLookup ??= dbipCountryLookup()),
+  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual], country), proPriceIds),
+  now: Date.now,
+}) : undefined;
 const paddleOrders = 'paddle_pro_orders';
 const paddleSubscriptions = 'paddle_pro_subscriptions';
 const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
@@ -114,14 +126,21 @@ const settlePaddle = proSettle ? async (id: string, hint?: { subscriptionId?: st
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
 // Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
 const erasure = firestore ? await buildAccountErasure(firestore as unknown as FirestoreLike, store as FirestoreStore) : undefined;
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, syncPaddleSubscription, managePaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
+const app = createApp({ config, store, commerce, payments: commerce, paddleEnvironment: paddle ? paddleEnvironment : undefined, settlePaddle, syncPaddleSubscription, managePaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
+  } : undefined,
+  proSubscriberCounts: firestore ? async () => {
+    const current = await firestore.collection(paddleSubscriptions).where('status', 'in', ['active', 'trialing']).limit(10_000).get();
+    const counts = { monthly: 0, annual: 0 };
+    for (const doc of current.docs) counts[(doc.data() as ProSubscriptionRecord).plan === 'annual' ? 'annual' : 'monthly'] += 1;
+    return counts;
   } : undefined, proCheckout, topUpCheckout, pricing: commerce,
   priceMatrix: commerce ? { get: () => commerce.getPriceMatrix(), save: (matrix) => commerce.savePriceMatrix(matrix) } : undefined,
+  localPrices,
   paddlePrices: paddle ? { priceIds: paddlePriceIds, get: (id) => paddle.getPrice(id), update: (id, body) => paddle.updatePrice(id, body) } : undefined,
-  ecbRates: () => fetchEcbRatesPerGbp(), cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
+  ecbRates: () => fetchEcbRatesPerGbp(), cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, contactNotify: optional.contactNotify, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

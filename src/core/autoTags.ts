@@ -14,7 +14,8 @@ const has = (list: readonly string[] | undefined, name: string) => (list ?? []).
  * The wildlife quick-add words (Bird, Mammal, In flight, Perched...). They say what kind of photo it is, not which
  * animal, so a photo tagged only "Bird" (by hand, or from Lightroom keywords) still gets its species looked up.
  */
-const kindWords = (tags: readonly string[] | undefined) => (tags ?? []).every((tag) => has(STARTER_TAGS.wildlife, tag));
+/** Only kind words such as "Bird" or "Perched" (or no tags): no name of the person's own yet. */
+export const kindWords = (tags: readonly string[] | undefined) => (tags ?? []).every((tag) => has(STARTER_TAGS.wildlife, tag));
 
 /**
  * Only a photo with no tags of its own yet (the wildlife quick-add words aside) is tagged automatically, and never with
@@ -39,6 +40,27 @@ export function reconcileAuto(previous: AutoState, nextTags: readonly string[]):
   const kept = (previous.autoTags ?? []).filter((tag) => has(nextTags, tag));
   const removed = (previous.autoTags ?? []).filter((tag) => !has(nextTags, tag));
   return { autoTags: kept, declinedTags: addTags(previous.declinedTags ?? [], removed) };
+}
+
+/**
+ * "Not right? Look again" on an automatic species name (Dave, 27 Nov): that name is taken off the photo and remembered
+ * as declined, so it never comes back; the photo's species check is cleared so the scan looks at it again; and until
+ * the new result arrives nothing is shown (unknown stays unknown). Kind words such as "Bird" stay. Null when there is
+ * no automatic species name (a name of the person's own is theirs to edit).
+ */
+export function lookAgain(frame: { tags?: readonly string[]; subjectNames?: readonly string[] } & AutoState): {
+  tags: string[]; autoTags: string[]; declinedTags: string[];
+  speciesChecked: false; speciesGuess: undefined; speciesNearby: undefined; speciesArea: undefined;
+} | null {
+  if (frame.subjectNames?.length) return null;
+  const automatic = (frame.autoTags ?? []).filter((tag) => !has(STARTER_TAGS.wildlife, tag));
+  if (!automatic.length) return null;
+  return {
+    tags: (frame.tags ?? []).filter((tag) => !has(automatic, tag)),
+    autoTags: (frame.autoTags ?? []).filter((tag) => !has(automatic, tag)),
+    declinedTags: addTags(frame.declinedTags ?? [], automatic),
+    speciesChecked: false, speciesGuess: undefined, speciesNearby: undefined, speciesArea: undefined,
+  };
 }
 
 /** The user keeps an automatic tag: it becomes an ordinary tag. */
@@ -75,7 +97,8 @@ export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (gro
 export function speciesGroupsForRoute(categoryId: string | null | undefined): SpeciesLabel['group'][] | null {
   switch (categoryId) {
     case 'bird': case 'bird-of-prey': case 'waterbird': return ['bird'];
-    case 'mammal': return ['mammal'];
+    // The mammal list (Mammal Diversity Database) includes seals, whales and dolphins.
+    case 'mammal': case 'marine-mammal': return ['mammal'];
     case 'reptile': return ['reptile', 'amphibian'];
     case 'insect': return ['insect'];
     default: return null;
@@ -127,8 +150,31 @@ export function qualifiesForAutoTag(
   return strongest?.index === suggested.index && shouldAutoTag(strongest.probability, minimum);
 }
 
-/** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */
-export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+/**
+ * The species scan's version, stored on each photo it reports on. Raised when the scan has improved enough that photos it
+ * looked at without finding anything deserve one more look. 2: the scan wakes for new photos and judges wildlife on the
+ * whole family (#1818); before that a clear puffin was "checked" with no kind and no name, and never looked at again.
+ * 3: the scan keeps a fair guess it was not sure of, so sure shots taken at the same moment can confirm it (speciesNearby.ts).
+ */
+export const SPECIES_SCAN_VERSION = 3;
+
+interface ScanState { speciesChecked?: boolean; speciesScanVersion?: number; autoTags?: readonly string[]; declinedTags?: readonly string[]; vehicle?: unknown }
+
+/**
+ * Whether the species scan should look at this photo: never checked, or checked by an older scan that found nothing (no
+ * name of the app's own, no vehicle reading, no name the person turned down). Names of the person's own are ruled out by
+ * scanCandidates itself.
+ */
+export function speciesScanDue(frame: ScanState): boolean {
+  if (!frame.speciesChecked) return true;
+  return (frame.speciesScanVersion ?? 1) < SPECIES_SCAN_VERSION && !(frame.autoTags?.length) && !frame.vehicle && !(frame.declinedTags?.length);
+}
+
+/**
+ * Photos the species model should look at: still in the library, never checked (or checked by an older scan that found
+ * nothing, speciesScanDue), and with nothing of the user's own on them.
+ */
+export function scanCandidates<T extends ScanState & { id: string; removedAt?: number; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
   frames: readonly T[],
   { includeUnclassified = false }: { includeUnclassified?: boolean } = {},
 ): T[] {
@@ -137,9 +183,22 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
   // never infers "wildlife" from its own guess. The opted-in online helper is open-world (it answers "not an animal"
   // and sets the kind itself), so it may also look at photos nobody has classified yet. Photos classified as people,
   // landscape or other are never scanned.
-  return frames.filter((frame) => frame.removedAt == null && !frame.speciesChecked &&
+  return frames.filter((frame) => frame.removedAt == null && speciesScanDue(frame) &&
     (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
     kindWords(frame.tags) && !(frame.subjectNames?.length));
+}
+
+/**
+ * Photos the built-in kind check can look at when no species model is offered (the desktop app ships the kind check,
+ * "Checks the kind of subject", but not always a species model): still in the library, no kind yet, never kind-checked,
+ * no species name looked for, and nothing of the person's own on them. Looking at them sets only the kind (Wildlife,
+ * Aircraft...), never a name, and never marks the species as checked, so a species model added later still names them.
+ */
+export function kindCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; kindChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+  frames: readonly T[],
+): T[] {
+  return frames.filter((frame) => frame.removedAt == null && !frame.subjectKind && !frame.kindChecked && !frame.speciesChecked &&
+    !(frame.tags?.length) && !(frame.subjectNames?.length));
 }
 
 /**

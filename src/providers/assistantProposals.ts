@@ -1,3 +1,4 @@
+import { legacySyncPath } from '../core/storageConnectors';
 import { isProposalFile, parseProposal, projectIdentity, proposalFolder, type AssistantProposal } from '../core/assistantProposals';
 import type { StorageConnector } from '../core/storageConnectors';
 import type { CullingState } from '../core/types';
@@ -26,9 +27,10 @@ async function places(state: CullingState): Promise<StorageConnector[]> {
 
 /** Proposals for this project, oldest first. A place that cannot be reached is skipped silently: this is optional. */
 export async function findProposals(state: CullingState): Promise<FoundProposal[]> {
-  const folder = proposalFolder(projectIdentity(state.shoot.id));
+  const current = proposalFolder(projectIdentity(state.shoot.id));
   const found = new Map<string, FoundProposal>();
-  for (const connector of await places(state)) {
+  // The InFlight folder first, then the same place under its older kestrel name.
+  for (const connector of await places(state)) for (const folder of [current, legacySyncPath(current)]) {
     const names = await connector.list(folder).catch(() => [] as string[]);
     for (const path of names.filter((name) => isProposalFile(folder, name)).sort()) {
       const file = path.slice(folder.length + 1);

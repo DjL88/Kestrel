@@ -29,7 +29,7 @@ Only what Kestrel writes into a sync folder when you use **Sync folder or cloud*
 | `get_project` | One project's title, save time and counts |
 | `find_photos` | Photos by decision, minimum rating, tag, or whether they are edited (paged) |
 | `get_edit` | The saved edit settings for one photo |
-| `propose_changes` | **Only with `--allow-proposals`.** Saves suggested decisions, ratings or tags, each with a reason, as a file in `kestrel/v1/proposals/<project>/` |
+| `propose_changes` | **Only with `--allow-proposals`.** Saves suggested decisions, ratings or tags, each with a reason, as a file in `InFlight/v1/proposals/<project>/` |
 
 ## Safety
 - **Read-only by default.** Proposals are a separate switch (add `"--allow-proposals"` to `args`).

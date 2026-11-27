@@ -10,7 +10,7 @@ Status: implementation roadmap and source-grounded gap audit, 18 November 2026. 
 
 ## Existing code evidence (main 34c1ec8)
 - `src/core/projectBackup.ts`: versioned `kestrel-project` v1 JSON with frames, recipes, masks, history and project settings; import validates structural fields.
-- `src/core/storageConnectors.ts`: `StorageConnector`, scoped `kestrel/v1` layout and folder/S3/WebDAV checks.
+- `src/core/storageConnectors.ts`: `StorageConnector`, scoped `InFlight/v1` layout (older `kestrel/v1` still read) and folder/S3/WebDAV checks.
 - `src/providers/projectLocations.ts`: locally remembered locations; not a portable cross-device original identity.
 - `src/providers/linkedOriginals.ts`: native linked originals. Existing audit says source identity is not yet portable.
 - `PRIVACY.md`: no Kestrel account/telemetry backend today; online Gemini and optional connectors are user-controlled; connector credentials currently live in browser storage.

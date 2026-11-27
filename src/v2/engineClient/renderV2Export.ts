@@ -6,7 +6,6 @@ import { exportFilename, type ExportProfile } from '../../core/exportProfiles';
 import { datedExport } from '../../core/exportTimestamp';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
-import { isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveUpscaleOutputSize } from '../ui/utils/studioMath';
@@ -330,7 +329,9 @@ export async function renderV2Export(
   // Edit only as many pixels as the output can show: the cover fit times the zoom, never above the picture's own size.
   const needed = Math.max(layout.width / fw, layout.height / fh) * crop.zoom;
   const scale = Math.min(1, needed, fitScale(fw, fh, limit));
-  const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
+  // Not marked '-preview': a V2 export of a RAW is always drawn from its sensor develop (fullSource refuses the camera's
+  // embedded JPEG and stored review copies), and the word made people think a preview had been exported.
+  const name = exportFilename(frame.filename, profile, false);
   const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
   if (precise) {
     let sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));

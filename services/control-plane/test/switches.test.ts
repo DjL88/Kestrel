@@ -26,7 +26,7 @@ test('switches are admin only and list what is configured', async () => {
     assert.equal((await h.call('GET', '/v1/admin/switches', { token: h.user.token })).status, 403);
     const list = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches;
     const by = Object.fromEntries(list.map((s: any) => [s.key, s]));
-    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'cloud-top-ups', 'collaboration', 'email', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-cloud-storage', 'product-news', 'push', 'safe-copy', 'vertex-learning']);
+    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'cloud-top-ups', 'collaboration', 'contact-email', 'email', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-cloud-storage', 'product-news', 'push', 'safe-copy', 'vertex-learning']);
     assert.equal(by['product-news'].on, false, 'product news starts off'); assert.equal(by['product-news'].configured, false, 'needs push set up');
     assert.equal(by['managed-ai'].on, true, 'the existing Gemini helper keeps working until you switch it off');
     for (const k of ['cloud-processing', 'safe-copy', 'learning-signal']) { assert.equal(by[k].on, false, `${k} starts off`); assert.equal(by[k].configured, true); }
@@ -124,7 +124,7 @@ test('a planned switch is shown off and not set up, and refuses to switch on, ev
       for (const key of ['pro-cloud-storage']) {
       const planned = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
       assert.equal(planned.on, false); assert.equal(planned.configured, false);
-      assert.match(planned.label, /designed, not built/);
+      assert.match(planned.label, /not built yet/);
       const r = await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key, on: true } });
       assert.equal(r.status, 409); assert.equal(r.body.error.code, 'SWITCH_NOT_CONFIGURED');
       await h.app.store.setSetting(`switch_${key}`, '1');

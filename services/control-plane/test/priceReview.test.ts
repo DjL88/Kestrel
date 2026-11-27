@@ -31,6 +31,17 @@ test('April applies cumulative CPI first, then converts and rounds', () => {
   assert.deepEqual(review.prices[1], { currency: 'AUD', ratePerGbp: 2, unroundedMajor: 64, proposedMajor: 65, status: 'for-review' });
 });
 
+
+test('the review covers the live monthly and yearly subscription prices, not the retired one-off price', () => {
+  const review = proposePrices(new Date('2026-11-20T09:00:00Z'), settings, fx('2026-11-19'), undefined, { monthly: 299, annual: 2999 });
+  assert.equal(review.plans?.monthly.basePence, 299);
+  assert.equal(review.plans?.annual.proposedGbpPence, 2999);
+  assert.deepEqual(review.plans?.monthly.prices[0], { currency: 'GBP', ratePerGbp: 1, unroundedMajor: 2.99, proposedMajor: 2.99, status: 'for-review' });
+  assert.equal(review.plans?.monthly.prices[1].status === 'for-review' && review.plans.monthly.prices[1].proposedMajor, 6);
+  assert.equal(review.plans?.annual.prices[1].status === 'for-review' && review.plans.annual.prices[1].proposedMajor, 60);
+  const april = proposePrices(new Date('2027-04-20T08:00:00Z'), settings, fx('2027-04-19'), { months: [{ date: '2027 MAR', value: '110' }, { date: '2026 APR', value: '100' }] }, { monthly: 299, annual: 2999 });
+  assert.equal(april.plans?.monthly.proposedGbpPence, 329);
+});
 test('missing or stale data cannot be used as a price proposal', () => {
   const now = new Date('2027-04-20T08:00:00Z');
   assert.throws(() => proposePrices(now, settings, fx('2027-04-01')), /review window/);

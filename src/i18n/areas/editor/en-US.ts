@@ -28,7 +28,7 @@ export const enUS: AreaTranslation<typeof source> = {
     notAnalysed: 'This preview could not be analyzed. Your edits have not changed.',
   },
   edit: {
-    denoiseTitle: 'Smooths colored speckle in high-ISO photos; not a claim of AI detail restoration',
+    denoiseTitle: "Smooths colored speckle in high-ISO photos. It does not add detail.",
     denoiseHelp: 'Smooths color speckle only. Edges and fine texture stay as they are.',
     placeHelp: 'Tap the subject. Press Enter on the photo to use the center.',
   },

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -24,6 +25,7 @@ test('captions and credits, with a code replacement, are written into the export
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await studio.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  await openExportAdvanced(dialog);
   const captions = dialog.getByTestId('export-captions');
   await captions.getByText('Captions and credits', { exact: true }).click();
   await captions.getByLabel('Add captions and credits to each file').check();

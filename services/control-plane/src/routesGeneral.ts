@@ -13,12 +13,13 @@ import { DEFAULT_MAX_JOB_MS } from './cloudJobs.ts';
 import { galleryIdFor } from './gallery.ts';
 import { SAFE_COPY_MAX_BYTES, safeCopyKey } from './safeCopy.ts';
 import { htmlLang, mailWords } from './mailText.ts';
+import { contactAlertMail } from './mailer.ts';
 import { ApiError, parseJson, send } from './http.ts';
 import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 
 export function generalRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
+  const { options, config, store, now, paddleSandbox, mayBuy, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
   return [
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
@@ -465,6 +466,13 @@ export function generalRoutes(ctx: AppContext): Route[] {
     },
   },
   {
+    method: 'GET', path: '/v1/billing/offer', summary: 'The current Pro offer for the website banner, read from the Paddle discount (its status and expiry). No offer: live false.', auth: 'none',
+    handler: async () => {
+      const offer = options.proCheckout?.offer ? await options.proCheckout.offer() : { live: false, lastDay: null };
+      return { status: 200, headers: { 'cache-control': 'public, max-age=300' }, body: offer };
+    },
+  },
+  {
     method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction or adjustment is fetched back from Paddle before Pro is granted, or removed after a full refund or chargeback.', auth: 'none',
     handler: async (req) => {
       if (!options.settlePaddle || !options.paddleWebhookSecret) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
@@ -477,6 +485,16 @@ export function generalRoutes(ctx: AppContext): Route[] {
       // The body's subscription_id is only a pointer: settlement fetches the transaction and subscription from Paddle.
       if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
         if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+        // Test payments (sandbox), belt and braces beside the checkout gate: a test-card payment for anyone who is not
+        // a tester is acknowledged and ignored, so it never grants Pro or credit.
+        if (paddleSandbox) {
+          const custom = (event.data as { custom_data?: { accountId?: unknown } | null }).custom_data;
+          const accountId = typeof custom?.accountId === 'string' ? custom.accountId : undefined;
+          if (!(await mayBuy(accountId))) {
+            await audit(accountId ?? 'paddle', 'paddle.sandbox.ignored', 'denied', event.data.id!);
+            return { status: 200, body: { received: true, outcome: 'ignored-sandbox-non-tester' } };
+          }
+        }
         const subscriptionId = typeof event.data.subscription_id === 'string' && PADDLE_SUBSCRIPTION_ID.test(event.data.subscription_id) ? event.data.subscription_id : undefined;
         try { await options.settlePaddle(event.data.id!, subscriptionId ? { subscriptionId } : undefined); }
         catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
@@ -524,7 +542,19 @@ export function generalRoutes(ctx: AppContext): Route[] {
       const body = parseJson(Schemas.ContactRequest, req.rawBody);
       // A filled-in hidden field means a robot: answer as if it worked, store nothing.
       if (body.website) return { status: 200, body: { received: true } };
-      await store.insertContactMessage({ messageId: `msg_${randomId(12)}`, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      const messageId = `msg_${randomId(12)}`;
+      await store.insertContactMessage({ messageId, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+      // Then email the owner, if set up and switched on. The message is already kept, so a refusal or a failed send
+      // loses nothing: the visitor still sees success and /admin, Today says the email did not go.
+      if (options.mailer && options.contactNotify && (await switchOn('contact-email'))) {
+        let problem: string | null = null;
+        try {
+          const mail = contactAlertMail({ name: body.name, email: body.email, message: body.message, messageId }, new Date(now()));
+          const r = await options.mailer.sendToOwner({ to: options.contactNotify.to, ...mail });
+          if (!r.sent) problem = r.reason === 'daily-limit' ? 'the daily email limit was reached' : 'the email was refused (' + r.reason + ')';
+        } catch { problem = 'sending failed'; }
+        await store.setSetting('contact_mail_problem', problem ? JSON.stringify({ atMs: now(), problem, messageId }) : '').catch(() => undefined);
+      }
       return { status: 200, body: { received: true } };
     },
   },

@@ -31,11 +31,11 @@ test('Dropbox: put, get, list and remove stay inside the InFlight folder and sen
   const fake = fakeDropbox();
   const connector = dropboxConnector({ getToken: async () => 'tok', fetchImpl: fake.fetchImpl });
   assert.deepEqual(await connector.test(), { ok: true });
-  await connector.put('kestrel/v1/recipes/p1/a.json', bytes('{}'), 'h');
-  assert.equal(text(await connector.get('kestrel/v1/recipes/p1/a.json')), '{}');
-  assert.deepEqual(await connector.list('kestrel/v1/recipes'), ['kestrel/v1/recipes/p1/a.json']);
-  await connector.remove('kestrel/v1/recipes/p1/a.json');
-  assert.equal(await connector.get('kestrel/v1/recipes/p1/a.json'), null);
+  await connector.put('InFlight/v1/recipes/p1/a.json', bytes('{}'), 'h');
+  assert.equal(text(await connector.get('InFlight/v1/recipes/p1/a.json')), '{}');
+  assert.deepEqual(await connector.list('InFlight/v1/recipes'), ['InFlight/v1/recipes/p1/a.json']);
+  await connector.remove('InFlight/v1/recipes/p1/a.json');
+  assert.equal(await connector.get('InFlight/v1/recipes/p1/a.json'), null);
   assert.ok(fake.seen.every((header) => header === 'Bearer tok'));
   await assert.rejects(connector.put('../escape.txt', bytes('x'), 'h'));
   await assert.rejects(connector.get('somewhere/else.json'));
@@ -45,8 +45,8 @@ test('Dropbox: an export is never replaced, a normal sync file is', async () => 
   const connector = dropboxConnector({ getToken: async () => 't', fetchImpl: fakeDropbox().fetchImpl });
   await connector.put('export/a.jpg', bytes('1'), 'h');
   await assert.rejects(connector.put('export/a.jpg', bytes('2'), 'h'), /not replaced/);
-  await connector.put('kestrel/v1/recipes/p/a.json', bytes('1'), 'h');
-  await connector.put('kestrel/v1/recipes/p/a.json', bytes('2'), 'h');
+  await connector.put('InFlight/v1/recipes/p/a.json', bytes('1'), 'h');
+  await connector.put('InFlight/v1/recipes/p/a.json', bytes('2'), 'h');
 });
 
 test('Dropbox: a rejected sign-in becomes a needs-signin health with plain words', async () => {
@@ -92,9 +92,9 @@ function fakeOneDrive() {
 test('OneDrive: round trip, nested listing, export never replaced', async () => {
   const fake = fakeOneDrive();
   const connector = oneDriveConnector({ getToken: async () => 't', fetchImpl: fake.fetchImpl });
-  await connector.put('kestrel/v1/previews/p1/a.jpg', bytes('jpg'), 'h');
-  assert.equal(text(await connector.get('kestrel/v1/previews/p1/a.jpg')), 'jpg');
-  assert.deepEqual(await connector.list('kestrel/v1/previews'), ['kestrel/v1/previews/p1/a.jpg']);
+  await connector.put('InFlight/v1/previews/p1/a.jpg', bytes('jpg'), 'h');
+  assert.equal(text(await connector.get('InFlight/v1/previews/p1/a.jpg')), 'jpg');
+  assert.deepEqual(await connector.list('InFlight/v1/previews'), ['InFlight/v1/previews/p1/a.jpg']);
   await connector.put('export/x.jpg', bytes('1'), 'h');
   await assert.rejects(connector.put('export/x.jpg', bytes('2'), 'h'), /not replaced/);
   assert.deepEqual(fake.behaviours, ['replace', 'fail', 'fail']);
@@ -103,7 +103,7 @@ test('OneDrive: round trip, nested listing, export never replaced', async () => 
 test('OneDrive: a large file goes up in chunks that are multiples of 320 KiB, without the bearer token on the session URL', async () => {
   const fake = fakeOneDrive();
   const connector = oneDriveConnector({ getToken: async () => 't', fetchImpl: fake.fetchImpl });
-  await connector.put('kestrel/v1/originals/p1/a.orig', new Uint8Array(7 * 1024 * 1024), 'h');
+  await connector.put('InFlight/v1/originals/p1/a.orig', new Uint8Array(7 * 1024 * 1024), 'h');
   assert.deepEqual(fake.chunks, ['bytes 0-3276799/7340032', 'bytes 3276800-6553599/7340032', 'bytes 6553600-7340031/7340032']);
 });
 
@@ -144,16 +144,16 @@ test('Google Drive: real folders are made once, files round-trip, replaced in pl
   const fake = fakeDrive();
   const connector = googleDriveConnector({ getToken: async () => 't', fetchImpl: fake.fetchImpl });
   assert.deepEqual(await connector.test(), { ok: true });
-  await connector.put('kestrel/v1/recipes/p1/a.json', bytes('one'), 'h');
-  await connector.put('kestrel/v1/recipes/p1/a.json', bytes('two'), 'h');
-  await connector.put('kestrel/v1/recipes/p1/b.json', bytes('b'), 'h');
+  await connector.put('InFlight/v1/recipes/p1/a.json', bytes('one'), 'h');
+  await connector.put('InFlight/v1/recipes/p1/a.json', bytes('two'), 'h');
+  await connector.put('InFlight/v1/recipes/p1/b.json', bytes('b'), 'h');
   assert.equal(fake.items.filter((i) => i.mimeType.endsWith('folder')).length, 4, 'one folder per path part, created once');
   assert.equal(fake.items.filter((i) => i.name === 'a.json').length, 1, 'replaced in place, not duplicated');
-  assert.equal(text(await connector.get('kestrel/v1/recipes/p1/a.json')), 'two');
-  assert.deepEqual(await connector.list('kestrel/v1/recipes'), ['kestrel/v1/recipes/p1/a.json', 'kestrel/v1/recipes/p1/b.json']);
-  assert.equal(await connector.get('kestrel/v1/recipes/p1/missing.json'), null);
-  await connector.remove('kestrel/v1/recipes/p1/b.json');
-  assert.deepEqual(await connector.list('kestrel/v1/recipes'), ['kestrel/v1/recipes/p1/a.json']);
+  assert.equal(text(await connector.get('InFlight/v1/recipes/p1/a.json')), 'two');
+  assert.deepEqual(await connector.list('InFlight/v1/recipes'), ['InFlight/v1/recipes/p1/a.json', 'InFlight/v1/recipes/p1/b.json']);
+  assert.equal(await connector.get('InFlight/v1/recipes/p1/missing.json'), null);
+  await connector.remove('InFlight/v1/recipes/p1/b.json');
+  assert.deepEqual(await connector.list('InFlight/v1/recipes'), ['InFlight/v1/recipes/p1/a.json']);
   await assert.rejects(connector.get('elsewhere/a.json'));
 });
 

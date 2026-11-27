@@ -65,11 +65,11 @@ export async function headBlob(source: Blob | RangeBlob, bytes = EXIF_HEAD_BYTES
  * Open a linked original for ranged reading in the desktop app. Reads are serialised on one handle (seek then read must
  * not interleave). Always call close(), also after an error, so the file handle is released.
  */
-export async function openLinkedRange(path: string, size: number, type = ''): Promise<{ blob: RangeBlob; close(): Promise<void> }> {
+export async function openLinkedRange(path: string, size: number, type = '', headBytes = HEAD_CACHE_BYTES): Promise<{ blob: RangeBlob; close(): Promise<void> }> {
   const fs = await import('@tauri-apps/plugin-fs');
   const handle = await fs.open(path, { read: true });
   let queue: Promise<unknown> = Promise.resolve();
-  const read: ReadRange = (offset, length) => {
+  const direct: ReadRange = (offset, length) => {
     const next = queue.then(async () => {
       await handle.seek(offset, fs.SeekMode.Start);
       const out = new Uint8Array(length);
@@ -85,7 +85,31 @@ export async function openLinkedRange(path: string, size: number, type = ''): Pr
     return next;
   };
   return {
-    blob: RangeBlob.of(read, size, type),
+    blob: RangeBlob.of(withHeadCache(direct, size, headBytes), size, type),
     close: async () => { try { await queue; } finally { await handle.close(); } },
+  };
+}
+
+/** How much of the start of a file one read brings in: a RAW's EXIF, directories and usually its preview. */
+export const HEAD_CACHE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Answer reads inside the first HEAD_CACHE_BYTES from one read of that part. Finding a RAW's preview and EXIF makes
+ * dozens of small reads near the start of the file, and each one was a seek and a read across the desktop bridge.
+ * Reads beyond it go straight to the file. The bytes are exactly the file's; a failed head read is not kept.
+ */
+export function withHeadCache(read: ReadRange, size: number, headBytes = HEAD_CACHE_BYTES): ReadRange {
+  const limit = Math.min(size, headBytes);
+  let head: Promise<Uint8Array> | null = null;
+  return (offset, length) => {
+    if (limit <= 0 || offset + length > limit) return read(offset, length);
+    if (!head) {
+      head = read(0, limit);
+      head.catch(() => { head = null; });
+    }
+    return head.then((bytes) => {
+      if (bytes.byteLength < offset + length) return bytes.slice(offset, bytes.byteLength);
+      return bytes.slice(offset, offset + length);
+    });
   };
 }

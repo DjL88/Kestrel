@@ -11,7 +11,9 @@ import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
-import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY } from './utils/layoutQueries';
+import { trueDetailJob } from './utils/trueDetailJob';
+import { photoJobActive } from './utils/photoJob';
+import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY, TABLET_PORTRAIT_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -32,7 +34,7 @@ import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
-import { firebaseAuth, isSignInConfigured } from '../../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured, onSignedInChange } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { nextToReview } from '../../core/savedViews';
@@ -61,6 +63,7 @@ import type { MenuAction } from './commands/menuMap';
 import type { FeedbackRequest } from './shell/ContributorFeedback';
 import { describeFeedbackScreen, describeFeedbackTarget } from '../../core/feedbackTarget';
 import { activeLanguage } from '../../core/locale';
+import { useThumbnailsOnScreen } from './utils/useThumbnailsOnScreen';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
 // the background once the list has drawn (preloadEditorParts), so opening a project does not wait for it either.
@@ -128,6 +131,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
+  // The Co-pilot panel is named after the Flight mode in use (Dave, 27 Nov: it said "Co-pilot" in Auto-pilot).
+  const panelTitle = (id: PanelId) => (id === 'copilot' ? STRINGS.topBar.assistModes[store.assistMode] : PANEL_TITLES[id]);
+  // The tiles on screen (filmstrip or grid) get their thumbnails first.
+  useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
@@ -186,13 +193,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
-  // Top right of the home page and editor: who is signed in. Read again when Settings closes (where sign-in happens).
+  // Top right of the home page and editor: who is signed in. Read again whenever sign-in changes (Windows beta: the
+  // corner kept saying "Sign in" after signing in from the welcome).
   const [accountName, setAccountName] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (!accountPanel || !isSignInConfigured() || store.settingsOpen) return;
+    if (!accountPanel || !isSignInConfigured()) return;
     let live = true;
-    void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
-    return () => { live = false; };
+    const read = () => { void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined); };
+    read();
+    const stop = onSignedInChange(read);
+    return () => { live = false; stop(); };
   }, [accountPanel, signedInName, store.settingsOpen]);
   // Contributors (owner, 26 Nov 2026): an admin-granted free Pro whose holders get "Feedback on this" on right-click.
   // Asked of the server once signed in, and again when Settings closes (where sign-in happens). Offline: not offered.
@@ -373,6 +383,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+  const [isTabletPortrait, setIsTabletPortrait] = useState<boolean>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(TABLET_PORTRAIT_QUERY).matches : false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(TABLET_PORTRAIT_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setIsTabletPortrait(e.matches);
+    setIsTabletPortrait(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -404,6 +425,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [setActivePanel]);
 
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
+
+  // Another photo opens fitted to the screen (owner, 26 Nov: it kept the last photo's 214%). Only a change of photo
+  // does this; turning the device keeps the zoom (#1771).
+  const lastPhotoForZoom = useRef(store.activePhotoId);
+  useEffect(() => {
+    if (lastPhotoForZoom.current === store.activePhotoId) return;
+    lastPhotoForZoom.current = store.activePhotoId;
+    if (Math.abs(store.canvasZoom - 1) > 0.0005) actions.setCanvasZoom(1);
+  }, [store.activePhotoId, store.canvasZoom, actions]);
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
@@ -477,7 +507,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // it sits just above the highest of them, measured, because their heights change (a sheet opens, the strip resizes).
   const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
   useEffect(() => {
-    if (!isMobile || !store.lastActionNotice) { setNoticeBottom(null); return; }
+    if (!(isMobile || isTabletPortrait) || !store.lastActionNotice) { setNoticeBottom(null); return; }
     const bottomParts = () => [
       document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip'),
       document.querySelector<HTMLElement>(`.inflight-v2 nav[aria-label="${STRINGS.mobile.toolBar}"]`),
@@ -490,7 +520,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     bottomParts().forEach((el) => observer?.observe(el));
     return () => { window.removeEventListener('resize', place); observer?.disconnect(); };
-  }, [isMobile, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]); // sheetHeight: a tool sheet opened, closed or changed size
+  }, [isMobile, isTabletPortrait, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]); // sheetHeight: a tool sheet opened, closed or changed size
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
@@ -738,7 +768,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               onOpenSettings: () => actions.setSettingsOpen(true, 'aiProviders'),
             }}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
-              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
+              ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn,
+                consent: actions.cloudConsent, setConsent: actions.setCloudConsent, onTopUp: () => actions.setSettingsOpen(true, 'account') }
               : undefined}
           />
         );
@@ -798,34 +829,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'masks':
         return (
           <div className="space-y-4">
+          {/* Spot removal replaces pixels rather than choosing where an adjustment applies, so it is in Enhance ›
+              Refinements now (Dave, 27 Nov). This pointer stays for one release. */}
           {activePhoto && actions.addHealSpot && (
-            <HealSection
-              photo={activePhoto}
-              placing={Boolean(healFor?.placing)}
-              onSetPlacing={(placing) => setHealUi((current) => ({ photoId: activePhoto.id, selectedId: current?.photoId === activePhoto.id ? current.selectedId : null, placing, note: undefined }))}
-              newSize={healSize}
-              onSetNewSize={setHealSize}
-              selectedId={healFor?.selectedId ?? null}
-              onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
-              note={healFor?.note}
-              busy={healFor?.busy}
-              onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
-              onNextSource={(photoId, spotId) => {
-                if (!actions.nextHealSource) return;
-                setHealUi((current) => (current ? { ...current, busy: true } : current));
-                void actions.nextHealSource(photoId, spotId).catch(() => false).then((moved) =>
-                  setHealUi((current) => (current ? { ...current, busy: false, note: moved ? undefined : healText.noOther } : current)));
-              }}
-              onRemove={(photoId, spotId) => {
-                actions.removeHealSpot?.(photoId, spotId);
-                setHealUi((current) => (current?.selectedId === spotId ? { ...current, selectedId: null } : current));
-              }}
-              onClear={(photoId) => { actions.clearHealSpots?.(photoId); setHealUi((current) => (current ? { ...current, selectedId: null } : current)); }}
-              onShown={setHealShown}
-            />
+            <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="masks-spots-moved">{STRINGS.masks.spotsMoved}</p>
           )}
           <MasksPanel
             photo={activePhoto}
+            detecting={photoJobActive(store.tasks, 'mask', activePhoto?.id)}
             activeMaskTool={store.activeMaskTool}
             onSetMaskTool={actions.setActiveMaskTool}
             onAddMaskLayer={actions.addMaskLayer}
@@ -843,14 +854,49 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         );
       case 'enhance':
         return (
-          <EnhancePanel
-            photo={activePhoto}
-            hideReadouts={store.settings.calmReadouts}
-            onUpdateRecipe={actions.updateRecipe}
-            onDenoise={actions.denoisePhoto}
-            cloudEnabled={store.features.cloudAssist}
-            onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
-          />
+          <div className="space-y-4">
+            <EnhancePanel
+              photo={activePhoto}
+              hideReadouts={store.settings.calmReadouts}
+              onUpdateRecipe={actions.updateRecipe}
+              onDenoise={actions.denoisePhoto}
+              trueDetail={trueDetailJob(store.tasks, activePhoto?.id)}
+              cloudEnabled={store.features.cloudAssist}
+              onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
+            />
+            {/* Refinements: retouching that replaces pixels (Remove spots now; red-eye and dust can join it). */}
+            {activePhoto && actions.addHealSpot && (
+              <section aria-labelledby="enhance-refinements-heading" data-testid="enhance-refinements" className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
+                <h3 id="enhance-refinements-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.enhance.refinementsHeading}</h3>
+              {(
+                <HealSection
+                  photo={activePhoto}
+                  placing={Boolean(healFor?.placing)}
+                  onSetPlacing={(placing) => setHealUi((current) => ({ photoId: activePhoto.id, selectedId: current?.photoId === activePhoto.id ? current.selectedId : null, placing, note: undefined }))}
+                  newSize={healSize}
+                  onSetNewSize={setHealSize}
+                  selectedId={healFor?.selectedId ?? null}
+                  onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
+                  note={healFor?.note}
+                  busy={healFor?.busy}
+                  onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
+                  onNextSource={(photoId, spotId) => {
+                    if (!actions.nextHealSource) return;
+                    setHealUi((current) => (current ? { ...current, busy: true } : current));
+                    void actions.nextHealSource(photoId, spotId).catch(() => false).then((moved) =>
+                      setHealUi((current) => (current ? { ...current, busy: false, note: moved ? undefined : healText.noOther } : current)));
+                  }}
+                  onRemove={(photoId, spotId) => {
+                    actions.removeHealSpot?.(photoId, spotId);
+                    setHealUi((current) => (current?.selectedId === spotId ? { ...current, selectedId: null } : current));
+                  }}
+                  onClear={(photoId) => { actions.clearHealSpots?.(photoId); setHealUi((current) => (current ? { ...current, selectedId: null } : current)); }}
+                  onShown={setHealShown}
+                />
+              )}
+              </section>
+            )}
+          </div>
         );
       case 'overlays':
         return (
@@ -915,6 +961,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onEditInOtherApp={actions.editInOtherApp}
             onStopExternalEdit={actions.stopExternalEdit}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onLookAgainAtSpecies={actions.lookAgainAtSpecies}
             onCorrectVehicle={actions.correctVehicle}
             speciesPlace={store.speciesPlace}
             onSetSpeciesArea={actions.setSpeciesArea}
@@ -928,9 +975,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  const tetheredProject = store.projects.find((project) => project.id === store.activeProjectId)?.kind === 'tethered';
+  // Focus mode: on by default on a phone; the person's own choice (filmstrip More menu) wins everywhere.
+  const filmstripFocus = store.settings.filmstripFocus ?? isMobile;
   // Phone layouts: upright (bottom tool bar and bottom sheet) and sideways (tools on the right, side panels).
   const phoneLandscape = isPhoneLandscape && !composingCollage;
-  const phoneLayout = isMobile || phoneLandscape;
+  // An upright touch tablet uses the phone's bottom tool bar and bottom sheet, with room for more buttons.
+  const tabletPortrait = isTabletPortrait && !isMobile && !composingCollage;
+  const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
@@ -990,7 +1042,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <div
       className="inflight-v2 v2-safe-root fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
-      data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
+      data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
@@ -1118,6 +1170,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
+            importInBar={tabletPortrait && !store.collage}
             onUndo={actions.undo}
             onRedo={actions.redo}
             onCopyRecipe={actions.copyRecipe}
@@ -1140,7 +1193,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
             style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
-            {(!store.collage || collageEditingId) && !phoneLandscape && !canvasOnlyShown && <Rail
+            {(!store.collage || collageEditingId) && !phoneLandscape && !tabletPortrait && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
@@ -1162,7 +1215,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
               <DockPanel
                 panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
+                title={panelTitle(store.activePanel)}
                 dock="left"
                 floatX={activePanelState.floatX}
                 floatY={activePanelState.floatY}
@@ -1321,13 +1374,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
-                onWatchFolder={actions.watchFolder}
+                // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot
+                // project (owner, 26 Nov). A live session already running elsewhere can still be seen and stopped.
+                onWatchFolder={tetheredProject ? actions.watchFolder : undefined}
                 onStopWatchingFolder={actions.stopWatchingFolder}
-                onReceiveFromCamera={actions.receiveFromCamera}
+                onReceiveFromCamera={tetheredProject ? actions.receiveFromCamera : undefined}
                 shootRoom={store.shootRoom}
-                onOpenShootRoom={actions.openShootRoom}
+                onOpenShootRoom={tetheredProject ? actions.openShootRoom : undefined}
                 onCloseShootRoom={actions.closeShootRoom}
-                onTetherCamera={actions.tetherCamera}
+                onTetherCamera={tetheredProject ? actions.tetherCamera : undefined}
+                focusRow={filmstripFocus}
+                onSetFocusRow={(on) => actions.updateSettings({ filmstripFocus: on })}
                 liveFolder={store.liveFolder}
                 activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
@@ -1347,7 +1404,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
               <DockPanel
                 panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
+                title={panelTitle(store.activePanel)}
                 dock="right"
                 floatX={activePanelState.floatX}
                 floatY={activePanelState.floatY}
@@ -1366,7 +1423,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 <DockPanel
                   key={panelId}
                   panelId={panelId}
-                  title={PANEL_TITLES[panelId]}
+                  title={panelTitle(panelId)}
                   dock="float"
                   floatX={state.floatX}
                   floatY={state.floatY}
@@ -1401,7 +1458,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'copilot', label: 'Flight', icon: assistModeIconName(store.assistMode) },
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
-                  ...(phoneLandscape ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
+                  ...(phoneLandscape || tabletPortrait ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
+                  // An upright tablet has the width for six; Export stays in its top bar.
+                  ...(tabletPortrait ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
                 ] as const
               ).map((item) => {
                 const active = store.activePanel === item.id && !moreOpen;
@@ -1484,7 +1543,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {phoneLayout && store.activePanel && !composingCollage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
-              : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
+              : tabletPortrait
+                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1503,7 +1564,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5"
               >
                 <h2 className="text-xs font-semibold text-[var(--text-primary)]">
-                  {PANEL_TITLES[store.activePanel]}
+                  {panelTitle(store.activePanel)}
                 </h2>
                 <button
                   type="button"
@@ -1569,6 +1630,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         attachOriginal={actions.attachCloudOriginal}
         photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
         onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
+        onTopUp={() => { closeShare(); actions.setSettingsOpen(true, 'account'); }}
         onClose={closeShare}
       /></React.Suspense>
 
@@ -1665,8 +1727,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onBlur={() => setNoticePaused(false)}
           className={`${phoneLandscape ? '' : 'v2-safe-right '}fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
-          style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
+          } ${isMobile || isTabletPortrait ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
+          style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : (isMobile || isTabletPortrait) && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >
           {noticeSticky && <BrandIcon name="alert" size={14} className="mt-0.5 shrink-0 text-[var(--semantic-warning)]" />}

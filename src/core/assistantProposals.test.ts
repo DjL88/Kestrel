@@ -9,9 +9,9 @@ const file = (items: unknown[]) => JSON.stringify({ format: 'kestrel-proposal', 
 
 test('proposals sit beside the same project folder the backups use', () => {
   const identity = projectIdentity('p1');
-  assert.equal(backupFolder('p1'), `kestrel/v1/project-backups/${identity}`);
+  assert.equal(backupFolder('p1'), `InFlight/v1/project-backups/${identity}`);
   const folder = proposalFolder(identity);
-  assert.equal(folder, `kestrel/v1/proposals/${identity}`);
+  assert.equal(folder, `InFlight/v1/proposals/${identity}`);
   assert.ok(isProposalFile(folder, `${folder}/${proposalFileName(new Date('2026-11-26T10:00:00Z'))}`));
   assert.equal(isProposalFile(folder, `${folder}/../x.json`), false);
   assert.throws(() => proposalFolder('../escape'));

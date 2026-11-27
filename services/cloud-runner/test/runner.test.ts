@@ -74,3 +74,11 @@ describe('cloud runner', () => {
     assert.equal(Object.keys(store.files).some((k) => k.includes('..')), false);
   });
 });
+
+describe('runner image', () => {
+  it('marks the copied shared src/ as ES modules, so the image can load it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
+    assert.match(dockerfile, /WORKDIR \/app\n(?:#.*\n)*RUN echo '\{"type":"module"\}' > package\.json/);
+  });
+});

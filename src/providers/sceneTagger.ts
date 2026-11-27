@@ -4,6 +4,7 @@ import { sceneModel, sceneTags, type SceneModel } from '../core/sceneTags';
 import type { PhotoTag } from '../core/photoTags';
 import type { PhotoFrame } from '../core/types';
 import { embedSquare, gateAvailable } from './categoryGate';
+import { pixelStyleTagsOffThread } from './pixelAnalysis';
 
 /**
  * Works out a photo's scene and place tags on this device. No network: the place table is one of the app's own files,
@@ -62,5 +63,7 @@ export async function sceneTagsFor(frame: Pick<PhotoFrame, 'exif'>, picture: HTM
       scene = null; embedding = null;
     }
   }
-  return { tags: sceneTags({ exif: frame.exif, rgba, embedding, model: scene }), withModel: Boolean(embedding && scene), vector: embedding && scene ? embedding : null };
+  // The pixel measurements run in a worker (pixelAnalysis.ts); the answer is the same as measuring here.
+  const pixelTags = rgba ? await pixelStyleTagsOffThread(rgba) : null;
+  return { tags: sceneTags({ exif: frame.exif, embedding, model: scene, pixelTags }), withModel: Boolean(embedding && scene), vector: embedding && scene ? embedding : null };
 }

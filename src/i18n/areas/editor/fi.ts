@@ -291,7 +291,7 @@ export const fi: AreaTranslation<typeof source> = {
     tone: 'Sävy',
     detail: 'Yksityiskohdat',
     brightnessTitle: 'Säädä keskisävyjen kirkkautta säilyttäen puhdas musta ja valkoinen; käytä Valotusta kokonaisvaloon',
-    denoiseTitle: 'Tasoittaa värillisiä täpliä korkean ISO-arvon kuvissa; ei lupaa yksityiskohtien palautusta tekoälyllä',
+    denoiseTitle: "Tasoittaa värillisiä täpliä korkean ISO-arvon kuvissa. Ei lisää yksityiskohtia.",
     denoiseHelp: 'Tasoittaa vain väritäpliä. Reunat ja hieno tekstuuri pysyvät ennallaan.',
     exportFocus: 'Viennin kiintopiste',
     cancelPlacement: 'Peruuta asettaminen',

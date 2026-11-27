@@ -40,7 +40,7 @@ test('the page follows the browser language, and the picker changes and remember
 test('Pro is a subscription, monthly or yearly, with UK prices including VAT; nothing promises a lifetime licence', async ({ page }) => {
   await page.goto(`${origin}/#pricing`);
   await expect(page.locator('#pro-price-monthly')).toHaveText('£2.99');
-  await expect(page.locator('#pro-price-annual')).toHaveText('£29');
+  await expect(page.locator('#pro-price-annual')).toHaveText('£29.99');
   await expect(page.getByText('UK prices, including VAT.', { exact: false })).toBeVisible();
   // The website never takes a payment itself: people subscribe from the app.
   await expect(page.locator('#pricing button')).toHaveCount(0);

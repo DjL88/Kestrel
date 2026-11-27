@@ -27,16 +27,40 @@ import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } f
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
-/** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited, measured off the interface thread. */
+/**
+ * Noise at full size, measured off the interface thread: nine crops drawn 1:1 from across the whole picture (a 3x3
+ * grid), side by side in one mosaic. Only the centre used to be measured, so noise in the shadows or the background
+ * round a clean, sharp subject went unseen (Dave, 27 Nov: DJL3766). Each crop is a whole number of the estimator's
+ * 16 px blocks, so no block spans two crops.
+ */
 async function measureFullSizeNoise(source: HTMLImageElement, compute: DenoiseCompute): Promise<number | null> {
-  const size = Math.min(1024, source.naturalWidth, source.naturalHeight);
-  if (size < 64) return null;
-  const crop = document.createElement('canvas');
-  crop.width = size; crop.height = size;
-  const ctx = crop.getContext('2d', { willReadFrequently: true });
+  const width = source.naturalWidth;
+  const height = source.naturalHeight;
+  const tile = Math.floor(Math.min(512, width / 3, height / 3) / 16) * 16;
+  if (tile < 64) {
+    // A small picture: measure all of it.
+    const size = Math.min(width, height);
+    if (size < 64) return null;
+    const whole = document.createElement('canvas');
+    whole.width = width; whole.height = height;
+    const ctx = whole.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(source, 0, 0);
+    return compute.measureNoise(ctx.getImageData(0, 0, width, height).data, width, height);
+  }
+  const mosaic = document.createElement('canvas');
+  mosaic.width = tile * 3; mosaic.height = tile * 3;
+  const ctx = mosaic.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
-  ctx.drawImage(source, (source.naturalWidth - size) / 2, (source.naturalHeight - size) / 2, size, size, 0, 0, size, size);
-  return compute.measureNoise(ctx.getImageData(0, 0, size, size).data, size, size);
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      // The middle of each third of the picture.
+      const sx = Math.round(((col + 0.5) * width) / 3 - tile / 2);
+      const sy = Math.round(((row + 0.5) * height) / 3 - tile / 2);
+      ctx.drawImage(source, sx, sy, tile, tile, col * tile, row * tile, tile, tile);
+    }
+  }
+  return compute.measureNoise(ctx.getImageData(0, 0, tile * 3, tile * 3).data, tile * 3, tile * 3);
 }
 
 /** Lets the editor handle input between the two canvas reads denoise still does on this thread. */
@@ -64,7 +88,7 @@ export function trueDetailNote(regions: readonly RegionChoice[] | undefined, sub
     const choice = regions.find(r => r.region === region);
     if (!choice) return null;
     if (choice.strength <= 0) return `${name} kept as it was (${choice.kept})`;
-    return choice.source === 'conventional' ? `${name} ${choice.strength.toFixed(2)}` : `${name} AI denoise (${choice.source}) at ${Math.round(choice.strength * 100)}%`;
+    return choice.source === 'conventional' ? `${name} ${choice.strength.toFixed(2)}` : `${name} learned denoise (${choice.source}) at ${Math.round(choice.strength * 100)}%`;
   };
   const parts = [part('background', 'background'), part('subject', 'subjects'), eyes ? part('eyes', eyes === 1 ? 'eye' : 'eyes') : null].filter(Boolean);
   return `TrueDetail regional denoise on this device (${who}${eyes ? `, ${eyes} eye${eyes === 1 ? '' : 's'} protected` : ''}): ${parts.join('; ')}.`;
@@ -208,7 +232,7 @@ async function denoiseVerifiedSource(
   // TrueDetail: when the opt-in NAFNet pack is on this device, run it on the subject's area at full size, so the
   // guardian can compare it with the built-in denoise region by region.
   const learnedOutcome = subject ? await runLearnedOnSubject(source, framing, original, subject.alpha, signal,
-    (done, total) => progress?.(done, total, `AI denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
+    (done, total) => progress?.(done, total, `Learned denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
   signal?.throwIfAborted();
   // Judge the learned result where it was made, too: the working copy is scaled down and hides the fine detail a
   // learned denoiser can smooth away. Only the blend strengths that pass at full size are offered to the guardian.

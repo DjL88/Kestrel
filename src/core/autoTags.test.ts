@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTO_MINIMUM, applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto, qualifiesForAutoTag, shouldAutoTag, speciesShown } from './autoTags';
+import { AUTO_MINIMUM, applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto, qualifiesForAutoTag, shouldAutoTag, speciesShown, lookAgain, speciesScanDue } from './autoTags';
 import { confidenceWord, rankSpecies, type SpeciesLabel } from './speciesMatch';
 
 test('only a clearly sure result is tagged automatically, and that is exactly what "likely" means', () => {
@@ -49,8 +49,8 @@ test('personal preferences cannot turn a close species match into an automatic t
 });
 
 test('only photos nobody has looked at, and with no tags of their own, are scanned', async () => {
-  const { scanCandidates } = await import('./autoTags');
-  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'removed-at-zero', subjectKind: 'wildlife', removedAt: 0 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
+  const { SPECIES_SCAN_VERSION, scanCandidates } = await import('./autoTags');
+  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true, speciesScanVersion: SPECIES_SCAN_VERSION }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'removed-at-zero', subjectKind: 'wildlife', removedAt: 0 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
   assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['a', 'f']);
 });
 
@@ -162,4 +162,20 @@ test('a photo tagged only "Bird" (a quick-add word or a Lightroom keyword) still
   assert.deepEqual(speciesShown({ subjectKind: 'wildlife', ...patch }), { name: 'Atlantic Puffin', auto: true });
   // The person's own name wins over the quick-add word on the card.
   assert.deepEqual(speciesShown({ subjectKind: 'wildlife', tags: ['Bird', 'Gannet'] }), { name: 'Gannet', auto: false });
+});
+
+test('Not right? Look again: the automatic name goes for good, kind words stay, and the photo is checked again', () => {
+  const frame = { tags: ['Bird', 'Atlantic Puffin'], autoTags: ['Atlantic Puffin'], declinedTags: ['Razorbill'] };
+  const next = lookAgain(frame)!;
+  assert.deepEqual(next.tags, ['Bird']);
+  assert.deepEqual(next.autoTags, []);
+  assert.deepEqual([...next.declinedTags].sort(), ['Atlantic Puffin', 'Razorbill']);
+  assert.equal(next.speciesChecked, false);
+  assert.equal(next.speciesGuess, undefined);
+  assert.equal(speciesScanDue({ ...frame, ...next }), true, 'the scan looks at it again');
+  assert.equal(mayAutoTag({ ...frame, ...next }, 'Atlantic Puffin'), false, 'the declined name never comes back');
+  assert.equal(mayAutoTag({ ...frame, ...next }, 'Black Guillemot'), true, 'a different name may');
+  // A name of the person's own, or no automatic name: nothing to look again at.
+  assert.equal(lookAgain({ tags: ['Puffin'], subjectNames: ['Puffin'] }), null);
+  assert.equal(lookAgain({ tags: ['Bird'], autoTags: ['Bird'] }), null);
 });

@@ -15,7 +15,7 @@ export const is: AreaTranslation<typeof source> = {
     copyright: "Höfundarréttur",
     includeKeywords: "Hafa leitarorð með",
     keywords: "Leitarorð (aðskilin með kommum; tómt = staðfest merki)",
-    help: "Staðfest myndefni getur fyllt út titil og leitarorð. Óstaðfestar ágiskanir gervigreindar eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
+    help: "Staðfest myndefni getur fyllt út titil og leitarorð. Óstaðfestar tillögur líkana eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
   },
   originals: {
     title: "Upprunalegar myndavélarskrár",

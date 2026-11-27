@@ -44,6 +44,22 @@ export function pickSlideshowPhotos<T extends SlideshowFrame>(frames: readonly T
   return Array.from({ length: count }, (_, i) => flagged[Math.floor((i * flagged.length) / count)]);
 }
 
+/** How many of the project's own photos the "pick up where you left off" card shows. */
+export const RESUME_THUMBS = 3;
+
+/** The photos on the "pick up" card: flagged ones first (as the slideshow picks them), then the rest in order. */
+export function pickResumePhotos<T extends SlideshowFrame>(frames: readonly T[], limit = RESUME_THUMBS): T[] {
+  const picked = pickSlideshowPhotos(frames, limit);
+  const seen = new Set(picked.map((frame) => frame.stableKey));
+  for (const frame of frames) {
+    if (picked.length >= limit) break;
+    if (frame.removedAt != null || frame.virtualCopy || seen.has(frame.stableKey)) continue;
+    seen.add(frame.stableKey);
+    picked.push(frame);
+  }
+  return picked;
+}
+
 /** Only welcome back (signed in or a returning guest) shows photos, and only when there are some and it is not turned off. */
 export function slideshowWanted(input: { state: WelcomeState; off: boolean; slides: number }): boolean {
   return input.state !== 'first' && !input.off && input.slides > 0;

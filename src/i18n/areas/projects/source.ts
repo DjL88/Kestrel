@@ -283,7 +283,8 @@ export const source = {
     copied: 'Settings copied. InFlight will reload to use them.',
     licenceKey: 'Licence key',
     unlocked: 'InFlight Pro is unlocked on this device. It works offline and does not need an account.',
-    notUnlocked: (beta: boolean) => `${beta ? 'During the beta every feature is open. ' : 'Free is active. '}Bought InFlight Pro? Sign in, or paste the key from your purchase email.`,
+    // The plan summary above already says Free or beta, so this line only says how to add Pro.
+    notUnlocked: (_beta: boolean) => 'Bought InFlight Pro? Sign in, or paste the key from your purchase email.',
     planHeading: "Your plan",
     planProAccount: "InFlight Pro is active on this device through your account.",
     planProKey: "InFlight Pro is active on this device through your licence key.",

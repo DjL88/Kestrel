@@ -34,6 +34,8 @@ interface ShareDialogProps {
   photoDecision?: (photoId: string) => 'unreviewed' | 'keep' | 'reject' | null;
   /** Flags one photo, only when the photographer chooses a client's pick. */
   onFlagPhoto?: (photoId: string) => void;
+  /** Opens Settings › Account, where the cloud balance is topped up. Offered when cloud storage is full. */
+  onTopUp?: () => void;
   onClose: () => void;
 }
 
@@ -43,12 +45,14 @@ const INVITE_ROLES: Exclude<CollabRole, 'owner'>[] = ['editor', 'commenter', 'vi
  * Share a project with named people (#1387 C01). Opt-in: nothing is contacted until this dialog opens, and a project
  * that is never shared keeps working offline. For now only the project name and the people are shared; the dialog says so.
  */
-export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, photoDecision, onFlagPhoto, onClose }: ShareDialogProps) {
+export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, photoDecision, onFlagPhoto, onTopUp, onClose }: ShareDialogProps) {
   const t = STRINGS.share;
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState<CollabProjectView | null>(null);
   const [invites, setInvites] = useState<CollabInvite[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
+  /** The problem is that cloud storage is full, so a Top up button is offered beside it. */
+  const [storageFull, setStorageFull] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
@@ -61,6 +65,9 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   const [portfolioNote, setPortfolioNote] = useState<string | null>(null);
 
   const explain = useCallback((error: unknown) => {
+    const full = error instanceof CollabError && error.code === 'STORAGE_NEEDS_CREDIT';
+    setStorageFull(full);
+    if (full) { setProblem(t.storageFull); return; }
     const kind = error instanceof CollabError ? error.kind : 'network';
     setProblem(kind === 'not-configured' ? t.notConfigured : kind === 'sign-in' ? t.signIn : kind === 'not-entitled' ? t.notEntitled
       : kind === 'switched-off' ? t.switchedOff : kind === 'refused' && error instanceof CollabError && error.message ? error.message : t.failed);
@@ -178,7 +185,12 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
           <button ref={closeButton} type="button" onClick={onClose} className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">{t.close}</button>
         </div>
         <p className="mb-3 text-sm text-[var(--text-secondary)]">{t.intro}</p>
-        {problem && <p role="alert" className="mb-3 rounded-[var(--radius-sm)] border border-[var(--border-default)] p-2.5 text-sm">{problem}</p>}
+        {problem && (
+          <div role="alert" data-testid="share-problem" className="mb-3 space-y-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] p-2.5 text-sm">
+            <p>{problem}</p>
+            {storageFull && onTopUp && <button type="button" onClick={onTopUp} className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium">{t.topUp}</button>}
+          </div>
+        )}
         {note && <p role="status" className="mb-3 text-sm text-[var(--text-secondary)]">{note}</p>}
 
         {renderPreview && (
@@ -290,7 +302,8 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
               </form>
             )}
             <CloudPhotosPanel client={client} projectId={view.projectId} role={view.me.role} photos={localPhotos} selectedPhotoIds={selectedPhotoIds}
-              renderPreview={renderPreview} readOriginal={readOriginal} importCloud={importCloud} attachOriginal={attachOriginal} onProblem={explain} />
+              renderPreview={renderPreview} readOriginal={readOriginal} importCloud={importCloud} attachOriginal={attachOriginal} onProblem={explain}
+              onStorageFull={(sent, left) => { setStorageFull(true); setProblem(t.cloudStorageFull(sent, left)); }} />
             {canInvite && <GalleryFeedbackPanel client={client} projectId={view.projectId} version={published} photoName={photoName} onGoToPhoto={onGoToPhoto} onProblem={explain} photoDecision={photoDecision} onFlag={onFlagPhoto} />}
           </>
         )}

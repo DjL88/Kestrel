@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-// /admin → More → Compliance documents: a short list with Download, and an Upload form for a signed copy.
+// /admin → Advanced → Signed safety documents: a short list with Download, and an Upload form for a signed copy.
 let server: Server;
 let origin: string;
 test.beforeAll(async () => {
@@ -29,7 +29,7 @@ async function signIn(page: Page, compliance: unknown) {
       '/v1/admin/licensees': { licences: [] }, '/v1/admin/usage': { accounts: [] },
       '/v1/admin/payments': { connected: false, transactions: [] }, '/v1/admin/messages': { messages: [] },
       '/v1/admin/pricing/review': { review: null }, '/v1/admin/audit': { entries: [] }, '/v1/admin/flags': { flags: {} },
-      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { checks: null, cases: [], notices: [] }, '/v1/admin/balance-refunds': { refunds: [] },
+      '/v1/admin/switches': { switches: [] }, '/v1/admin/safety': { notices: [] }, '/v1/admin/balance-refunds': { refunds: [] },
     };
     if (path === '/v1/admin/compliance/documents') {
       return compliance === null
@@ -42,15 +42,15 @@ async function signIn(page: Page, compliance: unknown) {
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('link', { name: 'Compliance documents' }).click();
+  await page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: 'Advanced' }).click();
+  await page.getByText('Signed safety documents', { exact: true }).click();
   return calls;
 }
 
 test('lists each document with its date, downloads through a short-lived link, and uploads a signed copy', async ({ page }) => {
   const calls = await signIn(page, { documents: [DOC], maxBytes: 8_000_000 });
   const section = page.locator('#compliance');
-  await expect(section.getByRole('heading', { name: 'Compliance documents' })).toBeVisible();
+  await expect(section.getByText('Signed safety documents', { exact: true })).toBeVisible();
   await expect(section.getByText(DOC.title)).toBeVisible();
   await expect(section.getByText('26 Nov 2026')).toBeVisible();
 

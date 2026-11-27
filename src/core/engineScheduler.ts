@@ -62,6 +62,23 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
    * shoot-wide Auto pick that cannot pause no longer holds a one-photo mask until every photo is analysed.
    */
   interactive?: boolean;
+  /**
+   * Small, quick work for what is on screen now (the thumbnail of a tile the person can see). Always admitted, whatever
+   * the load or other work, up to LIGHT_AT_ONCE at a time, so tiles appear one by one ahead of develops and analysis.
+   */
+  light?: boolean;
+  /**
+   * Small per-photo work shown as ONE task row per group (owner, 27 Nov: "could just have a growing number, 5/120"): every
+   * job with the same key shares a row titled `title`, counting up as each finishes, with the photos under its list.
+   * The jobs stay separate here, so priority (tiles on screen first), cancelling one and the watchdog work as before.
+   */
+  group?: { key: string; title: string };
+  /**
+   * How long one photo may go without a new stage or progress before the watchdog stops it, fails it with a plain
+   * message and gives its slot back (default STALL_MS; cloud work STALL_CLOUD_MS). Work that takes longer than this
+   * legitimately reports progress as it goes.
+   */
+  stallMs?: number;
   recovery?: {
     key: string;
     journal: JobJournal;
@@ -71,6 +88,8 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
 }
 export interface SchedulerTicket {
   readonly taskId: number;
+  /** Still waiting to start (not running, not finished). */
+  queued(): boolean;
   readonly finished: Promise<'done' | 'failed' | 'cancelled'>;
   cancel(): boolean;
   pause(): boolean;
@@ -95,12 +114,23 @@ interface WorkBatch {
   resource: EngineResource;
   reservation: Reservation;
   interactive: boolean;
+  light: boolean;
   pauseable: boolean;
   paused: boolean;
   pauseRequested: boolean;
   active: boolean;
   cancelled: boolean;
   controller: AbortController | null;
+  /** Give back the processing slot of the photo now running (once). Set while one runs. */
+  releaseSlot: (() => void) | null;
+  /** When the running photo last showed a sign of life (dispatch, stage, progress, sub-items). */
+  lastActivity: number;
+  stallMs: number | undefined;
+  cloud: boolean;
+  /** The waiting reason last shown on this task, so it is written once rather than on every pump. */
+  waitShown?: string;
+  /** The person chose Start now: it starts at once, whatever the load and however many other jobs run. */
+  forced?: boolean;
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
@@ -110,6 +140,17 @@ interface WorkBatch {
   retry(): Promise<SchedulerTicket | null>;
   finish(result: 'done' | 'failed' | 'cancelled'): void;
 }
+
+/** How many light jobs (on-screen thumbnails) run at once. */
+export const LIGHT_AT_ONCE = 3;
+
+/** A photo with no new stage or progress for this long is stuck: the watchdog fails it and frees its slot. */
+export const STALL_MS = 5 * 60_000;
+/** Cloud work waits on the network and a remote queue, so it gets longer. */
+export const STALL_CLOUD_MS = 15 * 60_000;
+/** The words the watchdog leaves on a stuck photo, so nothing waits for ever in silence. */
+export const stalledMessage = (minutes: number) =>
+  `Stopped after ${minutes} minutes with no progress, so other work can go on. Nothing was changed. Retry failed items only to try again.`;
 
 export function limitsForDevice(device: { hardwareConcurrency?: number; deviceMemory?: number; mobile?: boolean } = {}): DeviceLimits {
   const cores = Number.isFinite(device.hardwareConcurrency) ? Math.max(1, Math.floor(device.hardwareConcurrency!)) : 2;
@@ -125,6 +166,8 @@ export function createEngineScheduler(options: {
   resourceSample?: ResourceSample | null;
   mode?: ProcessingMode;
   now?: () => number;
+  /** How often the watchdog looks for stuck photos (ms). 0: never on its own (tests call checkStalls with their own clock). */
+  watchdogMs?: number;
 } = {}) {
   const store = options.taskStore ?? tasks;
   const limits: DeviceLimits = { ...(options.limits ?? limitsForDevice()) };
@@ -145,9 +188,26 @@ export function createEngineScheduler(options: {
   let resourceSample = options.resourceSample ?? null;
   let mode: ProcessingMode = options.mode ?? 'balanced';
   let blockedReason: string | null = null;
+  let admissionChecks = 0;
   const admitted = (job: WorkBatch): boolean => {
+    admissionChecks += 1;
+    if (job.forced) { blockedReason = null; return true; }
+    if (job.light) return [...jobs.values()].filter(other => other.active && other.light).length < LIGHT_AT_ONCE;
     if (used[job.resource] >= limits[job.resource]) return false;
     const occupied = [...jobs.values()].filter(other => other.active);
+    const busy = occupied.filter(other => other.resource !== 'io');
+    if (job.resource !== 'io') {
+      // Never starve: with none of InFlight's own heavy work running, one job always starts, however busy other
+      // programs keep the computer. The measurements only decide whether MORE than one runs at once. (Owner's test: at
+      // 100% CPU from other programs, TrueDetail, the full-size develop and the colour check all sat "Queued" for ever.)
+      if (!busy.length) { blockedReason = null; return true; }
+      // A job the person started themselves (one photo: denoise, tap to select, find subject...) starts as soon as no
+      // other such job runs; background work yields to it, one photo at a time.
+      if (job.interactive && !busy.some(other => other.interactive)) { blockedReason = null; return true; }
+    } else if (!occupied.some(other => other.resource === 'io' && !other.light)) {
+      // Reading files is never held by the load either: with no other read running, one starts.
+      blockedReason = null; return true;
+    }
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
       gpuBytes: sum.gpuBytes + other.reservation.gpuBytes,
@@ -171,6 +231,11 @@ export function createEngineScheduler(options: {
     return safe;
   };
   const jobs = new Map<number, WorkBatch>();
+  // The words for a task waiting on the computer's capacity; the app supplies them in the person's language.
+  let waitWords: (reason: string) => string = (reason) => (reason === 'memory'
+    ? 'Waiting: memory is low, so this starts when the task before it finishes.'
+    : 'Waiting: the computer is busy, so this starts when the task before it finishes.');
+  const capacityReasons = new Set(['cpu', 'gpu', 'memory', 'gpu-memory', 'disk', 'thermal']);
   const failedJobs = new Map<number, WorkBatch>();
   // The signal handed to each running photograph. Engine work called with one of these is already inside a
   // batch: it must run there, not queue a second batch behind the one waiting for it (one heavy job at a time).
@@ -200,6 +265,53 @@ export function createEngineScheduler(options: {
     job.handle.finish(`${job.items.length} of ${job.items.length} completed`);
     job.finish('done');
   };
+  /**
+   * The watchdog: a running photo that shows no sign of life for its limit is stopped, failed with a plain message and
+   * its slot given back, so one hung read or model never leaves every other task "waiting for processing slot" at 0%
+   * CPU. Its late result, if it ever comes, is never committed. The rest of its task carries on.
+   */
+  let watchdog: ReturnType<typeof setInterval> | null = null;
+  const checkStalls = () => {
+    const at = now();
+    let anyActive = false;
+    for (const job of jobs.values()) {
+      if (!job.active || !job.releaseSlot) continue;
+      anyActive = true;
+      const limit = job.stallMs ?? (job.cloud ? STALL_CLOUD_MS : STALL_MS);
+      if (at - job.lastActivity < limit) continue;
+      const item = job.items.find(candidate => candidate.state === 'running');
+      if (item && !item.confirmed) { item.state = 'failed'; item.detail = stalledMessage(Math.round(limit / 60_000)); }
+      job.controller?.abort();
+      job.releaseSlot();
+      if (job.cancelled) { job.finish('cancelled'); continue; }
+      publishProgress(job);
+      if (job.items.some(candidate => candidate.state === 'queued')) {
+        job.handle.transition('queued', `${countDone(job)} of ${job.items.length} completed; waiting for processing slot`);
+      } else finishJob(job);
+    }
+    if (!anyActive && watchdog) { clearInterval(watchdog); watchdog = null; }
+    pump();
+  };
+  const startWatchdog = () => {
+    if (watchdog || options.watchdogMs === 0) return;
+    watchdog = setInterval(checkStalls, options.watchdogMs ?? 30_000);
+    // In Node (tests), never keep the process alive just for the watchdog; in the app the page stays open anyway.
+    (watchdog as { unref?: () => void }).unref?.();
+  };
+
+  /** Queued tasks held back by the computer's capacity say so, instead of a silent "Queued". */
+  const showWaiting = () => {
+    // The words say it starts when the task before it finishes, so they are shown only while one is running.
+    const running = [...jobs.values()].some(job => job.active);
+    const reason = running && blockedReason && capacityReasons.has(blockedReason) ? blockedReason : null;
+    for (const job of jobs.values()) {
+      if (job.active || job.paused || job.cancelled || !job.items.some(item => item.state === 'queued')) continue;
+      const words = reason ? waitWords(reason) : undefined;
+      if (!words || job.waitShown === words) continue;
+      job.waitShown = words;
+      job.handle.patch({ detail: words });
+    }
+  };
   const pump = () => {
     if (pausedAll) return;
     // Each dispatch covers only one photograph, then reconsider priority.
@@ -210,13 +322,27 @@ export function createEngineScheduler(options: {
         j.items.some(item => item.state === 'queued') && admitted(j));
       eligible.sort((a, b) => b.priority - a.priority || a.order - b.order);
       const job = eligible[0];
-      if (!job) break;
+      if (!job) { showWaiting(); break; }
       const index = job.items.findIndex(item => item.state === 'queued');
       if (index < 0) break;
       dispatched = true;
       job.active = true;
+      job.waitShown = undefined;
       job.order = ++sequence;
+      job.lastActivity = now();
       used[job.resource]++;
+      startWatchdog();
+      // The slot is given back when the photo finishes, or at once when its task is cancelled: a photo that ignores
+      // the stop (a hung read, a stuck analysis) must never keep every other task "waiting for processing slot".
+      let holding = true;
+      job.releaseSlot = () => {
+        if (!holding) return;
+        holding = false;
+        job.active = false;
+        job.controller = null;
+        job.releaseSlot = null;
+        used[job.resource] = Math.max(0, used[job.resource] - 1);
+      };
       const item = job.items[index];
       const controller = new AbortController();
       job.controller = controller;
@@ -228,6 +354,7 @@ export function createEngineScheduler(options: {
       const ctx: ScheduledContext = {
         signal: controller.signal,
         stage(stage) {
+          job.lastActivity = now();
           if (!job.cancelled && !controller.signal.aborted) {
             item.detail = stage;
             job.handle.patch({ stage, detail: `${item.label}: ${stage}` });
@@ -235,22 +362,29 @@ export function createEngineScheduler(options: {
           }
         },
         reportProgress(done, total, detail) {
+          job.lastActivity = now();
           if (!job.cancelled && !controller.signal.aborted) {
             job.manualProgress = true;
             job.handle.progress(done, total, detail);
           }
         },
         setSubitems(subitems) {
+          job.lastActivity = now();
           if (job.cancelled || controller.signal.aborted) return;
           job.subitems = subitems.map(sub => ({ ...sub, state: 'queued' }));
           updateItems(job);
         },
         updateSubitem(id, state, detail) {
+          job.lastActivity = now();
           if (job.cancelled || controller.signal.aborted || !job.subitems) return;
           job.subitems = job.subitems.map(sub => sub.id === id ? { ...sub, state, ...(detail ? { detail } : {}) } : sub);
           updateItems(job);
         },
-        setLocation(location) { if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location }); },
+        setLocation(location) {
+          job.cloud = location === 'cloud';
+          job.lastActivity = now();
+          if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location });
+        },
         checkCancelled() {
           controller.signal.throwIfAborted();
           if (job.cancelled) throw new Error('Job cancelled.');
@@ -304,9 +438,10 @@ export function createEngineScheduler(options: {
             item.detail = error instanceof Error ? error.message : String(error);
           }
         } finally {
-          job.active = false;
-          job.controller = null;
-          used[job.resource] = Math.max(0, used[job.resource] - 1);
+          // Already given back by Cancel: this late finish changes nothing more (its result was never committed).
+          const abandoned = !holding;
+          job.releaseSlot?.();
+          if (abandoned) { setTimeout(pump, 0); return; }
           if (job.cancelled) { job.finish('cancelled'); }
           else {
             publishProgress(job);
@@ -325,6 +460,80 @@ export function createEngineScheduler(options: {
         }
       })();
     }
+  };
+
+  type MemberState = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled';
+  /** A shown row standing for several jobs (BatchDefinition.group). */
+  interface Group {
+    key: string;
+    handle: SchedulerTaskHandle;
+    members: Map<number, { state: MemberState; done: number; total: number; items: TaskItemInfo[]; cancel: () => void }>;
+    closed: boolean;
+    detail?: string;
+  }
+  const openGroups = new Map<string, Group>();
+  /** The jobs a grouped row stands for, or null when the id is an ordinary task. */
+  const membersOf = (id: number): number[] | null => { const group = groupsByTask.get(id); return group ? [...group.members.keys()] : null; };
+  const groupsByTask = new Map<number, Group>();
+  let virtualIds = 0;
+  const refreshGroup = (group: Group) => {
+    const members = [...group.members.values()];
+    const done = members.reduce((sum, m) => sum + m.done, 0);
+    const total = members.reduce((sum, m) => sum + m.total, 0);
+    group.handle.patch({ items: members.flatMap(m => m.items), done, total, detail: group.detail ?? `${done} of ${total} completed` });
+    const live = members.filter(m => m.state === 'running' || m.state === 'queued' || m.state === 'paused');
+    if (live.length) {
+      const next = members.some(m => m.state === 'running') ? 'running' : members.some(m => m.state === 'queued') ? 'queued' : 'paused';
+      group.handle.transition(next);
+      return;
+    }
+    // Every member has ended: the row finishes once, and the next job with this key starts a new row.
+    group.closed = true;
+    if (openGroups.get(group.key) === group) openGroups.delete(group.key);
+    group.handle.transition('running');
+    group.handle.progress(done, total);
+    const failed = members.filter(m => m.state === 'failed').length;
+    if (failed) group.handle.fail(`${failed} of ${total} items failed. Retry failed items only.`);
+    else if (members.every(m => m.state === 'cancelled')) store.cancel(group.handle.id);
+    else group.handle.finish(`${done} of ${total} completed`);
+  };
+  const groupFor = (key: string, title: string, kind: string, priority: number): Group => {
+    const open = openGroups.get(key);
+    if (open && !open.closed) return open;
+    let group!: Group;
+    const handle = store.enqueue(title, {
+      total: 0, kind, location: 'local', priority, pauseable: true,
+      // Cancel on the row stops every job in it.
+      cancel: () => { for (const member of [...group.members.values()]) member.cancel(); },
+    });
+    group = { key, handle, members: new Map(), closed: false };
+    openGroups.set(key, group);
+    groupsByTask.set(handle.id, group);
+    while (groupsByTask.size > 50) groupsByTask.delete(groupsByTask.keys().next().value!);
+    return group;
+  };
+  /** A job's handle inside a group: its changes update the group's one row instead of a row of its own. */
+  const memberHandle = (group: Group, id: number, total: number, cancel: () => void): SchedulerTaskHandle => {
+    const member = { state: 'queued' as MemberState, done: 0, total, items: [] as TaskItemInfo[], cancel };
+    group.members.set(id, member);
+    let cancelled = false;
+    const live = () => member.state === 'queued' || member.state === 'running' || member.state === 'paused';
+    const end = (state: 'done' | 'failed' | 'cancelled') => { if (!live()) return; member.state = state; if (state === 'done') member.done = member.total; refreshGroup(group); };
+    return {
+      id,
+      progress: (done, totalNow) => { if (!live()) return; member.done = done; if (typeof totalNow === 'number') member.total = totalNow; refreshGroup(group); },
+      finish: () => end('done'),
+      fail: () => end('failed'),
+      get cancelled() { return cancelled; },
+      transition: (next, detail) => { if (!live()) return; member.state = next; if (detail !== undefined && next === 'running') group.detail = undefined; refreshGroup(group); },
+      patch: change => {
+        if (change.items) member.items = [...change.items];
+        if (change.detail !== undefined || change.stage !== undefined) group.detail = change.detail ?? (change.stage ? `${change.stage}` : group.detail);
+        if (change.priority !== undefined) group.handle.patch({ priority: Math.max(change.priority, 0) });
+        refreshGroup(group);
+      },
+      markCancelled: () => { cancelled = true; member.state = 'cancelled'; refreshGroup(group); },
+    } as SchedulerTaskHandle & { markCancelled(): void };
   };
 
   async function submit<Item, Snapshot>(definition: BatchDefinition<Item, Snapshot>): Promise<SchedulerTicket> {
@@ -362,21 +571,35 @@ export function createEngineScheduler(options: {
     const finished = new Promise<'done' | 'failed' | 'cancelled'>(resolve => { resolveFinished = resolve; });
     let job!: WorkBatch;
     let retryInFlight = false;
-    const handle = store.enqueue(definition.title, {
-      total: items.length, kind: definition.kind, location: definition.location ?? 'local', priority: definition.priority ?? 0,
-      pauseable: definition.pauseable !== false && items.length > 1,
-      cancel: () => {
+    const cancelJob = () => {
         job.cancelled = true;
         job.controller?.abort();
-        for (const item of job.items) if (item.state === 'queued') item.state = 'cancelled';
+        for (const item of job.items) {
+          if (item.state === 'queued' || (item.state === 'running' && !item.confirmed)) item.state = 'cancelled';
+        }
         updateItems(job);
-        if (!job.active) job.finish('cancelled');
+        // Free the slot now rather than when the running photo notices the stop, which a hung read never does.
+        job.releaseSlot?.();
+        job.finish('cancelled');
         pump();
-      },
-    });
+    };
+    const group = definition.group ? groupFor(definition.group.key, definition.group.title, definition.kind, definition.priority ?? 0) : null;
+    const handle: SchedulerTaskHandle = group
+      ? memberHandle(group, --virtualIds, items.length, () => { if (!job.cancelled && jobs.has(job.id)) { (handle as SchedulerTaskHandle & { markCancelled(): void }).markCancelled(); cancelJob(); } })
+      : store.enqueue(definition.title, {
+        total: items.length, kind: definition.kind, location: definition.location ?? 'local', priority: definition.priority ?? 0,
+        pauseable: definition.pauseable !== false && items.length > 1,
+        cancel: cancelJob,
+      });
     const ticket: SchedulerTicket = {
-      taskId: handle.id, finished,
-      cancel: () => store.cancel(handle.id),
+      taskId: group ? group.handle.id : handle.id, finished,
+      queued: () => jobs.has(handle.id) && !job.active && !job.cancelled && job.items.some(item => item.state === 'queued'),
+      cancel: () => {
+        if (!group) return store.cancel(handle.id);
+        if (job.cancelled || !jobs.has(job.id)) return false;
+        group.members.get(handle.id)?.cancel();
+        return true;
+      },
       pause: () => pause(handle.id),
       resume: () => resume(handle.id),
       jumpQueue: () => jumpQueue(handle.id),
@@ -385,9 +608,12 @@ export function createEngineScheduler(options: {
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
-      interactive: definition.interactive === true && items.length === 1,
+      // One photo the person is waiting on; or an export of several, which they asked for and are waiting on too.
+      interactive: definition.interactive === true && (items.length === 1 || definition.kind === 'export'),
+      light: definition.light === true,
       pauseable: definition.pauseable !== false && items.length > 1,
-      active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
+      active: false, paused: false, pauseRequested: false, cancelled: false, controller: null, releaseSlot: null,
+      lastActivity: now(), stallMs: definition.stallMs, cloud: (definition.location ?? 'local') === 'cloud',
       handle, items: items as WorkItem<unknown>[], manualProgress: false,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
       saveCheckpoint: () => {
@@ -461,6 +687,15 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /** Start now: the person's choice overrides the load check (and the one-at-a-time limit) for this task. */
+  const startNow = (id: number): boolean => {
+    const job = jobs.get(id);
+    if (!job || job.cancelled || job.paused || job.active || !job.items.some(item => item.state === 'queued')) return false;
+    job.forced = true;
+    job.priority = ++highest;
+    pump();
+    return true;
+  };
   const reorder = (ids: readonly number[]): boolean => {
     if (new Set(ids).size !== ids.length || ids.some(id => !jobs.has(id) || jobs.get(id)?.active)) return false;
     for (const id of [...ids].reverse()) {
@@ -482,18 +717,50 @@ export function createEngineScheduler(options: {
     pump();
   };
   return {
-    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    submit, setCpuLimit,
+    // A grouped row's buttons act on every job in it (BatchDefinition.group); other rows on their one job.
+    pause: (id: number) => {
+      const members = membersOf(id);
+      if (!members) return pause(id);
+      let any = false;
+      for (const member of members) {
+        const job = jobs.get(member);
+        if (!job || job.cancelled || job.paused) continue;
+        if (job.active) { any = pause(member) || any; continue; }
+        if (!job.items.some(item => item.state === 'queued')) continue;
+        job.paused = true;
+        job.handle.transition('paused', 'Paused before the next photograph');
+        any = true;
+      }
+      return any;
+    },
+    resume: (id: number) => (membersOf(id)?.map(member => resume(member)).some(Boolean) ?? resume(id)),
+    jumpQueue: (id: number) => (membersOf(id)?.map(member => jumpQueue(member)).some(Boolean) ?? jumpQueue(id)),
+    startNow: (id: number) => (membersOf(id)?.map(member => startNow(member)).some(Boolean) ?? startNow(id)),
+    reorder: (ids: readonly number[]) => reorder(ids.flatMap(id => membersOf(id)?.filter(member => jobs.has(member) && !jobs.get(member)!.active) ?? [id])),
+    /** Whether this task is waiting for the computer's capacity (it then offers Start now). */
+    isWaitingForCapacity: (id: number) => (membersOf(id) ?? [id]).some(member => { const job = jobs.get(member); return Boolean(job && !job.active && !job.cancelled && job.waitShown); }),
+    /** Whether work the person started (one photo: TrueDetail, tap to select...) is running or waiting. Quiet
+     * background helpers outside the scheduler (the species scan) step aside while it is. */
+    personWorkPending: () => [...jobs.values()].some(job => job.interactive && !job.cancelled && (job.active || job.items.some(item => item.state === 'queued'))),
+    /** How many admission checks have run (tests: waiting must not re-check in a loop). */
+    admissionChecks: () => admissionChecks,
+    /** Look for stuck photos now (the watchdog does this every 30 s). */
+    checkStalls,
     cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
-    canRetryFailed: (id: number) => {
-      const job = jobs.get(id) ?? failedJobs.get(id);
-      return Boolean(job && !jobs.has(id) && job.items.some(item => item.state === 'failed' && !item.uncertain));
-    },
+    canRetryFailed: (id: number) => (membersOf(id) ?? [id]).some(member => {
+      const job = jobs.get(member) ?? failedJobs.get(member);
+      return Boolean(job && !jobs.has(member) && job.items.some(item => item.state === 'failed' && !item.uncertain));
+    }),
     retryFailed: async (id: number) => {
-      const job = jobs.get(id) ?? failedJobs.get(id);
-      const ticket = await job?.retry() ?? null;
-      if (ticket) failedJobs.delete(id);
-      return ticket;
+      let first: SchedulerTicket | null = null;
+      for (const member of membersOf(id) ?? [id]) {
+        const job = jobs.get(member) ?? failedJobs.get(member);
+        const ticket = await job?.retry() ?? null;
+        if (ticket) { failedJobs.delete(member); first ??= ticket; }
+      }
+      return first;
     },
     pauseAll() {
       pausedAll = true;
@@ -502,7 +769,13 @@ export function createEngineScheduler(options: {
     resumeAll() {
       pausedAll = false;
       for (const job of jobs.values()) if (job.paused || job.pauseRequested) resume(job.id);
+      // Resume all also clears a hold: the first task waiting for capacity starts if nothing of InFlight's is running,
+      // so the person never has to restart the app to get work moving.
       pump();
+      if (![...jobs.values()].some(job => job.active)) {
+        const first = [...jobs.values()].filter(job => job.waitShown && !job.paused && !job.cancelled).sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
+        if (first) startNow(first.id);
+      }
     },
     list: () => store.list(),
     subscribe: store.subscribe,
@@ -517,6 +790,8 @@ export function createEngineScheduler(options: {
       pump();
     },
     setProcessingMode(next: ProcessingMode) { mode = next; pump(); },
+    /** The waiting words in the person's language (reason: cpu, memory, thermal...). */
+    setWaitWords(words: (reason: string) => string) { waitWords = words; },
     resourceStatus: () => ({ active: { ...used }, measured: resourceSample !== null, mode, blockedReason }),
   };
 }
@@ -526,3 +801,11 @@ export const engineScheduler = createEngineScheduler({
   limits: limitsForDevice({ hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory,
     mobile: typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent) }),
 });
+
+/** Resolves once no work the person started is running or waiting. It listens to Tasks; it never polls. */
+export function personWorkClear(scheduler: { personWorkPending(): boolean; subscribe(listener: () => void): () => void } = engineScheduler): Promise<void> {
+  if (!scheduler.personWorkPending()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = scheduler.subscribe(() => { if (!scheduler.personWorkPending()) { stop(); resolve(); } });
+  });
+}

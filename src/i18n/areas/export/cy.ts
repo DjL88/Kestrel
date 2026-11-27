@@ -18,7 +18,7 @@ export const cy: AreaTranslation<typeof source> = {
     copyright: "Hawlfraint",
     includeKeywords: "Cynnwys allweddeiriau",
     keywords: "Allweddeiriau (wedi'u gwahanu gan gomâu; gwag = tagiau wedi'u cadarnhau)",
-    help: "Gall pynciau wedi'u cadarnhau lenwi'r teitl a'r allweddeiriau. Ni chaiff dyfaliadau AI heb eu cadarnhau eu hallforio. Caiff y wybodaeth ei chadw yn y ffeil, nid ar y llun.",
+    help: "Gall pynciau wedi’u cadarnhau lenwi’r teitl a’r allweddeiriau. Ni chaiff awgrymiadau modelau heb eu cadarnhau eu hallforio. Caiff y wybodaeth ei chadw yn y ffeil, nid ar y llun.",
   },
   originals: {
     title: "Ffeiliau gwreiddiol y camera",

@@ -18,7 +18,7 @@ export type AccountCloudUsage =
   | { state: 'available'; bytesUsed: number; bytesQuota: number };
 
 export class AccountAiConsentError extends Error {
-  constructor(message = 'Could not reach your online AI settings. Nothing has changed.') {
+  constructor(message = 'Could not reach your online helper settings. Nothing has changed.') {
     super(message);
     this.name = 'AccountAiConsentError';
   }
@@ -65,8 +65,8 @@ export async function withSession<T>(
 ): Promise<T> {
   // Revalidate the exact public endpoint even if the caller already parsed it.
   const origin = parseControlPlaneUrl(baseUrl ?? undefined);
-  if (!origin) throw new AccountAiConsentError('Online AI settings are not configured in this build.');
-  if (!firebaseIdToken?.trim()) throw new AccountAiConsentError('Sign in again to manage online AI.');
+  if (!origin) throw new AccountAiConsentError('Online helper settings are not configured in this build.');
+  if (!firebaseIdToken?.trim()) throw new AccountAiConsentError('Sign in again to manage the online helper.');
   const signedIn = await request(origin + '/v1/auth/firebase', fetcher, 'POST', { credential: firebaseIdToken });
   const session = signedIn.accessToken;
   if (typeof session !== 'string' || !session || session.length > 8192) throw new AccountAiConsentError();

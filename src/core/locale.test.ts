@@ -66,6 +66,10 @@ test('dates follow the chosen language: British by default, never the browser’
 
 test('the device language is matched to one InFlight has, to offer at first run', () => {
   assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
+  assert.equal(matchDeviceLanguage(['en-US'], 'Europe/London'), 'en-GB', 'a UK Windows laptop left on US display language');
+  assert.equal(matchDeviceLanguage(['en-US'], 'America/Chicago'), 'en-US');
+  assert.equal(matchDeviceLanguage(['en-US'], 'Pacific/Honolulu'), 'en-US');
+  assert.equal(matchDeviceLanguage(['fr-FR'], 'Europe/London'), 'fr');
   assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-AU', 'Australian English is a regional option');
   assert.equal(matchDeviceLanguage(['en-NZ']), 'en-NZ');
   assert.equal(matchDeviceLanguage(['en-CA']), 'en-CA');

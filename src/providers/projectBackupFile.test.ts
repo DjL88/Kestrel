@@ -46,7 +46,7 @@ test('desktop backup waits for the native write and saves a restorable edit reci
   desktopWindow(t, async (command, args) => {
     commands.push(command);
     if (command === 'plugin:dialog|save') {
-      assert.equal((args as { options: { defaultPath: string } }).options.defaultPath, 'A_B_ edited project.kestrel.json');
+      assert.equal((args as { options: { defaultPath: string } }).options.defaultPath, 'A_B_ edited project.inflight.json');
       return path;
     }
     if (command === 'plugin:fs|open') {
