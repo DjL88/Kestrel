@@ -14,6 +14,8 @@ import { paddleTopUps, TOP_UP_AMOUNTS_PENCE, type TopUpOrder, type TopUpPence } 
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
 import { buildOptionalServices } from './wiring.ts';
+import { localPricing, readPricePreview } from './localPricing.ts';
+import { dbipCountryLookup, type CountryLookup } from './networkCountry.ts';
 
 const config = loadConfig();
 const firestore = config.store === 'firestore' ? await openFirestore(config) : undefined;
@@ -39,6 +41,15 @@ const paddleApiKey = paddleKey && paddleKeyProject
   ? rotatingKeySource(secretManagerSecret({ project: paddleKeyProject, secret: process.env.KCP_PADDLE_KEY_SECRET?.trim() || 'kestrel-paddle-api-key' }).latest, paddleKey)
   : paddleKey;
 const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: paddleEnvironment }) : undefined;
+// Website prices in the visitor's currency (GET /v1/pricing/local): our own offline country lookup, then Paddle's
+// pricing preview for that country only. The lookup database is read once, on the first visit that needs it.
+let countryLookup: Promise<CountryLookup> | null = null;
+const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual } : null;
+const localPrices = paddle && proPriceIds ? localPricing({
+  lookup: () => (countryLookup ??= dbipCountryLookup()),
+  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual], country), proPriceIds),
+  now: Date.now,
+}) : undefined;
 const paddleOrders = 'paddle_pro_orders';
 const paddleSubscriptions = 'paddle_pro_subscriptions';
 const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
@@ -127,6 +138,7 @@ const app = createApp({ config, store, commerce, payments: commerce, paddleEnvir
     return counts;
   } : undefined, proCheckout, topUpCheckout, pricing: commerce,
   priceMatrix: commerce ? { get: () => commerce.getPriceMatrix(), save: (matrix) => commerce.savePriceMatrix(matrix) } : undefined,
+  localPrices,
   paddlePrices: paddle ? { priceIds: paddlePriceIds, get: (id) => paddle.getPrice(id), update: (id, body) => paddle.updatePrice(id, body) } : undefined,
   ecbRates: () => fetchEcbRatesPerGbp(), cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, push: optional.push, contacts: optional.contacts, news: optional.news, mailer: optional.mailer, contactNotify: optional.contactNotify, cloudBalance: optional.cloudBalance, safety: optional.safety, compliance: optional.compliance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 

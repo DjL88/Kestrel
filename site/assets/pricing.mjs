@@ -50,3 +50,25 @@ export async function loadPricing(fetchImpl = globalThis.fetch) {
     return (response.ok && readPricing(await response.json())) || FALLBACK;
   } catch { return FALLBACK; }
 }
+
+/**
+ * Checks a /v1/pricing/local answer: Paddle's own formatted prices for the visitor's country, e.g.
+ * { currency: 'EUR', monthly: '€3.99', annual: '€35.00' }. Null when it is not usable.
+ */
+export function readLocalPrices(body) {
+  if (!body || typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency)) return null;
+  const good = (text) => typeof text === 'string' && text.length > 0 && text.length <= 32 && /\d/.test(text) && !/[<>]/.test(text);
+  return good(body.monthly) && good(body.annual) ? { currency: body.currency, monthly: body.monthly, annual: body.annual } : null;
+}
+
+/**
+ * Prices in the currency Paddle charges for the visitor's country. The server works the country out from the
+ * visitor's internet address and drops the address; Paddle is asked only about the country. Null on any failure,
+ * and then the page uses the browser-language currency (currencyFor) as before.
+ */
+export async function loadLocalPrices(fetchImpl = globalThis.fetch) {
+  try {
+    const response = await fetchImpl('/v1/pricing/local', { credentials: 'omit' });
+    return response.ok ? readLocalPrices(await response.json()) : null;
+  } catch { return null; }
+}

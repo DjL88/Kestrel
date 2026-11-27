@@ -130,6 +130,12 @@ and `admin1CodesASCII.txt` (https://www.geonames.org/, licensed Creative Commons
 (`Intl.DisplayNames`), not from GeoNames. The curated photo-spot list (`src/assets/places/curated.json`) is
 InFlight's own, positions read by hand; no OpenStreetMap data was copied.
 
+## Country from an internet address: DB-IP "IP to Country Lite" (CC BY 4.0)
+
+The control plane looks up a country offline in `@ip-location-db/dbip-country-mmdb` (`services/control-plane/src/networkCountry.ts`),
+used by `GET /v1/pricing/local` to show website prices in the visitor's currency. Required credit: "IP Geolocation by
+DB-IP" with a link to https://db-ip.com. It is shown in the privacy notice beside that use.
+
 ## Lens profiles: lensfun database (CC BY-SA 3.0, owner decision 26 Nov 2026)
 
 `crates/kestrel-raw/data/lensfun/lensfun.txt` is a compacted copy of the lensfun lens database

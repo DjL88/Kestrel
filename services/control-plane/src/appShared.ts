@@ -65,6 +65,11 @@ export interface AppOptions {
     get(priceId: string): Promise<import('../../../src/core/pricingMatrix.ts').PaddlePriceView>;
     update(priceId: string, body: ReturnType<typeof import('../../../src/core/pricingMatrix.ts').paddlePriceUpdate>): Promise<unknown>;
   };
+  /**
+   * Pro prices in the visitor's currency for the website (localPricing.ts). Absent (Paddle off, development): the
+   * route answers 503 and the site keeps its own fallback.
+   */
+  localPrices?: (req: Pick<import('./http.ts').Request, 'headers' | 'ip'>) => Promise<import('./localPricing.ts').LocalPrices | null>;
   /** Today's ECB reference rates per £1 (commerce/priceReview.ts). */
   ecbRates?: () => Promise<{ date: string; perGbp: Record<string, number> }>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
