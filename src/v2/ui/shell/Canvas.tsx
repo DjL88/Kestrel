@@ -34,6 +34,7 @@ import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
 import { createDoubleTapDetector } from '../../../core/touchGestures';
+import { readDoubleTapAction } from '../../../core/gestureSettings';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
 import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
@@ -595,8 +596,8 @@ export default function Canvas({
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number; lastCentreX: number; lastCentreY: number } | null>(null);
   const touchPan = useRef<{ x: number; y: number } | null>(null);
-  // A double-tap on the photo opens (or closes) Crop. Decided from pointer events, not `dblclick`, which iOS and the Android
-  // WebView do not reliably fire for a touch. `lastTouchDoubleTap` stops a `dblclick` that does follow from toggling it back.
+  // A double-tap on the photo is decided from pointer events, not `dblclick`, which iOS and the Android WebView do not
+  // reliably fire for a touch. `lastTouchDoubleTap` stops a `dblclick` that does follow from also acting (it opens Crop).
   const doubleTap = useRef(createDoubleTapDetector());
   const lastTouchDoubleTap = useRef(Number.NEGATIVE_INFINITY);
   /** A mouse or pen dragging the empty stage to move round a zoomed-in photo. */
@@ -1247,7 +1248,7 @@ export default function Canvas({
       if (swipe && !swipe.pinched && !heldOriginal && (e.currentTarget as HTMLElement).dataset.testid === 'canvas-frame') {
         if (doubleTap.current.lift({ x: swipe.x, y: swipe.y, t: swipe.t }, { x: e.clientX, y: e.clientY, t: e.timeStamp })) {
           lastTouchDoubleTap.current = e.timeStamp;
-          setRevealSizeId(revealSizeId === activeSize.id ? null : activeSize.id);
+          onTouchDoubleTap(e.clientX, e.clientY);
         }
       } else doubleTap.current.reset();
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
@@ -1730,6 +1731,32 @@ export default function Canvas({
     };
     setEyeTarget((count) => count + 1);
     if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
+  };
+  /**
+   * A double-tap (touch). By convention (Apple Photos, Google Photos, Lightroom mobile) it zooms in on the spot tapped to
+   * 100%, and again goes back to Fit; in Crop it puts the picture back in the crop window (Lightroom resets the crop the
+   * same way). A person can choose Crop-on-double-tap or nothing instead (gestureSettings). Never the only way: Fit, 100%
+   * and Crop all have visible buttons and keys.
+   */
+  const onTouchDoubleTap = (clientX: number, clientY: number) => {
+    const action = readDoubleTapAction();
+    if (action === 'off') return;
+    const cropping = revealSizeId === activeSize.id;
+    if (action === 'crop') { setRevealSizeId(cropping ? null : activeSize.id); return; }
+    if (cropping) { onUpdateCrop(photo.id, activeSize.id, { zoom: 1, panX: 0, panY: 0 }); return; }
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    if (canvasZoom > 1.05 || !stage || !frame || !fitScale) { zoomAroundCentre(canvasZoom > 1.05 ? 1 : Math.min(maxZoom, 2)); return; }
+    const next = Math.min(maxZoom, 1 / fitScale);
+    if (!(next > canvasZoom)) return;
+    const frameRect = anchorRect(frame);
+    const stageRect = stage.getBoundingClientRect();
+    // Keep the spot under the finger where it is while the picture grows round it.
+    keepAt.current = {
+      fx: clamp((clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((clientY - frameRect.top) / frameRect.height, 0, 1),
+      x: clientX - stageRect.left, y: clientY - stageRect.top, zoom: next, at: performance.now(),
+    };
+    onSetZoom(next);
   };
   zoomKeyRef.current = (action) => {
     if (action === 'actual') { zoomToActual(); return; }

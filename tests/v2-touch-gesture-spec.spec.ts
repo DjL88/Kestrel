@@ -1,7 +1,7 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
 
-// The owner's phone and tablet gesture spec (CLAUDE.md, 28 Nov): double-tap opens Crop; a single tap never opens it or hides
-// the bars; pinch in Crop zooms the picture inside the crop window while the window stays put; a long press on a photo in
+// Phone and tablet gestures, set by what Photos, Lightroom and Snapseed do (see the PR for sources): double-tap zooms (Crop on
+// double-tap is a choice); a single tap never opens Crop or zooms; pinch in Crop zooms the picture inside the crop window while the window stays put; a long press on a photo in
 // the filmstrip or the gallery opens its menu, and scrolling or moving the finger never does. Touch runs in the phone project;
 // the keyboard route to the same menu runs in the desktop project.
 
@@ -52,77 +52,92 @@ async function pinch(cdp: CDPSession, centre: { x: number; y: number }, from: nu
   await touch(cdp, 'touchEnd', []);
 }
 
+const DOUBLE_TAP_KEY = 'inflight.v2.gesture.double-tap';
+const doubleTap = async (page: Page, cdp: CDPSession, x: number, y: number) => {
+  await tap(cdp, x, y);
+  await page.waitForTimeout(90);
+  await tap(cdp, x, y);
+};
+const useDoubleTapFor = (page: Page, action: string) => page.addInitScript(([key, value]) => localStorage.setItem(key, value), [DOUBLE_TAP_KEY, action]);
+
 test.describe('phone: canvas and Crop', () => {
   test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'phone', 'Requires the touch-enabled phone project.'); });
 
-  test('a single tap on the photo changes nothing: no Crop, bars stay', async ({ page }) => {
+  test('a single tap on the photo changes nothing: no Crop, no zoom, bars stay', async ({ page }) => {
     const studio = await openPhotos(page);
-    const cdp = await page.context().newCDPSession(page);
-    const { x, y } = await centreOf(page, 'canvas-frame');
-    await tap(cdp, x, y);
-    // Wait past the double-tap window, so a lone tap is known to stay a lone tap.
-    await page.waitForTimeout(600);
-    await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
-    await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
-    await expect(page.getByTestId('canvas-frame')).toBeVisible();
-  });
-
-  test('double-tap opens Crop and again leaves it, without the page or the picture zooming', async ({ page }) => {
-    await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
     const { x, y } = await centreOf(page, 'canvas-frame');
     const zoomBefore = await page.getByTestId('zoom-percent').innerText();
     await tap(cdp, x, y);
-    await page.waitForTimeout(90);
-    await tap(cdp, x, y);
-    await expect(page.getByTestId('crop-ghost')).toBeVisible();
-    // The native double-tap-to-zoom never takes it, and a dblclick after the touch does not toggle it back.
-    await page.waitForTimeout(700);
-    await expect(page.getByTestId('crop-ghost')).toBeVisible();
-    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+    // Wait past the double-tap window, so a lone tap is known to stay a lone tap.
+    await page.waitForTimeout(600);
+    await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
     expect(await page.getByTestId('zoom-percent').innerText()).toBe(zoomBefore);
+    await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
+  });
+
+  test('double-tap zooms in to 100% and again back to Fit, as in Photos and Lightroom; the page never zooms', async ({ page }) => {
+    await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const { x, y } = await centreOf(page, 'canvas-frame');
+    const fit = await page.getByTestId('zoom-percent').innerText();
+    await doubleTap(page, cdp, x, y);
+    await expect.poll(async () => Number((await page.getByTestId('zoom-percent').innerText()).replace('%', ''))).toBe(100);
+    // A dblclick that follows the touch does not open Crop on top of it.
+    await page.waitForTimeout(700);
+    await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
     await page.waitForTimeout(400);
-    await tap(cdp, x, y);
+    const again = await centreOf(page, 'canvas-frame');
+    await doubleTap(page, cdp, Math.min(again.x, 300), Math.min(again.y, 400));
+    await expect.poll(() => page.getByTestId('zoom-percent').innerText()).toBe(fit);
+  });
+
+  test('two taps far apart are not a double-tap', async ({ page }) => {
+    await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const { x, y, box } = await centreOf(page, 'canvas-frame');
+    const zoomBefore = await page.getByTestId('zoom-percent').innerText();
+    await tap(cdp, x - box.width / 4, y);
     await page.waitForTimeout(90);
-    await tap(cdp, x, y);
+    await tap(cdp, x + box.width / 4, y);
+    await page.waitForTimeout(500);
+    expect(await page.getByTestId('zoom-percent').innerText()).toBe(zoomBefore);
     await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
   });
 
-  test('double-tap opens Crop even when the browser sends no dblclick (iOS and Android WebViews often do not)', async ({ page }) => {
+  test('the double-tap can be set to open Crop instead, even when the browser sends no dblclick', async ({ page }) => {
+    await useDoubleTapFor(page, 'crop');
     await openPhotos(page);
     // Swallow every dblclick before the app sees it: the double-tap must be recognised from the touches themselves.
     await page.evaluate(() => window.addEventListener('dblclick', (event) => event.stopImmediatePropagation(), true));
     const cdp = await page.context().newCDPSession(page);
     const { x, y } = await centreOf(page, 'canvas-frame');
-    await tap(cdp, x, y);
-    await page.waitForTimeout(90);
-    await tap(cdp, x, y);
+    await doubleTap(page, cdp, x, y);
     await expect(page.getByTestId('crop-ghost')).toBeVisible();
     await page.waitForTimeout(400);
-    await tap(cdp, x, y);
-    await page.waitForTimeout(90);
-    await tap(cdp, x, y);
+    await doubleTap(page, cdp, x, y);
     await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
   });
 
-  test('two taps far apart, or a drag between them, are not a double-tap', async ({ page }) => {
+  test('the double-tap can be switched off', async ({ page }) => {
+    await useDoubleTapFor(page, 'off');
     await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
-    const { x, y, box } = await centreOf(page, 'canvas-frame');
-    await tap(cdp, x - box.width / 4, y);
-    await page.waitForTimeout(90);
-    await tap(cdp, x + box.width / 4, y);
-    await page.waitForTimeout(500);
+    const { x, y } = await centreOf(page, 'canvas-frame');
+    const zoomBefore = await page.getByTestId('zoom-percent').innerText();
+    await doubleTap(page, cdp, x, y);
+    await page.waitForTimeout(600);
+    expect(await page.getByTestId('zoom-percent').innerText()).toBe(zoomBefore);
     await expect(page.getByTestId('crop-ghost')).toHaveCount(0);
   });
 
   test('in Crop, pinching zooms the picture inside the crop window and the window stays put', async ({ page }) => {
+    await useDoubleTapFor(page, 'crop');
     await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
     const { x, y } = await centreOf(page, 'canvas-frame');
-    await tap(cdp, x, y);
-    await page.waitForTimeout(90);
-    await tap(cdp, x, y);
+    await doubleTap(page, cdp, x, y);
     await expect(page.getByTestId('crop-ghost')).toBeVisible();
     const frame = (await page.getByTestId('canvas-frame').boundingBox())!;
     const ghostWidth = async () => (await page.getByTestId('crop-ghost').boundingBox())!.width;
@@ -142,6 +157,25 @@ test.describe('phone: canvas and Crop', () => {
     await pinch(cdp, { x, y }, 90, 5);
     await expect.poll(ghostWidth).toBeGreaterThanOrEqual(start - 1);
     expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+  });
+
+  test('in Crop with the default double-tap, a double-tap puts the picture back in the crop window', async ({ page }) => {
+    await useDoubleTapFor(page, 'crop');
+    await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const { x, y } = await centreOf(page, 'canvas-frame');
+    await doubleTap(page, cdp, x, y);
+    await expect(page.getByTestId('crop-ghost')).toBeVisible();
+    const ghostWidth = async () => (await page.getByTestId('crop-ghost').boundingBox())!.width;
+    const start = await ghostWidth();
+    await pinch(cdp, { x, y }, 20, 90);
+    await expect.poll(ghostWidth).toBeGreaterThan(start * 1.2);
+    // The preference is read at each double-tap, so switching it to zoom makes the double-tap reset the crop zoom.
+    await page.evaluate((key) => localStorage.setItem(key, 'zoom'), DOUBLE_TAP_KEY);
+    await page.waitForTimeout(400);
+    await doubleTap(page, cdp, x, y);
+    await expect.poll(ghostWidth).toBeLessThanOrEqual(start + 1);
+    await expect(page.getByTestId('crop-ghost')).toBeVisible();
   });
 });
 
