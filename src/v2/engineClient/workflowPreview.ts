@@ -15,6 +15,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: 'kestrel.preview.finish-best.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
+  onImageAdvice: 'kestrel.preview.on-image-advice.v1',
 } as const;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;

@@ -19,6 +19,10 @@ import { measureStep, timedStep } from '../../providers/previewTiming';
 import { useTaskList } from './taskListFeed';
 import { histogramOffThread } from '../../providers/pixelAnalysis';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
+import { setAdvice } from './adviceStore';
+import { measureAdviceFor } from './adviceMeasure';
+import { startAdviceRun } from './adviceRun';
+import { lookForZoomFocus } from './eyeZoom';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
 import { panoramaRecipe, type PanoramaRecipe } from '../../core/panoramaRecipe';
@@ -1476,6 +1480,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; window.clearTimeout(timer); stopWaiting?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
+
+  // On-image advice (a preview, off by default): where the highlights and shadows clip and whether the edit kept the
+  // subject's colour, measured from the same small preview as the histogram, once the edit settles (never while a slider
+  // is held), and cleared the moment the edit changes. The clipping is published first; the colour follows once the subject
+  // is found (adviceRun.ts). The key includes the preview's address, so a preview that was not ready, or is replaced by a
+  // better one, is measured when it arrives. Read-only: the canvas layer only draws it (adviceStore.ts).
+  const advicePreview = activeFrame ? urls[activeFrame.id]?.preview ?? '' : '';
+  const adviceKey = (can('onImageAdvice') || workflowPreviewOn('onImageAdvice')) && histogramKey ? `${histogramKey}|${advicePreview}` : null;
+  useEffect(() => {
+    const frame = activeFrame;
+    if (!adviceKey || !frame) return;
+    return startAdviceRun<HTMLImageElement>({
+      photoId: frame.id,
+      getUrl: () => provider.current!.getFullPreviewUrl(frame, 'selected'),
+      loadPicture: async (url) => (histogramSource.current?.url === url ? (await histogramSource.current.picture).element : loadImage(url)),
+      findSubject: async (url) => { const found = await lookForZoomFocus(frame.id, url); return found.kind === 'ready' ? found.subject : null; },
+      measure: (image, subject) => measureAdviceFor(image, frame.edit ?? EMPTY_EDIT, frame.framing, subject),
+      publish: (advice) => setAdvice(frame.id, advice),
+      gestureActive: editGestureActive,
+      onGestureEnd: onEditGestureEnd,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adviceKey]);
 
   // A stored AI denoise result lives on the device that made it. Say plainly when this device does not have it: the view
   // is drawn without it, and export refuses rather than quietly leave it out.
@@ -4268,7 +4295,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => { const shown = shownLogoId({ ...readOverlay(undefined), watermarkPresetId }, watermarkLibrary.map((preset) => preset.id)); const logo = watermarkLibrary.find((preset) => preset.id === shown); return { id, name, logoLabel: logo?.label ?? 'Logo not on this device', logoMissing: !logo }; }) } : {}),
-    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
+    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn(), onImageAdvice: can('onImageAdvice') || workflowPreviewOn('onImageAdvice') },
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,

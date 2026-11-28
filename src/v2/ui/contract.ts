@@ -80,7 +80,9 @@ export type FeatureKey =
   /** Preview: keys that jump to the next or previous photo still to review (off by default). */
   | 'nextToReview'
   /** Preview: HDR merge of a bracketed burst (off by default). */
-  | 'hdrMerge';
+  | 'hdrMerge'
+  /** Preview: read-only advice drawn on the canvas (clipped areas, focus point, Colour Sense badge). Off by default. */
+  | 'onImageAdvice';
 
 /** What a cloud edit-settings job did, shown on its card (Dave, 27 Nov: make the cloud's work visible). */
 export interface CloudRecipeResultView {
