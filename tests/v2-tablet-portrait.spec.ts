@@ -20,11 +20,11 @@ test('upright tablet: Import in the top bar, six tools along the bottom, a half-
   await tools.getByRole('button', { name: 'Adjust', exact: true }).click();
   await expect(studio.getByRole('heading', { name: 'Adjust', level: 2 })).toBeVisible();
   const sheet = (await studio.getByTestId('mobile-sheet-handle').locator('xpath=..').boundingBox())!;
-  expect(sheet.height).toBeGreaterThan(1180 * 0.45);
-  expect(sheet.height).toBeLessThan(1180 * 0.55);
+  // The sheet overlays the photo (the photo never re-fits) and takes at most 42% of the height.
+  expect(sheet.height).toBeLessThanOrEqual(1180 * 0.42 + 1);
   await expect(studio.locator('.v2-filmstrip')).toBeHidden();
   const frame = studio.getByTestId('canvas-frame');
-  await expect.poll(async () => { const box = (await frame.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(sheet.y + 1);
+  expect((await frame.boundingBox())!.y + (await frame.boundingBox())!.height).toBeGreaterThan(sheet.y);
 
   await studio.getByRole('button', { name: 'Close mobile drawer' }).click();
   await expect(studio.locator('.v2-filmstrip')).toBeVisible();
