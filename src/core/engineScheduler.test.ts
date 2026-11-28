@@ -648,3 +648,51 @@ test('grouping is only how the row is shown: the tile on screen still runs first
   assert.equal(await reading.finished, 'done');
   assert.equal(order[0], 'on screen');
 });
+
+
+test('a timed-out photo resolving or rejecting late cannot release or cancel its live successor', async () => {
+  for (const rejectLate of [false, true]) {
+    let clock = 0;
+    const store = createTaskStore();
+    const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 1, gpu: 1, io: 1 }, now: () => clock, watchdogMs: 0 });
+    let releaseOld!: () => void;
+    let releaseNext!: () => void;
+    let oldReturned = false;
+    let lateCommit = false;
+    const ran: number[] = [];
+    const oldGate = new Promise<void>(resolve => { releaseOld = resolve; });
+    const nextGate = new Promise<void>(resolve => { releaseNext = resolve; });
+    const job = await scheduler.submit(batch('Two photos', 2, async (n, _s, ctx) => {
+      ran.push(n);
+      if (n === 1) {
+        await oldGate;
+        ctx.stage('late stage');
+        ctx.setLocation('cloud');
+        ctx.commitIfCurrent(() => { lateCommit = true; });
+        oldReturned = true;
+        if (rejectLate) throw new DOMException('Aborted', 'AbortError');
+      } else {
+        await nextGate;
+        ctx.checkCancelled();
+      }
+    }, { kind: 'auto-edit', stallMs: 60_000 }));
+    await until(() => ran.length === 1, 'first photo starts');
+    clock = 61_000;
+    scheduler.checkStalls();
+    await until(() => ran.length === 2, 'second photo starts after timeout');
+    releaseOld();
+    await until(() => oldReturned, 'abandoned photo returns');
+    await pause(5);
+    assert.equal(lateCommit, false);
+    assert.equal(scheduler.runningResourceCount().cpu, 1, 'successor still owns its slot');
+    assert.equal(store.list().find(t => t.id === job.taskId)?.state, 'running');
+    assert.equal(store.list().find(t => t.id === job.taskId)?.items?.find(i => i.id === '1')?.state, 'failed');
+    let unrelatedStarted = false;
+    const unrelated = await scheduler.submit(batch('Other work', 1, async () => { unrelatedStarted = true; }, { kind: 'raw' }));
+    assert.equal(unrelatedStarted, false, 'no extra CPU job may start while successor runs');
+    releaseNext();
+    assert.equal(await job.finished, 'failed', 'only the timed-out photo failed');
+    assert.equal(await unrelated.finished, 'done');
+    assert.equal(scheduler.runningResourceCount().cpu, 0);
+  }
+});
