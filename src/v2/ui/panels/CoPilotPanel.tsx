@@ -2,6 +2,7 @@ import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import FlightModePicker from './FlightModePicker';
+import AutoEditButton, { type AutoEditButtonProps } from './AutoEditButton';
 import { deepReviewAvailable } from '../utils/deepReview';
 import { flightFindings } from '../utils/flightFindings';
 import CloudEditsProjectCard, { type CloudEditsProjectCardProps } from './CloudEditsProjectCard';
@@ -32,6 +33,8 @@ interface CoPilotPanelProps {
   /** One tap back after an applied suggestion moved the subject's colour warmer or cooler (ColourSense). */
   onNudgeWarmth?: (photoId: string, direction: 'cooler' | 'warmer') => void;
   colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
+  /** The one-click Auto button, its status line, Before/After and Undo. Lives here, with the Flight mode (moved from Adjust). */
+  autoEdit?: Omit<AutoEditButtonProps, 'photoId'>;
   /** Cloud edits for the whole project. Absent while cloud edit settings are off. */
   cloudEdits?: CloudEditsProjectCardProps;
   /** Takes back the last edit. Shown beside "Applied". */
@@ -75,6 +78,7 @@ export default function CoPilotPanel({
   onApplySuggestion,
   onNudgeWarmth,
   colourVerdict,
+  autoEdit,
   onUndo,
   cloudEdits,
   onDismissSuggestion,
@@ -110,6 +114,8 @@ export default function CoPilotPanel({
         <FlightModePicker compact name="project-flight-mode" label={STRINGS.copilot.modeForProject}
           value={assistMode} onChange={onSetAssistMode} />
       </div>
+
+      {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
 
       {cvdGuidance && <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} {...colourVerdict} />}
 
