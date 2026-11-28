@@ -18,7 +18,7 @@ export const LOCAL_PRICING_TTL_MS = 60 * 60_000;
 export const LOCAL_PRICING_FAILURE_TTL_MS = 5 * 60_000;
 
 /** `plus` is Pro Plus (£9.99 a month); absent until its Paddle price is set. */
-export interface LocalPrices { currency: string; monthly: string; annual: string; plus?: string }
+export interface LocalPrices { currency: string; monthly: string; annual: string; plus?: string; plusAnnual?: string }
 
 /** Paddle's preview for the two Pro prices in one country, or null when Paddle has no usable answer. */
 export type PricePreview = (countryCode: string) => Promise<LocalPrices | null>;
@@ -44,7 +44,7 @@ function isPrivate(ip: string): boolean {
 }
 
 /** Reads Paddle's pricing-preview answer: the currency and the two formatted totals, or null if anything is missing. */
-export function readPricePreview(data: unknown, priceIds: { monthly: string; annual: string; plus?: string }): LocalPrices | null {
+export function readPricePreview(data: unknown, priceIds: { monthly: string; annual: string; plus?: string; plusAnnual?: string }): LocalPrices | null {
   const d = data as { currency_code?: unknown; details?: { line_items?: { price?: { id?: unknown }; formatted_totals?: { total?: unknown } }[] } } | null;
   const currency = d?.currency_code;
   if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
@@ -54,8 +54,8 @@ export function readPricePreview(data: unknown, priceIds: { monthly: string; ann
     return typeof text === 'string' && text.length > 0 && text.length <= 32 && /\d/.test(text) ? text : null;
   };
   const monthly = total(priceIds.monthly), annual = total(priceIds.annual);
-  const plus = priceIds.plus ? total(priceIds.plus) : null;
-  return monthly && annual ? { currency, monthly, annual, ...(plus ? { plus } : {}) } : null;
+  const plus = priceIds.plus ? total(priceIds.plus) : null, plusAnnual = priceIds.plusAnnual ? total(priceIds.plusAnnual) : null;
+  return monthly && annual ? { currency, monthly, annual, ...(plus ? { plus } : {}), ...(plusAnnual ? { plusAnnual } : {}) } : null;
 }
 
 /**

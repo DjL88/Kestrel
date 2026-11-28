@@ -45,7 +45,7 @@ test('the website and app read every price from the one matrix that Admin edits,
     assert.equal(save.status, 200);
     assert.equal(save.body.paddle.inStep, false);
     const served = await h.call('GET', '/v1/pricing');
-    assert.deepEqual(served.body.currencies.EUR, { digits: 2, 'pro.monthly': 399, 'pro.annual': 3500, 'plus.monthly': 1199 });
+    assert.deepEqual(served.body.currencies.EUR, { digits: 2, 'pro.monthly': 399, 'pro.annual': 3500, 'plus.monthly': 1199, 'plus.annual': 11900 });
     assert.equal(served.body.currencies.USD['pro.annual'], 2900);
     assert.equal(served.body.regions.FR, 'EUR');
 

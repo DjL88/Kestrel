@@ -7,11 +7,11 @@ export const PRO_MAJOR_VERSION_ON_SALE = 1;
 
 /**
  * Pro is sold only as a subscription (owner decision, 26 Nov 2026): monthly or annual. Basic stays free. Pro Plus
- * (owner, 28 Nov 2026) is a third, monthly-only subscription (£9.99): everything in Pro with 5,000 cloud photos a month
- * instead of 500. Pro's `monthly` and `annual` carry 500. The one-off
+ * (owner, 28 Nov 2026) is `plus` (£9.99 a month) or `plusAnnual` (£99.99 a year): everything in Pro with 5,000 cloud photos
+ * a month instead of 500. Pro's `monthly` and `annual` carry 500. The one-off
  * licence is no longer sold, but licences already bought are still honoured (proSettlement.ts settles old orders).
  */
-export const PRO_PLANS = ['monthly', 'annual', 'plus'] as const;
+export const PRO_PLANS = ['monthly', 'annual', 'plus', 'plusAnnual'] as const;
 export type ProPlan = typeof PRO_PLANS[number];
 
 export interface StoredProOrder extends ProPurchaseOrder {

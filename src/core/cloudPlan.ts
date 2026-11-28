@@ -28,8 +28,10 @@ export const SOFTWARE_PRICES = {
   proMonthlyPence: 299,
   /** Pro, paid yearly. */
   proAnnualPence: 2999,
-  /** Pro Plus, paid monthly only. */
+  /** Pro Plus, paid monthly. */
   plusMonthlyPence: 999,
+  /** Pro Plus, paid yearly (£99.99, in step with Pro's £29.99). */
+  plusAnnualPence: 9999,
 } as const;
 
 /** Cloud photos included each calendar month (UTC). */

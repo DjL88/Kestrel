@@ -711,8 +711,8 @@ async function loadMessages() {
 }
 
 // ---- Prices (the pricing matrix, src/core/pricingMatrix.ts) ----------------------------------------------------
-const PRICE_ITEMS = ['pro.monthly', 'pro.annual', 'plus.monthly'];
-const ITEM_LABEL = { 'pro.monthly': 'monthly', 'pro.annual': 'yearly', 'plus.monthly': 'Pro Plus monthly' };
+const PRICE_ITEMS = ['pro.monthly', 'pro.annual', 'plus.monthly', 'plus.annual'];
+const ITEM_LABEL = { 'pro.monthly': 'monthly', 'pro.annual': 'yearly', 'plus.monthly': 'Pro Plus monthly', 'plus.annual': 'Pro Plus yearly' };
 const PADDLE_CURRENCIES = ['USD', 'EUR', 'JPY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'ARS', 'BRL', 'CNY', 'COP', 'CZK', 'DKK', 'HUF', 'ILS', 'INR', 'KRW', 'MXN', 'NOK', 'NZD', 'PLN', 'RUB', 'THB', 'TRY', 'TWD', 'UAH', 'VND', 'ZAR'];
 const pricingForm = $('pricing-form');
 let pricing = null;
@@ -806,7 +806,7 @@ function readPricingForm() {
     }
     currencies[currency] = { rounding, overrides };
   }
-  if (PRICE_ITEMS.some(item => !Number.isFinite(base[item]))) throw new Error('Type all three UK prices as amounts, for example 2.99.');
+  if (PRICE_ITEMS.some(item => !Number.isFinite(base[item]))) throw new Error('Type all four UK prices as amounts, for example 2.99.');
   return { version: 1, base, rates: pricing.rates, currencies };
 }
 

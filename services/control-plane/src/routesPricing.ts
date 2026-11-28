@@ -11,7 +11,7 @@ import {
 } from '../../../src/core/pricingMatrix.ts';
 
 const PUBLIC_CACHE_MS = 60_000;
-const PLAN_OF: Record<PriceItem, 'monthly' | 'annual' | 'plus'> = { 'pro.monthly': 'monthly', 'pro.annual': 'annual', 'plus.monthly': 'plus' };
+const PLAN_OF: Record<PriceItem, 'monthly' | 'annual' | 'plus' | 'plusAnnual'> = { 'pro.monthly': 'monthly', 'pro.annual': 'annual', 'plus.monthly': 'plus', 'plus.annual': 'plusAnnual' };
 
 export function pricingRoutes(ctx: AppContext): Route[] {
   const { options, now, admin, adminDone } = ctx;
@@ -30,7 +30,7 @@ export function pricingRoutes(ctx: AppContext): Route[] {
     const paddle = options.paddlePrices;
     if (!paddle) return null;
     // Pro Plus is checked once its Paddle price is set; until then it is simply not on sale.
-    const items = await Promise.all(PRICE_ITEMS.filter((item) => item !== 'plus.monthly' || paddle.priceIds.plus).map(async (item) => {
+    const items = await Promise.all(PRICE_ITEMS.filter((item) => !item.startsWith('plus.') || paddle.priceIds[PLAN_OF[item]]).map(async (item) => {
       const priceId = paddle.priceIds[PLAN_OF[item]];
       if (!priceId) return { item, priceId: null, differences: [] as PaddleDifference[], error: 'No Paddle price is set for this plan.' };
       try {

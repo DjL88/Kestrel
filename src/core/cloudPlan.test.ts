@@ -37,7 +37,7 @@ test('the allowance month resets on the 1st, UTC, including across a year end', 
 });
 
 test('Pro is a subscription only: £2.99 a month or £29 a year, with no one-off and no rent to own', () => {
-  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999, plusMonthlyPence: 999 });
+  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999, plusMonthlyPence: 999, plusAnnualPence: 9999 });
 });
 
 test('within the free amounts nothing is charged', () => {

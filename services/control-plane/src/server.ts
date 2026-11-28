@@ -29,7 +29,7 @@ const paddleEnvironment = process.env.KCP_PADDLE_ENVIRONMENT?.trim() === 'produc
 const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); return v && /^pri_[a-z0-9]{10,60}$/.test(v) ? v : undefined; };
 const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID'),
   // Pro Plus (£9.99 a month, 28 Nov 2026): its own recurring Paddle price. Not on sale until it is set.
-  plus: paddlePrice('KCP_PADDLE_PLUS_PRICE_ID') };
+  plus: paddlePrice('KCP_PADDLE_PLUS_PRICE_ID'), plusAnnual: paddlePrice('KCP_PADDLE_PLUS_ANNUAL_PRICE_ID') };
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
 // Optional offer (for example Black Friday): a Paddle discount ID. Paddle's own status, expiry and usage limit decide
@@ -46,10 +46,10 @@ const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: pad
 // Website prices in the visitor's currency (GET /v1/pricing/local): our own offline country lookup, then Paddle's
 // pricing preview for that country only. The lookup database is read once, on the first visit that needs it.
 let countryLookup: Promise<CountryLookup> | null = null;
-const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual, ...(paddlePriceIds.plus ? { plus: paddlePriceIds.plus } : {}) } : null;
+const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual, ...(paddlePriceIds.plus ? { plus: paddlePriceIds.plus } : {}), ...(paddlePriceIds.plusAnnual ? { plusAnnual: paddlePriceIds.plusAnnual } : {}) } : null;
 const localPrices = paddle && proPriceIds ? localPricing({
   lookup: () => (countryLookup ??= dbipCountryLookup()),
-  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual, ...(proPriceIds.plus ? [proPriceIds.plus] : [])], country), proPriceIds),
+  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual, ...(proPriceIds.plus ? [proPriceIds.plus] : []), ...(proPriceIds.plusAnnual ? [proPriceIds.plusAnnual] : [])], country), proPriceIds),
   now: Date.now,
 }) : undefined;
 const paddleOrders = 'paddle_pro_orders';
@@ -85,7 +85,7 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
 }) : undefined;
 // The checkout page is on the published website (the first HTTPS app origin, i.e. the Hosting site Terraform adds).
 const siteUrl = process.env.KCP_PUBLIC_SITE_URL?.trim() || config.allowedOrigins.find((o) => o.startsWith('https://') && o !== 'https://tauri.localhost');
-const proCheckout = firestore && paddle && proSettle && (paddlePriceIds.monthly || paddlePriceIds.annual || paddlePriceIds.plus) && siteUrl ? paddleProCheckout({
+const proCheckout = firestore && paddle && proSettle && (paddlePriceIds.monthly || paddlePriceIds.annual || paddlePriceIds.plus || paddlePriceIds.plusAnnual) && siteUrl ? paddleProCheckout({
   paddle,
   orders: {
     // create() refuses to overwrite: a transaction ID is bound to one account for good.

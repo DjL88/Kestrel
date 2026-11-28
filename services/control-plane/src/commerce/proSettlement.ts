@@ -232,7 +232,7 @@ export function paddleProBilling(d: Dependencies) {
   async function hasPlus(accountId: string): Promise<boolean> {
     if (!d.subscriptions?.forAccount) return false;
     const at = now();
-    return (await d.subscriptions.forAccount(accountId)).some((r) => r.accountId === accountId && r.plan === 'plus'
+    return (await d.subscriptions.forAccount(accountId)).some((r) => r.accountId === accountId && (r.plan === 'plus' || r.plan === 'plusAnnual')
       && r.status !== 'canceled' && (r.paidThroughMs ?? 0) + SUBSCRIPTION_GRACE_DAYS * DAY_MS > at);
   }
 

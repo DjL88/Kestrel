@@ -102,7 +102,7 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
         </>
       ) : (
         <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void buy(); }}>
-          <p>Pro adds 2.5 GB of cloud storage, 500 cloud photos a month and the online helper; Pro Plus is £9.99 a month with 5,000 cloud photos. Basic is free and has no cloud; the on-device models are free on Basic. Extra cloud photos can be bought with a top-up. It is a subscription you can cancel at any time. You pay in a secure checkout run by Paddle, our reseller, which adds any sales tax or VAT for your country; InFlight never sees your card.</p>
+          <p>Pro adds 2.5 GB of cloud storage, 500 cloud photos a month and the online helper; Pro Plus is £9.99 a month or £99.99 a year with 5,000 cloud photos. Basic is free and has no cloud; the on-device models are free on Basic. Extra cloud photos can be bought with a top-up. It is a subscription you can cancel at any time. You pay in a secure checkout run by Paddle, our reseller, which adds any sales tax or VAT for your country; InFlight never sees your card.</p>
           <fieldset className="space-y-1">
             <legend className="text-sm">Choose how to pay</legend>
             {proPlanChoices(pricing, browserRegion()).map((choice) => (

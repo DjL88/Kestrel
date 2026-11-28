@@ -38,7 +38,7 @@ test('Basic has no cloud; Pro has 500 a month and Pro Plus 5,000 (owner, 28 Nov 
   assert.match(read('index.html'), /data-pro-price="plus\.monthly"/);
   const terms = visible(read('terms.html'));
   assert.match(terms, /Basic has no cloud\. A signed-in Pro account gets 500 cloud photos a month and Pro Plus gets 5,000/);
-  assert.match(terms, /Pro Plus\s+is a monthly subscription at £9\.99 a month/);
+  assert.match(terms, /Pro Plus\s+is a subscription: £9\.99 a month or £99\.99 a year/);
 });
 
 test('every language has the new wording, not the old collaboration promise', () => {

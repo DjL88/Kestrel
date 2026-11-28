@@ -6,7 +6,7 @@
 /** The matrix's starting prices (DEFAULT_PRICING), in minor units. Used only until /v1/pricing answers. */
 export const FALLBACK = Object.freeze({
   version: 1, base: 'GBP', updatedAt: null,
-  currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999, 'plus.monthly': 999 } },
+  currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999, 'plus.monthly': 999, 'plus.annual': 9999 } },
   regions: { GB: 'GBP', IM: 'GBP', JE: 'GBP', GG: 'GBP' },
 });
 
@@ -20,7 +20,7 @@ export function readPricing(body) {
   const currencies = {};
   for (const [code, row] of Object.entries(body.currencies)) {
     if (/^[A-Z]{3}$/.test(code) && row && Number.isInteger(row.digits) && ITEMS.every((item) => ok(row[item]))) currencies[code] = row;
-    if (currencies[code] && row['plus.monthly'] !== undefined && !ok(row['plus.monthly'])) delete currencies[code]['plus.monthly'];
+    for (const plus of ['plus.monthly', 'plus.annual']) if (currencies[code] && row[plus] !== undefined && !ok(row[plus])) delete currencies[code][plus];
   }
   if (!currencies.GBP) return null;
   const regions = {};
@@ -34,7 +34,7 @@ export function currencyFor(pricing, region) {
   return code && pricing.currencies[code] ? code : 'GBP';
 }
 
-/** "£2.99", "€35", "SEK 409": whole amounts without decimals. item is 'pro.monthly', 'pro.annual' or 'plus.monthly'. */
+/** "£2.99", "€35", "SEK 409": whole amounts without decimals. item is 'pro.monthly', 'pro.annual', 'plus.monthly' or 'plus.annual'. */
 export function priceText(pricing, currency, item, locale = 'en-GB') {
   const row = pricing.currencies[currency] || pricing.currencies.GBP;
   const code = pricing.currencies[currency] ? currency : 'GBP';
@@ -60,7 +60,7 @@ export async function loadPricing(fetchImpl = globalThis.fetch) {
 export function readLocalPrices(body) {
   if (!body || typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency)) return null;
   const good = (text) => typeof text === 'string' && text.length > 0 && text.length <= 32 && /\d/.test(text) && !/[<>]/.test(text);
-  return good(body.monthly) && good(body.annual) ? { currency: body.currency, monthly: body.monthly, annual: body.annual, ...(good(body.plus) ? { plus: body.plus } : {}) } : null;
+  return good(body.monthly) && good(body.annual) ? { currency: body.currency, monthly: body.monthly, annual: body.annual, ...(good(body.plus) ? { plus: body.plus } : {}), ...(good(body.plusAnnual) ? { plusAnnual: body.plusAnnual } : {}) } : null;
 }
 
 /**

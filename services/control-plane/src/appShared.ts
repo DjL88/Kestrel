@@ -61,7 +61,7 @@ export interface AppOptions {
   priceMatrix?: { get(): Promise<unknown>; save(matrix: import('../../../src/core/pricingMatrix.ts').PricingMatrix): Promise<void> };
   /** The Pro subscription prices in Paddle, to check them against the matrix and set them from it. */
   paddlePrices?: {
-    priceIds: Partial<Record<'monthly' | 'annual' | 'plus', string>>;
+    priceIds: Partial<Record<'monthly' | 'annual' | 'plus' | 'plusAnnual', string>>;
     get(priceId: string): Promise<import('../../../src/core/pricingMatrix.ts').PaddlePriceView>;
     update(priceId: string, body: ReturnType<typeof import('../../../src/core/pricingMatrix.ts').paddlePriceUpdate>): Promise<unknown>;
   };

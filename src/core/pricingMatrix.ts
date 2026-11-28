@@ -8,9 +8,9 @@
  */
 
 /** What can be priced. Basic is free and never in the matrix. */
-export const PRICE_ITEMS = ['pro.monthly', 'pro.annual', 'plus.monthly'] as const;
+export const PRICE_ITEMS = ['pro.monthly', 'pro.annual', 'plus.monthly', 'plus.annual'] as const;
 export type PriceItem = typeof PRICE_ITEMS[number];
-export const PRICE_ITEM_LABELS: Record<PriceItem, string> = { 'pro.monthly': 'Pro, monthly', 'pro.annual': 'Pro, yearly', 'plus.monthly': 'Pro Plus, monthly' };
+export const PRICE_ITEM_LABELS: Record<PriceItem, string> = { 'pro.monthly': 'Pro, monthly', 'pro.annual': 'Pro, yearly', 'plus.monthly': 'Pro Plus, monthly', 'plus.annual': 'Pro Plus, yearly' };
 
 /**
  * Currencies Paddle can charge in (Paddle Billing's supported currencies). A currency outside this list cannot be in
@@ -81,7 +81,7 @@ export interface PricingMatrix {
  */
 export const DEFAULT_PRICING: PricingMatrix = {
   version: 1,
-  base: { 'pro.monthly': 299, 'pro.annual': 2999, 'plus.monthly': 999 },
+  base: { 'pro.monthly': 299, 'pro.annual': 2999, 'plus.monthly': 999, 'plus.annual': 9999 },
   rates: { date: null, perGbp: {} },
   currencies: Object.fromEntries(['EUR', 'USD', 'CAD', 'AUD', 'NZD', 'CHF', 'DKK', 'SEK', 'NOK']
     .map((currency) => [currency, { rounding: 'charm', overrides: {} }])) as Record<string, CurrencyRule>,
@@ -110,7 +110,7 @@ export function parsePricingMatrix(input: unknown): PricingMatrix {
   const cleanBase = {} as Record<PriceItem, number>;
   for (const item of PRICE_ITEMS) {
     // A matrix saved before Pro Plus existed has no Pro Plus price: it takes the default until an admin sets it.
-    const value = base[item] === undefined && item === 'plus.monthly' ? DEFAULT_PRICING.base[item] : base[item];
+    const value = base[item] === undefined && item.startsWith('plus.') ? DEFAULT_PRICING.base[item] : base[item];
     if (!isMinor(value)) fail(`${PRICE_ITEM_LABELS[item]} needs a GBP price above zero, in pence.`);
     cleanBase[item] = value as number;
   }
@@ -199,7 +199,7 @@ export interface PublicPricing {
   base: 'GBP';
   updatedAt: string | null;
   /** Pro Plus is optional: an older server's answer has none, and the app then shows no Pro Plus price. */
-  currencies: Record<string, { digits: number } & Record<Exclude<PriceItem, 'plus.monthly'>, number> & Partial<Record<'plus.monthly', number>>>;
+  currencies: Record<string, { digits: number } & Record<Exclude<PriceItem, 'plus.monthly' | 'plus.annual'>, number> & Partial<Record<'plus.monthly' | 'plus.annual', number>>>;
   /** Country (ISO 3166 alpha-2) → currency. Countries not listed pay GBP. */
   regions: Record<string, string>;
 }
@@ -223,7 +223,7 @@ export function readPublicPricing(input: unknown): PublicPricing | null {
   if (raw.version !== 1 || !currencies || typeof currencies !== 'object' || !currencies.GBP) return null;
   const clean: PublicPricing['currencies'] = {};
   for (const [currency, row] of Object.entries(currencies)) {
-    if (!isCode(currency) || !row || !Number.isInteger(row.digits) || !PRICE_ITEMS.every((item) => isMinor(row[item]) || item === 'plus.monthly' && row[item] === undefined)) continue;
+    if (!isCode(currency) || !row || !Number.isInteger(row.digits) || !PRICE_ITEMS.every((item) => isMinor(row[item]) || item.startsWith('plus.') && row[item] === undefined)) continue;
     clean[currency] = row as PublicPricing['currencies'][string];
   }
   if (!clean.GBP) return null;

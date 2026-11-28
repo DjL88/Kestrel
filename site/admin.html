@@ -185,7 +185,7 @@
 
   <details id="pricing" class="card fold">
     <summary><span class="fold-name">Prices</span><span class="fold-hint">The one price list for the website, the app and Paddle.</span></summary>
-    <p class="muted">The website and the app show these within a few minutes of saving. Paddle charges them only after you choose "Set Paddle prices". People already subscribed keep their price. Basic is always free and has no cloud. Pro (500 cloud photos a month) and Pro Plus (5,000) are both monthly or, for Pro, yearly.</p>
+    <p class="muted">The website and the app show these within a few minutes of saving. Paddle charges them only after you choose "Set Paddle prices". People already subscribed keep their price. Basic is always free and has no cloud. Pro (500 cloud photos a month) and Pro Plus (5,000) are each monthly or yearly.</p>
     <p id="pricing-status" role="status"></p>
     <form id="pricing-form">
       <h3>UK prices</h3>
@@ -193,6 +193,7 @@
         <label>Pro, monthly (£) <input name="base-pro.monthly" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
         <label>Pro, yearly (£) <input name="base-pro.annual" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
         <label>Pro Plus, monthly (£) <input name="base-plus.monthly" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
+        <label>Pro Plus, yearly (£) <input name="base-plus.annual" inputmode="decimal" required pattern="\d+(\.\d{1,2})?"></label>
       </div>
       <h3>Other currencies</h3>
       <p id="pricing-rates" class="muted"></p>
@@ -200,7 +201,7 @@
       <p class="muted">Each price is worked out from the UK price and rounded ("Charm" gives prices like 3.99, 35 and 299). Type your own price to set one by hand; yours always wins. Leave it empty to work it out.</p>
       <div class="scroll"><table>
         <caption class="sr-only">Prices by currency</caption>
-        <thead><tr><th scope="col">Currency</th><th scope="col">Per £1</th><th scope="col">Rounding</th><th scope="col">Your monthly price</th><th scope="col">Your yearly price</th><th scope="col">Your Pro Plus price</th><th scope="col">Monthly</th><th scope="col">Yearly</th><th scope="col">Pro Plus</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <thead><tr><th scope="col">Currency</th><th scope="col">Per £1</th><th scope="col">Rounding</th><th scope="col">Your monthly price</th><th scope="col">Your yearly price</th><th scope="col">Your Pro Plus monthly price</th><th scope="col">Your Pro Plus yearly price</th><th scope="col">Monthly</th><th scope="col">Yearly</th><th scope="col">Pro Plus monthly</th><th scope="col">Pro Plus yearly</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
         <tbody id="pricing-rows"></tbody>
       </table></div>
       <p class="row"><label class="inline">Add a currency <select id="pricing-add"></select></label> <button type="button" id="pricing-add-button" class="small quiet">Add</button></p>
