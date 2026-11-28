@@ -242,7 +242,7 @@ function main() {
     if (decided) results.set(check.id, decided); else runnable.push(check);
   }
 
-  const env = { ...process.env };
+  const env = { ...process.env, KESTREL_GOLDEN_PATH: '1' };
   env.KESTREL_UAT_PHOTOS ??= args.fast ? '40' : '100';
   env.KESTREL_GP_PHOTOS ??= args.fast ? '30' : '60';
 

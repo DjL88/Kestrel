@@ -4,7 +4,11 @@ export default defineConfig({
   testDir: './tests',
   // These specs import source modules by URL (`/src/...`), which only the Vite dev server serves, not the built preview
   // used here. They run against the dev server instead: `npm run test:e2e:dev` (playwright.dev.config.ts).
-  testIgnore: /(verified-asset-.*|v2-dev-.*)\.spec\.ts/,
+  testIgnore: [
+    /(verified-asset-.*|v2-dev-.*)\.spec\.ts/,
+    // The golden-path scorecard (npm run golden-path) runs its own checks; they stay out of the required CI job.
+    ...(process.env.KESTREL_GOLDEN_PATH ? [] : [/golden-path\.spec\.ts/]),
+  ],
   // Many steps wait up to 60s for on-device model work (subject finder, species, auto-cull). Playwright's 30s default
   // cut those waits short whenever several browsers ran at once, so tests failed on load rather than on behaviour.
   timeout: 90_000,

@@ -177,7 +177,7 @@ export const CHECKS = [
     id: 'GP-20', group: 'Colour confidence', weight: 4, fast: true,
     what: 'The Colour Sense badge appears on the image with a word and a detail line (preview switch on-image-advice).',
     how: 'Automated: tests/golden-path.spec.ts, "[GP-20]" with kestrel.preview.on-image-advice.v1 on.',
-    expect: 'A colour advice chip with words is visible on the photo; with the switch off there is none.',
+    expect: 'A colour badge with words and a shape (not colour alone) is visible on the photo.',
     spec: { file: 'tests/golden-path.spec.ts', grep: '\\[GP-20\\]', projects: D },
   },
   {
