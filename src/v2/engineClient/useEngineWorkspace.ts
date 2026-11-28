@@ -176,7 +176,7 @@ import { readSplitPanOffset } from './splitFrameOps';
 import { useTapSelect } from './useTapSelect';
 import { addHealSpot as addSpot, canAddHealSpot, nextHealSource, removeHealSpot as removeSpot, sizeToRadius, updateHealSpot as changeSpot } from './healOps';
 import { applyHeal, findHealSources } from '../../core/heal';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskParts, toggleMask } from './maskOps';
 import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
@@ -3840,6 +3840,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
     setMaskParts: (photoId, maskId, parts) => editMasks(photoId, masks => setMaskParts(masks, maskId, parts)),
+    setMaskInvert: (photoId, maskId, invert) => editMasks(photoId, masks => setMaskInvert(masks, maskId, invert)),
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
     runExport: (request) => {
       stub.actions.setExportOpen(false);

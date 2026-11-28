@@ -390,6 +390,8 @@ export interface MaskLayer {
   geometry?: MaskGeometry;
   /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
   parts?: MaskLayerPart[];
+  /** The mask's own selection is swapped: what was selected is not, and the rest is. */
+  invert?: boolean;
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -1202,6 +1204,8 @@ export interface WorkspaceActions {
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   /** Combine other masks into this one, in order; an empty list removes every part. */
   setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
+  /** Swap what a mask selects (invert the selection). Switching it again restores the original. */
+  setMaskInvert: (photoId: string, maskId: string, invert: boolean) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

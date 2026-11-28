@@ -2001,6 +2001,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    setMaskInvert: (photoId, maskId, invert) => {
+      updatePhotoById(photoId, photo => ({ ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, invert } : m) }));
+    },
+
     removeMaskLayer: (photoId, maskId) => {
       updatePhotoById(photoId, (photo) => ({
         ...photo,
