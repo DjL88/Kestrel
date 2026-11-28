@@ -7,7 +7,7 @@ import type { ColourReport } from './colourCheck';
  * others wait under "More". With no measurement the verdict is "not sure": unknown stays unknown.
  */
 export type ColourVerdictKind =
-  | 'normal' | 'overSaturated' | 'underSaturated' | 'tooWarm' | 'tooCool' | 'greenTint' | 'magentaTint' | 'redGreenAlike' | 'unsure';
+  | 'normal' | 'overSaturated' | 'underSaturated' | 'tooWarm' | 'tooCool' | 'greenTint' | 'magentaTint' | 'castLeft' | 'castNatural' | 'redGreenAlike' | 'unsure';
 
 /** The one undoable adjustment "Correct" makes: this much added to this slider. */
 export interface ColourFix { setting: 'saturation' | 'temperature' | 'tint'; delta: number }
@@ -43,7 +43,11 @@ export function colourVerdict(report: ColourReport | null | undefined): ColourVe
     } else if (finding.id === 'cast') {
       const cast = CAST[finding.direction];
       const clear = finding.amount === 'clear';
-      found.push({ kind: cast.kind, fix: { setting: cast.setting, delta: cast.sign * (clear ? 10 : 5) }, weight: clear ? 80 : 50 });
+      // Re-measured (src/core/castCurve.ts): expected warm light is natural, a cast nothing visible can fix is said plainly
+      // with no useless nudge, and a fixable one carries the correction actually measured rather than a fixed amount.
+      if (finding.status === 'natural') found.push({ kind: 'castNatural', weight: 20 });
+      else if (finding.status === 'left') found.push({ kind: 'castLeft', weight: 20 });
+      else found.push({ kind: cast.kind, fix: { setting: cast.setting, delta: finding.fixDelta ?? cast.sign * (clear ? 10 : 5) }, weight: clear ? 80 : 50 });
     } else if (finding.id === 'muted') found.push({ kind: 'underSaturated', fix: { setting: 'saturation', delta: 12 }, weight: 60 });
     else if (finding.id === 'redGreenAlike') found.push({ kind: 'redGreenAlike', weight: 30 });
   }

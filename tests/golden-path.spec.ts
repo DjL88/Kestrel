@@ -123,8 +123,8 @@ test('[GP-22] nothing leaves the machine by default: import, edit and Auto with 
   await importFiles(page, [await dimSubjectPhoto(page), ...(await gradientPhotos(page, 3, 'LOC'))]);
   await expect(photoStrip(page).getByRole('option')).toHaveCount(4, { timeout: 60_000 });
   const root = studio(page);
-  const adjust = root.getByRole('button', { name: 'Adjust', exact: true }).first();
-  if ((await adjust.getAttribute('aria-pressed')) !== 'true') await adjust.click();
+  // Auto is in Flight (beside the Auto-pilot choice).
+  if (!await root.getByTestId('auto-edit-button').isVisible()) await root.getByRole('button', { name: /^(Solo|Co-pilot|Auto-pilot|Flight)$/ }).first().click();
   await root.getByTestId('auto-edit-button').click();
   await expect(root.getByTestId('auto-edit-status')).not.toHaveAttribute('data-state', 'idle', { timeout: 90_000 });
   await page.waitForTimeout(1_500);
