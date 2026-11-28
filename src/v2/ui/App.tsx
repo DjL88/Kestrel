@@ -1291,7 +1291,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
-            style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
+            style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : undefined /* an upright sheet overlays the photo, so the photo never re-fits */}>
             {(!store.collage || collageEditingId) && !phoneLandscape && !tabletPortrait && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
@@ -1591,8 +1591,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
                   ...(phoneLandscape || tabletPortrait ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
-                  // An upright tablet has the width for six; Export stays in its top bar.
-                  ...(tabletPortrait ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
+                  // Enhance is the fifth tab on an upright phone and tablet (Flight, Adjust, Enhance, Formats, More); Export stays in the top bar.
+                  ...(!phoneLandscape ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
                 ] as const
               ).map((item) => {
                 const active = store.activePanel === item.id && !moreOpen;
@@ -1651,7 +1651,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const
               )
-                .filter((item) => (item.id !== 'overlays' || hasOverlays) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
+                .filter((item) => (item.id !== 'overlays' || hasOverlays) && (item.id !== 'enhance' || phoneLandscape) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
                 .map((item) => (
                   <button
                     key={item.id}
@@ -1676,7 +1676,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
               : tabletPortrait
-                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
+                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[42dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
                 : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"

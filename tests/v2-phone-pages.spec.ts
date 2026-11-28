@@ -83,3 +83,27 @@ test('phone browser without the preview switch keeps the filmstrip and opens the
   await expect(studio.getByTestId('phone-grid-page')).toHaveCount(0);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
 });
+
+test('phone editor: five tabs, Export in the title bar, and a tool sheet that overlays the photo without resizing it', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone', 'Phone layout only.');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('kestrel.preview.phone-two-pages.v1', '1'));
+  await page.goto('/?v2&stub=1');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'Cairngorms Pinewood Stags', exact: true }).click();
+  await studio.getByTestId('phone-grid-tile').first().getByRole('button').first().tap();
+  const nav = studio.getByRole('navigation', { name: 'Mobile studio tools' });
+  await expect(nav.getByRole('button')).toHaveCount(5);
+  for (const name of ['Flight', 'Adjust', 'Enhance', 'Formats', 'More']) await expect(nav.getByRole('button', { name, exact: true })).toBeVisible();
+  await expect(studio.getByRole('button', { name: 'Export', exact: true }).first()).toBeVisible();
+
+  // Opening a tool sheet covers the lower part of the photo but never changes the photo's own area.
+  const stage = studio.getByTestId('canvas-frame').first();
+  const before = (await stage.boundingBox())!;
+  await nav.getByRole('button', { name: 'Adjust', exact: true }).tap();
+  await expect(studio.getByTestId('mobile-sheet-handle')).toBeVisible();
+  const after = (await stage.boundingBox())!;
+  expect(after.height).toBeCloseTo(before.height, 0);
+  await nav.getByRole('button', { name: 'Enhance', exact: true }).tap();
+  await expect(studio.getByTestId('mobile-sheet-handle')).toContainText('Enhance');
+});
