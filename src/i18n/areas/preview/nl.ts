@@ -15,6 +15,8 @@ export const nl: AreaTranslation<typeof source> = {
   saveFailed: "Dit apparaat heeft de schakelaar niet opgeslagen, dus er is niets veranderd.",
   onImageAdviceName: "Advies op de foto getekend",
   onImageAdviceDesc: "Arceert afgekapte hooglichten en schaduwen, markeert het scherpstelpunt van de camera en toont een Colour Sense-label op de foto. Het tekent alleen en verandert geen bewerkingen.",
+  finishBestName: "Mijn beste afmaken",
+  finishBestDesc: "Zeg \"beste 50\", \"beste 10%\" of \"alles\" en de app bewerkt die foto's, de beste eerst, in één reeks op dit apparaat en toont daarna een controle waarin u elke foto bewaart of ongedaan maakt.",
   flightBatchName: "Autopilot op de achtergrond",
   flightBatchDesc: "Na een import bewerkt de autopilot de nieuwe foto's op de achtergrond, de beste eerst, elk met één stap ongedaan maken. Uw originelen worden nooit gewijzigd.",
   cullRulesName: "Selectieregels",

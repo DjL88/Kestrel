@@ -1,5 +1,6 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import EdgeProgress from './EdgeProgress';
+import FinishBestButton from './FinishBestButton';
 import { minutesLeft } from '../utils/edgeActivity';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
@@ -79,6 +80,8 @@ interface FilmstripProps {
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
+  /** Finish my best (a preview: absent while its flag is off). */
+  finishBest?: import('./FinishBestButton').FinishBestEntry;
   /** Focus mode: keep the row to photos, Import and Folder; Auto pick and the Culling Assistant move under More. */
   focusRow?: boolean;
   onSetFocusRow?: (on: boolean) => void;
@@ -165,6 +168,7 @@ export default function Filmstrip({
   activity = null,
   onRunAutoCull,
   onOpenCullAssistant,
+  finishBest,
   focusRow = false,
   onSetFocusRow,
   onExportSelected,
@@ -617,6 +621,7 @@ export default function Filmstrip({
               <span>{CULL_ASSISTANT_LABEL}</span>
             </button>
           )}
+          {finishBest && !collageMode && !focusRow && <FinishBestButton entry={finishBest} />}
           {onSetFocusRow && !collageMode && (
             <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more" onToggle={placeRowMore}>
               <summary aria-label={STRINGS.filmstrip.rowMoreLabel}
@@ -639,6 +644,9 @@ export default function Filmstrip({
                     className="inline-flex min-h-9 items-center rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
                     {CULL_ASSISTANT_LABEL}
                   </button>
+                )}
+                {focusRow && finishBest && (
+                  <div className="flex flex-wrap gap-1 px-1 py-0.5"><FinishBestButton entry={finishBest} compact /></div>
                 )}
                 <button type="button" aria-pressed={!focusRow} data-testid="filmstrip-show-all-buttons"
                   onClick={() => { closeRowMore(); onSetFocusRow(!focusRow); }}

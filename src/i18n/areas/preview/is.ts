@@ -15,6 +15,8 @@ export const is: AreaTranslation<typeof source> = {
   saveFailed: "Þetta tæki vistaði ekki rofann, svo ekkert hefur breyst.",
   onImageAdviceName: "Ráð teiknuð á myndina",
   onImageAdviceDesc: "Skyggir útbrunna ljósa og skugga, merkir fókuspunkt myndavélarinnar og sýnir Colour Sense-merki á myndinni. Hún teiknar aðeins og breytir engri vinnslu.",
+  finishBestName: "Ljúka bestu myndunum",
+  finishBestDesc: "Segðu \"bestu 50\", \"bestu 10%\" eða \"allar\" og forritið vinnur þær myndir, þær bestu fyrst, í einni lotu á þessu tæki og sýnir síðan yfirferð þar sem þú heldur eða afturkallar hverja og eina.",
   flightBatchName: "Sjálfstýring í bakgrunni",
   flightBatchDesc: "Eftir innflutning vinnur sjálfstýringin nýju myndirnar í bakgrunni, þær bestu fyrst, hverja með einu afturkalla-skrefi. Frumritunum þínum er aldrei breytt.",
   cullRulesName: "Valreglur",

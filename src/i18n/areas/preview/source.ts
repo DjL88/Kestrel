@@ -15,6 +15,8 @@ export const source = {
   saveFailed: "This device would not save the switch, so nothing has changed.",
   onImageAdviceName: "Advice drawn on the photo",
   onImageAdviceDesc: "Hatches clipped highlights and shadows, marks the camera's focus point and shows a Colour Sense badge on the photo. It only draws and changes no edits.",
+  finishBestName: "Finish my best",
+  finishBestDesc: "Say \"best 50\", \"best 10%\" or \"all\" and the app edits those photos best first in one batch on this device, then shows a review where you keep or undo each one.",
   flightBatchName: "Auto-pilot in the background",
   flightBatchDesc: "After an import, Auto-pilot edits the new photos in the background, best first, one undo step each. Your originals are never changed.",
   cullRulesName: "Culling rules",

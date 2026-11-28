@@ -3,6 +3,7 @@ import { engineText } from '../../../i18n/areas/engine';
 import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import FinishBestButton from './FinishBestButton';
 import PictureSourceBadge from './PictureSourceBadge';
 import { viewPhotos } from '../utils/studioMath';
 import { TagFilterSelect } from './TagFilterSelect';
@@ -31,6 +32,8 @@ interface GridViewProps {
   onSetRating: (photoIds: string[], rating: number) => void;
   onSetFilter: (filter: FilmstripFilter) => void;
   onSetSearch: (q: string) => void;
+  /** Finish my best (a preview: absent while its flag is off). */
+  finishBest?: import('./FinishBestButton').FinishBestEntry;
   onClose: () => void;
 }
 
@@ -54,6 +57,7 @@ export default function GridView({
   onSetRating,
   onSetFilter,
   onSetSearch,
+  finishBest,
   onClose,
 }: GridViewProps) {
   const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds });
@@ -96,6 +100,7 @@ export default function GridView({
             />
           </div>
 
+          {finishBest && <FinishBestButton entry={finishBest} compact />}
           {selectedPhotoIds.length > 1 && (
             <button
               type="button"

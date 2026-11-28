@@ -22,6 +22,7 @@ function memory(initial: Record<string, string> = {}) {
 // The keys people may already have set. They must never change.
 const KEYS: Record<string, string> = {
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',
+  finishBest: 'kestrel.preview.finish-best.v1',
   flightBatch: 'kestrel.preview.flight-batch.v1',
   cullRules: 'kestrel.preview.cull-rules.v1',
   cullMaskSharpness: 'kestrel.preview.cullMaskSharpness.v1',

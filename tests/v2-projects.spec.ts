@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 test('?v2 hub: rename, archive, restore and delete a project (originals untouched, delete is confirmed)', async ({ page }) => {
   await page.goto('/?v2&stub=1');
@@ -75,7 +76,7 @@ test('?v2 hub: Duplicate makes a separate copy named "(copy)" and leaves the ori
 test('?v2 settings: Privacy has a guarded erase-this-device and a forget-me request route', async ({ page }) => {
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');
-  await studio.getByRole('button', { name: /settings/i }).first().click();
+  await openHubSettings(page);
   await page.getByRole('tab', { name: 'Privacy' }).or(page.getByRole('button', { name: 'Privacy' })).first().click();
   const erase = page.getByRole('button', { name: 'Erase this device' });
   await expect(erase).toBeDisabled();
@@ -146,7 +147,8 @@ test('?v2 hub on a phone: a finger swipe reveals Rename, Archive and Delete; a m
   expect(await shift()).toBe(0);
 
   // Raw touch points are viewport coordinates, so the row must be on screen (the first-run welcome can sit above it).
-  await body.scrollIntoViewIfNeeded();
+  // Centred, so it is clear of the New project bar fixed to the bottom of a phone.
+  await body.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await body.boundingBox())!;
   const y = box.y + box.height / 2, x0 = box.x + box.width - 40;
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });

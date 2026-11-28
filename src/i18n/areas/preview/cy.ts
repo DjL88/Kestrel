@@ -15,6 +15,8 @@ export const cy: AreaTranslation<typeof source> = {
   saveFailed: "Wnaeth y ddyfais hon ddim cadw'r switsh, felly nid oes dim wedi newid.",
   onImageAdviceName: "Cyngor wedi'i dynnu ar y llun",
   onImageAdviceDesc: "Yn britho goleuadau a chysgodion wedi'u torri, yn nodi pwynt ffocws y camera ac yn dangos bathodyn Colour Sense ar y llun. Dim ond tynnu llun y mae'n ei wneud, ac nid yw'n newid unrhyw olygiadau.",
+  finishBestName: "Gorffen fy rhai gorau",
+  finishBestDesc: "Dywedwch \"50 gorau\", \"10% gorau\" neu \"y cyfan\" ac mae'r ap yn golygu'r lluniau hynny, y gorau gyntaf, mewn un swp ar y ddyfais hon, yna'n dangos adolygiad lle byddwch yn cadw neu'n dadwneud pob un.",
   flightBatchName: "Peilot awtomatig yn y cefndir",
   flightBatchDesc: "Ar ôl mewnforio, mae'r peilot awtomatig yn golygu'r lluniau newydd yn y cefndir, y gorau gyntaf, un cam dadwneud yr un. Ni chaiff eich gwreiddiolion byth eu newid.",
   cullRulesName: "Rheolau dewis",

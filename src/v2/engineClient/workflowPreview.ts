@@ -17,6 +17,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Auto-pilot edits the photos of a new import in the background, best first (src/core/flightModes.ts planAutoBatch). */
   flightBatch: previewKey('flightBatch'),
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
+  /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
+  finishBest: previewKey('finishBest'),
   usbTether: previewKey('usbTether'),
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: previewKey('onImageAdvice'),

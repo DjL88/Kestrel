@@ -15,6 +15,8 @@ export const fi: AreaTranslation<typeof source> = {
   saveFailed: "Tämä laite ei tallentanut kytkintä, joten mikään ei muuttunut.",
   onImageAdviceName: "Neuvot piirrettynä kuvaan",
   onImageAdviceDesc: "Vinoviivoittaa leikkautuneet kirkkaat ja tummat kohdat, merkitsee kameran tarkennuspisteen ja näyttää kuvassa Colour Sense -merkin. Se vain piirtää eikä muuta muokkauksia.",
+  finishBestName: "Viimeistele parhaat",
+  finishBestDesc: "Sano \"50 parasta\", \"parhaat 10 %\" tai \"kaikki\", niin sovellus muokkaa nuo kuvat, parhaat ensin, yhtenä eränä tällä laitteella ja näyttää sitten tarkistuksen, jossa säilytät tai kumoat kunkin.",
   flightBatchName: "Automaattiohjaus taustalla",
   flightBatchDesc: "Tuonnin jälkeen automaattiohjaus muokkaa uudet kuvat taustalla, parhaat ensin, kukin yhdellä kumoamisvaiheella. Alkuperäisiä ei koskaan muuteta.",
   cullRulesName: "Valintasäännöt",

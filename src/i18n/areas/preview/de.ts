@@ -15,6 +15,8 @@ export const de: AreaTranslation<typeof source> = {
   saveFailed: "Dieses Gerät hat den Schalter nicht gespeichert, also hat sich nichts geändert.",
   onImageAdviceName: "Hinweise im Foto eingezeichnet",
   onImageAdviceDesc: "Schraffiert abgeschnittene Lichter und Schatten, markiert den Fokuspunkt der Kamera und zeigt ein Colour-Sense-Zeichen im Foto. Es zeichnet nur und ändert keine Bearbeitung.",
+  finishBestName: "Meine besten fertigstellen",
+  finishBestDesc: "Sagen Sie „beste 50“, „beste 10 %“ oder „alle“, und die App bearbeitet diese Fotos, die besten zuerst, in einem Stapel auf diesem Gerät und zeigt danach eine Durchsicht, in der Sie jedes behalten oder rückgängig machen.",
   flightBatchName: "Autopilot im Hintergrund",
   flightBatchDesc: "Nach einem Import bearbeitet der Autopilot die neuen Fotos im Hintergrund, die besten zuerst, jeweils mit einem Rückgängig-Schritt. Ihre Originale werden nie verändert.",
   cullRulesName: "Auswahlregeln",

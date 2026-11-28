@@ -15,6 +15,8 @@ export const it: AreaTranslation<typeof source> = {
   saveFailed: "Questo dispositivo non ha salvato l'impostazione, quindi nulla è cambiato.",
   onImageAdviceName: "Consigli disegnati sulla foto",
   onImageAdviceDesc: "Tratteggia luci e ombre tagliate, segna il punto di messa a fuoco della fotocamera e mostra un badge Colour Sense sulla foto. Disegna soltanto e non modifica alcuna correzione.",
+  finishBestName: "Finisci le mie migliori",
+  finishBestDesc: "Dica «le migliori 50», «il migliore 10%» o «tutte» e l'app modifica quelle foto, le migliori per prime, in un unico gruppo su questo dispositivo, poi mostra una revisione in cui lei tiene o annulla ciascuna.",
   flightBatchName: "Pilota automatico in secondo piano",
   flightBatchDesc: "Dopo un'importazione, il pilota automatico modifica le nuove foto in secondo piano, le migliori per prime, con un passaggio di annullamento ciascuna. I suoi originali non vengono mai modificati.",
   cullRulesName: "Regole di selezione",

@@ -27,6 +27,7 @@ const preview = (id: string, storageKey: string, needsRestart = false, feature?:
 
 export const PREVIEW_FEATURES = [
   preview('onImageAdvice', 'kestrel.preview.on-image-advice.v1', false, 'onImageAdvice'),
+  preview('finishBest', 'kestrel.preview.finish-best.v1', false, 'finishBest'),
   preview('flightBatch', 'kestrel.preview.flight-batch.v1', false, 'flightBatch'),
   preview('cullRules', 'kestrel.preview.cull-rules.v1', false, 'cullRules'),
   preview('cullMaskSharpness', 'kestrel.preview.cullMaskSharpness.v1'),

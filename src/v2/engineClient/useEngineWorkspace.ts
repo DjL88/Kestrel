@@ -91,6 +91,7 @@ import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { workflowPreviewOn } from './workflowPreview';
 import { previewsVersion, subscribePreviews } from '../../core/previewFeatures';
+import { useFinishBest } from './useFinishBest';
 import { recordCullObservations, rescoreFromObservations, type ScanEvidence } from '../../core/cullObservationStore';
 import { applyCullRules, proposedKeepers, rankWithRules, type CullRules } from '../../core/cullRules';
 import { isCullOriginal, type CullSuggestion } from '../../core/autoCull';
@@ -1995,6 +1996,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // photo is remembered; when the person moves on, what they kept, undid or corrected is learnt on this device only.
   // Auto leans only after enough consistent examples (src/core/editStyle.ts). Nothing is ever sent anywhere.
   const editStyleOn = can('editStyle') || workflowPreviewOn('editStyle');
+  // Finish my best (a preview, off by default): the batch, its review and its Undo live in useFinishBest.
+  const finishBestOn = can('finishBest') || workflowPreviewOn('finishBest');
+  const finishBest = useFinishBest({ stateRef, mutate, provider, editStyleOn, say: setNotice, projectId: state?.shoot.id });
   const pendingStyle = useRef(new Map<string, { base: PhotoEdit; applied: PhotoEdit; multipliers: Partial<Record<StyleKey, number>> }>());
   const noteAutoApplied = useCallback((frameId: string, run: AutoRun, applied: PhotoEdit) => {
     if (!editStyleOn) return;
@@ -3834,6 +3838,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 }));
     },
     ...(cullRulesOn ? { rankCulling, applyCullRules: applyCullRulesFor } : {}),
+    ...(finishBestOn ? { finishBest } : {}),
     ...(cloudRecipeOn ? {
       prepareCloudRecipe: prepareCloudRecipeFor,
       sendCloudRecipe: (photoId: string, choice: 'send' | 'alternative') => sendCloudRecipeFor(photoId, choice),

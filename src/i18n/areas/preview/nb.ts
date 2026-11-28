@@ -15,6 +15,8 @@ export const nb: AreaTranslation<typeof source> = {
   saveFailed: "Denne enheten lagret ikke innstillingen, så ingenting er endret.",
   onImageAdviceName: "Råd tegnet på bildet",
   onImageAdviceDesc: "Skraverer avklipte høylys og skygger, markerer kameraets fokuspunkt og viser et Colour Sense-merke på bildet. Den tegner bare og endrer ingen redigeringer.",
+  finishBestName: "Fullfør de beste",
+  finishBestDesc: "Si «beste 50», «beste 10 %» eller «alle», så redigerer appen disse bildene, de beste først, i én omgang på denne enheten og viser deretter en gjennomgang der du beholder eller angrer hvert enkelt.",
   flightBatchName: "Autopilot i bakgrunnen",
   flightBatchDesc: "Etter en import redigerer autopiloten de nye bildene i bakgrunnen, de beste først, hvert med ett angre-trinn. Originalene dine endres aldri.",
   cullRulesName: "Utvalgsregler",

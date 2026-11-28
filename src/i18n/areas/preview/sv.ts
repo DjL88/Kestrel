@@ -15,6 +15,8 @@ export const sv: AreaTranslation<typeof source> = {
   saveFailed: "Den här enheten sparade inte inställningen, så inget har ändrats.",
   onImageAdviceName: "Råd ritade på bilden",
   onImageAdviceDesc: "Streckar avklippta högdagrar och skuggor, markerar kamerans fokuspunkt och visar en Colour Sense-bricka på bilden. Den ritar bara och ändrar inga redigeringar.",
+  finishBestName: "Slutför mina bästa",
+  finishBestDesc: "Säg \"bästa 50\", \"bästa 10 %\" eller \"alla\" så redigerar appen de bilderna, de bästa först, i en omgång på den här enheten och visar sedan en genomgång där du behåller eller ångrar varje bild.",
   flightBatchName: "Autopilot i bakgrunden",
   flightBatchDesc: "Efter en import redigerar autopiloten de nya bilderna i bakgrunden, de bästa först, var och en med ett ångra-steg. Dina original ändras aldrig.",
   cullRulesName: "Urvalsregler",

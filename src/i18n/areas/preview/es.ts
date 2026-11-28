@@ -15,6 +15,8 @@ export const es: AreaTranslation<typeof source> = {
   saveFailed: "Este dispositivo no guardó el ajuste, así que no ha cambiado nada.",
   onImageAdviceName: "Consejos dibujados sobre la foto",
   onImageAdviceDesc: "Raya las luces y sombras recortadas, marca el punto de enfoque de la cámara y muestra una insignia Colour Sense en la foto. Solo dibuja y no cambia ninguna edición.",
+  finishBestName: "Terminar mis mejores",
+  finishBestDesc: "Diga «las 50 mejores», «el 10 % mejor» o «todas» y la aplicación edita esas fotos, las mejores primero, en un solo lote en este dispositivo y luego muestra una revisión donde conserva o deshace cada una.",
   flightBatchName: "Piloto automático en segundo plano",
   flightBatchDesc: "Tras una importación, el piloto automático edita las fotos nuevas en segundo plano, las mejores primero, con un paso de deshacer cada una. Sus originales nunca se modifican.",
   cullRulesName: "Reglas de selección",
