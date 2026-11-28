@@ -204,3 +204,118 @@ test('a failed catalogue lookup is not mistaken for an empty Quick edits project
   assert.equal(await store.loadLocalFileBlob('missing-photo'), null);
   assert.equal(await store.loadDirectoryHandle('missing-folder'), null);
 });
+
+
+test('clearing stored photo copies waits for commit, propagates abort and closes the database', async (t) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+  t.after(() => {
+    if (original) Object.defineProperty(globalThis, 'indexedDB', original);
+    else Reflect.deleteProperty(globalThis, 'indexedDB');
+  });
+  for (const aborted of [true, false]) {
+    let closed = false;
+    const request = { onsuccess: () => {} };
+    let started!: () => void;
+    const begun = new Promise<void>(resolve => { started = resolve; });
+    const tx = {
+      oncomplete: () => {}, onabort: () => {}, error: null,
+      objectStore: () => ({ clear: () => { started(); return request; } }),
+    };
+    const db = { transaction: () => tx, close: () => { closed = true; } };
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true, value: { open() {
+        const req = { result: db, onsuccess: () => {} };
+        queueMicrotask(() => req.onsuccess());
+        return req;
+      } },
+    });
+    const clear = new BrowserCatalogueStore().clearLocalFileBlobs();
+    let settled = false;
+    void clear.then(() => { settled = true; }, () => { settled = true; });
+    await begun;
+    request.onsuccess();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(settled, false);
+    assert.equal(closed, false);
+    if (aborted) {
+      const rejected = assert.rejects(clear, /storage was interrupted/);
+      tx.onabort();
+      await rejected;
+    } else {
+      tx.oncomplete();
+      await clear;
+    }
+    assert.equal(closed, true);
+  }
+});
+
+test('full reset clears all catalogue stores in one transaction and does not hide a rollback', async (t) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+  t.after(() => {
+    if (original) Object.defineProperty(globalThis, 'indexedDB', original);
+    else Reflect.deleteProperty(globalThis, 'indexedDB');
+  });
+  const cleared: string[] = [];
+  const markers: string[] = [];
+  const transactions: string[][] = [];
+  let closed = false;
+  const tx = {
+    oncomplete: () => {}, onabort: () => {}, error: null,
+    objectStore: (name: string) => ({
+      clear: () => cleared.push(name),
+      put: (_value: unknown, key: string) => markers.push(key),
+    }),
+  };
+  const db = { transaction: (names: string[]) => { transactions.push(names); return tx; }, close: () => { closed = true; } };
+  Object.defineProperty(globalThis, 'indexedDB', {
+    configurable: true, value: { open() {
+      const request = { result: db, onsuccess: () => {} };
+      queueMicrotask(() => request.onsuccess());
+      return request;
+    } },
+  });
+  const reset = new BrowserCatalogueStore().clearAll();
+  const rejected = assert.rejects(reset, /storage was interrupted/);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(transactions, [['catalogue', 'localFiles', 'directoryHandles']]);
+  assert.deepEqual(cleared, ['catalogue', 'localFiles', 'directoryHandles']);
+  assert.deepEqual(markers, ['legacy-migration-blocked-after-delete']);
+  assert.equal(closed, false);
+  tx.onabort();
+  await rejected;
+  assert.equal(closed, true);
+});
+
+test('project listing cannot publish an empty catalogue before its cursor transaction commits', async (t) => {
+  const originals = ['indexedDB', 'IDBKeyRange'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
+  t.after(() => {
+    for (const [key, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  const cursor = { result: null, onsuccess: () => {}, onerror: () => {} };
+  let closed = false;
+  const tx = {
+    oncomplete: () => {}, onabort: () => {}, onerror: () => {}, error: null,
+    objectStore: () => ({ openCursor: () => cursor }),
+  };
+  const db = { transaction: () => tx, close: () => { closed = true; } };
+  Object.defineProperty(globalThis, 'IDBKeyRange', { configurable: true, value: { bound: () => ({}) } });
+  Object.defineProperty(globalThis, 'indexedDB', {
+    configurable: true, value: { open() {
+      const request = { result: db, onsuccess: () => {} };
+      queueMicrotask(() => request.onsuccess());
+      return request;
+    } },
+  });
+  const listed = new BrowserCatalogueStore().listProjects();
+  const rejected = assert.rejects(listed, /project list was interrupted/);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  cursor.onsuccess();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(closed, false);
+  tx.onabort();
+  await rejected;
+  assert.equal(closed, true);
+});

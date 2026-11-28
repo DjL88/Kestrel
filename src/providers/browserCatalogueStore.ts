@@ -125,17 +125,25 @@ async function idbSet<T>(storeName: string, key: string, value: T): Promise<void
   }
 }
 
-async function idbDeleteStore(storeName: string): Promise<void> {
+/** Individual clear requests are not evidence of a committed deletion. */
+async function idbClearStores(storeNames: string[], blockLegacyMigration = false): Promise<void> {
+  const db = await openDatabase();
   try {
-    const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(storeName, 'readwrite');
-      const req = tx.objectStore(storeName).clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const tx = db.transaction(storeNames, 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error ?? new Error('Clearing InFlight storage was interrupted.'));
+      try {
+        for (const name of storeNames) tx.objectStore(name).clear();
+        // A stale fallback must not resurrect erased projects.
+        if (blockLegacyMigration) tx.objectStore(STORE_CATALOGUE).put(true, LEGACY_MIGRATION_BLOCKED);
+      } catch (error) {
+        tx.abort();
+        reject(error);
+      }
     });
-  } catch {
-    // ignore
+  } finally {
+    db.close();
   }
 }
 
@@ -180,15 +188,16 @@ export class BrowserCatalogueStore implements CatalogueStore {
     try {
       return await new Promise((resolve, reject) => {
         const range = IDBKeyRange.bound(PROJECT_PREFIX, `${PROJECT_PREFIX}\uffff`);
-        const cursor = db.transaction(STORE_CATALOGUE).objectStore(STORE_CATALOGUE).openCursor(range);
+        const tx = db.transaction(STORE_CATALOGUE, 'readonly');
+        const cursor = tx.objectStore(STORE_CATALOGUE).openCursor(range);
         const projects: ShootDescriptor[] = [];
-        cursor.onerror = () => reject(cursor.error);
+        tx.oncomplete = () => resolve(projects.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt));
+        tx.onerror = () => reject(tx.error ?? new Error('Reading the project list failed.'));
+        tx.onabort = () => reject(tx.error ?? new Error('Reading the project list was interrupted.'));
+        cursor.onerror = () => reject(cursor.error ?? new Error('Reading the project list failed.'));
         cursor.onsuccess = () => {
           const row = cursor.result;
-          if (!row) {
-            resolve(projects.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt));
-            return;
-          }
+          if (!row) return;
           const state = row.value as CullingState;
           if (state?.shoot) {
             projects.push({ ...state.shoot, totalFrames: computeCullCounts(state.frames).all });
@@ -368,7 +377,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
   }
 
   async clearLocalFileBlobs(): Promise<void> {
-    await idbDeleteStore(STORE_FILES);
+    await idbClearStores([STORE_FILES]);
   }
 
   async saveDirectoryHandle(
@@ -385,9 +394,10 @@ export class BrowserCatalogueStore implements CatalogueStore {
   }
 
   async clearAll(): Promise<void> {
-    await idbDeleteStore(STORE_CATALOGUE);
-    await idbDeleteStore(STORE_FILES);
-    await idbDeleteStore(STORE_HANDLES);
+    // Queue behind submitted project writes; clear the three stores atomically.
+    const write = this.projectWrite.then(() => idbClearStores([STORE_CATALOGUE, STORE_FILES, STORE_HANDLES], true));
+    this.projectWrite = write.catch(() => {});
+    await write;
     // A full catalogue reset must not leave cached photographs behind.
     const previewsCleared = await clearOfflinePreviews();
     if (!previewsCleared) throw new Error('Could not clear offline photo previews. Retry the reset.');
