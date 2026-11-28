@@ -357,6 +357,38 @@ export const source = {
     nothingMatches: 'No photos match your current filter.',
   },
 
+  // Settings > Gestures: what a double-tap or a long press does, chosen per device
+  gestures: {
+    intro: 'Choose what a double-tap or a press and hold does on this device. The defaults follow the photo apps you already know. Every one of these also has a button or a key, so no gesture is the only way to do something.',
+    deviceNote: 'These choices are kept on this device only.',
+    contexts: { canvas: 'On the photo', crop: 'In Crop', photoList: 'On a thumbnail in the filmstrip or gallery' },
+    names: {
+      canvasDoubleTap: 'Double-tap the photo',
+      canvasLongPress: 'Press and hold the photo',
+      cropDoubleTap: 'Double-tap in Crop',
+      photoListLongPress: 'Press and hold a thumbnail',
+      photoListDoubleTap: 'Double-tap a thumbnail',
+    },
+    actions: {
+      zoom: 'Zoom in to 100%, and back to Fit',
+      openCrop: 'Open Crop',
+      showOriginal: 'Show the original while held',
+      resetCrop: 'Put the picture back in the crop window',
+      exitCrop: 'Leave Crop',
+      menu: 'Open the photo menu',
+      select: 'Select photos',
+      open: 'Open it in the editor',
+      off: 'Do nothing',
+    },
+    actionFor: (gesture: string) => `What this does: ${gesture}`,
+    changedSuffix: ' (changed)',
+    resetOne: (gesture: string) => `Put ${gesture} back to its default`,
+    reset: 'Reset',
+    resetAll: 'Reset all to defaults',
+    clash: (gestures: string) => `${gestures} do the same thing here. It still works; change one if that is not what you want.`,
+    noClashes: 'No two gestures do the same thing.',
+  },
+
   // Two photos side by side
   pairCompare: {
     title: 'Compare two photos',
@@ -1760,6 +1792,7 @@ export const source = {
       aiProviders: 'AI providers',
       storage: 'Storage',
       keyboard: 'Keyboard',
+      gestures: 'Gestures',
       language: 'Language',
       formats: "Export formats",
       privacy: 'Privacy',

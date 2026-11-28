@@ -1,3 +1,4 @@
+import GesturesSettings from './GesturesSettings';
 import { LANGUAGES, type LanguageCode } from '../../../core/locale';
 import ExportFormatsSettings from './ExportFormatsSettings';
 import { chooseLanguage, language } from '../../../i18n/messages';
@@ -94,6 +95,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'storage', label: STRINGS.settings.tabs.storage, icon: 'hard-drive' },
   { id: 'keyboard', label: STRINGS.settings.tabs.keyboard, icon: 'keyboard' },
   { id: 'previews', label: previewText.tab, icon: 'settings' },
+  { id: 'gestures', label: STRINGS.settings.tabs.gestures, icon: 'zoom-direction' },
   { id: 'language', label: STRINGS.settings.tabs.language, icon: 'language' },
   { id: 'presets', label: STRINGS.overlays.templatesHeading, icon: 'grid' },
   { id: 'formats', label: STRINGS.settings.tabs.formats, icon: 'all-sizes' },
@@ -679,6 +681,7 @@ export default function SettingsDialog({
 
             {/* 7. PREVIEW FEATURES */}
             {activeTab === 'previews' && <PreviewFeaturesSettings />}
+            {activeTab === 'gestures' && <GesturesSettings />}
 
             {/* 8. PRIVACY */}
             {activeTab === 'privacy' && (

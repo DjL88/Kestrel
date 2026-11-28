@@ -22,6 +22,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   usbTether: previewKey('usbTether'),
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: previewKey('onImageAdvice'),
+  /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */
+  verificationChain: previewKey('verificationChain'),
 } satisfies Partial<Record<PreviewId, string>>;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;

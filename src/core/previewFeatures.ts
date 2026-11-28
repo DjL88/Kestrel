@@ -32,6 +32,7 @@ export const PREVIEW_FEATURES = [
   preview('cullRules', 'kestrel.preview.cull-rules.v1', false, 'cullRules'),
   preview('cullMaskSharpness', 'kestrel.preview.cullMaskSharpness.v1'),
   preview('cloudRecipe', 'kestrel.preview.cloudRecipe.v1', false, 'cloudRecipe'),
+  preview('verificationChain', 'kestrel.preview.verification-chain.v1', false, 'verificationChain'),
   preview('usbTether', 'kestrel.preview.usb-tether.v1'),
   preview('ortWebgpu', 'kestrel.preview.ort-webgpu.v1', true),
   // On for everyone since 26 Nov 2026 (see FEATURES). Their switches still exist, so Settings shows them as on.
