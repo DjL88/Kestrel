@@ -229,30 +229,53 @@ export default function Filmstrip({
     if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
   }, []);
 
+  const lastPointerType = useRef('mouse');
+  /** The long press itself: the menu (default) or Select mode, as Settings > Gestures says. */
+  const fireLongPress = (photoId: string, x: number, y: number, action: 'menu' | 'select') => {
+    suppressTouchClick.current = true;
+    if (action === 'select') {
+      // The release of the long press must not count as a tap on the tile: it would put the photo straight back.
+      const swallow = (event: MouseEvent) => { event.stopPropagation(); event.preventDefault(); window.removeEventListener('click', swallow, true); };
+      window.addEventListener('click', swallow, true);
+      window.setTimeout(() => window.removeEventListener('click', swallow, true), 1500);
+      // As the Select button does: Select mode on, and this photo is the first one picked (or put back if it already was).
+      setTouchSelectionMode(true);
+      onSelectPhoto(photoId, { ctrl: true });
+    } else {
+      if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+      setTileMenu({ x, y, photoId });
+    }
+    cancelLongPress();
+  };
+
   const startLongPress = (event: React.PointerEvent<HTMLElement>, photoId: string) => {
+    lastPointerType.current = event.pointerType;
     if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !event.isPrimary || event.button !== 0) return;
     cancelLongPress();
     suppressTouchClick.current = false;
     // Settings > Gestures: the menu (the default), Select mode, or nothing.
     const action = readGesture('photoList.longPress');
-    if (action === 'off') return;
+    if (action !== 'menu' && action !== 'select') return;
     const { pointerId, clientX: x, clientY: y } = event;
     touchPress.current = { pointerId, x, y, photoId };
     longPressTimer.current = window.setTimeout(() => {
       const press = touchPress.current;
       if (!press || press.pointerId !== pointerId) return;
-      suppressTouchClick.current = true;
-      if (action === 'select') {
-        // As the Select button does: Select mode on, and this photo is the first one picked (or put back if it already was).
-        setTouchSelectionMode(true);
-        onSelectPhoto(photoId, { ctrl: true });
-        cancelLongPress();
-        return;
-      }
-      if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
-      setTileMenu({ x: press.x, y: press.y, photoId });
-      cancelLongPress();
+      fireLongPress(photoId, press.x, press.y, action);
     }, 500);
+  };
+
+  /** The browser's own context-menu event. A mouse's right-click and the Menu key always open the menu. A touch long press
+   * also raises it (Android Chrome), and that is the long-press gesture, so it follows Settings > Gestures like the timer. */
+  const contextMenuAt = (x: number, y: number, photoId: string) => {
+    if (lastPointerType.current === 'touch' || lastPointerType.current === 'pen') {
+      if (suppressTouchClick.current) return; // the long press already acted
+      const action = readGesture('photoList.longPress');
+      if (action === 'menu' || action === 'select') fireLongPress(photoId, x, y, action);
+      return;
+    }
+    if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+    setTileMenu({ x, y, photoId });
   };
 
   const moveLongPress = (event: React.PointerEvent<HTMLElement>) => {
@@ -319,7 +342,7 @@ export default function Filmstrip({
   }, []);
   const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
   const items = useMemo(() => planFilmstrip(visiblePhotos, expandedBursts, openIds), [visiblePhotos, expandedBursts, openIds]);
-  const latest = useRef({ selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress: (_e: React.PointerEvent<HTMLElement>, _id: string) => {}, moveLongPress: (_e: React.PointerEvent<HTMLElement>) => {}, cancelLongPress: () => {} });
+  const latest = useRef({ selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress: (_e: React.PointerEvent<HTMLElement>, _id: string) => {}, contextMenuAt: (_x: number, _y: number, _id: string) => {}, moveLongPress: (_e: React.PointerEvent<HTMLElement>) => {}, cancelLongPress: () => {} });
   const tileActions = useMemo<TileActions>(() => ({
     select: (photoId, modifiers) => latest.current.onSelectPhoto(photoId, modifiers),
     toggleFlag: (photoId) => latest.current.onToggleFlag([photoId]),
@@ -328,6 +351,7 @@ export default function Filmstrip({
       setTileMenu({ x, y, photoId });
     },
     dragIds: (photoId) => draggedPhotoIds(photoId, latest.current.selectedPhotoIds),
+    contextMenu: (x, y, photoId) => latest.current.contextMenuAt(x, y, photoId),
     longPressStart: (event, photoId) => latest.current.startLongPress(event, photoId),
     longPressMove: (event) => latest.current.moveLongPress(event),
     longPressCancel: () => latest.current.cancelLongPress(),
@@ -338,7 +362,7 @@ export default function Filmstrip({
   // setBurstOpen and setTileMenu only call state setters, which never change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
-  latest.current = { selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress, moveLongPress, cancelLongPress };
+  latest.current = { selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress, contextMenuAt, moveLongPress, cancelLongPress };
 
   // A big project (2,048 photos) draws only the tiles in view, plus a few either side. Small ones draw every tile, as
   // before. Positions come from the tile width measured on screen (a phone draws narrower tiles than the desktop).

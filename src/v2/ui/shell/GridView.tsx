@@ -65,9 +65,10 @@ function GalleryCard({ onMenu, onLongPressSelect, onDoubleTap, children, ...rest
   const detector = React.useRef(createDoubleTapDetector());
   const down = React.useRef<{ x: number; y: number; t: number } | null>(null);
   const lastTouchDouble = React.useRef(Number.NEGATIVE_INFINITY);
+  const lastPointer = React.useRef('mouse');
   return (
     <article {...rest} {...press}
-      onPointerDown={(event) => { if (event.pointerType === 'touch') down.current = { x: event.clientX, y: event.clientY, t: event.timeStamp }; press.onPointerDown?.(event); }}
+      onPointerDown={(event) => { lastPointer.current = event.pointerType; if (event.pointerType === 'touch') down.current = { x: event.clientX, y: event.clientY, t: event.timeStamp }; press.onPointerDown?.(event); }}
       onPointerUp={(event) => {
         const start = down.current;
         down.current = null;
@@ -79,7 +80,14 @@ function GalleryCard({ onMenu, onLongPressSelect, onDoubleTap, children, ...rest
       }}
       onPointerCancel={(event) => { down.current = null; detector.current.reset(); press.onPointerCancel?.(); }}
       onDoubleClickCapture={(event) => { if (event.timeStamp - lastTouchDouble.current < 800) { event.preventDefault(); event.stopPropagation(); } }}
-      onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onMenu(event.clientX, event.clientY); }}>
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        // A touch long press also raises this event (Android Chrome): it is the long-press gesture, which the pointer handler
+        // above already acts on as Settings > Gestures says, so here only the menu choice answers it.
+        const touch = lastPointer.current === 'touch' || lastPointer.current === 'pen';
+        if (!touch || readGesture('photoList.longPress') === 'menu') onMenu(event.clientX, event.clientY);
+      }}>
       {children}
     </article>
   );

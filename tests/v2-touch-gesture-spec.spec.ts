@@ -109,7 +109,7 @@ test.describe('phone: canvas and Crop', () => {
   });
 
   test('the double-tap can be set to open Crop instead, even when the browser sends no dblclick', async ({ page }) => {
-    await useDoubleTapFor(page, 'crop');
+    await useGestures(page, { 'canvas.doubleTap': 'openCrop', 'crop.doubleTap': 'exitCrop' });
     await openPhotos(page);
     // Swallow every dblclick before the app sees it: the double-tap must be recognised from the touches themselves.
     await page.evaluate(() => window.addEventListener('dblclick', (event) => event.stopImmediatePropagation(), true));
@@ -135,7 +135,7 @@ test.describe('phone: canvas and Crop', () => {
   });
 
   test('in Crop, pinching zooms the picture inside the crop window and the window stays put', async ({ page }) => {
-    await useDoubleTapFor(page, 'crop');
+    await useDoubleTapFor(page, 'openCrop');
     await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
     const { x, y } = await centreOf(page, 'canvas-frame');
@@ -162,7 +162,7 @@ test.describe('phone: canvas and Crop', () => {
   });
 
   test('in Crop, the default double-tap puts the picture back in the crop window', async ({ page }) => {
-    await useDoubleTapFor(page, 'crop');
+    await useDoubleTapFor(page, 'openCrop');
     await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
     const { x, y } = await centreOf(page, 'canvas-frame');
@@ -249,7 +249,7 @@ test.describe('phone: long press can be changed in Settings > Gestures', () => {
     const cdp = await page.context().newCDPSession(page);
     const tile = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').nth(1);
     const box = (await tile.boundingBox())!;
-    await touch(cdp, 'touchStart', [{ x: box.x + 30, y: box.y + box.height - 10 }]);
+    await touch(cdp, 'touchStart', [{ x: box.x + box.width / 2, y: box.y + 14 }]);
     await expect(studio.getByRole('button', { name: 'Finish selecting photographs' })).toBeVisible();
     await touch(cdp, 'touchEnd', []);
     await expect(page.getByRole('menu', { name: 'Photo actions' })).toHaveCount(0);
@@ -262,7 +262,7 @@ test.describe('phone: long press can be changed in Settings > Gestures', () => {
     const cdp = await page.context().newCDPSession(page);
     const tile = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').nth(1);
     const box = (await tile.boundingBox())!;
-    await touch(cdp, 'touchStart', [{ x: box.x + 30, y: box.y + box.height - 10 }]);
+    await touch(cdp, 'touchStart', [{ x: box.x + box.width / 2, y: box.y + 14 }]);
     await page.waitForTimeout(700);
     await touch(cdp, 'touchEnd', []);
     await expect(page.getByRole('menu', { name: 'Photo actions' })).toHaveCount(0);
