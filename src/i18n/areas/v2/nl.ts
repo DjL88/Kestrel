@@ -1177,7 +1177,7 @@ export const nl: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail begint zo meteen",
     denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: "Draait op dit apparaat.",
-    denoiseCloudAllowance: (basic, pro) => `Cloud: ${basic} foto’s per maand met Basic, ${pro} met Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Cloud: ${pro} foto’s per maand met Pro, ${plus} met Pro Plus.`,
     denoiseWaitDevelop: "Wacht op ontwikkelen",
     denoiseWaitDevelopNote: "Deze RAW wordt nog ontwikkeld uit de sensorgegevens. De ruis wordt gemeten zodra dat klaar is.",
     denoiseAnyway: "Toch ruis verwijderen",

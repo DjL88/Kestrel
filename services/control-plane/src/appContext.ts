@@ -202,12 +202,22 @@ export function createContext(options: AppOptions) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const limit = (await accountIsPro(accountId)) ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0);
+    const limit = await accountCloudPhotos(accountId, cloud);
     if (limit <= 0) {
-      await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
-      throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
+      await audit(accountId, 'cloud.job.create', 'denied', 'not a paid plan');
+      throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro and Pro Plus. The free plan has no cloud.');
     }
     return { ...cloud, limit };
+  }
+  /** This account's plan for cloud: 'plus' (Pro Plus subscription in force), 'pro' (any other usable paid licence) or 'basic' (free). */
+  async function accountCloudPlan(accountId: string): Promise<'basic' | 'pro' | 'plus'> {
+    if (!(await accountIsPro(accountId))) return 'basic';
+    return (await options.hasPlusSubscription?.(accountId)) ? 'plus' : 'pro';
+  }
+  /** Cloud photos a month included for this account's plan. 0 for Basic (free): no cloud at all. */
+  async function accountCloudPhotos(accountId: string, cloud: NonNullable<typeof options.cloud>): Promise<number> {
+    const plan = await accountCloudPlan(accountId);
+    return plan === 'plus' ? (cloud.plusJobsPerPeriod ?? cloud.jobsPerPeriod) : plan === 'pro' ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0);
   }
   /** Pro: any usable paid licence (bought, rent-to-own in progress, or admin-granted) on the account. */
   async function accountIsPro(accountId: string) {
@@ -579,7 +589,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, accountCloudPlan, accountCloudPhotos, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

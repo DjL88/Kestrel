@@ -1177,7 +1177,7 @@ export const is: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail hefst eftir augnablik",
     denoiseCloudNote: 'Þegar þú ert innskráð/ur og nettengd/ur sendir þessi hnappur vinnuafrit (aldrei frumritið) í InFlight-skýið fyrir þetta eina verk og athugar niðurstöðuna á þessu tæki. Ef skýið er ekki tiltækt er unnið hér.',
     denoiseDeviceNote: "Keyrir á þessu tæki.",
-    denoiseCloudAllowance: (basic, pro) => `Ský: ${basic} myndir á mánuði í Basic, ${pro} í Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Ský: ${pro} myndir á mánuði í Pro, ${plus} í Pro Plus.`,
     denoiseWaitDevelop: "Bíddu eftir framköllun",
     denoiseWaitDevelopNote: "Þessi RAW-skrá er enn í framköllun úr skynjaragögnum. Suðið er mælt þegar því lýkur.",
     denoiseAnyway: "Fjarlægja suð engu að síður",

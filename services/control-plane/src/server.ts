@@ -27,7 +27,9 @@ const paddleEnvironment = process.env.KCP_PADDLE_ENVIRONMENT?.trim() === 'produc
 // Pro is sold only as a subscription (26 Nov 2026). The one-off price (KCP_PADDLE_PRO_PRICE_ID) is no longer offered;
 // its orders are stored with their own price, so licences already sold still settle and stay honoured.
 const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); return v && /^pri_[a-z0-9]{10,60}$/.test(v) ? v : undefined; };
-const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID') };
+const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID'),
+  // Pro Plus (£9.99 a month, 28 Nov 2026): its own recurring Paddle price. Not on sale until it is set.
+  plus: paddlePrice('KCP_PADDLE_PLUS_PRICE_ID') };
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
 // Optional offer (for example Black Friday): a Paddle discount ID. Paddle's own status, expiry and usage limit decide
@@ -44,10 +46,10 @@ const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: pad
 // Website prices in the visitor's currency (GET /v1/pricing/local): our own offline country lookup, then Paddle's
 // pricing preview for that country only. The lookup database is read once, on the first visit that needs it.
 let countryLookup: Promise<CountryLookup> | null = null;
-const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual } : null;
+const proPriceIds = paddlePriceIds.monthly && paddlePriceIds.annual ? { monthly: paddlePriceIds.monthly, annual: paddlePriceIds.annual, ...(paddlePriceIds.plus ? { plus: paddlePriceIds.plus } : {}) } : null;
 const localPrices = paddle && proPriceIds ? localPricing({
   lookup: () => (countryLookup ??= dbipCountryLookup()),
-  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual], country), proPriceIds),
+  preview: async (country) => readPricePreview(await paddle.previewPrices([proPriceIds.monthly, proPriceIds.annual, ...(proPriceIds.plus ? [proPriceIds.plus] : [])], country), proPriceIds),
   now: Date.now,
 }) : undefined;
 const paddleOrders = 'paddle_pro_orders';
@@ -68,6 +70,7 @@ const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
 const proSettle = paddleBilling?.settle;
 const syncPaddleSubscription = paddleBilling?.syncSubscription;
 const managePaddleSubscription = paddleBilling?.manage;
+const hasPlusSubscription = paddleBilling?.hasPlus;
 // A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
 const revokePaddle = firestore && paddle ? paddleRefundRevocation({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
@@ -82,7 +85,7 @@ const revokePaddle = firestore && paddle ? paddleRefundRevocation({
 }) : undefined;
 // The checkout page is on the published website (the first HTTPS app origin, i.e. the Hosting site Terraform adds).
 const siteUrl = process.env.KCP_PUBLIC_SITE_URL?.trim() || config.allowedOrigins.find((o) => o.startsWith('https://') && o !== 'https://tauri.localhost');
-const proCheckout = firestore && paddle && proSettle && (paddlePriceIds.monthly || paddlePriceIds.annual) && siteUrl ? paddleProCheckout({
+const proCheckout = firestore && paddle && proSettle && (paddlePriceIds.monthly || paddlePriceIds.annual || paddlePriceIds.plus) && siteUrl ? paddleProCheckout({
   paddle,
   orders: {
     // create() refuses to overwrite: a transaction ID is bound to one account for good.
@@ -126,7 +129,7 @@ const settlePaddle = proSettle ? async (id: string, hint?: { subscriptionId?: st
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
 // Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
 const erasure = firestore ? await buildAccountErasure(firestore as unknown as FirestoreLike, store as FirestoreStore) : undefined;
-const app = createApp({ config, store, commerce, payments: commerce, paddleEnvironment: paddle ? paddleEnvironment : undefined, settlePaddle, syncPaddleSubscription, managePaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
+const app = createApp({ config, store, commerce, payments: commerce, paddleEnvironment: paddle ? paddleEnvironment : undefined, settlePaddle, syncPaddleSubscription, managePaddleSubscription, hasPlusSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };

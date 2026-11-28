@@ -1178,7 +1178,7 @@ export const fi: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail alkaa hetken kuluttua",
     denoiseCloudNote: 'Kun olet kirjautunut ja verkossa, tämä painike lähettää työkopion (ei koskaan alkuperäistä) InFlight-pilveen vain tätä tehtävää varten ja tarkistaa tuloksen tällä laitteella. Jos pilvi ei ole käytettävissä, käsittely tehdään täällä.',
     denoiseDeviceNote: "Toimii tällä laitteella.",
-    denoiseCloudAllowance: (basic, pro) => `Pilvi: ${basic} kuvaa kuukaudessa Basicilla, ${pro} Prolla.`,
+    denoiseCloudAllowance: (pro, plus) => `Pilvi: ${pro} kuvaa kuukaudessa Prolla, ${plus} Pro Plussalla.`,
     denoiseWaitDevelop: "Odota kehitystä",
     denoiseWaitDevelopNote: "Tätä RAW-kuvaa kehitetään vielä kennotiedoista. Kohina mitataan, kun se on valmis.",
     denoiseAnyway: "Poista kohina silti",

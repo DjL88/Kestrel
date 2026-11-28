@@ -1214,7 +1214,7 @@ export const source = {
     trueDetailQueued: "TrueDetail will start in a moment",
     denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: "Runs on this device.",
-    denoiseCloudAllowance: (basic: string, pro: string) => `Cloud: ${basic} photos a month on Basic, ${pro} on Pro.`,
+    denoiseCloudAllowance: (pro: string, plus: string) => `Cloud: ${pro} photos a month on Pro, ${plus} on Pro Plus.`,
     denoiseWaitDevelop: 'Wait for develop',
     denoiseWaitDevelopNote: 'This RAW is still being developed from its sensor data. Noise is measured once that has finished.',
     denoiseAnyway: 'Denoise anyway',

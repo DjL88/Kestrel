@@ -1177,7 +1177,7 @@ export const sv: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail startar om ett ögonblick",
     denoiseCloudNote: 'När du är inloggad och online skickar den här knappen en arbetskopia (aldrig originalet) till InFlight-molnet för just det här jobbet och kontrollerar resultatet på den här enheten. Om molnet inte är tillgängligt körs det här.',
     denoiseDeviceNote: "Körs på den här enheten.",
-    denoiseCloudAllowance: (basic, pro) => `Moln: ${basic} bilder i månaden med Basic, ${pro} med Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Moln: ${pro} bilder i månaden med Pro, ${plus} med Pro Plus.`,
     denoiseWaitDevelop: "Vänta på framkallning",
     denoiseWaitDevelopNote: "Den här RAW-filen framkallas fortfarande från sina sensordata. Bruset mäts när det är klart.",
     denoiseAnyway: "Brusreducera ändå",

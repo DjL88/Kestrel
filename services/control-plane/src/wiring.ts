@@ -122,9 +122,10 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     out.cloud = {
       runner: new GcsCloudRunner(bucket, trigger), ledger,
       settleFailed: (jobId, legacySpendPence) => ledger.settleFailed(jobId, legacySpendPence),
-      // Owner, 25 Nov 2026: 5,000 cloud photos a month for Pro, 500 for Basic, then 0.3p each from the balance.
-      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 5000, 100_000),
-      basicJobsPerPeriod: whole(env, 'KCP_CLOUD_BASIC_JOBS_PER_PERIOD', 500, 100_000),
+      // Owner, 28 Nov 2026: Basic (free) has no cloud; Pro (£2.99) 500 photos a month; Pro Plus (£9.99) 5,000; then 0.3p each from the balance.
+      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 500, 100_000),
+      plusJobsPerPeriod: whole(env, 'KCP_CLOUD_PLUS_JOBS_PER_PERIOD', 5000, 100_000),
+      basicJobsPerPeriod: whole(env, 'KCP_CLOUD_BASIC_JOBS_PER_PERIOD', 0, 100_000),
       balance, extraPhotoMillicredits: 300,
       maxInputBytes: whole(env, 'KCP_CLOUD_MAX_INPUT_BYTES', 120_000_000, 2_000_000_000),
       // Cloud edit settings (x-std-cloud-recipe): off unless the owner switches them on.

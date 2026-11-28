@@ -56,9 +56,11 @@ export interface CloudLedger {
 
 export interface CloudOptions {
   runner: CloudRunner; ledger: CloudLedger;
-  /** Cloud photos a Pro account gets each period (owner: 5,000). */
+  /** Cloud photos a Pro account (£2.99 a month) gets each period (owner, 28 Nov 2026: 500). */
   jobsPerPeriod: number;
-  /** Cloud photos a signed-in Basic account gets each period (owner: 500). Absent or 0: cloud processing is Pro only. */
+  /** Cloud photos a Pro Plus account (£9.99 a month) gets each period (owner: 5,000). Absent: same as Pro. */
+  plusJobsPerPeriod?: number;
+  /** Cloud photos a Basic (free) account gets each period. Owner, 28 Nov 2026: none, so absent or 0 means cloud is paid plans only. */
   basicJobsPerPeriod?: number;
   /** Prepaid balance that pays for photos beyond the allowance. Absent: the allowance is a hard limit. */
   balance?: import('./cloudBalance.ts').CloudBalance;

@@ -1177,7 +1177,7 @@ export const nb: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail starter om et øyeblikk",
     denoiseCloudNote: 'Når du er pålogget og tilkoblet, sender denne knappen en arbeidskopi (aldri originalen) til InFlight-skyen bare for denne jobben og kontrollerer resultatet på denne enheten. Hvis skyen ikke er tilgjengelig, kjøres det her.',
     denoiseDeviceNote: "Kjører på denne enheten.",
-    denoiseCloudAllowance: (basic, pro) => `Sky: ${basic} bilder i måneden med Basic, ${pro} med Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Sky: ${pro} bilder i måneden med Pro, ${plus} med Pro Plus.`,
     denoiseWaitDevelop: "Vent på fremkalling",
     denoiseWaitDevelopNote: "Denne RAW-filen fremkalles fortsatt fra sensordataene. Støyen måles når det er ferdig.",
     denoiseAnyway: "Fjern støy likevel",

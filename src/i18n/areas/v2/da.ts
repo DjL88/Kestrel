@@ -1177,7 +1177,7 @@ export const da: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail starter om et øjeblik",
     denoiseCloudNote: 'Når du er logget ind og online, sender denne knap en arbejdskopi (aldrig originalen) til InFlight-skyen kun til dette job og kontrollerer resultatet på denne enhed. Hvis skyen ikke er tilgængelig, kører det her.',
     denoiseDeviceNote: "Kører på denne enhed.",
-    denoiseCloudAllowance: (basic, pro) => `Sky: ${basic} billeder om måneden med Basic, ${pro} med Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Sky: ${pro} billeder om måneden med Pro, ${plus} med Pro Plus.`,
     denoiseWaitDevelop: "Vent på fremkaldelse",
     denoiseWaitDevelopNote: "Denne RAW fremkaldes stadig fra sine sensordata. Støjen måles, når det er færdigt.",
     denoiseAnyway: "Fjern støj alligevel",

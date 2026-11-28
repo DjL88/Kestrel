@@ -61,7 +61,7 @@ export interface AppOptions {
   priceMatrix?: { get(): Promise<unknown>; save(matrix: import('../../../src/core/pricingMatrix.ts').PricingMatrix): Promise<void> };
   /** The Pro subscription prices in Paddle, to check them against the matrix and set them from it. */
   paddlePrices?: {
-    priceIds: Partial<Record<'monthly' | 'annual', string>>;
+    priceIds: Partial<Record<'monthly' | 'annual' | 'plus', string>>;
     get(priceId: string): Promise<import('../../../src/core/pricingMatrix.ts').PaddlePriceView>;
     update(priceId: string, body: ReturnType<typeof import('../../../src/core/pricingMatrix.ts').paddlePriceUpdate>): Promise<unknown>;
   };
@@ -79,6 +79,8 @@ export interface AppOptions {
   /** Re-fetches a Pro subscription from Paddle and moves its licence's end date to match (commerce/proSettlement.ts). */
   syncPaddleSubscription?: (subscriptionId: string) => Promise<'synced' | 'unknown'>;
   /** Manage or cancel Pro: the account's subscription and Paddle's own pages to cancel it or change the card. */
+  /** Pro Plus (£9.99): true while this account's Pro Plus subscription is in force, so cloud gets 5,000 photos a month. */
+  hasPlusSubscription?: (accountId: string) => Promise<boolean>;
   managePaddleSubscription?: (accountId: string) => Promise<import('./commerce/proSettlement.ts').SubscriptionManagement | null>;
   /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
   revokePaddle?: (eventId: string, adjustmentId: string) => Promise<import('./commerce/paddleRefunds.ts').RefundOutcome>;

@@ -225,7 +225,18 @@ export function paddleProBilling(d: Dependencies) {
     return { plan: record.plan, state, paidThroughMs: Number.isFinite(scheduledEnd) ? scheduledEnd : paidThroughMs, ...(links ?? {}) };
   }
 
-  return { settle, syncSubscription, manage };
+  /**
+   * Pro Plus: true while the account has a Pro Plus subscription that Paddle has not cancelled and whose paid-through
+   * date (or grace after it) has not passed. Decides the 5,000 cloud photo allowance; anything else is Pro's 500.
+   */
+  async function hasPlus(accountId: string): Promise<boolean> {
+    if (!d.subscriptions?.forAccount) return false;
+    const at = now();
+    return (await d.subscriptions.forAccount(accountId)).some((r) => r.accountId === accountId && r.plan === 'plus'
+      && r.status !== 'canceled' && (r.paidThroughMs ?? 0) + SUBSCRIPTION_GRACE_DAYS * DAY_MS > at);
+  }
+
+  return { settle, syncSubscription, manage, hasPlus };
 }
 
 export interface SubscriptionManagement {

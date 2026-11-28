@@ -1180,7 +1180,7 @@ export const ga: AreaTranslation<typeof source> = {
     trueDetailQueued: "Tosóidh TrueDetail i gceann nóiméid",
     denoiseCloudNote: 'Nuair atá tú sínithe isteach agus ar líne, seolann an cnaipe seo cóip oibre (ní an bunghrianghraf riamh) chuig scamall InFlight don jab seo amháin, agus seiceálann sé an toradh ar an ngléas seo. Mura bhfuil an scamall ar fáil, ritheann sé anseo.',
     denoiseDeviceNote: "Ritheann sé ar an ngléas seo.",
-    denoiseCloudAllowance: (basic, pro) => `Néal: ${basic} grianghraf sa mhí ar Basic, ${pro} ar Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Néal: ${pro} grianghraf sa mhí ar Pro, ${plus} ar Pro Plus.`,
     denoiseWaitDevelop: "Fan leis an bhforbairt",
     denoiseWaitDevelopNote: "Tá an RAW seo fós á fhorbairt óna shonraí braiteora. Tomhaistear an torann nuair a bheidh sin críochnaithe.",
     denoiseAnyway: "Laghdaigh an torann ar aon nós",

@@ -1177,7 +1177,7 @@ export const fr: AreaTranslation<typeof source> = {
     trueDetailQueued: "TrueDetail va démarrer dans un instant",
     denoiseCloudNote: 'Si vous êtes connecté et en ligne, ce bouton envoie une copie de travail (jamais l’original) au cloud InFlight pour cette seule tâche, et le résultat est vérifié sur cet appareil. Si le cloud est indisponible, le traitement se fait ici.',
     denoiseDeviceNote: "S’exécute sur cet appareil.",
-    denoiseCloudAllowance: (basic, pro) => `Cloud : ${basic} photos par mois avec Basic, ${pro} avec Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Cloud : ${pro} photos par mois avec Pro, ${plus} avec Pro Plus.`,
     denoiseWaitDevelop: "Attendre le développement",
     denoiseWaitDevelopNote: "Ce RAW est encore en cours de développement à partir de ses données de capteur. Le bruit est mesuré une fois celui-ci terminé.",
     denoiseAnyway: "Débruiter malgré tout",

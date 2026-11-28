@@ -1178,7 +1178,7 @@ export const gd: AreaTranslation<typeof source> = {
     trueDetailQueued: "Tòisichidh TrueDetail ann am mionaid",
     denoiseCloudNote: 'Nuair a bhios tu air do chlàradh a-steach agus air loidhne, cuiridh am putan seo lethbhreac-obrach (chan e an dealbh tùsail gu bràth) gu neul InFlight airson na h-obrach seo a-mhàin. Dearbhaidh e an toradh air an uidheam seo. Mura bheil an neul ri fhaighinn, ruithidh e an-seo.',
     denoiseDeviceNote: "Ruithidh e air an uidheam seo.",
-    denoiseCloudAllowance: (basic, pro) => `Neul: ${basic} dealbh sa mhìos air Basic, ${pro} air Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Neul: ${pro} dealbh sa mhìos air Pro, ${plus} air Pro Plus.`,
     denoiseWaitDevelop: "Fuirich ris an leasachadh",
     denoiseWaitDevelopNote: "Tha an RAW seo fhathast ga leasachadh o dhàta an sensor. Thèid a ghràinne a thomhas nuair a bhios sin deiseil.",
     denoiseAnyway: "Lùghdaich a’ ghràinne co-dhiù",

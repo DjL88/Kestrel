@@ -1177,7 +1177,7 @@ export const cy: AreaTranslation<typeof source> = {
     trueDetailQueued: "Bydd TrueDetail yn dechrau mewn eiliad",
     denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: "Mae’n rhedeg ar y ddyfais hon.",
-    denoiseCloudAllowance: (basic, pro) => `Cwmwl: ${basic} llun y mis ar Basic, ${pro} ar Pro.`,
+    denoiseCloudAllowance: (pro, plus) => `Cwmwl: ${pro} llun y mis ar Pro, ${plus} ar Pro Plus.`,
     denoiseWaitDevelop: "Arhoswch am y datblygu",
     denoiseWaitDevelopNote: "Mae’r RAW hwn yn dal i gael ei ddatblygu o ddata ei synhwyrydd. Mesurir y sŵn pan fydd hynny wedi gorffen.",
     denoiseAnyway: "Lleihau sŵn beth bynnag",
