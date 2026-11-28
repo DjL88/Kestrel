@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
+import { focusZoomCeiling, rebaseZoomForFit, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, trackpadZoomFactor, zoomAnchorScroll } from './canvasTrackpadZoom.ts';
 
 test('pinch apart zooms in, pinch together zooms out, normal zero delta is unchanged', () => {
   assert.ok(nextCanvasZoom(1, -30) > 1);
@@ -87,4 +87,23 @@ test('the zoom limit always reaches 100% of the photo, and 400% past it, never l
   assert.equal(maxCanvasZoom(null), 8);
   assert.equal(nextCanvasZoom(15, -120, 0, maxCanvasZoom(fit)) > 16, true);
   assert.equal(keyboardZoomTarget('in', 40, fit, maxCanvasZoom(fit)), 50);
+});
+
+test('focusZoomCeiling: one photo pixel per device pixel, never past 100% of the photo, never below Fit', () => {
+  // 8280 px photo, Fit shows it at 25.2%: on a 2x display the ceiling is 50% of the photo, not 403%.
+  const fit = 0.252;
+  assert.ok(Math.abs(focusZoomCeiling(fit, 2) * fit - 0.5) < 1e-9);
+  assert.ok(Math.abs(focusZoomCeiling(fit, 1) * fit - 1) < 1e-9);
+  assert.ok(Math.abs(focusZoomCeiling(fit, 3) * fit - 1 / 3) < 1e-9);
+  assert.equal(focusZoomCeiling(1, 2), 1); // already past the ceiling at Fit
+  assert.equal(focusZoomCeiling(null, 2), 2);
+  assert.equal(focusZoomCeiling(0.252, Number.NaN) * 0.252 <= 1 + 1e-9, true);
+});
+
+test('rebaseZoomForFit: the same share of photo pixels after the true size arrives', () => {
+  // 100% at a 1656 px preview's Fit (0.66), then the 8280 px size arrives (Fit 0.132): 100% is 5x as much zoom.
+  const zoom = 1 / 0.66;
+  const rebased = rebaseZoomForFit(zoom, 0.66, 0.132);
+  assert.ok(Math.abs(rebased * 0.132 - 1) < 1e-9);
+  assert.equal(rebaseZoomForFit(2, 0, 1), 2);
 });

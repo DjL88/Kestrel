@@ -751,6 +751,8 @@ export interface PhotoSurfaceProps {
   maskGuideId?: string;
   /** The guide as a line round the mask (the V2 default) or the hatched area. */
   maskGuideStyle?: 'outline' | 'fill';
+  /** The canvas zoom (1 = Fit). The mask guide is redrawn finer when it is shown larger, so its line stays smooth. */
+  guideZoom?: number;
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;

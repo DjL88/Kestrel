@@ -5,13 +5,16 @@ import { clamp } from '../utils/studioMath';
 interface CompareSplitProps {
   before: React.ReactNode;
   after: React.ReactNode;
+  /** The canvas zoom (1 = Fit). The photo's frame is scaled by it, so the labels and the handle are scaled back to a fixed on-screen size. */
+  zoom?: number;
 }
 
 /**
  * Before and After on one picture, with a draggable split. The handle is a real slider: drag it, or use the arrow keys
  * (Shift for larger steps, Home and End for the ends). Both halves are the same photo, so the split only reveals the edit.
  */
-export default function CompareSplit({ before, after }: CompareSplitProps) {
+export default function CompareSplit({ before, after, zoom = 1 }: CompareSplitProps) {
+  const keepSize: React.CSSProperties | undefined = zoom > 0 && Math.abs(zoom - 1) > 0.0005 ? { zoom: 1 / zoom } : undefined;
   const [pct, setPct] = useState(50);
   const box = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -27,12 +30,12 @@ export default function CompareSplit({ before, after }: CompareSplitProps) {
       <div className="absolute inset-0">{after}</div>
       <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>{before}</div>
       {pct > 14 && (
-        <span className="pointer-events-none absolute left-2.5 top-2.5 rounded bg-[var(--bg-scrim)] px-2 py-0.5 text-[0.625rem] font-semibold text-white">
+        <span style={keepSize} className="pointer-events-none absolute left-2.5 top-2.5 rounded bg-[var(--bg-scrim)] px-2 py-0.5 text-[0.625rem] font-semibold text-white">
           {STRINGS.canvas.beforeLabel}
         </span>
       )}
       {pct < 86 && (
-        <span className="pointer-events-none absolute right-2.5 top-2.5 rounded bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
+        <span style={keepSize} className="pointer-events-none absolute right-2.5 top-2.5 rounded bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
           {STRINGS.canvas.afterLabel}
         </span>
       )}
@@ -46,7 +49,7 @@ export default function CompareSplit({ before, after }: CompareSplitProps) {
         aria-valuenow={rounded}
         aria-valuetext={STRINGS.canvas.compareSplitValue(rounded)}
         className="absolute bottom-0 top-0 -ml-5 flex w-10 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none"
-        style={{ left: `${pct}%` }}
+        style={{ left: `${pct}%`, ...keepSize }}
         onPointerDown={(event) => {
           event.stopPropagation();
           dragging.current = true;
