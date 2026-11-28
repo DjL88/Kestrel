@@ -47,7 +47,8 @@ test('a client sees only the filmstrip and photos, and can favourite, comment an
   await page.getByRole('button', { name: 'Request changes' }).click();
   await expect(page.locator('#note')).toHaveText('Change request sent to the photographer.');
   await page.getByRole('button', { name: 'Approve the whole selection' }).click();
-  expect(sent.map((s) => [s.kind, s.photoId])).toEqual([['favourite', 'p2'], ['request-changes', 'p2'], ['approve-all', null]]);
+  // Polled: the request is sent a moment after the click, and a slow runner read the list too early.
+  await expect.poll(() => sent.map((s) => [s.kind, s.photoId])).toEqual([['favourite', 'p2'], ['request-changes', 'p2'], ['approve-all', null]]);
   expect(sent[1].text).toBe('Could the sky be a touch lighter?');
   expect(new Set(sent.map((s) => s.visitor)).size).toBe(1);
 });
