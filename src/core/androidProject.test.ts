@@ -30,3 +30,12 @@ test('desktop-only native crates are never built for Android or iOS', () => {
     assert.doesNotMatch(before, new RegExp(`^${crate} =`, 'm'), `${crate} is not a general dependency`);
   }
 });
+
+const activity = readFileSync('src-tauri/gen/android/app/src/main/java/app/kestrel/photo/MainActivity.kt', 'utf8');
+
+test('the activity keeps the page clear of the system bars and the keyboard, with light system icons on the dark app', () => {
+  // The web view reports env(safe-area-inset-bottom) as 0 on Android, so the native side leaves the space (emulator check, 28 Nov 2026).
+  assert.match(activity, /WindowInsetsCompat\.Type\.ime\(\)/);
+  assert.match(activity, /WindowInsetsCompat\.Type\.systemBars\(\)/);
+  assert.match(activity, /SystemBarStyle\.dark\(/);
+});
