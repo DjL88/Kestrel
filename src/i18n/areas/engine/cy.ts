@@ -178,6 +178,8 @@ export const cy: AreaTranslation<typeof source> = {
       : 'Ychwanegwyd masg y cefndir. Dydy e’n newid dim nes i chi symud un o’i lithryddion.'),
     confidence: { high: 'uchel', medium: 'canolig', low: 'isel' },
     subjectFailed: 'Methodd canfod y gwrthrych. Manylion yn Tasgau.',
+    subjectApproximate: 'Ardal pwnc bras, o’r canfodydd. Mae’n ardal feddal y tu mewn i flwch y canfodydd, nid amlinelliad: mireinio hi â’r brws.',
+    subjectNoneFound: 'Ni ddaeth y canfodydd o hyd i unrhyw bwnc. Tynnwch ardal eich hun gyda’r brws neu fwgwd siâp.',
     subjectNotQueued: 'Doedd dim modd dechrau canfod y gwrthrych.',
     denoiseTask: (filename) => `Lleihau sŵn ${filename}`,
     denoiseStage: 'Lleihau sŵn a gwirio manylion',

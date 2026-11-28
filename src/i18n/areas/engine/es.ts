@@ -178,6 +178,8 @@ export const es: AreaTranslation<typeof source> = {
       : 'Se añadió la máscara del fondo. No cambia nada hasta que mueva uno de sus reguladores.'),
     confidence: { high: 'alta', medium: 'media', low: 'baja' },
     subjectFailed: 'La detección del sujeto falló. Detalles en Tareas.',
+    subjectApproximate: 'Zona aproximada del sujeto, del detector. Es un área suave dentro del recuadro del detector, no un contorno: afínela con el pincel.',
+    subjectNoneFound: 'El detector no encontró ningún sujeto. Dibuje usted una zona con el pincel o una máscara de forma.',
     subjectNotQueued: 'No se pudo iniciar la detección del sujeto.',
     denoiseTask: (filename) => `Reduciendo ruido de ${filename}`,
     denoiseStage: 'Reduciendo ruido y comprobando el detalle',

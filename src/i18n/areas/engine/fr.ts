@@ -178,6 +178,8 @@ export const fr: AreaTranslation<typeof source> = {
       : 'Masque de l’arrière-plan ajouté. Il ne change rien tant que vous ne bougez pas un de ses curseurs.'),
     confidence: { high: 'élevée', medium: 'moyenne', low: 'faible' },
     subjectFailed: 'La détection du sujet a échoué. Détails dans Tâches.',
+    subjectApproximate: 'Zone approximative du sujet, issue du détecteur. C’est une zone douce dans le cadre du détecteur, pas un contour : affinez-la au pinceau.',
+    subjectNoneFound: 'Le détecteur n’a trouvé aucun sujet. Dessinez vous-même une zone avec le pinceau ou un masque de forme.',
     subjectNotQueued: 'Impossible de lancer la détection du sujet.',
     denoiseTask: (filename) => `Débruitage de ${filename}`,
     denoiseStage: 'Débruitage et vérification des détails',

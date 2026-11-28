@@ -178,6 +178,8 @@ export const pt: AreaTranslation<typeof source> = {
       : 'Máscara do fundo adicionada. Não altera nada até mover um dos seus controlos.'),
     confidence: { high: 'alta', medium: 'média', low: 'baixa' },
     subjectFailed: 'A deteção do motivo falhou. Detalhes em Tarefas.',
+    subjectApproximate: 'Área aproximada do motivo, do detetor. É uma área suave dentro da caixa do detetor, não um contorno: refine-a com o pincel.',
+    subjectNoneFound: 'O detetor não encontrou nenhum motivo. Desenhe uma zona com o pincel ou uma máscara de forma.',
     subjectNotQueued: 'Não foi possível iniciar a deteção do motivo.',
     denoiseTask: (filename) => `A reduzir o ruído de ${filename}`,
     denoiseStage: 'A reduzir o ruído e a verificar o detalhe',

@@ -178,6 +178,8 @@ export const da: AreaTranslation<typeof source> = {
       : 'Baggrundsmasken er tilføjet. Den ændrer intet, før du flytter en af dens skydere.'),
     confidence: { high: 'høj', medium: 'middel', low: 'lav' },
     subjectFailed: 'Motivgenkendelsen mislykkedes. Detaljer under Opgaver.',
+    subjectApproximate: 'Omtrentligt motivområde fra detektoren. Det er et blødt område inden for detektorens ramme, ikke en kontur: finjuster det med penslen.',
+    subjectNoneFound: 'Detektoren fandt intet motiv. Tegn selv et område med penslen eller en formmaske.',
     subjectNotQueued: 'Kunne ikke starte motivgenkendelsen.',
     denoiseTask: (filename) => `Fjerner støj fra ${filename}`,
     denoiseStage: 'Fjerner støj og tjekker detaljer',

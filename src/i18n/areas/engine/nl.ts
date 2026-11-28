@@ -178,6 +178,8 @@ export const nl: AreaTranslation<typeof source> = {
       : 'Het achtergrondmasker is toegevoegd. Het verandert niets tot u een van de schuifregelaars beweegt.'),
     confidence: { high: 'hoog', medium: 'gemiddeld', low: 'laag' },
     subjectFailed: 'Onderwerpherkenning is mislukt. Details in Taken.',
+    subjectApproximate: 'Geschat onderwerpgebied, van de detector. Het is een zacht gebied binnen het kader van de detector, geen omtrek: verfijn het met het penseel.',
+    subjectNoneFound: 'De detector vond geen onderwerp. Teken zelf een gebied met het penseel of een vormmasker.',
     subjectNotQueued: 'Onderwerpherkenning kon niet worden gestart.',
     denoiseTask: (filename) => `Ruis uit ${filename} verwijderen`,
     denoiseStage: 'Ruis verwijderen en detail controleren',

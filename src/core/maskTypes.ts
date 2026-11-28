@@ -47,7 +47,9 @@ export type MaskShape =
        * photo's own pixels. Used inside `region` wherever no brush stroke has touched; `grid` stays the whole-photo
        * fallback, so older versions of InFlight still read the mask.
        */
-      detail?: SubjectDetail };
+      detail?: SubjectDetail;
+      /** A soft area inside the object detector's box, made when the outline model was unavailable. Never an outline: labelled approximate. */
+      approximate?: boolean };
 
 export type TonalBand = 'shadows' | 'highlights' | 'blacks' | 'whites' | 'range';
 export const TONAL_BANDS: readonly TonalBand[] = ['shadows', 'highlights', 'blacks', 'whites', 'range'];
