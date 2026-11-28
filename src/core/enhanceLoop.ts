@@ -190,6 +190,7 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
   const styles: EnhanceStyle[] = ['natural', subjectOk ? 'subject' : 'light', 'bold'];
   const options: OptionResult[] = [];
   let totalRounds = 0;
+  let critiqueAnswered = false;
   for (const style of styles) {
     const proposal = proposeKnobs(stats, guidance, style, subjectOk, seed);
     if (!proposal.steps.length) {
@@ -212,6 +213,7 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
       if (vision?.critique) {
         try {
           const v = await vision.critique(frame, { rgba: px, width, height }, guidance);
+          if (v) critiqueAnswered = true;
           for (const id of v?.issues ?? []) {
             const mapped = LABEL_FOR_VISION[id];
             if (mapped && !issues.some((i) => i.id === mapped)) issues.push({ id: mapped, words: v?.summary || id, source: 'vision' });
@@ -269,7 +271,7 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
 
   // Verification chain: the device decides. No cloud in the per-photo loop.
   const chosen = favourite !== null ? options[favourite] : null;
-  const device: ChainVerdict | undefined = !chosen ? undefined : vision?.critique ? (chosen.remaining.some((i) => i.source === 'vision') ? 'disagree' : 'agree') : undefined;
+  const device: ChainVerdict | undefined = !chosen ? undefined : vision?.critique && critiqueAnswered ? (chosen.remaining.some((i) => i.source === 'vision') ? 'disagree' : 'agree') : undefined;
   // The per-photo loop never asks the cloud (owner policy, 28 Nov 2026): everything runs on this device, offline.
   const policy: ChainPolicy = { flag: true, cloudPermitted: false, previewOnly: true };
   const impact = chosen && chosen.steps.some((s) => Math.abs(s.amount) >= 1) ? 'high' : 'normal';
