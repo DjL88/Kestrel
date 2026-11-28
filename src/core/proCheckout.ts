@@ -11,7 +11,8 @@
  */
 import { currencyForRegion, formatPrice, type PublicPricing } from './pricingMatrix';
 
-export type ProPlan = 'monthly' | 'annual';
+/** 'plus' is Pro Plus: £9.99 a month, with 5,000 cloud photos a month instead of Pro's 500 (owner, 28 Nov 2026). */
+export type ProPlan = 'monthly' | 'annual' | 'plus';
 /**
  * The plan choices with their prices, from the pricing matrix the owner edits in Admin (src/core/pricingMatrix.ts),
  * in the currency Paddle will charge for the person's country. Never a price typed into the app.
@@ -19,9 +20,12 @@ export type ProPlan = 'monthly' | 'annual';
 export function proPlanChoices(pricing: PublicPricing, region: string | null, locale = 'en-GB'): { plan: ProPlan; label: string; price: string }[] {
   const currency = currencyForRegion(pricing, region);
   const row = pricing.currencies[currency];
+  const plusMinor = row['plus.monthly'];
   return [
-    { plan: 'monthly', label: 'Monthly', price: `${formatPrice(row['pro.monthly'], currency, row.digits, locale)} a month` },
-    { plan: 'annual', label: 'Yearly', price: `${formatPrice(row['pro.annual'], currency, row.digits, locale)} a year` },
+    { plan: 'monthly', label: 'Pro, monthly (500 cloud photos a month)', price: `${formatPrice(row['pro.monthly'], currency, row.digits, locale)} a month` },
+    { plan: 'annual', label: 'Pro, yearly (500 cloud photos a month)', price: `${formatPrice(row['pro.annual'], currency, row.digits, locale)} a year` },
+    // Offered only when the price list has a Pro Plus price in this currency.
+    ...(plusMinor ? [{ plan: 'plus' as const, label: 'Pro Plus, monthly (5,000 cloud photos a month)', price: `${formatPrice(plusMinor, currency, row.digits, locale)} a month` }] : []),
   ];
 }
 /** How long Pro keeps working after a renewal date while a device cannot check (the control plane's grace). */
@@ -126,7 +130,7 @@ const STATES: readonly SubscriptionState[] = ['renewing', 'ending', 'payment-due
 
 /** The answer to POST /v1/me/subscription/manage. A link that is not Paddle's portal is dropped, never opened. */
 export function parseSubscriptionManage(status: number, json: Record<string, unknown> | null): SubscriptionManage {
-  if (status === 200 && json && (json.plan === 'monthly' || json.plan === 'annual') && STATES.includes(json.state as SubscriptionState)) {
+  if (status === 200 && json && (json.plan === 'monthly' || json.plan === 'annual' || json.plan === 'plus') && STATES.includes(json.state as SubscriptionState)) {
     const link = (v: unknown) => (isPaddlePortalUrl(v) ? { url: v } : null);
     const manage = link(json.manageUrl), cancel = link(json.cancelUrl), payment = link(json.paymentUrl);
     return {
@@ -146,9 +150,9 @@ export function parseSubscriptionManage(status: number, json: Record<string, unk
 /** Plain words for where the subscription stands. Ending always says what happens next: Basic, nothing locked. */
 export function subscriptionStateText(m: Extract<SubscriptionManage, { ok: true }>, locale?: string): string {
   const day = m.paidThroughMs === null ? null : new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(m.paidThroughMs);
-  const plan = m.plan === 'annual' ? 'Yearly' : 'Monthly';
+  const plan = m.plan === 'annual' ? 'Yearly Pro' : m.plan === 'plus' ? 'Monthly Pro Plus' : 'Monthly Pro';
   switch (m.state) {
-    case 'renewing': return `${plan} Pro renews by itself${day ? ` on ${day}` : ''}.`;
+    case 'renewing': return `${plan} renews by itself${day ? ` on ${day}` : ''}.`;
     case 'ending': return `Cancelled. Pro lasts${day ? ` until ${day}` : ' until the end of the period you paid for'}, then this account goes back to Basic. Your projects, edits and exports are never locked.`;
     case 'payment-due': return `The last payment did not go through, and Paddle is trying again. Pro keeps working for up to ${SUBSCRIPTION_GRACE_DAYS} days${day ? ` after ${day}` : ''}. You can update your card below.`;
     case 'paused': return `Paused. This account is on Basic until the subscription resumes. Your work is never locked.`;

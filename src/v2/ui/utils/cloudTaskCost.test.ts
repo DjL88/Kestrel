@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { cloudTaskCost } from './cloudTaskCost.ts';
 
-const usage = { plan: 'pro' as const, photosUsed: 1840, storedBytes: 0, downloadedBytes: 0, balancePence: 500, nowMs: 0 };
+const usage = { plan: 'plus' as const, photosUsed: 1840, storedBytes: 0, downloadedBytes: 0, balancePence: 500, nowMs: 0 };
 
 test('a queued cloud task says how many monthly cloud photos it uses', () => {
   assert.equal(cloudTaskCost({ location: 'cloud', status: 'queued', total: 120 }, usage), 'Uses 120 of your monthly cloud photos (3,040 left after this)');
