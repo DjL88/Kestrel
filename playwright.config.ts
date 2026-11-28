@@ -32,6 +32,8 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_SHOW_ONLINE_HELPER: 'true',
+      // The subject mask network is RED and not in the repository: tests use a deterministic stand-in (src/core/subjectStandIn.ts).
+      VITE_SUBJECT_MASK_STAND_IN: 'true',
       VITE_SPECIES_MODEL_URL: '/stand-in-species.onnx',
       // The category gate's stand-in always "sees" a bird (tools/subject-router/make_stand_in_gate.py).
       VITE_GATE_MODEL_URL: '/stand-in-gate.onnx',
