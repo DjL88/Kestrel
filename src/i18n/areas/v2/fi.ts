@@ -1037,6 +1037,11 @@ export const fi: AreaTranslation<typeof source> = {
     cvdOff: "Pois",
     cvdOnHint: "Kertoo selkein sanoin, miltä värit näyttävät, ja korjaa ne yhdellä napautuksella.",
     cvdOffHint: "Ota käyttöön, niin värit nimetään sanoin muokatessasi.",
+    cvdOfferQuestion: "Nimetäänkö värit sanoin?",
+    cvdOfferYes: "Kyllä",
+    cvdOfferNo: "Ei kiitos",
+    cvdOfferYesLabel: "Kyllä, nimeä värit sanoin",
+    cvdOfferNoLabel: "Ei kiitos, älä nimeä värejä sanoin",
     resetPhoto: 'Palauta kuva',
     stopsSuffix: 'EV',
     tooltips: {

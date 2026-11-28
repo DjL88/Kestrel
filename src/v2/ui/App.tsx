@@ -793,7 +793,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const next = Math.max(-100, Math.min(100, current + (direction === 'cooler' ? -10 : 10)));
     actions.updateRecipe(photoId, { temperature: next }, direction === 'cooler' ? colourText.fixCooler : colourText.fixWarmer);
   };
-  const toggleCvd = () => actions.updateSettings({ cvdGuidance: !store.settings.cvdGuidance });
+  const toggleCvd = () => actions.updateSettings({ cvdGuidance: !store.settings.cvdGuidance, cvdOfferAnswered: true });
+  const answerCvdOffer = (yes: boolean) => actions.updateSettings({ cvdGuidance: yes, cvdOfferAnswered: true });
   // Colour-vision support's one-line verdict: Correct is one named, undoable step; the red and green outlines show only
   // after "Show where" (Dave, 27 Nov: the verdict leads, the detail waits).
   const correctColour = (photoId: string, fix: import('../../core/colourVerdict').ColourFix) => {
@@ -858,6 +859,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
             onToggleCvdGuidance={toggleCvd}
+            cvdOfferPending={!store.settings.cvdOfferAnswered && !store.settings.cvdGuidance}
+            onAnswerCvdOffer={answerCvdOffer}
             colourVerdict={colourVerdictProps}
             autoEdit={actions.autoEdit && !editLocked ? {
               status: store.autoStatus, onAuto: actions.autoEdit, onUndo: actions.undo,

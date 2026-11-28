@@ -12,6 +12,7 @@ import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
 import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 import ColourVisionToggle from './ColourVisionToggle';
+import ColourVisionOffer from './ColourVisionOffer';
 import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
 import AutoEditButton, { type AutoEditButtonProps } from './AutoEditButton';
 
@@ -22,6 +23,9 @@ interface AdjustPanelProps {
   cvdGuidance: boolean;
   /** Turns Colour-vision support on or off here; it is the same setting as Settings → Assistance. */
   onToggleCvdGuidance?: () => void;
+  /** The one-time first-run offer to name colours in words: shown until answered, never again after. */
+  cvdOfferPending?: boolean;
+  onAnswerCvdOffer?: (yes: boolean) => void;
   /** One-click Auto at the top of the panel. Absent: no button (a locked photo, or no engine). */
   autoEdit?: Omit<AutoEditButtonProps, 'photoId'>;
   /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. */
@@ -140,6 +144,8 @@ export default function AdjustPanel({
   looks,
   cvdGuidance,
   onToggleCvdGuidance,
+  cvdOfferPending,
+  onAnswerCvdOffer,
   colourVerdict,
   autoEdit,
   hideReadouts,
@@ -188,6 +194,8 @@ export default function AdjustPanel({
       {onToggleCvdGuidance && (
         // On a phone this switch lives with the project (grid ⋯ menu), not on each photo; its notes still show here when on.
         <div className="space-y-2">
+          {/* The offer is for the desktop panel; on a phone the switch lives with the project, so the sheet keeps its height. */}
+          {cvdOfferPending && onAnswerCvdOffer && <div className="max-md:hidden"><ColourVisionOffer onAnswer={onAnswerCvdOffer} /></div>}
           <div className="max-md:hidden"><ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} /></div>
           {cvdGuidance && (
             <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />

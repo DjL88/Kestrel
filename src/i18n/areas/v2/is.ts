@@ -1036,6 +1036,11 @@ export const is: AreaTranslation<typeof source> = {
     cvdOff: "Slökkt",
     cvdOnHint: "Segir með einföldum orðum hvernig litirnir líta út, með einni snertingu til að leiðrétta þá.",
     cvdOffHint: "Kveiktu á þessu til að fá litina nefnda með orðum á meðan þú vinnur.",
+    cvdOfferQuestion: "Nefna liti með orðum?",
+    cvdOfferYes: "Já",
+    cvdOfferNo: "Nei takk",
+    cvdOfferYesLabel: "Já, nefna liti með orðum",
+    cvdOfferNoLabel: "Nei takk, ekki nefna liti með orðum",
     resetPhoto: 'Endurstilla mynd',
     stopsSuffix: 'EV',
     tooltips: {

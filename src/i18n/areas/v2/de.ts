@@ -1036,6 +1036,11 @@ export const de: AreaTranslation<typeof source> = {
     cvdOff: "Aus",
     cvdOnHint: "Sagt in klaren Worten, wie die Farben aussehen, mit einem Tipp zum Korrigieren.",
     cvdOffHint: "Schalten Sie dies ein, um Farben beim Bearbeiten in Worten benannt zu bekommen.",
+    cvdOfferQuestion: "Farben in Worten benennen?",
+    cvdOfferYes: "Ja",
+    cvdOfferNo: "Nein danke",
+    cvdOfferYesLabel: "Ja, Farben in Worten benennen",
+    cvdOfferNoLabel: "Nein danke, Farben nicht in Worten benennen",
     resetPhoto: 'Foto zurücksetzen',
     stopsSuffix: 'LW',
     tooltips: {

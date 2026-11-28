@@ -95,3 +95,57 @@ test('Colour-vision support is off by default and, when turned on, names the col
   await page.getByRole('tab', { name: 'Assistance' }).or(page.getByRole('button', { name: 'Assistance' })).first().click();
   await expect(page.getByRole('dialog').getByRole('switch', { name: 'Colour-vision support' })).toHaveAttribute('aria-checked', 'false');
 });
+
+async function openAdjustWithPhoto(page: import('@playwright/test').Page) {
+  await page.route('**/*.onnx*', (route) => route.abort());
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Colour offer');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
+  const pixels = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 80; canvas.height = 60;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgb(120, 130, 90)';
+    context.fillRect(0, 0, 80, 60);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await studio.evaluate((target, base64) => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File([Uint8Array.from(atob(base64), c => c.charCodeAt(0))], 'plain.png', { type: 'image/png' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, pixels);
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  // Adjust may already be the open panel; clicking its rail button again would close it.
+  const panelSwitch = studio.getByRole('button', { name: 'Adjust', exact: true }).first();
+  if (!(await studio.getByTestId('cvd-toggle').isVisible())) await panelSwitch.click();
+  await expect(studio.getByTestId('cvd-toggle')).toBeVisible();
+  return studio;
+}
+
+test('A one-line first-run offer names colours in words: Yes turns it on, once answered it never returns', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Same Adjust panel on both; desktop is enough.');
+  const studio = await openAdjustWithPhoto(page);
+  const offer = studio.getByTestId('cvd-offer');
+  await expect(offer).toContainText('Name colours in words?');
+  await expect(studio.getByTestId('cvd-toggle')).toHaveAttribute('aria-checked', 'false');
+  // Keyboard: the buttons are reached by Tab and pressed with Enter.
+  await studio.getByTestId('cvd-offer-yes').focus();
+  await page.keyboard.press('Enter');
+  await expect(offer).toHaveCount(0);
+  await expect(studio.getByTestId('cvd-toggle')).toHaveAttribute('aria-checked', 'true');
+  await studio.getByTestId('cvd-toggle').click();
+  await expect(studio.getByTestId('cvd-toggle')).toHaveAttribute('aria-checked', 'false');
+  await expect(offer, 'an answered offer does not come back when the switch is turned off').toHaveCount(0);
+});
+
+test('No thanks is respected and remembered across a reload', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Same Adjust panel on both; desktop is enough.');
+  const studio = await openAdjustWithPhoto(page);
+  await studio.getByTestId('cvd-offer-no').click();
+  await expect(studio.getByTestId('cvd-offer')).toHaveCount(0);
+  await expect(studio.getByTestId('cvd-toggle')).toHaveAttribute('aria-checked', 'false');
+  expect(await page.evaluate(() => window.localStorage.getItem('inflight.v2.ui'))).toContain('"cvdOfferAnswered":true');
+});

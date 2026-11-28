@@ -1036,6 +1036,11 @@ export const nl: AreaTranslation<typeof source> = {
     cvdOff: "Uit",
     cvdOnHint: "Zegt in gewone woorden hoe de kleuren eruitzien, met één tik om ze te corrigeren.",
     cvdOffHint: "Zet dit aan om kleuren tijdens het bewerken in woorden te laten benoemen.",
+    cvdOfferQuestion: "Kleuren in woorden benoemen?",
+    cvdOfferYes: "Ja",
+    cvdOfferNo: "Nee, bedankt",
+    cvdOfferYesLabel: "Ja, benoem kleuren in woorden",
+    cvdOfferNoLabel: "Nee, bedankt, benoem kleuren niet in woorden",
     resetPhoto: 'Foto herstellen',
     stopsSuffix: 'EV',
     tooltips: {

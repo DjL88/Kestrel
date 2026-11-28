@@ -661,6 +661,8 @@ export interface WorkspaceSettings {
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
   cvdGuidance: boolean;
+  /** The one-time "Name colours in words?" offer has been answered (Yes or No thanks). Unset: not yet asked. */
+  cvdOfferAnswered?: boolean;
   /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
   hideProFeatures: boolean;
   /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */

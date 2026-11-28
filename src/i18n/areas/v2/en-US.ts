@@ -25,6 +25,9 @@ export const enUS: AreaTranslation<typeof source> = {
     noGenAiNote: "Nothing is generated. Uses masking, denoise, tone, and color grading only.",
   },
   adjust: {
+    cvdOfferQuestion: "Name colors in words?",
+    cvdOfferYesLabel: "Yes, name colors in words",
+    cvdOfferNoLabel: "No thanks, do not name colors in words",
     fringe: {
       heading: "Color fringes",
       help: "Lenses can leave thin colored outlines on edges: red, cyan, blue or yellow towards the corners, and purple or green on dark edges against a bright sky. These controls take them away. The photo itself is never changed.",

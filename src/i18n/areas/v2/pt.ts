@@ -1036,6 +1036,11 @@ export const pt: AreaTranslation<typeof source> = {
     cvdOff: "Desligado",
     cvdOnHint: "Diz em palavras simples como estão as cores, com um toque para as corrigir.",
     cvdOffHint: "Ative para ter as cores indicadas por palavras enquanto edita.",
+    cvdOfferQuestion: "Nomear as cores em palavras?",
+    cvdOfferYes: "Sim",
+    cvdOfferNo: "Não, obrigado",
+    cvdOfferYesLabel: "Sim, nomear as cores em palavras",
+    cvdOfferNoLabel: "Não, obrigado, não nomear as cores em palavras",
     resetPhoto: 'Repor a fotografia',
     stopsSuffix: 'EV',
     tooltips: {

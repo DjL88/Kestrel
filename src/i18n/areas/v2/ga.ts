@@ -1039,6 +1039,11 @@ export const ga: AreaTranslation<typeof source> = {
     cvdOff: "Múchta",
     cvdOnHint: "Insíonn sé i bhfocail shoiléire cén chuma atá ar na dathanna, le tapáil amháin chun iad a cheartú.",
     cvdOffHint: "Cas air chun dathanna a ainmniú i bhfocail agus tú ag eagarthóireacht.",
+    cvdOfferQuestion: "Dathanna a ainmniú i bhfocail?",
+    cvdOfferYes: "Tá",
+    cvdOfferNo: "Níl, go raibh maith agat",
+    cvdOfferYesLabel: "Tá, ainmnigh dathanna i bhfocail",
+    cvdOfferNoLabel: "Níl, go raibh maith agat, ná hainmnigh dathanna i bhfocail",
     resetPhoto: 'Athshocraigh an grianghraf',
     stopsSuffix: 'EV',
     tooltips: {
