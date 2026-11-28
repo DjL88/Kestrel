@@ -11,6 +11,7 @@ import { friendlyToolError } from '../core/toolErrors';
 import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
 import type { SubjectGrid } from '../core/maskTypes';
 import { detectSubject } from './subjectDetector';
+import { SUBJECT_MASK_STAND_IN } from '../core/subjectStandIn';
 import { downloadGateModel, gateAvailable, removeGateModel } from './categoryGate';
 import { GATE_MODEL } from '../core/categoryGate';
 import { loadOrt, ortOptions } from './ortRuntime';
@@ -145,6 +146,10 @@ export const EXTRA_GROUP_LISTS = ['species-mammals.json', 'species-reptiles.json
  * out of the default installer, so a glob (empty when the file is absent) stands in for a static import. Never fails.
  */
 async function loadShippedLabels(): Promise<SpeciesLabel[]> {
+  // TEST DOUBLE: browser tests only. A small synthetic list (tests/fixtures/stand-in-species-labels.json, served by the test).
+  if (SUBJECT_MASK_STAND_IN) {
+    try { const response = await fetch('/stand-in-species-labels.json'); return response.ok ? (await response.json() as { labels: SpeciesLabel[] }).labels : []; } catch { return []; }
+  }
   try {
     const files = import.meta.glob('../assets/species/uk.json', { import: 'default' }) as Record<string, () => Promise<{ labels: SpeciesLabel[] }>>;
     const load = Object.values(files)[0];

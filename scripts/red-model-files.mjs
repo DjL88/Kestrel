@@ -26,9 +26,6 @@ export const excludeRedModels = () => ({
   name: 'kestrel-exclude-red-models',
   apply: 'build',
   closeBundle() {
-    // The browser tests' build (VITE_SUBJECT_MASK_STAND_IN) keeps the species lists they read; no installer is made from it
-    // (scripts/build-desktop.mjs refuses that flag).
-    if (process.env.VITE_SUBJECT_MASK_STAND_IN === 'true') return;
     const removed = removeRedModels('dist');
     if (removed.length) console.log(`Left out RED model files: ${removed.join(', ')}`);
   },
