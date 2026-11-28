@@ -4,10 +4,13 @@ Two readers:
   * rawpy (LibRaw), installed with `pip install rawpy`. It has ready-built wheels for Windows, macOS and Linux, so no
     Rust or C compiler is needed. This is the default.
   * Kestrel's own decoder through `raw_dump` (src-tauri/examples/raw_dump.rs), for cameras where you want exactly
-    what the app sees. Pass the path of the built raw_dump(.exe).
+    what the app sees. Pass the path of the built raw_dump(.exe). It calls the app's sensor decoder, so it also reads
+    Nikon High Efficiency (HE and HE*, TicoRAW) NEFs from their sensor data, which rawpy cannot. Its JSON says which
+    decoder read each file (`decoder`: "rawler", "nikon-he" or "nikon-he-star"); a raw_dump built before that field
+    existed has no `decoder` and cannot read HE files, so rebuild it.
 
-Neither reads Nikon High Efficiency (TicoRAW) NEFs; those files are reported and skipped. So are Fujifilm X-Trans
-and files that are already demosaiced (linear DNGs): they need their own packing.
+rawpy does not read Nikon High Efficiency NEFs; those files are reported and skipped on that route. So are Fujifilm
+X-Trans and files that are already demosaiced (linear DNGs): they need their own packing.
 
 `black_level_unclipped` keeps values below the black level negative instead of clipping them at zero, which the noise
 calibration needs (clipping hides half of the read noise in the shadows).
@@ -70,7 +73,10 @@ def read_with_raw_dump(path: Path, raw_dump: Path, clip: bool = True) -> np.ndar
     with tempfile.TemporaryDirectory(prefix="kestrel-dump-") as scratch:
         result = subprocess.run([str(raw_dump), str(path), scratch], capture_output=True, text=True)
         if result.returncode != 0:
-            raise UnsupportedRaw(f"raw_dump failed: {result.stderr.strip()[-200:]}")
+            problem = result.stderr.strip()[-200:]
+            if "HighEffic" in problem:
+                problem += " (this raw_dump is older than the Nikon HE/HE* support or was built without it; rebuild it with the default features)"
+            raise UnsupportedRaw(f"raw_dump failed: {problem}")
         meta_path = next(Path(scratch).glob("*.json"))
         meta = json.loads(meta_path.read_text())
         if meta["cpp"] != 1 or meta["cfa"] not in OFFSETS:
