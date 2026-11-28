@@ -57,6 +57,7 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
 import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
@@ -432,6 +433,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
 
+  // The phone's two pages (grid, then one photo). Always on in the phone app; in a browser it is this device's preview switch
+  // until the browser specs that assume the filmstrip move to it.
+  const phoneTwoPages = isMobile && (workflowPreviewOn('phoneTwoPages') || isMobileShell());
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 767px)');
@@ -444,11 +448,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Opening a project on a phone lands on its photo grid (the first page); a tap on a photo opens it in the editor.
   const gridEnteredFor = React.useRef<string | null>(null);
   useEffect(() => {
-    if (!isMobile || store.screen !== 'editor' || store.collage) { gridEnteredFor.current = null; return; }
+    if (!phoneTwoPages || store.screen !== 'editor' || store.collage) { gridEnteredFor.current = null; return; }
     if (gridEnteredFor.current === store.activeProjectId) return;
     gridEnteredFor.current = store.activeProjectId;
     actions.setGridViewOpen(true);
-  }, [isMobile, store.screen, store.activeProjectId, store.collage]);
+  }, [phoneTwoPages, store.screen, store.activeProjectId, store.collage]);
 
   // A phone (portrait, or a short landscape screen) and an upright tablet or unfolded foldable open with no panel, so the
   // photo has the screen until a tool is chosen (owner, 26 Nov). Exactly once, at start: turning the device keeps
@@ -1065,7 +1069,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const tabletPortrait = isTabletPortrait && !isMobile && !composingCollage;
   const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
   // An upright phone has two pages: the grid of every photo in the project, and the editor for one photo. The filmstrip is not drawn.
-  const phoneGridPage = isMobile && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
+  const phoneGridPage = phoneTwoPages && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
@@ -1233,7 +1237,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             gridViewOpen={store.gridViewOpen}
             filmstripCollapsed={store.filmstripCollapsed}
             // On a phone, Back from one photo goes to the grid (the first page); from the grid it goes to the projects.
-            onBack={isMobile && !store.collage && !store.gridViewOpen ? () => actions.setGridViewOpen(true) : actions.backToProjects}
+            onBack={phoneTwoPages && !store.collage && !store.gridViewOpen ? () => actions.setGridViewOpen(true) : actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
@@ -1461,7 +1465,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               )}
 
-              {!canvasOnlyShown && (!isMobile || composingCollage) && <Filmstrip
+              {!canvasOnlyShown && (!phoneTwoPages || composingCollage) && <Filmstrip
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}

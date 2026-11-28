@@ -17,6 +17,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: 'kestrel.preview.finish-best.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  /** The phone's two pages (photo grid, then one-photo editor, no filmstrip). Always on in the phone app shell; here for a browser. */
+  phoneTwoPages: 'kestrel.preview.phone-two-pages.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',
 } as const;

@@ -3,9 +3,12 @@ import { expect, test } from '@playwright/test';
 // The phone has two pages (owner brief, 28 Nov): a grid of every photo in the project, and the editor for one photo.
 // No filmstrip. A tap on a photo opens it for editing; Back from the editor returns to the grid; Back from the grid
 // returns to the projects. Import, filter, sort, search and the rest are behind one ⋯ menu in the grid's header.
+// In a browser the layout is behind the device preview switch (always on in the phone app).
 test('phone: project opens on a photo grid; a tap opens the editor; Back returns to the grid, then the projects', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'Phone layout only.');
   await page.setViewportSize({ width: 390, height: 844 });
+  // The phone app has this on; in a browser it is this device's preview switch until the other phone specs move to it.
+  await page.addInitScript(() => localStorage.setItem('kestrel.preview.phone-two-pages.v1', '1'));
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');
   await studio.getByRole('button', { name: 'Cairngorms Pinewood Stags', exact: true }).click();
@@ -39,6 +42,8 @@ test('phone: project opens on a photo grid; a tap opens the editor; Back returns
 test('phone grid header menu: import, filter, sort and search are one tap from the title bar', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'Phone layout only.');
   await page.setViewportSize({ width: 390, height: 844 });
+  // The phone app has this on; in a browser it is this device's preview switch until the other phone specs move to it.
+  await page.addInitScript(() => localStorage.setItem('kestrel.preview.phone-two-pages.v1', '1'));
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');
   await studio.getByRole('button', { name: 'Cairngorms Pinewood Stags', exact: true }).click();
@@ -65,6 +70,16 @@ test('desktop keeps the filmstrip and the toolbar', async ({ page }, testInfo) =
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');
   await studio.getByRole('button', { name: /Open studio/ }).first().click();
+  await expect(studio.getByTestId('phone-grid-page')).toHaveCount(0);
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
+});
+
+test('phone browser without the preview switch keeps the filmstrip and opens the editor directly', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone', 'Phone layout only.');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?v2&stub=1');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'Cairngorms Pinewood Stags', exact: true }).click();
   await expect(studio.getByTestId('phone-grid-page')).toHaveCount(0);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
 });
