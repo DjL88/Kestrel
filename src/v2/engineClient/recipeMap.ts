@@ -1,3 +1,4 @@
+import { DENOISE_ZONES, hasDenoiseZones } from '../../core/denoiseZones';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { isNeutralWhiteBalance, validWhiteBalance } from '../../core/asShotWhite';
 import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixer, type CurvePoint } from '../../core/curveMixer';
@@ -62,6 +63,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     sharpen: toSlider(edit.sharpen),
     denoiseColour: toSlider(edit.denoise),
     denoiseLuminance: toSlider(edit.denoiseLuminance),
+    ...(hasDenoiseZones(edit.denoiseZones) ? { denoiseZones: Object.fromEntries(DENOISE_ZONES.filter((zone) => edit.denoiseZones?.[zone]).map((zone) => [zone, toSlider(edit.denoiseZones![zone])])) } : {}),
     detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
     ...(edit.trueDetailAi ? { aiDenoise: true } : {}),
@@ -145,6 +147,14 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const value = round(clamp(patch.denoiseLuminance, 0, 100) / SLIDER_PER_STEP, 4);
     if (value === 0) delete next.denoiseLuminance;
     else next.denoiseLuminance = value;
+  }
+  if (patch.denoiseZones !== undefined) {
+    const zones: Partial<Record<typeof DENOISE_ZONES[number], number>> = {};
+    for (const zone of DENOISE_ZONES) {
+      const raw = patch.denoiseZones[zone];
+      if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) zones[zone] = round(clamp(raw, 0, 100) / SLIDER_PER_STEP, 4);
+    }
+    if (Object.keys(zones).length) next.denoiseZones = zones; else delete next.denoiseZones;
   }
   if (patch.denoiseColour !== undefined) next.denoise = round(clamp(patch.denoiseColour, 0, 100) / SLIDER_PER_STEP, 4);
   if (patch.detailRecovery !== undefined && Number.isFinite(patch.detailRecovery)) {
