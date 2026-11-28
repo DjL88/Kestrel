@@ -119,7 +119,10 @@ export function parseSwitchDoc(raw: unknown): SwitchDoc {
 }
 
 /** The default with no owner choice and no list: on, except the licence-red features. */
-export const defaultOn = (id: string): boolean => BY_ID.get(id)?.defaultOn !== false;
+// Browser-test builds only (playwright configs): the licence-red models stay on so the existing model specs still run.
+// Never set in a build people install: the default there is the licence audit's.
+const TEST_BUILD_RED_ON = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_KESTREL_TEST_RED_MODELS_ON === '1';
+export const defaultOn = (id: string): boolean => TEST_BUILD_RED_ON || BY_ID.get(id)?.defaultOn !== false;
 
 /** Effective state of a switch given a list. An explicit choice wins; otherwise the feature's default. */
 export const switchedOff = (doc: SwitchDoc, id: string, scope: SwitchScope): boolean => (doc[id]?.[scope] ?? defaultOn(id)) === false;
