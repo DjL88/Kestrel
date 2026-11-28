@@ -25,6 +25,8 @@ export const cy: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Wrth ddewis, mae'n mesur miniogrwydd y tu mewn i amlinell y pwnc yn unig yn lle ei flwch. Heb amlinell ddefnyddiadwy, cedwir mesur y blwch.",
   enhanceLoopName: "Gwella gyda gwiriadau",
   enhanceLoopDesc: "Mae Auto yn mesur y llun, yn dilyn y canllawiau golygu, yn creu ei olygiad ei hun, yn gwirio'r canlyniad go iawn ac yn ei addasu hyd at bum gwaith. Yna mae'n cynnig tri dewis gydag ffefryn. Mae popeth yn aros ar y ddyfais hon ac nid yw'r gwreiddiol byth yn newid.",
+  ownSpeciesName: "Own species model (research)",
+  ownSpeciesDesc: "Suggests a bird name from InFlight's own small model, trained only on one photographer's own photos, on top of the same on-device picture model that groups bursts. It knows only a handful of species, often says nothing, and can be wrong. Its labels are not yet confirmed. Everything stays on this device.",
   cloudRecipeName: "Gosodiadau golygu yn y cwmwl",
   cloudRecipeDesc: "Yn anfon rhagolwg clyfar 2,560 px o lun i'r cwmwl ac yn cael gosodiadau golygu y gellir eu dadwneud yn ôl. Mae angen cysylltiad ac mae'n anfon data'r llun, felly gadewch ef i ffwrdd i gadw popeth ar y ddyfais hon.",
   usbTetherName: "Clymu USB",

@@ -25,6 +25,8 @@ export const source = {
   cullMaskSharpnessDesc: "When culling, measures sharpness only inside the subject's outline instead of its box. Without a usable outline the box measure is kept.",
   enhanceLoopName: "Enhance with checks",
   enhanceLoopDesc: "Auto measures the photo, follows the cited editing guidance, renders its own edit, checks the actual result and adjusts it, at most five times. It then offers three options with a favourite. Everything stays on this device and the original is never changed.",
+  ownSpeciesName: "Own species model (research)",
+  ownSpeciesDesc: "Suggests a bird name from InFlight's own small model, trained only on one photographer's own photos, on top of the same on-device picture model that groups bursts. It knows only a handful of species, often says nothing, and can be wrong. Its labels are not yet confirmed. Everything stays on this device.",
   cloudRecipeName: "Cloud edit settings",
   cloudRecipeDesc: "Sends a 2,560 px smart preview of a photo to the cloud and gets back undoable edit settings. It needs a connection and sends photo data, so leave it off to keep everything on this device.",
   verificationChainName: "Verification chain",

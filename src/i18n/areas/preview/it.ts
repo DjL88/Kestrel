@@ -25,6 +25,8 @@ export const it: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Durante la selezione misura la nitidezza solo dentro il contorno del soggetto invece che nel suo riquadro. Senza un contorno utilizzabile resta la misura del riquadro.",
   enhanceLoopName: "Migliora con controlli",
   enhanceLoopDesc: "Auto misura la foto, segue le linee guida di modifica citate, crea una propria modifica, controlla il risultato reale e lo regola fino a cinque volte. Poi propone tre opzioni con una preferita. Tutto resta su questo dispositivo e l'originale non viene mai modificato.",
+  ownSpeciesName: "Own species model (research)",
+  ownSpeciesDesc: "Suggests a bird name from InFlight's own small model, trained only on one photographer's own photos, on top of the same on-device picture model that groups bursts. It knows only a handful of species, often says nothing, and can be wrong. Its labels are not yet confirmed. Everything stays on this device.",
   cloudRecipeName: "Impostazioni di modifica nel cloud",
   cloudRecipeDesc: "Invia al cloud un'anteprima intelligente da 2.560 px di una foto e riceve impostazioni di modifica annullabili. Richiede una connessione e invia dati della foto: lo lasci disattivato per tenere tutto su questo dispositivo.",
   usbTetherName: "Tethering USB",

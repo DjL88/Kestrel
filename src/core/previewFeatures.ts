@@ -32,6 +32,7 @@ export const PREVIEW_FEATURES = [
   preview('cullRules', 'kestrel.preview.cull-rules.v1', false, 'cullRules'),
   preview('cullMaskSharpness', 'kestrel.preview.cullMaskSharpness.v1'),
   preview('enhanceLoop', 'kestrel.preview.enhance-loop.v1'),
+  preview('ownSpecies', 'kestrel.preview.own-species.v1'),
   preview('cloudRecipe', 'kestrel.preview.cloudRecipe.v1', false, 'cloudRecipe'),
   preview('verificationChain', 'kestrel.preview.verification-chain.v1', false, 'verificationChain'),
   preview('cloudOriginals', 'kestrel.preview.cloud-originals.v1'),

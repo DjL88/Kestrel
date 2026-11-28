@@ -25,6 +25,8 @@ export const gd: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Aig àm taghaidh, tomhaisidh e a' gheuraichead am broinn oir a' chuspair a-mhàin an àite a bhogsa. Às aonais oir a ghabhas cleachdadh, cumar tomhas a' bhogsa.",
   enhanceLoopName: "Leasaich le dearbhaidhean",
   enhanceLoopDesc: "Bidh Auto a’ tomhas na dealbh, a’ leantainn an stiùiridh deasachaidh, a’ dèanamh deasachadh dheth fhèin, a’ dearbhadh an toraidh fhìor agus ga atharrachadh suas gu còig tursan. An uairsin tha e a’ tabhann trì roghainnean le fear as fheàrr. Fuiridh a h-uile càil air an uidheam seo agus chan atharraich an tùs gu bràth.",
+  ownSpeciesName: "Own species model (research)",
+  ownSpeciesDesc: "Suggests a bird name from InFlight's own small model, trained only on one photographer's own photos, on top of the same on-device picture model that groups bursts. It knows only a handful of species, often says nothing, and can be wrong. Its labels are not yet confirmed. Everything stays on this device.",
   cloudRecipeName: "Roghainnean deasachaidh sa neul",
   cloudRecipeDesc: "Cuiridh e ro-shealladh sgoinneil 2,560 px de dhealbh dhan neul agus gheibh e roghainnean deasachaidh air ais a ghabhas neo-dhèanamh. Feumaidh e ceangal agus cuiridh e dàta an deilbh, mar sin fàg dheth e gus a h-uile càil a chumail air an inneal seo.",
   usbTetherName: "Ceangal USB",

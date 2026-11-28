@@ -25,6 +25,8 @@ export const da: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Måler ved udvælgelse skarpheden kun inde i motivets omrids i stedet for dets ramme. Uden et brugbart omrids beholdes rammemålingen.",
   enhanceLoopName: "Forbedr med kontroller",
   enhanceLoopDesc: "Auto måler fotoet, følger de kildehenviste redigeringsråd, laver sin egen redigering, tjekker det faktiske resultat og justerer det højst fem gange. Derefter tilbyder den tre muligheder med en favorit. Alt bliver på denne enhed, og originalen ændres aldrig.",
+  ownSpeciesName: "Own species model (research)",
+  ownSpeciesDesc: "Suggests a bird name from InFlight's own small model, trained only on one photographer's own photos, on top of the same on-device picture model that groups bursts. It knows only a handful of species, often says nothing, and can be wrong. Its labels are not yet confirmed. Everything stays on this device.",
   cloudRecipeName: "Redigeringsindstillinger i skyen",
   cloudRecipeDesc: "Sender et smart eksempel på 2.560 px af et billede til skyen og får redigeringsindstillinger tilbage, som kan fortrydes. Det kræver en forbindelse og sender billeddata, så lad det være slået fra for at beholde alt på denne enhed.",
   usbTetherName: "USB-tethering",
