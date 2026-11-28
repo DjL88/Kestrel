@@ -140,13 +140,25 @@ export const EXTRA_GROUP_LISTS = ['species-mammals.json', 'species-reptiles.json
  * The names for the given regions (the person's home regions when none are given): a project's "Where were these
  * taken?" choice passes its own, so a trip abroad is ranked against that place's species (src/core/speciesArea.ts).
  */
+/**
+ * The shipped UK list, if this build carries one. It was made with BioCLIP, which the model licence policy (28 Nov 2026) keeps
+ * out of the default installer, so a glob (empty when the file is absent) stands in for a static import. Never fails.
+ */
+async function loadShippedLabels(): Promise<SpeciesLabel[]> {
+  try {
+    const files = import.meta.glob('../assets/species/uk.json', { import: 'default' }) as Record<string, () => Promise<{ labels: SpeciesLabel[] }>>;
+    const load = Object.values(files)[0];
+    return load ? (await load()).labels : [];
+  } catch { return []; }
+}
+
 export function loadSpeciesLabels(regionIds?: readonly string[]): Promise<Labels> {
   const regions = regionIds?.length ? normaliseRegions(regionIds) : readSpeciesRegions();
   const key = regions.join(',');
   if (labelsLoading && labelsKey === key) return labelsLoading;
   labelsKey = key;
   labelsLoading = (async () => {
-    const shippedFile = (await import('../assets/species/uk.json')).default.labels as SpeciesLabel[];
+    const shippedFile = await loadShippedLabels();
     let shipped = [...shippedFile];
     let world: SpeciesLabel[] = [];
     try {

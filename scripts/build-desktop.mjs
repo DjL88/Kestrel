@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Desktop builds always include offline species identification. The model is
- * downloaded at BUILD time, never via a hidden network request at app startup.
+ * Desktop builds fetch the bundled models and optional packs at BUILD time, never via a hidden network request at app
+ * startup. RED models (see models/licences.json) are not carried.
  * The existing fetch script fails closed on missing bytes or SHA-256 mismatch.
  */
 import { spawnSync } from 'node:child_process';
@@ -13,7 +13,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 try {
 assertReleaseBuildArgs(process.argv.slice(2));
@@ -22,8 +21,7 @@ const buildEnv = { ...loadEnv('production', root, 'VITE_'), ...process.env };
 if ((process.env.KESTREL_RELEASE ?? '1') !== '0') { assertReleaseOnlineSettings(buildEnv); assertSiteOriginAllowed(buildEnv, JSON.parse(readFileSync(new URL('../config/public-site.json', import.meta.url), 'utf8')).origin); }
 const noDrives = missingDriveSettings(buildEnv);
 if (noDrives.length) console.warn('Note: cloud drive sign-in will be off for: ' + noDrives.join(', ') + ' (add them to .env.local; see docs/CLOUD-CONNECTORS.md).');
-const prepared = spawnSync(npm, ['run', 'model:species'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
-assertChildSucceeded(prepared, 'Species model preparation');
+// No species model is fetched or bundled: BioCLIP is RED under the model licence policy of 28 Nov 2026 (models/licences.json).
 // The optional packs this installer carries (models/desktop-packs.json): each file fetched and checked like the bundled
 // models. A pack whose files cannot all be had is left out of this installer and stays a download in Settings.
 const packList = readList(readFileSync(join(root, 'models', 'desktop-packs.json'), 'utf8'));
@@ -38,8 +36,6 @@ const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
   env: { ...process.env,
     // Model packs and model updates come from the models bucket, checked against the pinned manifest key.
     ...releaseModelSource(buildEnv),
-    VITE_SPECIES_MODEL_URL: '/models/bioclip-image-int8.onnx',
-    VITE_SPECIES_MODEL_BUNDLED: 'true',
     VITE_BUNDLED_PACKS: bundledPacks.join(','),
     // The packs it does not carry can still be downloaded, from the models bucket by checksum.
     VITE_MODEL_PACK_HOST: process.env.VITE_MODEL_PACK_HOST || DEFAULT_HOST,

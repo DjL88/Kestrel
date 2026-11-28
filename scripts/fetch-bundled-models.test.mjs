@@ -31,10 +31,11 @@ test('the desktop pack list is valid, and a pack is bundled only when every one 
   const { completePacks } = await import('./fetch-bundled-models.mjs');
   const packs = readList(readFileSync(new URL('../models/desktop-packs.json', import.meta.url), 'utf8'));
   assert.ok(packs.every((e) => typeof e.pack === 'string'));
-  const encoder = packs.find((e) => e.file.includes('encoder'));
-  const present = new Set(packs.map((e) => e.file).filter((file) => file !== encoder.file));
-  const bundled = completePacks(packs, present);
-  assert.ok(!bundled.includes('efficientsam-ti-fp16'), 'tap select needs both halves');
+  // A two-file pack is bundled only when both halves are in place.
+  const twoFiles = [{ pack: 'p', file: 'a.onnx' }, { pack: 'p', file: 'b.onnx' }, { pack: 'q', file: 'c.onnx' }];
+  assert.deepEqual(completePacks(twoFiles, new Set(['a.onnx', 'c.onnx'])), ['q'], 'a pack with a missing half is left out');
+  const bundled = completePacks(packs, new Set(packs.map((e) => e.file)));
+  assert.ok(!bundled.includes('efficientsam-ti-fp16') && !bundled.includes('birefnet-lite-w16'), 'RED packs are not in the default installer');
   assert.ok(bundled.includes('nafnet-sidd-w32-w16'));
 });
 

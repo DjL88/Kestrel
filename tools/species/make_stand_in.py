@@ -2,7 +2,7 @@
 Makes a tiny stand-in for the species model, for tests only: whatever picture it is given, it "sees" one chosen species.
 Run with a Python that has onnx and numpy:
 
-    python tools/species/make_stand_in.py src/assets/species/uk.json "Red kite" tests/fixtures/stand-in-species.onnx
+    python tools/species/make_stand_in.py tools/species/uk.json "Red kite" tests/fixtures/stand-in-species.onnx
 """
 import base64, json, sys
 import numpy as np

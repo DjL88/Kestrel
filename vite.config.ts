@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 import {offlineBuild} from './offline-build.ts';
+import { excludeRedModels } from './scripts/red-model-files.mjs';
 import { buildInfoDefines, buildInfoPlugin, readGit, resolveProvenance } from './scripts/build-provenance.mjs';
 
 export default defineConfig(({ command }) => {
@@ -16,7 +17,7 @@ export default defineConfig(({ command }) => {
     target,
   });
   return {
-    plugins: [react(), tailwindcss(), offlineBuild(), buildInfoPlugin(provenance)],
+    plugins: [react(), tailwindcss(), offlineBuild(), buildInfoPlugin(provenance), excludeRedModels()],
     define: buildInfoDefines(provenance),
     // Build the on-device runtime up front. Found only when first used, a dev server can re-bundle it mid-session and the
     // page then fails with "Failed to fetch dynamically imported module".
