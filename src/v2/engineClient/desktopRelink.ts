@@ -58,10 +58,11 @@ export async function planDesktopRelink(
   stillCurrent: () => boolean = () => true,
 ): Promise<DesktopRelinkPlan> {
   const empty: DesktopRelinkPlan = { replacements: new Map(), notFound: 0, ambiguous: 0, unverifiable: 0, truncated: false, skippedDirectories: 0 };
+  if (!stillCurrent()) return empty;
   const provable = missing.filter((frame) => typeof frame.originalSha256 === 'string' && /^[a-f0-9]{64}$/.test(frame.originalSha256));
   const unverifiable = missing.length - provable.length;
   if (!provable.length) return { ...empty, unverifiable };
-  const found = await scanOriginalFolder(folder, fs.readDir, fs.stat, new Set(provable.map((frame) => frame.filename.toLowerCase())));
+  const found = await scanOriginalFolder(folder, fs.readDir, fs.stat, new Set(provable.map((frame) => frame.filename.toLowerCase())), { stillCurrent });
   if (!stillCurrent()) return empty;
   const byPath = new Map(found.files.map((file) => [file.path, file]));
   const open = async (path: string): Promise<ScannedOriginalRead> => {
@@ -69,6 +70,7 @@ export async function planDesktopRelink(
     const scanned: ScannedOriginal | undefined = byPath.get(path);
     if (!scanned) throw new Error('Candidate is not part of the chosen folder.');
     const before = await fs.stat(path);
+    if (!stillCurrent()) throw new Error('Project changed during reconnect.');
     // The file must still be the one the scan saw: same size and time, an ordinary file, not a link.
     if (!before.isFile || before.isSymlink || before.size !== scanned.size ||
         (before.mtime && before.mtime.getTime() !== scanned.lastModified)) throw new Error('Candidate changed before verification.');
@@ -85,7 +87,7 @@ export async function planDesktopRelink(
   };
   const result = await matchScannedOriginalsBySha(
     provable.map((frame) => ({ stableKey: frame.stableKey, filename: frame.filename, size: sizeFromKey(frame.stableKey), originalSha256: frame.originalSha256 })),
-    found.files, connectedPaths, open,
+    found.files, connectedPaths, open, stillCurrent,
   );
   if (!stillCurrent()) return empty;
   return {

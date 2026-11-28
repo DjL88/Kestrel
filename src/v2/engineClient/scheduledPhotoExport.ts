@@ -8,7 +8,7 @@ import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { archiveExports, loadExportSource, loadVerifiedRasterOriginalForExport, saveExportFile } from '../../providers/browserExport';
 import { chooseDesktopExportFolder } from '../../providers/desktopShell';
 import { uniqueExportFilename } from '../../core/exportNaming';
-import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
+import { readVerifiedExportOriginal } from './verifiedOriginalCopy';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import type { ExportRequest } from '../ui/contract';
@@ -95,10 +95,6 @@ export async function scheduleV2PhotoExports(input: {
     nativeDesktop: hasNativeRaw(),
     deviceMemoryGb: (globalThis.navigator as unknown as { deviceMemory?: number } | undefined)?.deviceMemory,
   }));
-  // A relinked original is a different Blob: it never reuses the previous decode.
-  const blobIds = new WeakMap<Blob, number>();
-  let nextBlobId = 0;
-  const blobId = (blob: Blob) => { let id = blobIds.get(blob); if (id === undefined) { id = ++nextBlobId; blobIds.set(blob, id); } return id; };
   const ticket = await engineScheduler.submit({
     title: `Exporting ${input.plan.summary}`,
     kind: 'export',
@@ -131,13 +127,12 @@ export async function scheduleV2PhotoExports(input: {
       const frame = submitted.frames.find(candidate => candidate.id === item.frameId);
       if (!frame) throw new Error('The selected photograph is missing from this export snapshot.');
       let files: File[];
+      let assertOriginalCurrent: (() => void) | undefined;
       if (item.kind === 'original') {
         if (frame.isDemo) throw new Error('Demo photographs do not have verified original bytes.');
-        const bytes = await provider.ensureOriginal(frame.stableKey, 'selected');
-        ctx.checkCancelled();
-        if (!bytes) throw new Error(`Reconnect ${frame.filename} before exporting its exact original.`);
-        const verified = await verifyExactOriginalCopy(bytes, frame.originalSha256, ctx.signal);
-        files = [new File([verified], frame.filename, { type: verified.type || 'application/octet-stream', lastModified: Date.now() })];
+        const verified = await readVerifiedExportOriginal(provider.verifiedOriginalReader(frame.stableKey), frame.originalSha256, frame.filename, ctx.signal);
+        assertOriginalCurrent = verified.assertCurrent;
+        files = [new File([verified.bytes], frame.filename, { type: verified.bytes.type || 'application/octet-stream', lastModified: Date.now() })];
       } else {
         const job = submitted.plan.jobs[item.jobIndex];
         const variant = job?.variants[item.variantIndex];
@@ -146,8 +141,9 @@ export async function scheduleV2PhotoExports(input: {
           `${item.jobIndex}:${item.variantIndex}`, job.sections ?? 1, item.panelIndex, () => renderExportJob({
             frame, job, variant, request: submitted.request, provider, buildOverlay: input.buildOverlay, started, signal: ctx.signal,
             stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled(),
-            // The ticket's cache: a RAW is decoded once for all its formats and edit groups, and released when the ticket ends.
-            openRawSource: (target, original, originalSha256, signal) => rawSources.get(`${target.stableKey}|${originalSha256 ?? ''}|${blobId(original)}`,
+            // The current source has just passed full SHA verification. Identical bytes may share a decode
+            // across formats even if a fresh disk read returned a different Blob object.
+            openRawSource: (target, original, originalSha256, signal) => rawSources.get(JSON.stringify([target.stableKey, originalSha256]),
               () => openRaw16(original, target.filename, { originalSha256, signal })),
           }));
         ctx.checkCancelled();
@@ -161,6 +157,7 @@ export async function scheduleV2PhotoExports(input: {
       }
       for (const file of files) {
         ctx.checkCancelled();
+        assertOriginalCurrent?.();
         // Reserve the output name once for this exact item. A failed native
         // save must retry the SAME filename, not make an accidental -2 copy.
         let name = reservedNames.get(item.id);
@@ -222,9 +219,13 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
     // a full-size 8-bit develop, which took about 25 s per Nikon Z 8 photo and was then not used. Anything else (no
     // stored develop, an edit the 16-bit path cannot carry, a 16-bit refusal) loads the full develop as before.
     const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
+    // A cached RAW develop must never vouch for a disconnected or substituted original.
+    const verifiedRaw = raw
+      ? await readVerifiedExportOriginal(provider.verifiedOriginalReader(frame.stableKey), frame.originalSha256, frame.filename, signal)
+      : null;
+    checkCancelled();
     const sixteen = raw && canDevelopRaw() && !master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
     const guide = sixteen ? await loadDevelopedGuide(frame, provider) : null;
-    checkCancelled();
     const fullSource = async () => {
       const loaded = verifiedRaster
         ? await loadVerifiedRasterOriginalForExport(frame, provider, signal)
@@ -236,6 +237,8 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
       return loaded;
     };
     try {
+    checkCancelled();
+    verifiedRaw?.assertCurrent();
     let image = guide?.image ?? await fullSource();
     const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
       ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
@@ -258,11 +261,11 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
         stage(`8-bit export for ${frame.filename}: ${blocker}`);
       } else {
         stage('Developing RAW sensor data at 16 bits');
-        const original = await provider.ensureOriginal(frame.stableKey, 'selected');
-        checkCancelled();
-        if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
-        const originalSha256 = frame.originalSha256 && /^[a-f0-9]{64}$/.test(frame.originalSha256) ? frame.originalSha256 : undefined;
-        // Bound to the recorded fingerprint when there is one, so a changed file is refused rather than exported.
+        if (!verifiedRaw) throw new Error(`Reconnect ${frame.filename} before exporting its RAW.`);
+        verifiedRaw.assertCurrent();
+        const original = verifiedRaw.bytes;
+        const originalSha256 = frame.originalSha256;
+        // The original has passed full SHA verification; bind the sensor decode to the same fingerprint.
         try {
           const source = await openRawSource(frame, original, originalSha256, signal);
           checkCancelled();
@@ -298,6 +301,7 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
       if (check.kind === 'short') throw new Error(engineText.workspace.originalTooSmall(frame.filename, result.width, result.height, check.expected.width, check.expected.height));
       if (check.kind === 'cropped') stage(engineText.workspace.originalCropped(frame.filename, result.width, result.height));
     }
+    verifiedRaw?.assertCurrent();
     return result.sections ?? [result.file];
     } finally {
       guide?.release();

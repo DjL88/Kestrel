@@ -20,14 +20,27 @@ const IDLE: FinishBatchSnapshot = { projectId: null, phase: 'idle', total: 0, re
 
 export function createFinishBatchStore() {
   let snapshot: FinishBatchSnapshot = IDLE;
+  let sequence = 0;
+  let activeRun = 0;
   const listeners = new Set<() => void>();
   const set = (next: FinishBatchSnapshot) => { snapshot = next; listeners.forEach((listener) => listener()); };
   return {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    begin(projectId: string, total: number) { set({ projectId, phase: 'running', total, results: [], stopped: false }); },
-    add(result: FinishResult) { set({ ...snapshot, results: [...snapshot.results, result] }); },
-    finish(stopped: boolean) { if (snapshot.phase === 'running') set({ ...snapshot, phase: 'done', stopped }); },
+    begin(projectId: string, total: number) {
+      activeRun = ++sequence;
+      set({ projectId, phase: 'running', total, results: [], stopped: false });
+      return activeRun;
+    },
+    /** A late scheduler callback must never publish to a later run, even in the same project. */
+    isCurrent(runId: number) { return runId !== 0 && runId === activeRun; },
+    add(runId: number, result: FinishResult) {
+      if (runId !== activeRun || snapshot.phase !== 'running') return;
+      set({ ...snapshot, results: [...snapshot.results, result] });
+    },
+    finish(runId: number, stopped: boolean) {
+      if (runId === activeRun && snapshot.phase === 'running') set({ ...snapshot, phase: 'done', stopped });
+    },
     mark(photoId: string, patch: Partial<Pick<FinishResult, 'review' | 'changedSince'>>) {
       set({ ...snapshot, results: snapshot.results.map((result) => (result.photoId === photoId ? { ...result, ...patch } : result)) });
     },
@@ -35,7 +48,7 @@ export function createFinishBatchStore() {
     keepAll() {
       set({ ...snapshot, results: snapshot.results.map((result) => (result.state === 'applied' && result.review === 'pending' ? { ...result, review: 'kept' } : result)) });
     },
-    reset() { if (snapshot !== IDLE) set(IDLE); },
+    reset() { activeRun = 0; if (snapshot !== IDLE) set(IDLE); },
   };
 }
 
