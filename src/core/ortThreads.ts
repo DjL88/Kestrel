@@ -1,3 +1,5 @@
+import { previewKey } from './previewFeatures';
+
 /**
  * How the on-device models run: how many CPU threads onnxruntime may use, and whether to try the graphics card first.
  *
@@ -8,7 +10,7 @@
  * server, an older WebView) simply stays on one thread. Nothing here changes a model's answer, only how fast it comes.
  *
  * WebGPU is tried only where all three hold: desktop, isolated, and the device preview switch is on
- * (`localStorage['kestrel.preview.ort-webgpu.v1'] = '1'`), because its float maths is not yet proven to give the
+ * (Settings → Preview features), because its float maths is not yet proven to give the
  * same calibrated answers as the CPU path on Dave's machines. When it is tried, the CPU path is always the fallback.
  */
 
@@ -31,7 +33,7 @@ export interface OrtPlan {
   executionProviders: Array<'webgpu' | 'wasm'>;
 }
 
-export const ORT_WEBGPU_PREVIEW_KEY = 'kestrel.preview.ort-webgpu.v1';
+export const ORT_WEBGPU_PREVIEW_KEY = previewKey('ortWebgpu');
 export const ORT_MAX_THREADS = 4;
 export const ORT_SINGLE_THREAD: OrtPlan = Object.freeze({ threads: 1, executionProviders: ['wasm'] }) as OrtPlan;
 

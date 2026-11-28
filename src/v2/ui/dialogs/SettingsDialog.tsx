@@ -27,6 +27,8 @@ import { STRINGS } from '../strings';
 import { readProfile, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import FlightModePicker from '../panels/FlightModePicker';
 import { projectsText } from '../../../i18n/areas/projects';
+import { previewText } from '../../../i18n/areas/preview';
+import PreviewFeaturesSettings from './PreviewFeaturesSettings';
 import { readBuildInfo } from '../../../core/buildInfo';
 import { ModelsSection } from '../panels/ModelsSection';
 
@@ -91,6 +93,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'aiProviders', label: STRINGS.settings.tabs.aiProviders, icon: 'cloud-assist' },
   { id: 'storage', label: STRINGS.settings.tabs.storage, icon: 'hard-drive' },
   { id: 'keyboard', label: STRINGS.settings.tabs.keyboard, icon: 'keyboard' },
+  { id: 'previews', label: previewText.tab, icon: 'settings' },
   { id: 'language', label: STRINGS.settings.tabs.language, icon: 'language' },
   { id: 'presets', label: STRINGS.overlays.templatesHeading, icon: 'grid' },
   { id: 'formats', label: STRINGS.settings.tabs.formats, icon: 'all-sizes' },
@@ -673,6 +676,9 @@ export default function SettingsDialog({
                 </section>
               </div>
             )}
+
+            {/* 7. PREVIEW FEATURES */}
+            {activeTab === 'previews' && <PreviewFeaturesSettings />}
 
             {/* 8. PRIVACY */}
             {activeTab === 'privacy' && (

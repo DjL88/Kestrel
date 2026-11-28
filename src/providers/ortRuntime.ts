@@ -1,4 +1,5 @@
-import { ORT_WEBGPU_PREVIEW_KEY, ortPlanFor, ortWorkerPlanFor, readOrtPlan, type OrtPlan } from '../core/ortThreads';
+import { previewOn } from '../core/previewFeatures';
+import { ortPlanFor, ortWorkerPlanFor, readOrtPlan, type OrtPlan } from '../core/ortThreads';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 
 /**
@@ -13,7 +14,7 @@ type Options = Parameters<Ort['InferenceSession']['create']>[1];
 type Session = import('onnxruntime-web/wasm').InferenceSession;
 
 function webgpuPreviewOn(): boolean {
-  try { return typeof localStorage !== 'undefined' && localStorage.getItem(ORT_WEBGPU_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('ortWebgpu');
 }
 
 function planHere(runtimes: number, inWorker = false): OrtPlan {

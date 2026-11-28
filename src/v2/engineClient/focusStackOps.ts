@@ -3,6 +3,7 @@ import { MAX_STACK_FRAMES, MIN_STACK_FRAMES } from '../../core/focusStack';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import { stackText } from '../../i18n/areas/stack';
+import { previewKey, previewOn } from '../../core/previewFeatures';
 
 /**
  * Focus stacking in V2: everything between the editor's chosen photos and the pure stacker (src/core/focusStack.ts).
@@ -10,11 +11,11 @@ import { stackText } from '../../i18n/areas/stack';
  * sources; the originals are only ever read.
  */
 
-/** This device's own preview switch (Settings has none yet): `localStorage['kestrel.preview.focus-stack.v1'] = '1'`. */
-export const FOCUS_STACK_PREVIEW_KEY = 'kestrel.preview.focus-stack.v1';
+/** This device's own preview switch (Settings → Preview features); the registry is src/core/previewFeatures.ts. */
+export const FOCUS_STACK_PREVIEW_KEY = previewKey('focusStack');
 
 export function focusStackPreviewOn(storage: Pick<Storage, 'getItem'> | null | undefined = typeof localStorage === 'undefined' ? null : localStorage): boolean {
-  try { return storage?.getItem(FOCUS_STACK_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('focusStack', storage);
 }
 
 /** The chosen frames in shooting order (focus brackets are aligned neighbour to neighbour), or why they cannot be stacked. */

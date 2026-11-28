@@ -3,6 +3,7 @@ import { MAX_PANO_FRAMES, MIN_PANO_FRAMES } from '../../core/panorama';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import { panoText } from '../../i18n/areas/pano';
+import { previewKey, previewOn } from '../../core/previewFeatures';
 
 /**
  * Panorama stitching in V2: everything between the editor's chosen photos and the pure stitcher (src/core/panorama.ts).
@@ -10,11 +11,11 @@ import { panoText } from '../../i18n/areas/pano';
  * sources; the originals are only ever read.
  */
 
-/** This device's own preview switch (Settings has none yet): `localStorage['kestrel.preview.panorama.v1'] = '1'`. */
-export const PANORAMA_PREVIEW_KEY = 'kestrel.preview.panorama.v1';
+/** This device's own preview switch (Settings → Preview features); the registry is src/core/previewFeatures.ts. */
+export const PANORAMA_PREVIEW_KEY = previewKey('panorama');
 
 export function panoramaPreviewOn(storage: Pick<Storage, 'getItem'> | null | undefined = typeof localStorage === 'undefined' ? null : localStorage): boolean {
-  try { return storage?.getItem(PANORAMA_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('panorama', storage);
 }
 
 /** The chosen frames in shooting order (neighbours are matched to each other), or why they cannot be stitched. */

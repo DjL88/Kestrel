@@ -90,6 +90,7 @@ import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { workflowPreviewOn } from './workflowPreview';
+import { previewsVersion, subscribePreviews } from '../../core/previewFeatures';
 import { recordCullObservations, rescoreFromObservations, type ScanEvidence } from '../../core/cullObservationStore';
 import { applyCullRules, proposedKeepers, rankWithRules, type CullRules } from '../../core/cullRules';
 import { isCullOriginal, type CullSuggestion } from '../../core/autoCull';
@@ -359,6 +360,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // is room, instead of one at a time behind whichever is slowest.
   useEffect(() => startNativeResourceSampling(), []);
   const stub = useWorkspace();
+  // A preview switched in Settings → Preview features is read while this hook draws, so redraw when one changes.
+  useSyncExternalStore(subscribePreviews, previewsVersion, previewsVersion);
   const { can: canByPlan, capabilities } = useAccess();
   // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
   // scheduler still runs one heavy job at a time where free memory cannot be measured.
