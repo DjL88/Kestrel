@@ -8,7 +8,7 @@ STATUS: Source implementation in draft PR only. No Google Cloud deployment or ha
 - `/V2Proto` and `/V2Proto/**` are **rewritten to Cloud Run** `inflight-v2proto` in `europe-west2`. The service serves its *own* Vite build from a separate container, not from public Hosting `site/`.
 - Every asset is gated by a signed, expiring Secure/HttpOnly/SameSite cookie. Unauthenticated JS/CSS/assets return HTTP 401. Owner signs in with the **existing Google admin OAuth client**; ID token signature, issuer, audience, expiration and email verification are checked on the server; verified address must be in the existing `kcp-admin-emails` Secret Manager allow-list. Session lasts at most 12 hours. No new password.
 - Direct Cloud Run URLs also enforce this check. The **Cloud Run invoker must be public** for Firebase Hosting's rewrite, but the application endpoint is owner-authorised.
-- Cloud Build trigger reacts to merged commits on `main` and builds/deploys *only* this Cloud Run service. Never auto-deploy worker branch heads or publish the public website. Trigger can optionally require human approval for even stronger safety.
+- **Publish by button (owner decision, 28 Nov 2026).** The owner chooses which `main` commit V2Proto shows, in `/admin` → Publish to V2Proto. A manual Cloud Build trigger (`inflight-v2proto-publish`) builds and deploys *only* this Cloud Run service, for that one commit. Nothing builds on merge once the old `inflight-v2proto-main` trigger is paused. Never publish worker branch heads or the public website from here. Until the owner has applied "Switch to publish-by-button" below, the old automatic trigger is still the live behaviour.
 - The first Firebase Hosting config publish is manual (one time), preserving all existing public content and API rewrites.
 
 ## Cloud Shell — one-time infrastructure
@@ -59,7 +59,49 @@ gcloud iam service-accounts add-iam-policy-binding "$RUNTIME" --member="serviceA
 
 The `storage.objectAdmin` grant is a Cloud Build staging convenience and should be narrowed to the dedicated source/staging bucket once it is identified. The build identity requires appropriate Cloud Build job submission rights, and the person creating the trigger must have `iam.serviceAccounts.actAs` on it.
 
-## Create the main-branch auto-trigger
+## Switch to publish-by-button (owner steps; nothing here has been applied)
+
+The code is in the repository; the infrastructure change is **yours to review and run**. Nothing below runs by itself, and the existing automatic trigger keeps working until step 5.
+
+What it creates (all in `infra/gcp/v2proto-publish.tf`, off until `v2proto_publish_enabled` is true):
+
+| Item | Why | Least privilege |
+| --- | --- | --- |
+| Manual Cloud Build trigger `inflight-v2proto-publish` | Builds `.cloudbuild/v2proto.yaml` for a chosen commit | No push or merge starts it |
+| Custom role `v2protoPublisher` on the control plane's account | Start a run, read its state | Only `cloudbuild.builds.create` and `cloudbuild.builds.get` |
+| `roles/iam.serviceAccountUser` on `v2proto-build` for the control plane | A trigger runs as that account | That one account only |
+| Secret Manager read of `kcp-v2proto-github-readonly` | List `main` commits and their `check` results | One secret, read-only GitHub token (Contents, Metadata, Checks: read) |
+| Four `KCP_V2PROTO_*` settings on the control plane | Shows the page; the trigger id must start `inflight-v2proto-` | Public values only |
+
+Steps, in Cloud Shell, from an up-to-date `main` checkout:
+
+1. **Create the GitHub token** (fine-grained, this repository only, read-only: Contents, Metadata, Checks) and store it. Do not paste it anywhere else:
+   ```bash
+   read -r -s -p "GitHub read-only token: " T; echo
+   printf %s "$T" | gcloud secrets create kcp-v2proto-github-readonly --project=kestrel-hosting --replication-policy=automatic --data-file=-
+   unset T
+   ```
+2. **Copy the current build settings** (public values) into your private tfvars as `v2proto_trigger_substitutions`:
+   ```bash
+   gcloud builds triggers describe inflight-v2proto-main --project=kestrel-hosting --region=global --format='yaml(substitutions)'
+   ```
+3. **Deploy this commit's control plane** as usual (`infra/gcp/deploy-control-plane.sh`), then **plan** the switch and read the plan. It must show only creates and updates (the helper stops otherwise):
+   ```bash
+   bash infra/gcp/switch-features.sh plan REPO LIVE_CONFIG_DIR TF_DATA_DIR '{"v2proto_publish_enabled":true,"v2proto_trigger_substitutions":{"_GOOGLE_CLIENT_ID":"...","...":"..."}}'
+   bash infra/gcp/switch-features.sh apply REPO LIVE_CONFIG_DIR TF_DATA_DIR   # type APPLY
+   ```
+4. **Prove it.** Open `/admin` → Publish to V2Proto, publish the latest green commit, wait for "Done", then check Settings → Build information on `/V2Proto` shows that commit. Publish an earlier green commit and confirm the rollback.
+5. **Only then stop the automatic update** (reversible; `resume` undoes it):
+   ```bash
+   bash infra/gcp/v2proto-auto-deploy.sh status
+   bash infra/gcp/v2proto-auto-deploy.sh pause     # type PAUSE
+   ```
+
+Roll back the whole change at any time: `bash infra/gcp/v2proto-auto-deploy.sh resume`, and set `v2proto_publish_enabled` back to false with `switch-features.sh`.
+
+## Create the main-branch auto-trigger (the original, automatic setup)
+
+This is how V2Proto was first set up and what is live until you pause it. A new setup can skip it and create only the manual trigger above.
 
 First connect `DjL88/Kestrel` through **Cloud Build → Triggers → Connect repository → GitHub** in project `kestrel-hosting`. This is a one-time interactive GitHub authorisation. Then run:
 
@@ -123,14 +165,14 @@ curl -is "$BASE/V2Proto/session" | head -n 15
 
 Expected unauthenticated: sign-in HTML for the first URL; **401** for asset; no session disclosure from a GET. In an incognito browser, verify an unapproved Google account stays denied; owner Google sign-in opens the actual full V2 workspace. Then verify a built asset's anonymous GET returns 401 even after discovering its path in the owner's HTML. Verify logout and 12-hour expiry; mobile Safari and Chrome; refresh, import and export; Cloud Run logs must not record tokens.
 
-For automatic release proof: merge an approved harmless V2-only commit to `main`, verify the new short SHA in Cloud Build, the Cloud Run revision, and a private authenticated browser session. Rejected/HOLD PRs must never merge just to publish.
+After switching to publish-by-button, the proof is: publish a harmless green `main` commit from `/admin`, then check the new short SHA in Cloud Build, the Cloud Run revision and Settings → Build information. While the automatic trigger is still live: merge an approved harmless V2-only commit to `main`, verify the new short SHA in Cloud Build, the Cloud Run revision, and a private authenticated browser session. Rejected/HOLD PRs must never merge just to publish.
 
 ## Operational notes and limits
 
 - No GitHub Actions workflow deploys the website or V2Proto (the unused GitHub Pages workflow was removed on 25 Nov 2026). This dedicated Cloud Build trigger is independent of GitHub Actions credits.
 - The sign-in origin check accepts the site origins in `config/public-site.json` (copied into the image) plus any in `V2PROTO_ALLOWED_ORIGINS`.
 - Firebase Hosting Cloud Run rewrites only apply when a matching static file does not exist in `site/`. Do not add any `site/V2Proto` files.
-- Under the current configuration all main commits rebuild the prototype, even non-V2 changes. That is simplest and avoids stale bundled code. You can restrict trigger paths after successful rollout.
+- While the automatic trigger is live, all main commits rebuild the prototype, even non-V2 changes. That is simplest and avoids stale bundled code. You can restrict trigger paths after successful rollout.
 - V2 is still an active beta. Do not mistake deployment for engine/export parity, production readiness or implemented stylus features.
 - Hosting's rewrite may impose timeout/response size restrictions on heavyweight binary operations; photo-processing uploads should use the separately authorised application APIs, not proxy raw photo bytes through this static gateway.
 - The existing Google owner session on /admin does not automatically transfer: the browser requests Google sign-in at /V2Proto once, using the same identity and allow-list.

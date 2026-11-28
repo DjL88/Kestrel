@@ -58,6 +58,7 @@ export const ADMIN_DATA: Record<string, unknown> = {
   '/v1/admin/mail': { on: true, day: '2026-11-27', sent: 3, cap: 450, account: 'gmail', from: null, providerLimit: 500, warn: false },
   '/v1/admin/learning': { on: false, newPhotos: 120, photoThreshold: 1000, lastRunAtMs: null, manualRequested: false, running: false, month: '2026-11', reservedPence: 0, ceilingPence: 2000, runReservePence: 500, runs: [] },
   '/v1/admin/compliance/documents': { documents: [], maxBytes: 8000000 },
+  '/v1/admin/v2proto': { configured: true, commits: [], latestGreenSha: null, last: null },
   '/v1/admin/safety': { notices: [] },
   '/v1/admin/balance-refunds': { refunds: [] },
   '/v1/admin/accounts': { month: '2026-11', paymentsConnected: true, transactions: [], costModel: { reservedPence: 412, ceilingPence: 1500 } },

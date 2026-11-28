@@ -14,6 +14,7 @@ import { ApiError, parseJson, send } from './http.ts';
 import { DAY_MS, QUOTA_PERIOD_MS, AdminTaxSettings, SWITCHES, Schemas } from './appShared.ts';
 import type { AppContext } from './appContext.ts';
 import { readFile } from 'node:fs/promises';
+import { PublishRefusal, V2ProtoPublisher } from './v2protoPublish.ts';
 
 /** The technical overview and answer bank (docs/TECHNICAL-OVERVIEW.md), copied into the image beside src/core. */
 export const TECHNICAL_OVERVIEW_PATH = new URL('../../../docs/TECHNICAL-OVERVIEW.md', import.meta.url);
@@ -27,7 +28,41 @@ export function adminRoutes(ctx: AppContext): Route[] {
    */
   const notSetUp = (claims: Parameters<typeof adminDone>[0], action: string, reason: string) =>
     adminDone(claims, action, 'not configured', { configured: false, reason });
+  const v2proto = options.v2protoPublish
+    ? new V2ProtoPublisher({ ...options.v2protoPublish, state: { get: (n) => store.getSetting(n), set: (n, v) => store.setSetting(n, v) }, now })
+    : undefined;
   return [
+  // ---- Publish to V2Proto (v2protoPublish.ts): the only way the private preview changes. Owner-only, audited, V2Proto-only.
+  {
+    method: 'GET', path: '/v1/admin/v2proto', summary: 'Recent main commits with their checks, the latest green one, and the last publish to the private V2Proto preview', auth: 'admin',
+    handler: async (req) => {
+      const claims = await admin(req, 'v2proto.read');
+      if (!v2proto) return notSetUp(claims, 'v2proto.read', 'Publishing to V2Proto from here is not set up on this server yet. The automatic update is still in place.');
+      let overview;
+      try { overview = await v2proto.overview(); } catch {
+        return adminDone(claims, 'v2proto.read', 'github unavailable', { configured: true, unavailable: true, reason: 'The commit list could not be read from GitHub just now. Try again in a minute.', commits: [], latestGreenSha: null, last: await v2proto.last() });
+      }
+      return adminDone(claims, 'v2proto.read', '', { configured: true, ...overview });
+    },
+  },
+  {
+    method: 'POST', path: '/v1/admin/v2proto/publish', summary: 'Publish one main commit with a green check to the PRIVATE /V2Proto preview, and nothing else', auth: 'admin', body: Schemas.V2ProtoPublish,
+    handler: async (req) => {
+      const claims = await admin(req, 'v2proto.publish');
+      const body = parseJson(Schemas.V2ProtoPublish, req.rawBody);
+      if (!v2proto) throw new ApiError(503, 'V2PROTO_NOT_CONFIGURED', 'Publishing to V2Proto from here is not set up on this server yet.');
+      try {
+        const record = await v2proto.publish(body.sha, body.confirmedSha, claims.sub);
+        return adminDone(claims, 'v2proto.publish', `${record.sha} build=${record.buildId}`, { last: record });
+      } catch (error) {
+        if (error instanceof PublishRefusal) {
+          await audit(claims.sub, 'v2proto.publish', 'denied', `${body.sha.slice(0, 40)} ${error.code}`);
+          throw new ApiError(error.status, error.code, error.message);
+        }
+        throw error;
+      }
+    },
+  },
   {
     method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
     handler: async (req) => {

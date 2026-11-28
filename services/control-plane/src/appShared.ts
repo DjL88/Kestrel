@@ -152,6 +152,8 @@ export interface AppOptions {
   safety?: { service: SafetyService };
   /** Signed compliance documents (risk assessments) in their own private bucket. Absent: the /admin routes answer 503. */
   compliance?: ComplianceDocuments;
+  /** Publish to V2Proto from /admin (v2protoPublish.ts). Absent: the /admin routes say it is not set up and the automatic trigger stays as it is. */
+  v2protoPublish?: Pick<import('./v2protoPublish.ts').PublisherDeps, 'source' | 'builds'>;
   /** Injected for tests: where the technical overview Markdown is read from. Defaults to docs/TECHNICAL-OVERVIEW.md. */
   technicalOverviewPath?: string | URL;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -260,6 +262,7 @@ export const Schemas = {
     goodFaith: z.literal(true).describe('The notifier confirms the report is accurate and made in good faith (EU DSA Art. 16)'),
   }).strict(),
   GalleryReportStatus: z.object({ noticeId: z.string().regex(/^ntc_[A-Za-z0-9_-]{6,40}$/), receipt: z.string().min(16).max(64) }).strict(),
+  V2ProtoPublish: z.object({ sha: z.string().length(40), confirmedSha: z.string().length(40) }),
   ComplianceUpload: z.object({
     title: z.string().trim().min(1).max(120), fileName: z.string().trim().min(1).max(120),
     contentType: z.enum(Object.keys(COMPLIANCE_TYPES) as [keyof typeof COMPLIANCE_TYPES, ...(keyof typeof COMPLIANCE_TYPES)[]]),

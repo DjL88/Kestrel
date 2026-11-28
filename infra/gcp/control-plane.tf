@@ -357,6 +357,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # Publish to V2Proto from /admin (v2proto-publish.tf).
+        for_each = local.v2proto_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.learning_signal_enabled ? { KCP_LEARNING_ENABLED = "1" } : {}
         content {
           name  = env.key
