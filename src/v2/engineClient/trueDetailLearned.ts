@@ -9,6 +9,12 @@ import type { Pixels } from '../../core/colourCheck';
  * CPU thread. A larger subject is left to the conventional denoise and the note says so. Never downsampled. */
 export const LEARNED_MAX_PIXELS = 3_000_000;
 
+/** Plain account of why the learned denoise did not run on a big subject area. Never implies it ran at lower size. */
+export function learnedTooLargeNote(width: number, height: number): string {
+  const mp = (width * height / 1e6).toFixed(1);
+  return `The learned denoise did not run: the subject's area is ${width} × ${height} pixels (${mp} MP) and it works on up to ${LEARNED_MAX_PIXELS / 1e6} MP at full size. Nothing was shrunk to fit. The built-in denoise was compared on its own; a tighter subject outline brings the area under the limit.`;
+}
+
 export interface LearnedSubject {
   model: string;
   modelSha256: string;
@@ -43,7 +49,7 @@ export async function runLearnedOnSubject(
   region.width = Math.min(region.width, framed.width - region.x);
   region.height = Math.min(region.height, framed.height - region.y);
   if (region.width * region.height > LEARNED_MAX_PIXELS) {
-    return { kind: 'skipped', note: `The subject is too large for the on-device learned denoise (${(region.width * region.height / 1e6).toFixed(1)} MP; the limit is ${LEARNED_MAX_PIXELS / 1e6} MP), so only the built-in denoise was compared.` };
+    return { kind: 'skipped', note: learnedTooLargeNote(region.width, region.height) };
   }
   const crop = document.createElement('canvas');
   drawFramedPhoto(source, crop, framing, { region });

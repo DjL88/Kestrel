@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { unionSubjectGrid } from './subjectUnion';
+import { unionSubjectGrid, distinctSubjectIndices } from './subjectUnion';
 import { createSubjectMask } from './maskTypes';
 import { maskAlpha, fullContext } from './masks';
 
@@ -25,5 +25,17 @@ describe('all-subject union', () => {
   });
   it('rejects empty subject input', () => {
     assert.throws(() => unionSubjectGrid([], 1), RangeError);
+  });
+});
+
+describe('one animal found twice', () => {
+  it('keeps one subject when a second detection sits inside the first', () => {
+    assert.deepEqual(distinctSubjectIndices([make('whole', 4, 24), make('part', 8, 18)], [0.9, 0.7], 1), [0]);
+  });
+  it('keeps the higher-scoring duplicate', () => {
+    assert.deepEqual(distinctSubjectIndices([make('a', 4, 24), make('b', 5, 24)], [0.6, 0.9], 1), [1]);
+  });
+  it('keeps two separate birds', () => {
+    assert.deepEqual(distinctSubjectIndices([make('a', 1, 10), make('b', 20, 30)], [0.9, 0.8], 1), [0, 1]);
   });
 });

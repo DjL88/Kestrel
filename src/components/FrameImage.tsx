@@ -138,6 +138,12 @@ function loadThumbSource(frame: PhotoFrame, provider: BrowserPreviewProvider, pr
   return cached;
 }
 
+/** True when a draft has the same shape as the picture on screen (within 2%), or when no picture size is known yet. */
+export function sameShape(draft: { width: number; height: number }, shown: { width: number; height: number } | null): boolean {
+  if (!shown || !(shown.width > 0 && shown.height > 0) || !(draft.width > 0 && draft.height > 0)) return true;
+  return Math.abs(draft.width / draft.height / (shown.width / shown.height) - 1) <= 0.02;
+}
+
 export const FrameImage: React.FC<FrameImageProps> = ({
   frame,
   previewProvider,
@@ -168,6 +174,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   const [preview, setPreview] = useState<{ identity: string; url: string; interim?: boolean; precision?: 'rgb16' }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
   const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number; fit: 'cover' | 'contain' } | null>(null);
+  const imageSizeRef = useRef(imageSize);
+  imageSizeRef.current = imageSize;
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   // A picture that failed to load is asked for again (`retries`), showing the small picture with a spinner meanwhile.
@@ -340,6 +348,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) { bitmap?.close(); return true; }
       if (!bitmap) return false;
       measureStep('preview:draft', start, { edge });
+      // A draft whose shape differs from the picture on screen would be stretched to fit it (Dave, 28 Nov: Luminance
+      // slider). Never show it: the full render, drawn from the shown picture, takes its place.
+      if (!sameShape(bitmap, imageSizeRef.current)) { bitmap.close(); return false; }
       showLiveBitmap(bitmap);
       return true;
     };
