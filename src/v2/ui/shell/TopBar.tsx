@@ -201,7 +201,7 @@ export default function TopBar({
       aria-label={STRINGS.shellLabels.studioHeader}
     >
       {/* Left zone: Back button + InFlight logo + File / Edit / View desktop menus */}
-      <div className="flex min-w-0 items-center gap-2 md:gap-3" ref={menuRef}>
+      <div className="flex min-w-0 items-center gap-2 md:shrink-0 md:gap-3" ref={menuRef}>
         <button
           type="button"
           onClick={onBack}
@@ -215,7 +215,7 @@ export default function TopBar({
         <div className="hidden h-5 w-px bg-[var(--border-subtle)] shrink-0 md:block" aria-hidden="true" />
 
         <div className="hidden items-center px-1 shrink-0 md:flex">
-          <BrandLogo height={38} pro={isPro} light={theme === 'light'} className="h-auto w-[92px] md:w-[124px]" />
+          <BrandLogo height={38} pro={isPro} light={theme === 'light'} className="h-auto w-[92px] md:w-[100px] lg:w-[124px]" />
         </div>
 
         {/* Phone: the photo's name and where it is in the project, in place of the logo (owner wireframe, 26.3). */}
@@ -408,7 +408,7 @@ export default function TopBar({
                   onClick={() => runAndClose(onToggleFilmstrip)}
                 />
                 <MenuItem
-                  icon="compare"
+                  icon="split"
                   label={STRINGS.topBar.viewActions.compareBeforeAfter}
                   checked={compareMode}
                   onClick={() => runAndClose(onToggleCompare)}
@@ -460,13 +460,13 @@ export default function TopBar({
       </div>
 
       {/* Centre zone: Current photo name (clean single-line) */}
-      <div className="hidden md:flex min-w-0 max-w-xs lg:max-w-sm items-center justify-center">
-        <span className="truncate text-xs font-medium text-[var(--text-secondary)]">
+      <div className="hidden min-w-0 flex-1 items-center justify-center px-2 md:flex">
+        <span title={photoName} className="min-w-0 truncate text-xs font-medium text-[var(--text-secondary)]">
           {photoName}
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 md:gap-3">
+      <div className="flex shrink-0 items-center gap-1 md:gap-2 lg:gap-3">
         <div role="group" aria-label={STRINGS.shellLabels.editHistory} className="flex lg:hidden">
           {([
             { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: shortcutMap['edit.undo'], enabled: canUndo, action: onUndo },
@@ -550,9 +550,10 @@ export default function TopBar({
             onClick={onQuickExport}
             aria-label={STRINGS.exportDialog.quickExport}
             title={STRINGS.exportDialog.quickExport}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] max-md:hidden md:h-9 md:w-9 lg:hidden"
+            className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] max-md:hidden md:h-9 lg:hidden"
           >
-            <BrandIcon name="refresh" size={15} />
+            <BrandIcon name="export" size={15} />
+            <span className="ml-1 text-xs font-semibold">{STRINGS.topBar.exportAgainShort}</span>
           </button>
         )}
       </div>

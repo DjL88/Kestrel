@@ -186,7 +186,7 @@ export default function SettingsDialog({
                   role="tab"
                   aria-selected={active}
                   onClick={() => onSelectTab(tab.id)}
-                  className={`flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-left text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`flex shrink-0 items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-left text-xs font-medium transition-colors whitespace-nowrap ${
                     active
                       ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'

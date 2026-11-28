@@ -124,6 +124,9 @@ const DIRECTION_B = {
   // Drawn to match Direction B (same grid, stroke, square caps and ghost facet) for the dock buttons.
   'arrow-left-to-line': '/v2-icons/b/ArrowLeftToLine.svg',
   'arrow-right-to-line': '/v2-icons/b/ArrowRightToLine.svg',
+  // Export is an arrow leaving a tray (not the refresh loop); Split is a frame with the dividing line drawn through it.
+  export: '/v2-icons/b/Export.svg',
+  split: '/v2-icons/b/Split.svg',
   'chevron-down': '/v2-icons/b/ChevronDown.svg',
   'chevron-up': '/v2-icons/b/ChevronUp.svg',
   'chevron-left': '/v2-icons/b/ChevronLeft.svg',

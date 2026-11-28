@@ -44,11 +44,11 @@ import { adviceFocus } from '../utils/adviceFocus';
 import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
+import { isMobileShell } from '../../../providers/desktopShell';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { noticeDurationMs } from '../utils/noticeTiming';
 import { cameraFocusPoint, chooseActualFocus, focusOnScreen, focusZoom, lookForZoomFocus, pictureIn, warmZoomTargets, type PictureBox, type ZoomFocus } from '../../engineClient/eyeZoom';
 import { shouldDevelopOnZoom } from '../utils/zoomFullDevelop';
-import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
 
   buildPreviewFilterCss,
@@ -191,7 +191,6 @@ function ActualHoldWatch({ photoId, fitScale, canvasZoom, intent, onSetZoom }: {
   return null;
 }
 
-const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 /** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
 /** A small button in the status line under the canvas. */
@@ -489,53 +488,9 @@ export default function Canvas({
     stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + point.y);
   }, [canvasZoom, eyeTarget]);
 
-  // The zoom bar stays fixed over the canvas. It can be undocked: drag its grip (or use the arrow keys on it) to move
-  // it anywhere over the canvas; double-click the grip, press Home on it, or drop it near the corner to dock it again.
   const viewportRef = useRef<HTMLDivElement>(null);
-  const zoomBarRef = useRef<HTMLDivElement>(null);
-  const zoomBarDrag = useRef<{ pointerId: number; x: number; y: number; start: DockOffset } | null>(null);
-  const [zoomBarOffset, setZoomBarOffset] = useState<DockOffset>(() => {
-    try { return parseDockOffset(window.localStorage.getItem(ZOOM_BAR_STORAGE_KEY)); } catch { return DOCKED; }
-  });
-  const clampZoomBar = (offset: DockOffset): DockOffset => {
-    const area = viewportRef.current?.getBoundingClientRect();
-    const bar = zoomBarRef.current?.getBoundingClientRect();
-    return area && bar ? clampDockOffset(offset, area, bar) : offset;
-  };
-  const saveZoomBarOffset = (offset: DockOffset) => {
-    setZoomBarOffset(offset);
-    try { window.localStorage.setItem(ZOOM_BAR_STORAGE_KEY, JSON.stringify(offset)); } catch { /* the place is a convenience only */ }
-  };
-  const startZoomBarDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    zoomBarDrag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, start: zoomBarOffset };
-  };
-  const moveZoomBar = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const drag = zoomBarDrag.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    setZoomBarOffset(clampZoomBar({ right: drag.start.right - (event.clientX - drag.x), bottom: drag.start.bottom - (event.clientY - drag.y) }));
-  };
-  const endZoomBarDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const drag = zoomBarDrag.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    zoomBarDrag.current = null;
-    saveZoomBarOffset(snapDockOffset(clampZoomBar({ right: drag.start.right - (event.clientX - drag.x), bottom: drag.start.bottom - (event.clientY - drag.y) })));
-  };
-  // A window or panel resize never leaves the undocked bar out of sight.
-  useEffect(() => {
-    const area = viewportRef.current;
-    if (!area || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => setZoomBarOffset((offset) => {
-      const next = clampZoomBar(offset);
-      return next.right === offset.right && next.bottom === offset.bottom ? offset : next;
-    }));
-    observer.observe(area);
-    return () => observer.disconnect();
-  }, []);
+  /** The iOS and Android shells have their own screenshot and full-screen: those two buttons stay on desktop and web. */
+  const nativeShell = isMobileShell();
 
   /** The screenshot's message. A failure stays until dismissed; a confirmation stays long enough to read (noticeTiming). */
   const [shotNote, setShotNote] = useState<{ text: string; problem: boolean } | null>(null);
@@ -2372,6 +2327,7 @@ export default function Canvas({
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
+              { icon: 'split', label: 'Compare', short: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
               { icon: 'image-plus', label: 'Add format', short: 'Add', run: () => onOpenFormats?.(), disabled: !onOpenFormats, pressed: false },
               { icon: 'copy', label: 'Duplicate format', short: 'Duplicate', run: () => onDuplicateSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onDuplicateSize, pressed: false },
               { icon: 'crop', label: 'Crop / reposition', short: 'Crop', run: () => {
@@ -2383,7 +2339,6 @@ export default function Canvas({
               }, disabled: selectedSizeIds.length !== 1 || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
               { icon: 'arrows-horizontal', label: 'Flip selected formats', short: 'Flip', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
               { icon: 'rotate', label: 'Rotate selected formats', short: 'Rotate', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
-              { icon: 'compare', label: 'Compare', short: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
               { icon: 'trash', label: 'Delete selected format', short: 'Delete', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
             ] as const).map((action) => (
               <button
@@ -2394,11 +2349,11 @@ export default function Canvas({
                 aria-pressed={action.pressed}
                 disabled={action.disabled}
                 onClick={action.run}
-                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11 max-md:px-2"
+                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] px-2 max-md:h-11 max-md:min-w-11"
               >
                 <BrandIcon name={action.icon} size={16} />
                 {/* Words beside the icons where there is room (Windows beta: the icons alone were unclear). */}
-                <span aria-hidden="true" className="hidden text-xs max-md:inline lg:inline">{action.short}</span>
+                <span aria-hidden="true" className="text-xs">{action.short}</span>
               </button>
             ))}
           </div>
@@ -2477,169 +2432,11 @@ export default function Canvas({
 
       </div>
         {floating && <div data-capture-ignore className="absolute bottom-16 left-3 right-3 z-20 sm:bottom-3 sm:right-auto sm:max-w-lg">{floating}</div>}
-        {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
-        <div
-          aria-label={STRINGS.canvas.viewportControls}
-          data-capture-ignore
-          ref={zoomBarRef}
-          role="toolbar"
-          data-testid="canvas-viewport-controls"
-          data-docked={isDocked(zoomBarOffset) ? 'true' : 'false'}
-          className="absolute z-30 flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)]/95 p-1 shadow-[var(--shadow-popover)] backdrop-blur-sm"
-          style={{ right: 12 + zoomBarOffset.right, bottom: 12 + zoomBarOffset.bottom }}
-        >
-          <button
-            type="button"
-            data-testid="zoom-bar-grip"
-            aria-label={STRINGS.canvas.zoomBarMove}
-            title={STRINGS.canvas.zoomBarMoveTitle}
-            onPointerDown={startZoomBarDrag}
-            onPointerMove={moveZoomBar}
-            onPointerUp={endZoomBarDrag}
-            onPointerCancel={endZoomBarDrag}
-            onDoubleClick={() => saveZoomBarOffset(DOCKED)}
-            onKeyDown={(event) => {
-              const next = nudgeDockOffset(zoomBarOffset, event.key);
-              if (!next) return;
-              event.preventDefault();
-              saveZoomBarOffset(clampZoomBar(next));
-            }}
-            className="v2-zoom-fine inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
-          >
-            <BrandIcon name="grip" size={14} />
-          </button>
-          <button
-            type="button"
-            aria-label={STRINGS.canvas.zoomOut}
-            // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
-            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, maxZoom))}
-            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
-          >
-            <BrandIcon name="minus" size={14} />
-          </button>
-          <div className="relative">
-            <button
-              ref={zoomPercentRef}
-              type="button"
-              aria-label={STRINGS.canvas.zoomMenu(actualPercent)}
-              title={STRINGS.canvas.zoomMenu(actualPercent)}
-              aria-haspopup="menu"
-              aria-expanded={zoomMenuOpen}
-              data-testid="zoom-percent"
-              onClick={() => setZoomMenuOpen((open) => !open)}
-              className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[0.6875rem] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
-            >
-              {actualPercent}%
-            </button>
-            {zoomMenuOpen && (
-              <div ref={zoomMenuRef} role="menu" aria-label={STRINGS.canvas.zoomMenuLabel} data-testid="zoom-menu"
-                className="absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]">
-                {[
-                  { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
-                  { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
-                  // The camera's own AF point, read from the file (the same data as "Show where the camera focused").
-                  { id: 'focus-point', label: STRINGS.canvas.zoomFocusPoint, run: () => zoomToActual(true), current: false,
-                    disabled: activeSize.kind !== 'photo' || compareMode || !photo.cameraFocus?.area,
-                    reason: !photo.cameraFocus?.area ? STRINGS.canvas.zoomFocusPointNone : undefined },
-                  { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
-                ].map((item) => (
-                  <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
-                    title={'reason' in item ? item.reason : undefined}
-                    data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
-                    onClick={() => { setZoomMenuOpen(false); item.run(); }}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
-                    <span>{item.label}</span>
-                    {item.current && <span className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.canvas.zoomCurrent}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            aria-label={STRINGS.canvas.zoomIn}
-            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, maxZoom))}
-            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
-          >
-            <BrandIcon name="plus" size={14} />
-          </button>
-          {/* Fit, said in a word (owner, 26 Nov): the full-screen button beside it was taken for "fit" and filled the screen. */}
-          <button
-            type="button"
-            data-testid="zoom-fit"
-            title={STRINGS.canvas.zoomFitScreen}
-            aria-label={STRINGS.canvas.zoomFitScreen}
-            aria-pressed={Math.abs(canvasZoom - 1) < 0.001}
-            onClick={() => zoomAroundCentre(1)}
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[0.6875rem] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--text-primary)]"
-          >
-            <BrandIcon name="fit" size={14} />
-            <span>{STRINGS.canvas.zoomFitShort}</span>
-          </button>
-
-          <div className="mx-0.5 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />
-
-          <button
-            type="button"
-            data-testid="grid-toggle"
-            title={STRINGS.canvas.gridTitle(gridMode)}
-            aria-label={STRINGS.canvas.gridTitle(gridMode)}
-            aria-pressed={gridMode !== 'off'}
-            onClick={() => setGridMode((mode) => mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off')}
-            className="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
-          >
-            <BrandIcon name="grid" size={15} />
-            {gridMode !== 'off' && <span className="text-[0.625rem] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
-          </button>
-
-          {features.onImageAdvice === true && canvasLayoutMode === 'single' && PhotoSurface && (
-            <AdviceToggle shown={adviceOn} onToggle={() => {
-              const next: AdviceChoice = adviceOn ? 'off' : 'on';
-              setAdviceChoice(next);
-              writeAdviceChoice(next);
-            }} />
-          )}
-
-          <button
-            type="button"
-            title={STRINGS.canvas.screenshotTitle}
-            aria-label={STRINGS.canvas.screenshot}
-            data-testid="grab-screenshot"
-            onClick={() => void grabScreenshot()}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
-          >
-            <BrandIcon name="select-area" size={15} />
-          </button>
-
-          {onToggleCanvasOnly && (
-            <button
-              type="button"
-              data-testid="canvas-only-toggle"
-              title={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
-              aria-label={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
-              aria-pressed={canvasOnly}
-              onClick={onToggleCanvasOnly}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
-            >
-              <BrandIcon name="panel-collapse" size={15} />
-            </button>
-          )}
-
-          <button
-            type="button"
-            title={isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
-            aria-label={isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
-            onClick={onToggleFullScreen}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
-          >
-            <BrandIcon name={isFullScreen ? 'collapse' : 'expand'} size={15} />
-          </button>
-        </div>
       </div>
       {/* The status line under the canvas (Dave, 27 Nov: "nothing should cover the image"). Notes, the selected mask's
           controls, the camera-focus switch and the canvas-only way back live here, never over the picture. */}
       <div data-testid="canvas-status" data-capture-ignore
-        className="v2-canvas-status flex h-9 shrink-0 items-center gap-3 overflow-x-auto border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-[0.6875rem] text-[var(--text-secondary)]">
+        className="v2-canvas-status flex min-h-9 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-[0.6875rem] text-[var(--text-secondary)]">
         {holdingOriginal && (
           <span role="status" className="shrink-0 font-semibold text-[var(--text-primary)]">{STRINGS.canvas.showingOriginal}</span>
         )}
@@ -2739,6 +2536,145 @@ export default function Canvas({
             </button>
           </span>
         )}
+        {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
+        <div
+          aria-label={STRINGS.canvas.viewportControls}
+          role="toolbar"
+          data-testid="canvas-viewport-controls"
+          className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1"
+        >
+          <button
+            type="button"
+            aria-label={STRINGS.canvas.zoomOut}
+            // About the middle of the view, like the zoom keys (Dave, 27 Nov: + kept the top-left corner and lost the bird).
+            onClick={() => zoomAroundCentre(clamp(canvasZoom / 1.25, 0.25, maxZoom))}
+            className="v2-zoom-fine inline-flex h-8 items-center justify-center gap-1 px-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="minus" size={14} />
+            <span className="text-[0.6875rem] font-semibold">Out</span>
+          </button>
+          <div className="relative">
+            <button
+              ref={zoomPercentRef}
+              type="button"
+              aria-label={STRINGS.canvas.zoomMenu(actualPercent)}
+              title={STRINGS.canvas.zoomMenu(actualPercent)}
+              aria-haspopup="menu"
+              aria-expanded={zoomMenuOpen}
+              data-testid="zoom-percent"
+              onClick={() => setZoomMenuOpen((open) => !open)}
+              className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[0.6875rem] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
+            >
+              {actualPercent}%
+            </button>
+            {zoomMenuOpen && (
+              <div ref={zoomMenuRef} role="menu" aria-label={STRINGS.canvas.zoomMenuLabel} data-testid="zoom-menu"
+                className="absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]">
+                {[
+                  { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
+                  { id: '100', label: STRINGS.canvas.zoomActual, run: () => { if (actualPercent !== 100) zoomToActual(); }, current: actualPercent === 100 },
+                  // The camera's own AF point, read from the file (the same data as "Show where the camera focused").
+                  { id: 'focus-point', label: STRINGS.canvas.zoomFocusPoint, run: () => zoomToActual(true), current: false,
+                    disabled: activeSize.kind !== 'photo' || compareMode || !photo.cameraFocus?.area,
+                    reason: !photo.cameraFocus?.area ? STRINGS.canvas.zoomFocusPointNone : undefined },
+                  { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
+                ].map((item) => (
+                  <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    title={'reason' in item ? item.reason : undefined}
+                    data-zoom-focus={item.id === 'eye' ? (focusKind ?? 'looking') : undefined}
+                    onClick={() => { setZoomMenuOpen(false); item.run(); }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
+                    <span>{item.label}</span>
+                    {item.current && <span className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.canvas.zoomCurrent}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={STRINGS.canvas.zoomIn}
+            onClick={() => zoomAroundCentre(clamp(canvasZoom * 1.25, 0.25, maxZoom))}
+            className="v2-zoom-fine inline-flex h-8 items-center justify-center gap-1 px-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="plus" size={14} />
+            <span className="text-[0.6875rem] font-semibold">In</span>
+          </button>
+          {/* Fit, said in a word (owner, 26 Nov): the full-screen button beside it was taken for "fit" and filled the screen. */}
+          <button
+            type="button"
+            data-testid="zoom-fit"
+            title={STRINGS.canvas.zoomFitScreen}
+            aria-label={STRINGS.canvas.zoomFitScreen}
+            aria-pressed={Math.abs(canvasZoom - 1) < 0.001}
+            onClick={() => zoomAroundCentre(1)}
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[0.6875rem] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="fit" size={14} />
+            <span>{STRINGS.canvas.zoomFitShort}</span>
+          </button>
+
+          <div className="mx-0.5 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />
+
+          <button
+            type="button"
+            data-testid="grid-toggle"
+            title={STRINGS.canvas.gridTitle(gridMode)}
+            aria-label={STRINGS.canvas.gridTitle(gridMode)}
+            aria-pressed={gridMode !== 'off'}
+            onClick={() => setGridMode((mode) => mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off')}
+            className="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
+          >
+            <BrandIcon name="grid" size={15} />
+            <span className="text-[0.6875rem] font-semibold">{gridMode === 'off' ? 'Grid' : gridMode === '3x3' ? '3×3' : '4×4'}</span>
+          </button>
+
+          {features.onImageAdvice === true && canvasLayoutMode === 'single' && PhotoSurface && (
+            <AdviceToggle shown={adviceOn} onToggle={() => {
+              const next: AdviceChoice = adviceOn ? 'off' : 'on';
+              setAdviceChoice(next);
+              writeAdviceChoice(next);
+            }} />
+          )}
+
+          {!nativeShell && (<button
+            type="button"
+            title={STRINGS.canvas.screenshotTitle}
+            aria-label={STRINGS.canvas.screenshot}
+            data-testid="grab-screenshot"
+            onClick={() => void grabScreenshot()}
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="select-area" size={15} />
+            <span className="text-[0.6875rem] font-semibold">Screenshot</span>
+          </button>)}
+
+          {onToggleCanvasOnly && (
+            <button
+              type="button"
+              data-testid="canvas-only-toggle"
+              title={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
+              aria-label={canvasOnly ? STRINGS.canvas.canvasOnlyExit : STRINGS.canvas.canvasOnlyEnter}
+              aria-pressed={canvasOnly}
+              onClick={onToggleCanvasOnly}
+              className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
+            >
+              <BrandIcon name="panel-collapse" size={15} />
+              <span className="text-[0.6875rem] font-semibold">Focus</span>
+            </button>
+          )}
+
+          {!nativeShell && (<button
+            type="button"
+            title={isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
+            aria-label={isFullScreen ? STRINGS.canvas.fullScreenExit : STRINGS.canvas.fullScreenEnter}
+            onClick={onToggleFullScreen}
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name={isFullScreen ? 'collapse' : 'expand'} size={15} />
+            <span className="text-[0.6875rem] font-semibold">{isFullScreen ? 'Exit' : 'Full screen'}</span>
+          </button>)}
+        </div>
       </div>
     </main>
   );

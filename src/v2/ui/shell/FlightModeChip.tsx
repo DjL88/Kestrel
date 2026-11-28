@@ -30,7 +30,7 @@ export default function FlightModeChip({ value, onChange }: FlightModeChipProps)
                   : 'border-transparent font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'}`}>
               <input type="radio" className="sr-only" name="flight-chip-mode" value={mode} checked={selected} onChange={() => onChange(mode)} />
               <BrandIcon name={assistModeIconName(mode)} size={15} className={selected ? 'text-[var(--brand-accent)]' : ''} />
-              <span className="sr-only xl:not-sr-only">{STRINGS.topBar.assistModes[mode]}</span>
+              <span className={`whitespace-nowrap ${selected ? '' : 'sr-only lg:not-sr-only'}`}>{STRINGS.topBar.assistModes[mode]}</span>
               {selected && <BrandIcon name="check" size={10} className="text-[var(--brand-accent)]" />}
             </label>
           );
