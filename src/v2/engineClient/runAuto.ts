@@ -307,7 +307,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const planReason = plan.verdict.kind === 'cannot-improve-safely' ? reasonWords(plan.verdict.reason) : null;
   const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, ...(alreadyEnhanced ? { alreadyEnhanced } : {}), detail: [...described.detail, ...(improved ? guardNotes : []), ...(planReason && !rendered.candidates.length ? [planReason] : []), ...(rendered.rejected.length ? [engineText.auto.withheld, ...rejectedWords] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    ...rendered, plan, improved, ...(alreadyEnhanced ? { alreadyEnhanced } : {}), detail: [...described.detail, ...(improved ? guardNotes : []), ...(planReason && !rendered.candidates.length ? [planReason] : []), ...(rendered.rejected.length ? [engineText.auto.withheld, ...rejectedWords] : []), ...(coverageNote ? [coverageNote] : []), ...(subjectInstances.some((i) => i.mask.approximate) ? [engineText.workspace.subjectApproximate] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
     headline: alreadyEnhanced ? engineText.auto.alreadyEnhanced : rendered.candidates.length ? engineText.auto.ready
       : recipes.length ? (rendered.rejected.length ? (reasonWords(rendered.rejected[0]) ?? engineText.auto.noneDifferent) : engineText.auto.noneDifferent) : headlineFor(plan, heldDark),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },

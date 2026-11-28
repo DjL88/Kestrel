@@ -178,6 +178,8 @@ export const sv: AreaTranslation<typeof source> = {
       : 'Bakgrundsmasken har lagts till. Den ändrar inget förrän du drar i ett av dess reglage.'),
     confidence: { high: 'hög', medium: 'medel', low: 'låg' },
     subjectFailed: 'Motivigenkänningen misslyckades. Detaljer under Uppgifter.',
+    subjectApproximate: 'Ungefärligt motivområde, från detektorn. Det är ett mjukt område inom detektorns ruta, inte en kontur: förfina det med penseln.',
+    subjectNoneFound: 'Detektorn hittade inget motiv. Rita ett område själv med penseln eller en formmask.',
     subjectNotQueued: 'Kunde inte starta motivigenkänningen.',
     denoiseTask: (filename) => `Brusreducerar ${filename}`,
     denoiseStage: 'Brusreducerar och kontrollerar detaljer',

@@ -178,6 +178,8 @@ export const fi: AreaTranslation<typeof source> = {
       : 'Taustamaski lisättiin. Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.'),
     confidence: { high: 'korkea', medium: 'keskitaso', low: 'matala' },
     subjectFailed: 'Kohteen tunnistus epäonnistui. Lisätietoja kohdassa Tehtävät.',
+    subjectApproximate: 'Likimääräinen kohdealue ilmaisimelta. Se on pehmeä alue ilmaisimen ruudun sisällä, ei ääriviiva: hienosäädä sitä siveltimellä.',
+    subjectNoneFound: 'Ilmaisin ei löytänyt kohdetta. Piirrä alue itse siveltimellä tai muotomaskilla.',
     subjectNotQueued: 'Kohteen tunnistusta ei voitu aloittaa.',
     denoiseTask: (filename) => `Poistetaan kohinaa: ${filename}`,
     denoiseStage: 'Poistetaan kohinaa ja tarkistetaan yksityiskohdat',

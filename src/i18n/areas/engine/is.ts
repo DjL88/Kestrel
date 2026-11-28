@@ -178,6 +178,8 @@ export const is: AreaTranslation<typeof source> = {
       : 'Grímu fyrir bakgrunninn var bætt við. Hún breytir engu fyrr en þú færir einn af sleðum hennar.'),
     confidence: { high: 'mikil', medium: 'miðlungs', low: 'lítil' },
     subjectFailed: 'Greining myndefnis mistókst. Nánar undir Verk.',
+    subjectApproximate: 'Áætlað myndefnissvæði frá greinanum. Það er mjúkt svæði innan ramma greinisins, ekki útlína: fínstilltu það með penslinum.',
+    subjectNoneFound: 'Greinirinn fann ekkert myndefni. Teiknaðu svæði sjálf(ur) með penslinum eða formgrímu.',
     subjectNotQueued: 'Ekki tókst að hefja greiningu myndefnis.',
     denoiseTask: (filename) => `Fjarlægi suð úr ${filename}`,
     denoiseStage: 'Fjarlægi suð og athuga smáatriði',

@@ -178,6 +178,8 @@ export const de: AreaTranslation<typeof source> = {
       : 'Die Hintergrundmaske wurde hinzugefügt. Sie ändert nichts, bis Sie einen ihrer Regler bewegen.'),
     confidence: { high: 'hoch', medium: 'mittel', low: 'niedrig' },
     subjectFailed: 'Die Motiverkennung ist fehlgeschlagen. Details unter Aufgaben.',
+    subjectApproximate: 'Ungefähre Motivfläche, vom Detektor. Es ist ein weicher Bereich im Rahmen des Detektors, keine Umrisslinie: Verfeinern Sie ihn mit dem Pinsel.',
+    subjectNoneFound: 'Der Detektor hat kein Motiv gefunden. Zeichnen Sie selbst einen Bereich mit dem Pinsel oder einer Formmaske.',
     subjectNotQueued: 'Die Motiverkennung konnte nicht gestartet werden.',
     denoiseTask: (filename) => `${filename} wird entrauscht`,
     denoiseStage: 'Entrauschen und Details prüfen',

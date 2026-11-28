@@ -204,6 +204,8 @@ export const source = {
       : 'Added the background mask. It changes nothing until you move one of its sliders.'),
     confidence: { high: 'high', medium: 'medium', low: 'low' },
     subjectFailed: 'Subject detection failed. Open Tasks for details.',
+    subjectApproximate: 'Approximate subject area, from the detector. It is a soft area inside the detector\'s box, not an outline: refine it with the brush.',
+    subjectNoneFound: 'The detector found no subject. Draw a region yourself with the brush or a shape mask.',
     subjectNotQueued: 'Could not start subject detection.',
     denoiseTask: (filename: string) => `Denoising ${filename}`,
     denoiseStage: 'Denoising and checking detail',

@@ -4,6 +4,7 @@ import { createSubjectMask, type Mask } from '../core/maskTypes';
 import { guideRegion } from '../core/subjectGuide';
 import { sampledRegion } from '../core/subjectRegion';
 import { distinctSubjectIndices } from '../core/subjectUnion';
+import { approximateSubjectGrid, boxCoverage, boxToFractions } from '../core/approximateSubject';
 
 export interface InstanceFinding {
   label: string;
@@ -33,7 +34,20 @@ export async function detectSubjectInstances(framed: HTMLCanvasElement, key: str
       const context = piece.getContext('2d');
       if (!context) return [];
       context.drawImage(framed, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-      const segmented = await detectSubjectInArea(piece, bounds, framed.height / framed.width);
+      let segmented: Awaited<ReturnType<typeof detectSubjectInArea>>;
+      try {
+        segmented = await detectSubjectInArea(piece, bounds, framed.height / framed.width);
+      } catch (error) {
+        signal?.throwIfAborted();
+        // The outline model is unavailable (switched off, missing or failed): the detector's own box gives a soft,
+        // clearly approximate area (src/core/approximateSubject.ts) instead of no subject at all. Never an outline.
+        const fractions = boxToFractions(detection.box, framed.width, framed.height);
+        if (!fractions || boxCoverage(fractions) > 0.92) return [];
+        const grid = approximateSubjectGrid(fractions, framed.height / framed.width);
+        result.push({ label: detection.label, score: detection.score,
+          mask: { ...createSubjectMask('instance-' + index, grid, key, 'medium', null), approximate: true } });
+        continue;
+      }
       signal?.throwIfAborted();
       if (!segmented.assessment.usable || segmented.assessment.confidence === 'low') return [];
       result.push({ label: detection.label, score: detection.score,

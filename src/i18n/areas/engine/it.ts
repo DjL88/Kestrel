@@ -178,6 +178,8 @@ export const it: AreaTranslation<typeof source> = {
       : 'Maschera dello sfondo aggiunta. Non cambia nulla finché non muovi uno dei suoi cursori.'),
     confidence: { high: 'alta', medium: 'media', low: 'bassa' },
     subjectFailed: 'Il rilevamento del soggetto non è riuscito. Dettagli in Attività.',
+    subjectApproximate: 'Area approssimativa del soggetto, dal rilevatore. È un’area morbida dentro il riquadro del rilevatore, non un contorno: rifiniscila con il pennello.',
+    subjectNoneFound: 'Il rilevatore non ha trovato alcun soggetto. Disegna tu un’area con il pennello o una maschera di forma.',
     subjectNotQueued: 'Impossibile avviare il rilevamento del soggetto.',
     denoiseTask: (filename) => `Riduzione del rumore di ${filename}`,
     denoiseStage: 'Riduzione del rumore e controllo dei dettagli',

@@ -178,6 +178,8 @@ export const gd: AreaTranslation<typeof source> = {
       : 'Chaidh masg a’ chùlaibh a chur ris. Chan atharraich e dad gus an gluais thu fear de na sleamhnachain aige.'),
     confidence: { high: 'àrd', medium: 'meadhanach', low: 'ìosal' },
     subjectFailed: 'Dh’fhàillig lorg a’ chuspair. Mion-fhiosrachadh ann an Saothraichean.',
+    subjectApproximate: 'Raon cuspair garbh, bhon lorgaire. Tha e na raon bog taobh a-staigh bogsa an lorgaire, chan e iomall: grinnich e leis a’ bhruis.',
+    subjectNoneFound: 'Cha do lorg an lorgaire cuspair sam bith. Tarraing raon thu fhèin leis a’ bhruis no le masg cumadh.',
     subjectNotQueued: 'Cha b’ urrainnear lorg a’ chuspair a thòiseachadh.',
     denoiseTask: (filename) => `A’ lùghdachadh gràinne ${filename}`,
     denoiseStage: 'A’ lùghdachadh gràinne is a’ dearbhadh mion-fhiosrachaidh',

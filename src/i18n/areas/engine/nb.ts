@@ -178,6 +178,8 @@ export const nb: AreaTranslation<typeof source> = {
       : 'Bakgrunnsmasken er lagt til. Den endrer ingenting før du flytter en av glidebryterne.'),
     confidence: { high: 'høy', medium: 'middels', low: 'lav' },
     subjectFailed: 'Motivgjenkjenningen mislyktes. Detaljer under Oppgaver.',
+    subjectApproximate: 'Omtrentlig motivområde fra detektoren. Det er et mykt område innenfor detektorens ramme, ikke en kontur: finjuster det med penselen.',
+    subjectNoneFound: 'Detektoren fant ikke noe motiv. Tegn selv et område med penselen eller en formmaske.',
     subjectNotQueued: 'Kunne ikke starte motivgjenkjenningen.',
     denoiseTask: (filename) => `Fjerner støy fra ${filename}`,
     denoiseStage: 'Fjerner støy og sjekker detaljer',

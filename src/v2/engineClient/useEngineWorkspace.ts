@@ -1737,7 +1737,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
         const framed = document.createElement('canvas');
         drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
-        const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
+        // The outline model may be switched off or missing (licence-red models are off in the beta): fall back to the allowed
+        // detectors' box and a soft area, labelled approximate. Never an outline, never silently.
+        let approximate = false;
+        let found: Awaited<ReturnType<typeof detectSubjectGuided>>;
+        try {
+          found = await detectSubjectGuided(framed, { signal: ctx.signal });
+        } catch (reason) {
+          ctx.checkCancelled();
+          if (reason instanceof DOMException && reason.name === 'AbortError') throw reason;
+          const area = await import('../../providers/approximateSubject').then((m) => m.detectSubjectApproximate(framed, ctx.signal)).catch(() => null);
+          ctx.checkCancelled();
+          if (!area) {
+            ctx.commitIfCurrent(() => setNotice(engineText.workspace.subjectNoneFound));
+            return;
+          }
+          approximate = true;
+          found = { grid: area.grid, assessment: area.assessment, detail: null, guide: area.guide, boxFinding: area.boxFinding };
+        }
+        const { grid, assessment, detail, boxFinding } = found;
         ctx.checkCancelled();
         if (!assessment.usable) {
           ctx.commitIfCurrent(() => setNotice(assessment.reason));
@@ -1745,11 +1763,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         }
         // Desktop with the fine-edge pack (BiRefNet-lite): its finer edges, only when it found the same subject. The
         // built-in U²-Netp mask stays otherwise, and always on phones and in browsers.
-        const refined = await import('../../providers/fineEdgeMask').then((m) => m.refineSubjectGrid(framed, grid, detail, ctx.signal)).catch(() => null);
+        const refined = approximate ? null : await import('../../providers/fineEdgeMask').then((m) => m.refineSubjectGrid(framed, grid, detail, ctx.signal)).catch(() => null);
         ctx.checkCancelled();
         const mask = {
           ...createSubjectMask(newId(), refined?.grid ?? grid, framingKey(framing), assessment.confidence, refined?.detail ?? detail),
-          invert: type === 'background', feather: 0.5,
+          invert: type === 'background', feather: approximate ? 0.8 : 0.5, ...(approximate ? { approximate: true } : {}),
         };
         const latest = stateRef.current;
         if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
@@ -1765,7 +1783,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
               size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h),
               sharpness: boxFinding.sharpness }).confidence] ?? ''
           : '';
-        ctx.commitIfCurrent(() => setNotice(type === 'subject' ? engineText.workspace.subjectMaskAdded(confidence) : engineText.workspace.backgroundMaskAdded(confidence)));
+        ctx.commitIfCurrent(() => setNotice(approximate ? engineText.workspace.subjectApproximate : type === 'subject' ? engineText.workspace.subjectMaskAdded(confidence) : engineText.workspace.backgroundMaskAdded(confidence)));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.subjectFailed);

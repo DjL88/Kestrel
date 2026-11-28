@@ -178,6 +178,8 @@ export const ga: AreaTranslation<typeof source> = {
       : 'Cuireadh masc an chúlra leis. Ní athraíonn sé aon rud go mbogfaidh tú ceann dá shleamhnáin.'),
     confidence: { high: 'ard', medium: 'measartha', low: 'íseal' },
     subjectFailed: 'Theip ar bhrath an ábhair. Sonraí i dTascanna.',
+    subjectApproximate: 'Limistéar garbh den ábhar, ón bhrathadóir. Is limistéar bog é laistigh de bhosca an bhrathadóra, ní imlíne: mionchoigeartaigh é leis an scuab.',
+    subjectNoneFound: 'Níor aimsigh an brathadóir aon ábhar. Tarraing limistéar tú féin leis an scuab nó le masc cruth.',
     subjectNotQueued: 'Níorbh fhéidir brath an ábhair a thosú.',
     denoiseTask: (filename) => `Torann á laghdú in ${filename}`,
     denoiseStage: 'Torann á laghdú agus mionsonraí á seiceáil',
