@@ -1861,18 +1861,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (count) mutate((current) => applyCullRules(current, ranked));
     return count;
   }, [judgedNow, mutate]);
-  const cloudRecipeOffers = useRef(new Map<string, { prepared: Awaited<ReturnType<typeof prepareCloudRecipe>>; edit: PhotoEdit; framing: string }>());
-  const prepareCloudRecipeFor = useCallback(async (photoId: string) => {
-    const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId && candidate.removedAt == null);
-    if (!frame || !provider.current) return { status: 'unavailable' as const, message: 'This photo is not available.' };
+  const cloudRecipeOffers = useRef(new Map<string, { prepared: Awaited<ReturnType<typeof prepareCloudRecipe>>; edit: PhotoEdit; framing: string; projectId: string; stableKey: string; originalSha256: PhotoFrame['originalSha256'] }>());
+  const prepareCloudRecipeFor = useCallback(async (photoId: string, inBatch = false) => {
+    const current = stateRef.current;
+    const frame = current?.frames.find(candidate => candidate.id === photoId && candidate.removedAt == null);
+    if (!current || !frame || !provider.current) return { status: 'unavailable' as const, message: 'This photo is not available.' };
     const source = provider.current;
     // Web, phones and JPEG photos have no 2,560 px smart preview: a copy of the photo's preview stands in, made in memory.
     const prepared = await prepareCloudRecipe(frame, {
       smartPreview: (f) => source.smartPreview(f),
       ensureOriginal: (key, priority) => source.ensureOriginal(key, priority),
       previewCopy: async (f) => { const blob = await previewBlobFromUrl(await source.getFullPreviewUrl(f, 'visible')); return blob ? previewCopyForCloud(blob) : null; },
-    }, readFullFileConsent());
-    cloudRecipeOffers.current.set(photoId, { prepared, edit: frame.edit ?? DEFAULT_EDIT, framing: framingKey(frame.framing) });
+    }, readFullFileConsent(), {}, inBatch);
+    if (stateRef.current?.shoot.id !== current.shoot.id) return { status: 'unavailable' as const, message: 'This photo is not available.' };
+    const offerKey = JSON.stringify([current.shoot.id, photoId, inBatch]);
+    cloudRecipeOffers.current.set(offerKey, { prepared, edit: frame.edit ?? DEFAULT_EDIT, framing: framingKey(frame.framing), projectId: current.shoot.id, stableKey: frame.stableKey, originalSha256: frame.originalSha256 });
     const offer: CloudRecipeOffer = prepared.offer;
     if (offer.plan.status !== 'ready') {
       return { status: 'unavailable' as const, message: 'This photo has no preview InFlight can send yet. Wait for it to finish loading, then try again. Nothing was sent.' };
@@ -1882,11 +1885,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       : undefined;
     return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel, ...(previewNote ? { previewNote } : {}) };
   }, []);
-  const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative', inBatch = false) => {
+  const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative', inBatch = false, signal?: AbortSignal) => {
     const cloudText = v2Text.cloudResult;
-    const held = cloudRecipeOffers.current.get(photoId);
-    cloudRecipeOffers.current.delete(photoId);
+    const offerKey = JSON.stringify([stateRef.current?.shoot.id, photoId, inBatch]);
+    const held = cloudRecipeOffers.current.get(offerKey);
+    cloudRecipeOffers.current.delete(offerKey);
     if (!held) throw new Error('Check the photo again before sending.');
+    const unchanged = (current: PhotoFrame) => current.removedAt == null && current.stableKey === held.stableKey &&
+      current.originalSha256 === held.originalSha256 && sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) &&
+      framingKey(current.framing) === held.framing;
+    const live = stateRef.current;
+    if (live?.shoot.id !== held.projectId || !live.frames.some(frame => frame.id === photoId && unchanged(frame))) throw new Error('Check the photo again before sending.');
+    signal?.throwIfAborted();
     if (readCloudConsent().answer !== 'yes') throw new Error("Say yes to using InFlight's cloud first. Nothing was sent.");
     const connection = accountConnection();
     if (!connection) throw new Error('Sign in to use cloud edit settings. Nothing was sent.');
@@ -1898,7 +1908,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const row = inBatch ? null : tasks.start(cloudText.taskTitle, { kind: 'cloud', location: 'cloud' });
     let outcome: Awaited<ReturnType<typeof sendCloudRecipe>>;
     try {
-      outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection));
+      outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection), signal, inBatch);
     } catch (error) {
       row?.fail(error instanceof Error ? error.message : cloudText.taskFailed);
       throw error;
@@ -1909,15 +1919,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const copyDeleted = outcome.inputDeleted === true;
     if (outcome.status === 'refused') { finish(cloudText.refusedShort); return { message: 'The cloud sent back settings this device could not check, so nothing was changed.', copyDeleted }; }
     if (outcome.status === 'empty') { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.', copyDeleted }; }
-    const unchanged = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) && framingKey(current.framing) === held.framing;
-    const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-    if (!latest || !unchanged(latest)) { finish(cloudText.notAppliedShort); return { message: 'The photo was edited while the cloud worked, so its settings were not applied.', copyDeleted }; }
+    const latest = stateRef.current?.shoot.id === held.projectId ? stateRef.current.frames.find(candidate => candidate.id === photoId) : undefined;
+    if (signal?.aborted || readCloudConsent().answer !== 'yes' || !latest || !unchanged(latest)) { finish(cloudText.notAppliedShort); return { message: 'The photo was edited while the cloud worked, so its settings were not applied.', copyDeleted }; }
     const changes = cloudRecipeChanges(editToRecipe(held.edit), outcome.recipe.settings, v2Text.history.sliders);
     if (!changes.lines.length) { finish(cloudText.noChangesShort); return { message: 'The cloud suggested no changes for this photo.', copyDeleted }; }
-    editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent, outcome.previewSource));
+    const at = Date.now();
+    const recipe = outcome.recipe;
+    const why = cloudRecipeWhy(recipe, outcome.sent, outcome.previewSource);
+    mutate(current => {
+      if (current.shoot.id !== held.projectId || signal?.aborted || readCloudConsent().answer !== 'yes') return current;
+      const frame = current.frames.find(candidate => candidate.id === photoId);
+      if (!frame || !unchanged(frame)) return current;
+      const edit = cloudRecipeEdit(frame.edit, recipe);
+      return { ...current, shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map(candidate => candidate === frame ? syncEditGroup(recordEdit(frame, { edit: isEmptyEdit(edit) ? undefined : edit }, at, why)) : candidate) };
+    });
     finish(cloudText.appliedShort(changes.lines.length));
     return { message: 'Applied the cloud\'s edit settings. Undo takes them back.', changes: changes.lines, before: changes.before, copyDeleted };
-  }, [editFrames]);
+  }, [mutate]);
 
   // Cloud edits for the whole project (Dave, 27 Nov): the project says which photos (Nothing, Best only, Top 50, All),
   // and one run does them one after another under a single row in Tasks. A photo is sent once: what a run has sent is
@@ -1940,7 +1959,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const cloudText = v2Text.cloudResult;
     if (cloudEditsBusy.current) return cloudText.batchAlready;
     const ids = [...cloudEditsPlanRef.current.toDo];
-    if (!ids.length) return cloudText.batchNothing;
+    const batchProjectId = stateRef.current?.shoot.id;
+    if (!batchProjectId || !ids.length) return cloudText.batchNothing;
     if (readCloudConsent().answer !== 'yes') throw new Error("Say yes to using InFlight's cloud first. Nothing was sent.");
     if (!accountConnection()) throw new Error('Sign in to use Cloud edits. Nothing was sent.');
     if (navigator.onLine === false) throw new Error('You are offline. Nothing was sent.');
@@ -1950,24 +1970,31 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const row = tasks.start(cloudText.batchTitle, { total: ids.length, kind: 'cloud', location: 'cloud', priority: 1, cancel: () => stop.abort() });
     let applied = 0, sent = 0, notConfirmed = 0, failures = 0;
     const sentIds: string[] = [];
-    const keep = () => { if (sentIds.length) mutate((current) => ({ ...current, shoot: { ...current.shoot, cloudEditsDone: [...new Set([...(current.shoot.cloudEditsDone ?? []), ...sentIds])] } })); };
+    const keep = () => { if (sentIds.length) mutate((current) => current.shoot.id !== batchProjectId ? current : ({ ...current, shoot: { ...current.shoot, cloudEditsDone: [...new Set([...(current.shoot.cloudEditsDone ?? []), ...sentIds])] } })); };
     try {
       for (let index = 0; index < ids.length; index += 1) {
-        if (stop.signal.aborted) break;
+        if (stop.signal.aborted || stateRef.current?.shoot.id !== batchProjectId || readCloudConsent().answer !== 'yes') break;
         const photoId = ids[index];
+        const frame = stateRef.current.frames.find(candidate => candidate.id === photoId);
+        if (!frame || frame.removedAt != null || !sameRecipe(frame.edit ?? DEFAULT_EDIT, DEFAULT_EDIT)) {
+          row.progress(index + 1, ids.length, cloudText.batchProgress(index + 1, ids.length));
+          continue;
+        }
         try {
-          const offer = await prepareCloudRecipeFor(photoId);
-          if (offer.status === 'ready' && !stop.signal.aborted) {
-            const result = await sendCloudRecipeFor(photoId, 'send', true);
+          const offer = await prepareCloudRecipeFor(photoId, true);
+          if (offer.status === 'ready' && !stop.signal.aborted && stateRef.current?.shoot.id === batchProjectId) {
+            const result = await sendCloudRecipeFor(photoId, 'send', true, stop.signal);
             sent += 1;
             sentIds.push(photoId);
+            keep();
             if (result.changes?.length) applied += 1;
             if (!result.copyDeleted) notConfirmed += 1;
           }
           failures = 0;
         } catch (error) {
           // Out of allowance, signed out or offline: stop here and say so. Nothing more is sent.
-          const stopNow = (error instanceof CloudJobError && error.problem.topUp) || !navigator.onLine || !accountConnection();
+          if (stop.signal.aborted) break;
+          const stopNow = stateRef.current?.shoot.id !== batchProjectId || readCloudConsent().answer !== 'yes' || (error instanceof CloudJobError && error.problem.topUp) || !navigator.onLine || !accountConnection();
           failures += 1;
           if (stopNow || failures >= 3) {
             keep();

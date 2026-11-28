@@ -85,3 +85,30 @@ test('with no smart preview (web, phones, JPEGs) a copy of the preview is offere
   const smart = await prepareCloudRecipe(frame, { ...sources(), previewCopy: async () => { throw new Error('not asked'); } }, FULL_FILE_CONSENT_OFF);
   assert.equal(smart.offer.previewSource, 'smart', 'the smart preview wins when there is one');
 });
+
+
+test('project batches never read or send originals, even with prior manual full-file consent', async () => {
+  originalReads = 0;
+  const on = grantFullFileConsent(1);
+  const service = inMemoryCloudRecipeService(() => ({ contrast: 10 }));
+  const missing = await prepareCloudRecipe(frame, sources(null), on, {}, true);
+  assert.equal(missing.offer.plan.status, 'unavailable');
+  assert.equal(originalReads, 0);
+  const ready = await prepareCloudRecipe(frame, sources(), on, {}, true);
+  assert.equal(originalReads, 0);
+  assert.equal(ready.offer.plan.status === 'ready' && ready.offer.plan.send.kind, 'smart-preview');
+  await sendCloudRecipe(ready, 'send', on, service, undefined, true);
+  assert.deepEqual(service.received.map(item => item.kind), ['smart-preview']);
+  const manual = await prepareCloudRecipe(frame, sources(null), on);
+  await assert.rejects(sendCloudRecipe(manual, 'send', on, service, undefined, true), /only send previews/);
+  assert.equal(service.received.length, 1);
+});
+
+test('a cancelled send never reaches the service', async () => {
+  const service = inMemoryCloudRecipeService(() => ({ contrast: 10 }));
+  const prepared = await prepareCloudRecipe(frame, sources(), FULL_FILE_CONSENT_OFF);
+  const abort = new AbortController();
+  abort.abort();
+  await assert.rejects(sendCloudRecipe(prepared, 'send', FULL_FILE_CONSENT_OFF, service, abort.signal, true));
+  assert.equal(service.received.length, 0);
+});
