@@ -40,6 +40,8 @@ test('[GP-06] pick the best 10% from the keyboard: the Flagged filter shows exac
   await options.first().click();
   await page.locator('body').evaluate((body) => (document.activeElement as HTMLElement | null)?.blur?.() ?? body.focus());
   for (let i = 0; i < picks; i += 1) {
+    // Wait for the selection to land on the photo before each key, or a key goes to the previous one.
+    await expect(studio(page).getByRole('option', { selected: true })).toContainText(`PICK_${String(i * step + 1).padStart(4, '0')}`);
     await page.keyboard.press('f');
     if (i < picks - 1) for (let s = 0; s < step; s += 1) await page.keyboard.press('ArrowRight');
   }
@@ -84,8 +86,11 @@ test('[GP-18] Auto-pilot edits the photos of a new import in the background, wit
   const started = Date.now();
   await importFiles(page, [await dimSubjectPhoto(page, 'dim-1.png'), await dimSubjectPhoto(page, 'dim-2.png')]);
   await expect(photoStrip(page).getByRole('option')).toHaveCount(2, { timeout: 30_000 });
-  // Said in words when it finishes, with the number edited; no click opened any photo.
-  await expect(page.getByText(/Auto-pilot finished\. Edited: [1-9]/).first()).toBeVisible({ timeout: 180_000 });
+  // Auto-pilot says what it changed, in words, with no click on any photo, and the batch shows in Tasks.
+  await expect(page.getByText(/Auto-pilot changed: .*Exposure/).first()).toBeVisible({ timeout: 180_000 });
+  await root.getByRole('button', { name: /^Tasks/ }).first().click();
+  await expect(page.getByText('Auto-pilot: editing the new photos').first()).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press('Escape');
   testInfo.annotations.push({ type: 'evidence', description: `Auto-pilot batch finished ${((Date.now() - started) / 1000).toFixed(1)} s after import` });
   const adjust = root.getByRole('button', { name: 'Adjust', exact: true }).first();
   if ((await adjust.getAttribute('aria-pressed')) !== 'true') await adjust.click();
@@ -98,6 +103,8 @@ test('[GP-20] the Colour Sense badge shows on the image with a word and a shape,
   await previewOn(page, 'on-image-advice');
   await page.route(/\.(onnx|ort)(\?|$)/, (route) => route.abort());
   await newProject(page, 'GP colour badge');
+  // The layer is on by default in Solo only (src/core/adviceSetting.ts); Co-pilot and Auto-pilot say it in words instead.
+  await studio(page).getByTestId('flight-chip-solo').click();
   await importFiles(page, [await dimSubjectPhoto(page)]);
   await expect(photoStrip(page).getByRole('option')).toHaveCount(1, { timeout: 30_000 });
   const badge = studio(page).getByTestId('advice-colour');

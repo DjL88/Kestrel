@@ -247,7 +247,7 @@ export const CHECKS = [
   {
     id: 'GP-29', group: 'Reliability', weight: 5, fast: true,
     what: 'Import, pick, edit together, export, close the tab and reopen: every photo, pick and edit is still there; nothing leaves the machine.',
-    how: 'Automated: tests/v2-uat-import-to-export.spec.ts (KESTREL_UAT_PHOTOS, 40 fast / 100 full).',
+    how: 'Automated: tests/v2-uat-import-to-export.spec.ts (KESTREL_UAT_PHOTOS: 160 by default, the smallest size that makes the strip a virtual list; set 300 for owner scale).',
     expect: 'All photos, all picks and all edits survive a reopen; the exported picks are right.',
     spec: { file: 'tests/v2-uat-import-to-export.spec.ts', grep: 'close and reopen: nothing lost', projects: D },
   },

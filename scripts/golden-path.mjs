@@ -243,7 +243,8 @@ function main() {
   }
 
   const env = { ...process.env, KESTREL_GOLDEN_PATH: '1' };
-  env.KESTREL_UAT_PHOTOS ??= args.fast ? '40' : '100';
+  // The filmstrip only becomes a virtual list (and says how many photos there are in all) from 150, which the UAT spec asserts.
+  env.KESTREL_UAT_PHOTOS ??= '160';
   env.KESTREL_GP_PHOTOS ??= args.fast ? '30' : '60';
 
   // Browser checks: one Playwright run for every spec and project needed.

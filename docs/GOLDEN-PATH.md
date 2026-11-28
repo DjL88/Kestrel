@@ -109,6 +109,6 @@ It is not part of the required CI job. Run it by hand, or from the manual "Golde
 
 | ID | Check | How | Expected | Weight | Kind |
 |---|---|---|---|---|---|
-| GP-29 | Import, pick, edit together, export, close the tab and reopen: every photo, pick and edit is still there; nothing leaves the machine. | Automated: tests/v2-uat-import-to-export.spec.ts (KESTREL_UAT_PHOTOS, 40 fast / 100 full). | All photos, all picks and all edits survive a reopen; the exported picks are right. | 5 | Browser (fast) |
+| GP-29 | Import, pick, edit together, export, close the tab and reopen: every photo, pick and edit is still there; nothing leaves the machine. | Automated: tests/v2-uat-import-to-export.spec.ts (KESTREL_UAT_PHOTOS: 160 by default, the smallest size that makes the strip a virtual list; set 300 for owner scale). | All photos, all picks and all edits survive a reopen; the exported picks are right. | 5 | Browser (fast) |
 | GP-30 | The same whole workflow with the network switched off after the first visit. | Automated: tests/v2-uat-import-to-export.spec.ts, offline run. | The offline run passes exactly like the online one. | 4 | Browser (fast) |
 | GP-31 | Reopening a project restores the original, so an offline export is byte-identical. | Automated: tests/v2-reopen-original.spec.ts. | The exported original after reopen has the same bytes as before. | 3 | Browser |
