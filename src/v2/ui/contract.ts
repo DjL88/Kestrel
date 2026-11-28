@@ -922,6 +922,8 @@ export interface WorkspaceActions {
   /** Merge the chosen bracket into a new linked 16-bit HDR photo, as a background task (preview, behind its flag). */
   hdrMergePhotos?: (photoIds: string[]) => void;
   exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;
+  /** Collage export choices (preview): each window's pixels at the chosen size, before anything is rendered. */
+  checkCollageExport?: (request: import('../engineClient/exportCollage').CollageExportRequest) => import('../../core/collageOutput').CollageWindowCheck[];
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
   browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;
   addCollageProjectPhotos?: (sourceProjectId: string, photoIds: string[]) => Promise<void>;

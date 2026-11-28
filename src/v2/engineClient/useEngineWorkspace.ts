@@ -9,7 +9,9 @@ import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
-import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
+import { checkCollageWindows } from '../../core/collageOutput';
+import { collageOutputText } from '../../i18n/areas/collageOutput';
+import { collageExportPages, createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
@@ -3019,7 +3021,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!await saveExportFile(result.blob, result.name, ctx.signal))
               throw new DOMException('The collage save was cancelled.', 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice('Collage export prepared. Your originals are unchanged.'));
+            // With the export choices preview on, say how many windows were enlarged or printed below the chosen resolution.
+            const soft = result.windows.filter((window) => window.low).length;
+            ctx.commitIfCurrent(() => setNotice(submitted.output
+              ? (soft ? collageOutputText.doneSoft(soft) : collageOutputText.done)
+              : 'Collage export prepared. Your originals are unchanged.'));
           },
         });
         const outcome = await ticket.finished;
@@ -3030,6 +3036,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(message);
         throw new Error(message);
       } finally { collageExportRunning.current = false; }
+    },
+    checkCollageExport: (request) => {
+      // Before anything is rendered: each window's size at the chosen output against the photograph's recorded pixels
+      // (after its own crop and turn). The renderer checks the decoded pixels again, so an unknown size is never guessed.
+      const current = stateRef.current;
+      const doc = current ? readCollage(current.shoot.collage) : null;
+      if (!current || !doc || !request.output) return [];
+      const pages = collageExportPages(doc, request.allPages, request.range);
+      return checkCollageWindows(doc, pages, (photoId) => {
+        const frame = current.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+        if (!frame) return null;
+        // A decoded, verified JPEG/PNG size first, then the size the file records. Never the screen preview's size.
+        const size = originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`]);
+        return size ? { ...size, filename: frame.filename } : null;
+      }, request.output);
     },
     addEditGroup: (photoId) => {
       const id = `group-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 24)}`;

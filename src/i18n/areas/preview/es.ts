@@ -31,6 +31,8 @@ export const es: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envía a la nube una vista previa inteligente de 2560 px de una foto y recibe ajustes de edición que se pueden deshacer. Necesita conexión y envía datos de la foto, así que déjelo desactivado para mantener todo en este dispositivo.",
   usbTetherName: "Conexión USB con la cámara",
   usbTetherDesc: "Solo en la aplicación de escritorio. Dispara con una cámara conectada por USB y guarda cada imagen en una carpeta que usted elija. Probado hasta ahora solo con una cámara simulada.",
+  collageExportName: "Opciones de exportación del collage",
+  collageExportDesc: "Exporte un collage al doble de tamaño o a un tamaño que elija. Elija 240, 300 o 360 PPP para un álbum. Vea antes los píxeles reales de cada ventana y use fotos RAW reveladas por InFlight. Nada se amplía sin avisar.",
   tapForPhotoName: "Toque la foto para ocultar las barras",
   tapForPhotoDesc: "En una pantalla táctil, un toque en la foto oculta las barras y los paneles para que la foto ocupe toda la pantalla. Otro toque las devuelve.",
   cloudOriginalsName: "Originales completos en la nube",

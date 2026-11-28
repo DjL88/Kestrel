@@ -31,6 +31,8 @@ export const sv: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Skickar en smart förhandsbild på 2 560 px av en bild till molnet och får tillbaka redigeringsinställningar som går att ångra. Det kräver en anslutning och skickar bilddata, så låt det vara av för att behålla allt på den här enheten.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bara i skrivbordsappen. Fotograferar med en kamera ansluten via USB och sparar varje bild i en mapp du väljer. Hittills bara prövat med en simulerad kamera.",
+  collageExportName: "Exportval för collage",
+  collageExportDesc: "Exportera ett collage i dubbel storlek eller en storlek du väljer. Välj 240, 300 eller 360 DPI för ett album. Se först de verkliga pixlarna i varje fönster och använd RAW-foton framkallade av InFlight. Inget förstoras utan att det sägs.",
   tapForPhotoName: "Tryck på fotot för att dölja fälten",
   tapForPhotoDesc: "På en pekskärm döljer ett tryck på fotot fälten och panelerna så att fotot får hela skärmen. Ett tryck till tar tillbaka dem.",
   cloudOriginalsName: "Fulla original i molnet",

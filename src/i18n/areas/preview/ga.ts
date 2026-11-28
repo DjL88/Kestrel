@@ -31,6 +31,8 @@ export const ga: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Seolann sé réamhamharc cliste 2,560 px de ghrianghraf chuig an scamall agus faigheann sé socruithe eagarthóireachta ar ais is féidir a chealú. Teastaíonn nasc uaidh agus seolann sé sonraí an ghrianghraif, mar sin fág as é chun gach rud a choinneáil ar an ngléas seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Aip deisce amháin. Glacann sé grianghraif le ceamara atá plugáilte isteach trí USB agus sábhálann sé gach fráma i bhfillteán a roghnaíonn tú. Níor triaileadh ach le ceamara insamhlaithe go dtí seo.",
+  collageExportName: "Roghanna easpórtála collás",
+  collageExportDesc: "Easpórtáil colláis ag faoi dhó a mhéide nó ag méid a roghnaíonn tú. Roghnaigh 240, 300 nó 360 DPI d'albam. Féach ar fhíorphicteilíní gach fuinneoige ar dtús, agus úsáid grianghraif RAW a d'fhorbair InFlight. Ní mhéadaítear aon rud gan é a rá.",
   tapForPhotoName: "Tapáil an grianghraf chun na barraí a cheilt",
   tapForPhotoDesc: "Ar scáileán tadhaill, ceilt aon tapáil amháin ar an ngrianghraf na barraí agus na painéil ionas go bhfuil an scáileán ar fad ag an ngrianghraf. Tugann tapáil eile ar ais iad.",
   cloudOriginalsName: "Bunchóipeanna iomlána sa scamall",

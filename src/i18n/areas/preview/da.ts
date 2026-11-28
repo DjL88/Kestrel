@@ -31,6 +31,8 @@ export const da: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sender et smart eksempel på 2.560 px af et billede til skyen og får redigeringsindstillinger tilbage, som kan fortrydes. Det kræver en forbindelse og sender billeddata, så lad det være slået fra for at beholde alt på denne enhed.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Kun i skrivebordsappen. Fotograferer med et kamera tilsluttet via USB og gemmer hvert billede i en mappe, du vælger. Hidtil kun prøvet med et simuleret kamera.",
+  collageExportName: "Eksportvalg for collager",
+  collageExportDesc: "Eksportér en collage i dobbelt størrelse eller en størrelse, du vælger. Vælg 240, 300 eller 360 DPI til et album. Se først de rigtige pixel i hvert vindue, og brug RAW-fotos fremkaldt af InFlight. Intet forstørres uden at sige det.",
   tapForPhotoName: "Tryk på fotoet for at skjule bjælkerne",
   tapForPhotoDesc: "På en berøringsskærm skjuler ét tryk på fotoet bjælker og paneler, så fotoet får hele skærmen. Endnu et tryk bringer dem tilbage.",
   cloudOriginalsName: "Fulde originaler i skyen",

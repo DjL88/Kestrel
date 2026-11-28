@@ -31,6 +31,8 @@ export const gd: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Cuiridh e ro-shealladh sgoinneil 2,560 px de dhealbh dhan neul agus gheibh e roghainnean deasachaidh air ais a ghabhas neo-dhèanamh. Feumaidh e ceangal agus cuiridh e dàta an deilbh, mar sin fàg dheth e gus a h-uile càil a chumail air an inneal seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Dìreach san app deasg. Togaidh e dealbhan le camara ceangailte tro USB agus sàbhailidh e gach frèam ann am pasgan a thaghas tu. Chan eil e air a dhearbhadh ach le camara aithriseach gu ruige seo.",
+  collageExportName: "Roghainnean às-phortadh co-chruinneachaidh",
+  collageExportDesc: "Às-phortaich co-chruinneachadh aig dà uiread a mheud no aig meud a thaghas tu. Tagh 240, 300 no 360 DPI airson albam. Faic fìor phiogsailean gach uinneig an toiseach, agus cleachd dealbhan RAW a leasaich InFlight. Cha tèid dad a mheudachadh gun innse.",
   tapForPhotoName: "Thoir gnogadh air an dealbh gus na bàraichean fhalach",
   tapForPhotoDesc: "Air sgrìon-suathaidh, falaichidh aon ghnogadh air an dealbh na bàraichean is na pannailean gus an tèid an sgrìon gu lèir a thoirt don dealbh. Bheir gnogadh eile air ais iad.",
   cloudOriginalsName: "Tùsan slàna sa chrann-sgòth",

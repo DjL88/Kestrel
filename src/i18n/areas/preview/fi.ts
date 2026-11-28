@@ -31,6 +31,8 @@ export const fi: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Lähettää kuvasta 2 560 px:n älykkään esikatselun pilveen ja saa takaisin kumottavat muokkausasetukset. Se tarvitsee yhteyden ja lähettää kuvatietoja, joten jätä se pois päältä, jos haluat pitää kaiken tällä laitteella.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Vain työpöytäsovelluksessa. Kuvaa USB:llä kytketyllä kameralla ja tallentaa jokaisen kuvan valitsemaasi kansioon. Kokeiltu toistaiseksi vain simuloidulla kameralla.",
+  collageExportName: "Kollaasin vientivalinnat",
+  collageExportDesc: "Vie kollaasi kaksinkertaisena tai valitsemasi kokoisena. Valitse albumille 240, 300 tai 360 DPI. Näe ensin jokaisen ikkunan todelliset pikselit ja käytä InFlightin kehittämiä RAW-kuvia. Mitään ei suurenneta kertomatta.",
   tapForPhotoName: "Napauta kuvaa piilottaaksesi palkit",
   tapForPhotoDesc: "Kosketusnäytöllä yksi napautus kuvaan piilottaa palkit ja paneelit, jolloin kuva saa koko näytön. Toinen napautus tuo ne takaisin.",
   cloudOriginalsName: "Täydet alkuperäiset pilveen",

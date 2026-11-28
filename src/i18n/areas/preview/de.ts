@@ -31,6 +31,8 @@ export const de: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sendet eine 2.560-px-Smart-Vorschau eines Fotos in die Cloud und erhält rückgängig machbare Einstellungen für die Bearbeitung zurück. Es braucht eine Verbindung und sendet Fotodaten; lassen Sie es aus, damit alles auf diesem Gerät bleibt.",
   usbTetherName: "USB-Tethering",
   usbTetherDesc: "Nur Desktop-App. Fotografiert mit einer per USB angeschlossenen Kamera und speichert jedes Bild in einen Ordner Ihrer Wahl. Bisher nur mit einer simulierten Kamera erprobt.",
+  collageExportName: "Collage-Exportoptionen",
+  collageExportDesc: "Exportieren Sie eine Collage in doppelter oder in einer gewählten Größe. Wählen Sie 240, 300 oder 360 DPI für ein Album. Sehen Sie vorher die echten Pixel jedes Fensters und verwenden Sie von InFlight entwickelte RAW-Fotos. Nichts wird ohne Hinweis vergrößert.",
   tapForPhotoName: "Foto antippen, um die Leisten auszublenden",
   tapForPhotoDesc: "Auf einem Touchscreen blendet ein Tippen auf das Foto Leisten und Bereiche aus, sodass das Foto den ganzen Bildschirm hat. Ein weiteres Tippen bringt sie zurück.",
   cloudOriginalsName: "Volle Originale in der Cloud",
