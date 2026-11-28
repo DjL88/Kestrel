@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { engineText } from '../../../i18n/areas/engine';
-import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
+import type { DecisionState, FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import FinishBestButton from './FinishBestButton';
@@ -9,6 +9,9 @@ import { viewPhotos } from '../utils/studioMath';
 import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 import { SearchNote } from './SearchNote';
+import PhotoQuickMenu from './PhotoQuickMenu';
+import { useLongPress } from '../../../components/useLongPress';
+import { openPhotoMenuFromKeyboard } from '../../../components/PhotoContextMenu';
 
 interface GridViewProps {
   photos: Photo[];
@@ -29,12 +32,30 @@ interface GridViewProps {
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
+  /** Reject, set aside or return to review (the photo menu). */
+  onSetDecision?: (photoIds: string[], decision: DecisionState) => void;
+  /** Auto for one photo, when the editor offers it (the photo menu). */
+  onAutoEdit?: (photoId: string) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onSetFilter: (filter: FilmstripFilter) => void;
   onSetSearch: (q: string) => void;
   /** Finish my best (a preview: absent while its flag is off). */
   finishBest?: import('./FinishBestButton').FinishBestEntry;
   onClose: () => void;
+}
+
+/**
+ * One photo's card. A long press on touch or pen, a right-click, the Menu key or Shift+F10 opens the photo menu; moving
+ * the finger more than a few pixels (a scroll) cancels the press, so scrolling the gallery never opens a menu or a photo.
+ */
+function GalleryCard({ onMenu, children, ...rest }: React.ComponentProps<'article'> & { onMenu: (x: number, y: number) => void }) {
+  const press = useLongPress((point) => onMenu(point.x, point.y));
+  return (
+    <article {...rest} {...press}
+      onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onMenu(event.clientX, event.clientY); }}>
+      {children}
+    </article>
+  );
 }
 
 export default function GridView({
@@ -54,12 +75,19 @@ export default function GridView({
   onSelectPhoto,
   onOpenInEditor,
   onToggleFlag,
+  onSetDecision,
+  onAutoEdit,
   onSetRating,
   onSetFilter,
   onSetSearch,
   finishBest,
   onClose,
 }: GridViewProps) {
+  const [menu, setMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
+  const openMenu = (photoId: string, x: number, y: number) => {
+    if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+    setMenu({ x, y, photoId });
+  };
   const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
 
@@ -138,9 +166,10 @@ export default function GridView({
               const stateWord = STRINGS.filmstrip.tileStates[photo.state];
 
               return (
-                <article
+                <GalleryCard
                   key={photo.id}
                   data-thumb-id={photo.id}
+                  onMenu={(x, y) => openMenu(photo.id, x, y)}
                   className={`group flex flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
                     selected
                       ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)]'
@@ -156,6 +185,7 @@ export default function GridView({
                       })
                     }
                     onDoubleClick={() => onOpenInEditor(photo.id)}
+                    onKeyDown={(event) => { openPhotoMenuFromKeyboard(event, (x, y) => openMenu(photo.id, x, y)); }}
                     className="relative aspect-[3/2] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                   >
                     <img
@@ -195,7 +225,7 @@ export default function GridView({
                             aria-pressed={n === photo.rating}
                             // Choosing the rating a photo already has clears it, as in the Info panel (0 means unrated).
                             onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
-                            className="p-0.5 text-[var(--brand-accent)] hover:scale-110 transition-transform"
+                            className="p-0.5 text-[var(--brand-accent)] hover:scale-110 transition-transform pointer-coarse:hidden"
                           >
                             <BrandIcon
                               name={n <= photo.rating ? 'star-filled' : 'star-empty'}
@@ -204,14 +234,22 @@ export default function GridView({
                             />
                           </button>
                         ))}
+                        {/* A finger cannot hit five stars this small; on touch the rating is shown here and set in the photo menu (long press or the ⋯ button), where each target is 44 px. */}
+                        <span aria-hidden="true" className="hidden items-center gap-0.5 pointer-coarse:inline-flex">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <BrandIcon key={n} name={n <= photo.rating ? 'star-filled' : 'star-empty'} size={11}
+                              className={n <= photo.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'} />
+                          ))}
+                        </span>
                       </div>
                     </div>
 
+                    <div className="flex shrink-0 items-center">
                     <button
                       type="button"
                       aria-label={flagged ? `Unflag ${photo.filename}` : `Flag ${photo.filename}`}
                       onClick={() => onToggleFlag([photo.id])}
-                      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] transition-colors ${
+                      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] transition-colors pointer-coarse:h-11 pointer-coarse:w-11 ${
                         flagged
                           ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                           : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
@@ -219,13 +257,38 @@ export default function GridView({
                     >
                       <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={15} />
                     </button>
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-label={`${STRINGS.filmstripLabels.label7}: ${photo.filename}`}
+                      title={STRINGS.filmstripLabels.label7}
+                      onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); openMenu(photo.id, box.left, box.bottom); }}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                    >
+                      <span aria-hidden="true">⋯</span>
+                    </button>
+                    </div>
                   </div>
-                </article>
+                </GalleryCard>
               );
             })}
           </div>
         )}
       </div>
+      {menu && (() => {
+        const target = photos.find((photo) => photo.id === menu.photoId);
+        if (!target) return null;
+        const ids = selectedPhotoIds.includes(target.id) ? selectedPhotoIds : [target.id];
+        return (
+          <PhotoQuickMenu x={menu.x} y={menu.y} photoName={target.filename} decision={target.decision} rating={target.rating} count={ids.length}
+            onOpen={() => onOpenInEditor(target.id)}
+            onToggleFlag={() => onToggleFlag(ids)}
+            onSetDecision={(decision) => onSetDecision?.(ids, decision)}
+            onSetRating={(rating) => onSetRating(ids, rating)}
+            onAuto={onAutoEdit ? () => onAutoEdit(target.id) : undefined}
+            onClose={() => setMenu(null)} />
+        );
+      })()}
     </section>
   );
 }

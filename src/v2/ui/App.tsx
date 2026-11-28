@@ -1348,6 +1348,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                     actions.setGridViewOpen(false);
                   }}
                   onToggleFlag={actions.toggleFlag}
+                  onSetDecision={actions.setDecision}
+                  onAutoEdit={!editLocked ? actions.autoEdit : undefined}
                   onSetRating={actions.setRating}
                   onSetFilter={actions.setFilmstripFilter}
                   onSetSearch={actions.setFilmstripSearch}
@@ -1464,6 +1466,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   .map((project) => ({ id: project.id, name: project.name }))}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
+                onAutoEdit={!editLocked ? actions.autoEdit : undefined}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
                 // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot

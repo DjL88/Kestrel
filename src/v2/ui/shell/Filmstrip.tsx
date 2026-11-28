@@ -63,6 +63,8 @@ interface FilmstripProps {
   moveTargets?: { id: string; name: string }[];
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
+  /** Auto for one photo (the photo menu's "Auto"), when the editor offers it. */
+  onAutoEdit?: (photoId: string) => void;
   onImport: () => void;
   onImportFolder: () => void;
   /** Live shoot: watch a folder for new frames, and what is being watched now. */
@@ -155,6 +157,7 @@ export default function Filmstrip({
   moveTargets = [],
   onPasteRecipe,
   onApplyLook,
+  onAutoEdit,
   onImport,
   onImportFolder,
   onWatchFolder,
@@ -839,29 +842,35 @@ export default function Filmstrip({
               onToggleFlag(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]);
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="flag" size={14} />
             <span>{STRINGS.filmstripLabels.label15}</span>
           </button>
+          {onAutoEdit && menuTargetIds.length === 1 && <button type="button" role="menuitem" data-testid="tile-menu-auto"
+            onClick={() => { onAutoEdit(tileMenu.photoId); setTileMenu(null); }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] pointer-coarse:min-h-11 pointer-coarse:text-sm">
+            <BrandIcon name="assist" size={14} />
+            <span>{STRINGS.autoEdit.label}</span>
+          </button>}
           {onCreateCollage && <button type="button" role="menuitem"
             onClick={() => { onCreateCollage(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label16}
           </button>}
           {onFocusStack && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={stackText.menuHint}
             onClick={() => { onFocusStack(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {stackText.menu(menuTargetIds.length)}
           </button>}
           {onStitchPanorama && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={panoText.menuHint}
             onClick={() => { onStitchPanorama(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
           {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}
           </button>}
           <button type="button" role="menuitem"
@@ -869,7 +878,7 @@ export default function Filmstrip({
               onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'reject');
               setTileMenu(null);
             }}
-            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label17}
           </button>
           <button type="button" role="menuitem"
@@ -877,7 +886,7 @@ export default function Filmstrip({
               onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'unreviewed');
               setTileMenu(null);
             }}
-            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label18}
           </button>
           {photos.find((p) => p.id === tileMenu.photoId)?.burst?.ungrouped && (
@@ -887,14 +896,14 @@ export default function Filmstrip({
                 if (groupId) onSetBurstGrouped(groupId, true);
                 setTileMenu(null);
               }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
               {STRINGS.bursts.regroup}
             </button>
           )}
           {onMovePhotos && !collageMode && (
             <button type="button" role="menuitem"
               onClick={() => { setMoving(menuTargetIds); setTileMenu(null); }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
               {STRINGS.filmstripLabels.moveMenu}
             </button>
           )}
@@ -904,7 +913,7 @@ export default function Filmstrip({
                 setRemoveConfirm(menuTargetIds);
                 setTileMenu(null);
               }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
               Remove {menuTargetIds.length > 1 ? `${menuTargetIds.length} photos` : 'photo'}…
             </button>
           )}
@@ -921,7 +930,7 @@ export default function Filmstrip({
                     onSetRating(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], rating);
                     setTileMenu(null);
                   }}
-                  className="min-h-8 min-w-7 rounded border border-[var(--border-subtle)] px-1 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                  className="min-h-8 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 rounded border border-[var(--border-subtle)] px-1 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                 >
                   {rating === 0 ? '–' : rating}
                 </button>
@@ -936,7 +945,7 @@ export default function Filmstrip({
               onPasteRecipe();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <BrandIcon name="paste" size={14} />
             <span>{STRINGS.filmstripLabels.label19}</span>
@@ -950,7 +959,7 @@ export default function Filmstrip({
                 if (event.target.value) onApplyLook(tileMenu.photoId, event.target.value);
                 setTileMenu(null);
               }}
-              className="mt-1 h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
+              className="mt-1 h-8 pointer-coarse:h-11 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
             >
               <option value="" disabled>{STRINGS.filmstripLabels.label22}</option>
               {looks.map((look) => <option key={look.id} value={look.id}>{look.name}</option>)}
@@ -963,7 +972,7 @@ export default function Filmstrip({
               onExportSelected();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="export" size={14} />
             <span>{STRINGS.filmstripLabels.label23}</span>

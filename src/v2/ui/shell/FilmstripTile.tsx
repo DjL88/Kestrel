@@ -82,7 +82,7 @@ function FilmstripTile({ photo, stack, active, selected, quietBadges, collageMod
           aria-label={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
           title={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
           onClick={(event) => { event.stopPropagation(); actions.toggleStack(stack.groupId, stack.expanded, photo.id); }}
-          className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[0.625rem] font-semibold text-white"
+          className="absolute left-1 top-1 z-10 min-h-9 pointer-coarse:min-h-11 rounded bg-[var(--bg-scrim)] px-2 text-[0.625rem] font-semibold text-white"
         >
           {STRINGS.bursts.badge(stack.count)}{!stack.expanded ? ' ▸' : ''}
         </button>
@@ -96,7 +96,7 @@ function FilmstripTile({ photo, stack, active, selected, quietBadges, collageMod
           const bounds = event.currentTarget.getBoundingClientRect();
           actions.openMenu(bounds.left, bounds.bottom, photo.id);
         }}
-        className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+        className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
       >
         <span aria-hidden="true">⋯</span>
       </button>
