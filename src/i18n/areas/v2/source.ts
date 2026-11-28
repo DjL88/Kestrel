@@ -1240,6 +1240,8 @@ export const source = {
   enhance: {
     heading: 'Enhance',
     refinementsHeading: "Refinements",
+    trainedModelNote: "Uses a trained model. Never adds new content.",
+    pixelsNote: "Enhance is the one tab that edits pixels, only where and as much as you choose, and it is always undoable.",
     denoiseHeading: "TrueDetail noise reduction",
     denoiseNow: "Run TrueDetail on this photo",
     trueDetailRunning: (percent: number) => `TrueDetail is working on this photo: ${percent}%`,
@@ -2548,7 +2550,7 @@ export const source = {
   // Privacy and under Export › Advanced. Keep it true: tools/i18n/promise.test.mjs checks the three places agree.
   promise: {
     heading: "What InFlight promises",
-    body: "InFlight never invents or replaces what’s in your photo, and never writes model-made content into your files’ metadata. Your originals are never changed. Models measure and suggest (subject, focus, species, noise). Noise reduction and sharpening work from your photo’s own pixels; the optional learned noise reduction only cleans the pixels already there, and is used only when a check shows real detail survived. The one exception is Spot healing, which copies from elsewhere in your own photo, and only where you place it yourself.",
+    body: "No generative fill, no added objects, no invented detail. Where a trained model helps with noise or size, it works from your pixels, you set the strength, and the original is never changed.",
   },
 
   setup: {

@@ -1205,6 +1205,8 @@ export const ga: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Feabhsaigh',
     refinementsHeading: "Mionchoigeartuithe",
+    trainedModelNote: "Úsáideann sé samhail oilte. Ní chuireann sé ábhar nua leis choíche.",
+    pixelsNote: "Is é Feabhsaigh an t-aon chluaisín a chuireann picsil in eagar, ach san áit agus chomh mór agus a roghnaíonn tú, agus is féidir é a chealú i gcónaí.",
     denoiseHeading: "Laghdú torainn TrueDetail",
     denoiseNow: "Rith TrueDetail ar an ngrianghraf seo",
     trueDetailRunning: (percent) => `Tá TrueDetail ag obair ar an ngrianghraf seo: ${percent}%`,
@@ -2457,7 +2459,7 @@ export const ga: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Gealltanas InFlight",
-    body: "Ní chumann InFlight riamh agus ní chuireann sé aon rud in ionad a bhfuil i do ghrianghraf, agus ní scríobhann sé riamh ábhar ó shamhail i meiteashonraí do chomhad. Ní athraítear do bhunchóipeanna riamh. Tomhaiseann agus molann samhlacha (ábhar, fócas, speiceas, torann). Oibríonn laghdú torainn agus géarú ó phicteilíní do ghrianghraif féin; ní ghlanann an laghdú torainn foghlamtha roghnach ach na picteilíní atá ann cheana, agus ní úsáidtear é ach nuair a léiríonn seiceáil gur fhan na fíormhionsonraí. Is é Deisiú spotaí an t-aon eisceacht: cóipeálann sé ó áit eile i do ghrianghraf féin, agus ní dhéanann sé é ach san áit a gcuireann tú féin é.",
+    body: "Gan líonadh giniúnach, gan réada breise, gan mionsonraí cumtha. Nuair a chabhraíonn samhail oilte le torann nó le méid, oibríonn sí as do phicsil féin, socraíonn tú an neart, agus ní athraítear an bhunchóip choíche.",
   },
 
   setup: {

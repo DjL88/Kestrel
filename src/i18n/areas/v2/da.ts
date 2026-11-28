@@ -1202,6 +1202,8 @@ export const da: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Forbedr',
     refinementsHeading: "Finpudsning",
+    trainedModelNote: "Bruger en trænet model. Tilføjer aldrig nyt indhold.",
+    pixelsNote: "Forbedr er den eneste fane, der redigerer pixels, kun hvor og så meget, du vælger, og det kan altid fortrydes.",
     denoiseHeading: "TrueDetail-støjreduktion",
     denoiseNow: "Kør TrueDetail på dette billede",
     trueDetailRunning: (percent) => `TrueDetail arbejder på dette billede: ${percent} %`,
@@ -2454,7 +2456,7 @@ export const da: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Det lover InFlight",
-    body: "InFlight finder aldrig på eller erstatter det, der er i dit billede, og skriver aldrig indhold lavet af en model i dine filers metadata. Dine originaler ændres aldrig. Modeller måler og foreslår (motiv, fokus, art, støj). Støjreduktion og skarphed arbejder ud fra dit billedes egne pixels; den valgfrie lærte støjreduktion renser kun de pixels, der allerede er der, og bruges kun, når en kontrol viser, at de ægte detaljer er bevaret. Den eneste undtagelse er Pletfjernelse, som kopierer fra et andet sted i dit eget billede, og kun hvor du selv sætter den.",
+    body: "Ingen generativ udfyldning, ingen tilføjede objekter, ingen opfundne detaljer. Hvor en trænet model hjælper med støj eller størrelse, arbejder den ud fra dine egne pixels, du bestemmer styrken, og originalen ændres aldrig.",
   },
 
   setup: {

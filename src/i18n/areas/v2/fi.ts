@@ -1203,6 +1203,8 @@ export const fi: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Paranna',
     refinementsHeading: "Viimeistely",
+    trainedModelNote: "Käyttää koulutettua mallia. Ei koskaan lisää uutta sisältöä.",
+    pixelsNote: "Paranna on ainoa välilehti, joka muokkaa pikseleitä, vain siellä ja niin paljon kuin valitset, ja sen voi aina kumota.",
     denoiseHeading: "TrueDetail-kohinanpoisto",
     denoiseNow: "Käytä TrueDetailia tähän kuvaan",
     trueDetailRunning: (percent) => `TrueDetail käsittelee tätä kuvaa: ${percent} %`,
@@ -2455,7 +2457,7 @@ export const fi: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "InFlightin lupaus",
-    body: "InFlight ei koskaan keksi tai korvaa sitä, mitä kuvassasi on, eikä koskaan kirjoita mallin tuottamaa sisältöä tiedostojesi metatietoihin. Alkuperäisiä ei koskaan muuteta. Mallit mittaavat ja ehdottavat (kohde, tarkennus, laji, kohina). Kohinanpoisto ja terävöitys käyttävät kuvasi omia pikseleitä; valinnainen opittu kohinanpoisto vain puhdistaa jo olemassa olevat pikselit, ja sitä käytetään vain, jos tarkistus näyttää todellisten yksityiskohtien säilyneen. Ainoa poikkeus on Täplien korjaus, joka kopioi toisesta kohdasta omassa kuvassasi, ja vain sinne, mihin itse sen asetat.",
+    body: "Ei generatiivista täyttöä, ei lisättyjä kohteita, ei keksittyjä yksityiskohtia. Kun koulutettu malli auttaa kohinassa tai koossa, se työskentelee omien pikseliesi pohjalta, sinä valitset voimakkuuden, eikä alkuperäistä koskaan muuteta.",
   },
 
   setup: {

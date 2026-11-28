@@ -1202,6 +1202,8 @@ export const nb: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Forbedre',
     refinementsHeading: "Finpuss",
+    trainedModelNote: "Bruker en trent modell. Legger aldri til nytt innhold.",
+    pixelsNote: "Forbedre er den eneste fanen som redigerer piksler, bare der og så mye du velger, og det kan alltid angres.",
     denoiseHeading: "TrueDetail-støyreduksjon",
     denoiseNow: "Kjør TrueDetail på dette bildet",
     trueDetailRunning: (percent) => `TrueDetail jobber med dette bildet: ${percent} %`,
@@ -2454,7 +2456,7 @@ export const nb: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Dette lover InFlight",
-    body: "InFlight dikter aldri opp eller erstatter det som er i bildet ditt, og skriver aldri innhold laget av en modell inn i filenes metadata. Originalene dine endres aldri. Modeller måler og foreslår (motiv, fokus, art, støy). Støyreduksjon og skarphet arbeider ut fra bildets egne piksler; den valgfrie lærte støyreduksjonen renser bare pikslene som allerede er der, og brukes bare når en kontroll viser at ekte detaljer er bevart. Det eneste unntaket er Flekkfjerning, som kopierer fra et annet sted i ditt eget bilde, og bare der du selv setter den.",
+    body: "Ingen generativ utfylling, ingen tillagte objekter, ingen oppdiktede detaljer. Der en trent modell hjelper med støy eller størrelse, jobber den ut fra dine egne piksler, du bestemmer styrken, og originalen endres aldri.",
   },
 
   setup: {

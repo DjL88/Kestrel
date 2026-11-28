@@ -1202,6 +1202,8 @@ export const de: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Verbessern',
     refinementsHeading: "Feinschliff",
+    trainedModelNote: "Nutzt ein trainiertes Modell. Fügt nie neue Inhalte hinzu.",
+    pixelsNote: "Verbessern ist der einzige Tab, der Pixel bearbeitet, nur dort und so stark, wie Sie es wählen, und es lässt sich immer rückgängig machen.",
     denoiseHeading: "TrueDetail-Rauschreduzierung",
     denoiseNow: "TrueDetail auf dieses Foto anwenden",
     trueDetailRunning: (percent) => `TrueDetail bearbeitet dieses Foto: ${percent} %`,
@@ -2454,7 +2456,7 @@ export const de: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Was InFlight verspricht",
-    body: "InFlight erfindet oder ersetzt nie, was in Ihrem Foto ist, und schreibt nie von Modellen erzeugte Inhalte in die Metadaten Ihrer Dateien. Ihre Originale werden nie verändert. Modelle messen und schlagen vor (Motiv, Schärfe, Art, Rauschen). Rauschreduzierung und Schärfen arbeiten mit den eigenen Pixeln Ihres Fotos; die optionale gelernte Rauschreduzierung reinigt nur die vorhandenen Pixel und wird nur genutzt, wenn eine Prüfung zeigt, dass echte Details erhalten bleiben. Die einzige Ausnahme ist die Bereichsreparatur: Sie kopiert aus einer anderen Stelle Ihres eigenen Fotos, und nur dort, wo Sie sie selbst setzen.",
+    body: "Keine generative Füllung, keine hinzugefügten Objekte, keine erfundenen Details. Wo ein trainiertes Modell bei Rauschen oder Größe hilft, arbeitet es mit Ihren eigenen Pixeln, Sie bestimmen die Stärke, und das Original wird nie verändert.",
   },
 
   setup: {

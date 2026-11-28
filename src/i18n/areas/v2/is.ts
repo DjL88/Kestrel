@@ -1202,6 +1202,8 @@ export const is: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Bæta',
     refinementsHeading: "Fínstilling",
+    trainedModelNote: "Notar þjálfað líkan. Bætir aldrei við nýju efni.",
+    pixelsNote: "Bæta er eini flipinn sem breytir díflum, aðeins þar og eins mikið og þú velur, og alltaf er hægt að afturkalla það.",
     denoiseHeading: "TrueDetail suðminnkun",
     denoiseNow: "Keyra TrueDetail á þessa mynd",
     trueDetailRunning: (percent) => `TrueDetail vinnur í þessari mynd: ${percent}%`,
@@ -2454,7 +2456,7 @@ export const is: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Loforð InFlight",
-    body: "InFlight býr aldrei til eða kemur í stað þess sem er í myndinni þinni, og skrifar aldrei efni frá líkani í lýsigögn skránna þinna. Frummyndunum er aldrei breytt. Líkön mæla og stinga upp á (myndefni, fókus, tegund, suð). Suðeyðing og skerpa vinna úr eigin dílum myndarinnar; valfrjálsa lærða suðeyðingin hreinsar aðeins dílana sem eru þar fyrir, og er aðeins notuð ef athugun sýnir að raunveruleg smáatriði haldist. Eina undantekningin er Blettahreinsun, sem afritar af öðrum stað í þinni eigin mynd, og aðeins þar sem þú setur hana sjálf.",
+    body: "Engin skapandi fylling, engir viðbættir hlutir, engar uppdiktaðar smáatriði. Þar sem þjálfað líkan hjálpar með suð eða stærð vinnur það út frá þínum eigin díflum, þú stillir styrkinn og frumgerðinni er aldrei breytt.",
   },
 
   setup: {

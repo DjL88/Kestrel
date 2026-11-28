@@ -1202,6 +1202,8 @@ export const it: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Migliora',
     refinementsHeading: "Ritocchi",
+    trainedModelNote: "Usa un modello addestrato. Non aggiunge mai contenuti nuovi.",
+    pixelsNote: "Migliora è l’unica scheda che modifica i pixel, solo dove e quanto scegli tu, e si può sempre annullare.",
     denoiseHeading: "Riduzione del rumore TrueDetail",
     denoiseNow: "Applica TrueDetail a questa foto",
     trueDetailRunning: (percent) => `TrueDetail sta elaborando questa foto: ${percent}%`,
@@ -2454,7 +2456,7 @@ export const it: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Cosa promette InFlight",
-    body: "InFlight non inventa né sostituisce mai ciò che c’è nella tua foto, e non scrive mai contenuti prodotti da un modello nei metadati dei tuoi file. I tuoi originali non vengono mai modificati. I modelli misurano e suggeriscono (soggetto, messa a fuoco, specie, rumore). Riduzione del rumore e nitidezza lavorano sui pixel della tua foto; la riduzione del rumore appresa, facoltativa, pulisce solo i pixel già presenti, e si usa solo se un controllo mostra che il dettaglio reale resta. L’unica eccezione è Correzione macchie, che copia da un altro punto della tua stessa foto, e solo dove la metti tu.",
+    body: "Nessun riempimento generativo, nessun oggetto aggiunto, nessun dettaglio inventato. Dove un modello addestrato aiuta con il rumore o le dimensioni, lavora a partire dai tuoi pixel, sei tu a scegliere l’intensità e l’originale non viene mai modificato.",
   },
 
   setup: {

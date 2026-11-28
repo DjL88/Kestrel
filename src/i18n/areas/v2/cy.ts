@@ -1202,6 +1202,8 @@ export const cy: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Gwella',
     refinementsHeading: "Mireinio",
+    trainedModelNote: "Yn defnyddio model hyfforddedig. Byth yn ychwanegu cynnwys newydd.",
+    pixelsNote: "Gwella yw’r unig dab sy’n golygu picseli, dim ond lle ac i’r graddau a ddewiswch, a gellir ei ddadwneud bob amser.",
     denoiseHeading: "Lleihau sŵn TrueDetail",
     denoiseNow: "Rhedeg TrueDetail ar y llun hwn",
     trueDetailRunning: (percent) => `Mae TrueDetail yn gweithio ar y llun hwn: ${percent}%`,
@@ -2454,7 +2456,7 @@ export const cy: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Addewid InFlight",
-    body: "Nid yw InFlight byth yn dyfeisio nac yn disodli’r hyn sydd yn eich llun, ac nid yw byth yn ysgrifennu cynnwys a wnaed gan fodel ym metadata eich ffeiliau. Nid yw eich gwreiddiolion byth yn cael eu newid. Mae modelau’n mesur ac yn awgrymu (gwrthrych, ffocws, rhywogaeth, sŵn). Mae lleihau sŵn a miniogi’n gweithio o bicseli eich llun ei hun; dim ond glanhau’r picseli sydd yno’n barod y mae’r lleihau sŵn dysgedig dewisol, a dim ond pan fydd gwiriad yn dangos bod manylion go iawn wedi aros y caiff ei ddefnyddio. Yr unig eithriad yw Trwsio smotiau, sy’n copïo o le arall yn eich llun eich hun, a dim ond lle rydych chi’n ei osod eich hun.",
+    body: "Dim llenwi cynhyrchiol, dim gwrthrychau ychwanegol, dim manylion dychmygol. Lle mae model hyfforddedig yn helpu gyda sŵn neu faint, mae’n gweithio o’ch picseli chi, chi sy’n gosod y cryfder, ac nid yw’r gwreiddiol byth yn cael ei newid.",
   },
 
   setup: {

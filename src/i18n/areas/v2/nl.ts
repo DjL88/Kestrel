@@ -1202,6 +1202,8 @@ export const nl: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Verbeteren',
     refinementsHeading: "Bijwerken",
+    trainedModelNote: "Gebruikt een getraind model. Voegt nooit nieuwe inhoud toe.",
+    pixelsNote: "Verbeteren is het enige tabblad dat pixels bewerkt, alleen waar en zo veel als jij kiest, en het is altijd ongedaan te maken.",
     denoiseHeading: "TrueDetail-ruisonderdrukking",
     denoiseNow: "TrueDetail op deze foto toepassen",
     trueDetailRunning: (percent) => `TrueDetail bewerkt deze foto: ${percent}%`,
@@ -2454,7 +2456,7 @@ export const nl: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Wat InFlight belooft",
-    body: "InFlight verzint of vervangt nooit wat er in je foto staat, en schrijft nooit door een model gemaakte inhoud in de metadata van je bestanden. Je originelen worden nooit gewijzigd. Modellen meten en stellen voor (onderwerp, scherpte, soort, ruis). Ruisonderdrukking en verscherpen werken met de eigen pixels van je foto; de optionele aangeleerde ruisonderdrukking maakt alleen de pixels schoon die er al zijn, en wordt alleen gebruikt als een controle laat zien dat echt detail behouden blijft. De enige uitzondering is Vlekken herstellen, dat kopieert van een andere plek in je eigen foto, en alleen waar jij het zelf plaatst.",
+    body: "Geen generatieve vulling, geen toegevoegde objecten, geen verzonnen details. Waar een getraind model helpt bij ruis of formaat, werkt het vanuit je eigen pixels, bepaal jij de sterkte en wordt het origineel nooit gewijzigd.",
   },
 
   setup: {
