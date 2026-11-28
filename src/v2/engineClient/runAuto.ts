@@ -66,6 +66,9 @@ export function subjectKindOf(frame: Pick<PhotoFrame, 'subjectKind' | 'tags' | '
   return 'other';
 }
 
+/** Auto's lift ceiling before dark subjects could take up to 5 units: the fallback when the bigger lift fails a render check. */
+const BIG_LIFT_FALLBACK_UNITS = 1.2;
+
 const withTimeout = <T>(work: Promise<T>, ms: number, onTimeout: () => T | Promise<T>): Promise<T> => {
   let timer: number | undefined;
   return Promise.race([work, new Promise<T>((resolve, reject) => { timer = window.setTimeout(() => Promise.resolve(onTimeout()).then(resolve, reject), ms); })])
@@ -179,7 +182,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
   const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
-  const naturalPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: global }));
+  let naturalPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: global }));
   let plan = naturalPlan;
   const recipes: Omit<AutoCandidate, 'after'>[] = [];
   const describeEdit = (edit: PhotoEdit, local = false) => acceptedAutoChanges(base, edit, local).map((change) => change.key === 'subjectMask'
@@ -240,7 +243,18 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Colour match: the species signature on file, only for a confidently named species on a reliable mask. The vision
   // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
   const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
-  const rendered = recipes.length ? timedStep('auto:render', () => renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation)) : { before: '', candidates: [], rejected: [] };
+  let rendered = recipes.length ? timedStep('auto:render', () => renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation)) : { before: '', candidates: [], rejected: [] as string[] };
+  // A big dark-subject lift (above the old 1.2-unit ceiling) that the render checks refuse is retried at that ceiling,
+  // so a dark photo still gets the gentler lift Auto always offered rather than nothing.
+  const bigLift = natural.edit.exposure > BIG_LIFT_FALLBACK_UNITS;
+  if (bigLift && recipes.length && !rendered.candidates.length && recipes.some(recipe => recipe.id === 'natural')) {
+    const gentler = planAuto({ ...input, proposal: { ...global, exposure: Math.min(global.exposure ?? 0, BIG_LIFT_FALLBACK_UNITS) } });
+    if (gentler.verdict.kind === 'improved') {
+      const retry = renderAutoCandidates(analysisCanvas, base, [{ id: 'natural', edit: gentler.proposal, summary: describeEdit(gentler.proposal) }],
+        subjectInstances.map(instance => instance.mask), expectation);
+      if (retry.candidates.length) { rendered = { ...retry, rejected: [...rendered.rejected, ...retry.rejected] }; plan = gentler; naturalPlan = gentler; }
+    }
+  }
   plan = settleAfterRender({
     plan, naturalPlan, base, recipeCount: recipes.length,
     candidateEdits: rendered.candidates.map((candidate) => candidate.edit), rejected: rendered.rejected,
