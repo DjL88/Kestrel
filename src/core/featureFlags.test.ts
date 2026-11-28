@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { compareVersions, evaluateFlag, forPublicDocument, newBucket, parseFlagSet, type FlagSet } from './featureFlags.ts';
+import { parseSwitchDoc, setOwnerSwitches } from './featureSwitches.ts';
 import { accessCapabilities } from './commercialAccess.ts';
 import { COMPILED_FLAGS, FEATURE_NAMES, NEVER_GATED, evaluateFeature, featureAvailable } from './features.ts';
 
@@ -80,10 +81,13 @@ test('working with your own photos is never gated, whatever the rules say', () =
 test('compiled defaults keep Basic overlays available and all Pro features off until Admin enables them', () => {
   const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
   const paid = accessCapabilities({ plan: 'paid', licence: 'active', cloud: 'none', online: false, cachedLocalLicence: true });
+  // This is about the compiled flag table; the licence-red species default (off) is tested in featureSwitches.test.ts.
+  setOwnerSwitches(parseSwitchDoc({ 'species-id': { device: true } }));
   for (const name of FEATURE_NAMES) {
     assert.equal(featureAvailable(name, paid), COMPILED_FLAGS[name].default, name);
     assert.equal(featureAvailable(name, free), COMPILED_FLAGS[name].default, name);
   }
+  setOwnerSwitches(null);
   for (const name of ['overlayText', 'watermarkCustom'] as const) {
     assert.equal(featureAvailable(name, free), true, name);
   }
