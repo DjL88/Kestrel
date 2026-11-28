@@ -84,7 +84,7 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
   // The darkness is the mood, so brightening the whole scene would work against the photo. A merely underexposed photo has
   // no lit area, so it is still lifted.
   const accent = toPerceptual(at(0.99));
-  const lowKey = toPerceptual(at(0.7)) < 0.12 && accent > 0.25 && accent - medianTone > 0.2; // Measured on a kingfisher: 70% below 0.05, lit bird about 0.31.
+  const lowKey = toPerceptual(at(0.7)) < 0.12 && accent > 0.5 && accent - medianTone > 0.3; // The lit part must reach about mid-grey: a dim bird on a dark scene is underexposed, not a mood.
   let gain = 1;
   if (lowKey) {
     notes.push('This looks intentionally dark: a lit subject against a dark scene. Exposure and shadows are left alone to keep the mood.');

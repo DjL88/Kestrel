@@ -129,3 +129,26 @@ export const ANYWAY_DENOISE_STRENGTH = 0.4;
 export function anywayLuminanceStrength(sigma: number | null, iso?: number): number {
   return Math.max(ANYWAY_LUMINANCE_STRENGTH, luminanceStrengthFor(sigma, iso));
 }
+
+/**
+ * Noise is judged where it will be seen. A dark frame lifted by +2 EV shows its noise four times as strong, so reading it
+ * before the lift says "clean" for a picture that looks grainy once bright (a dark kingfisher, 28 Nov 2026). This
+ * brightens a copy of the pixels by `ev` stops in linear light, clipping like the editor does, so the estimator reads the
+ * noise at the exposure the person will see. Only a lift is applied; the originals are never touched. Measures, never edits.
+ */
+export function liftForNoise(rgba: Uint8ClampedArray, ev: number): Uint8ClampedArray {
+  if (!Number.isFinite(ev) || ev <= 0) return rgba;
+  const gain = 2 ** Math.min(ev, 4);
+  const table = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v += 1) {
+    const c = v / 255;
+    const linear = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    const lifted = Math.min(1, linear * gain);
+    table[v] = Math.round(255 * (lifted <= 0.0031308 ? lifted * 12.92 : 1.055 * lifted ** (1 / 2.4) - 0.055));
+  }
+  const out = new Uint8ClampedArray(rgba.length);
+  for (let i = 0; i < rgba.length; i += 4) {
+    out[i] = table[rgba[i]]; out[i + 1] = table[rgba[i + 1]]; out[i + 2] = table[rgba[i + 2]]; out[i + 3] = rgba[i + 3];
+  }
+  return out;
+}
