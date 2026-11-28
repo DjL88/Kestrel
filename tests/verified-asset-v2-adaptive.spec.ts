@@ -102,7 +102,7 @@ test('adaptive form factor keeps phone More actions reachable at 320/390 and res
     await expect(more).toBeVisible();
     await more.click();
     await expect(root.getByRole('dialog', { name: 'More tools' })).toBeVisible();
-    await expect(root.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: 'Settings' })).toBeVisible();
+    await expect(root.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
     await more.click();
     await expect(root.getByRole('dialog', { name: 'More tools' })).toHaveCount(0);
   }
