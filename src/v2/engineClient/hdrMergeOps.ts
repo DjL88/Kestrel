@@ -3,6 +3,7 @@ import { MAX_HDR_FRAMES, MIN_HDR_FRAMES } from '../../core/hdrMerge';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import { hdrText } from '../../i18n/areas/hdr';
+import { previewKey, previewOn } from '../../core/previewFeatures';
 
 /**
  * HDR merge in V2: everything between the editor's chosen photos and the pure merge (src/core/hdrMerge.ts). The result
@@ -10,11 +11,11 @@ import { hdrText } from '../../i18n/areas/hdr';
  * originals are only ever read.
  */
 
-/** This device's own preview switch (Settings has none yet): `localStorage['kestrel.preview.hdr-merge.v1'] = '1'`. */
-export const HDR_PREVIEW_KEY = 'kestrel.preview.hdr-merge.v1';
+/** This device's own preview switch (Settings → Preview features); the registry is src/core/previewFeatures.ts. */
+export const HDR_PREVIEW_KEY = previewKey('hdrMerge');
 
 export function hdrPreviewOn(storage: Pick<Storage, 'getItem'> | null | undefined = typeof localStorage === 'undefined' ? null : localStorage): boolean {
-  try { return storage?.getItem(HDR_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('hdrMerge', storage);
 }
 
 /** The chosen frames in shooting order, or why they cannot be merged. */

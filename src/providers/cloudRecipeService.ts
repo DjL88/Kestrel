@@ -1,6 +1,7 @@
 import { CLOUD_RECIPE_MAX_BYTES, FULL_FILE_CONSENT_OFF, grantFullFileConsent, parseFullFileConsent, withdrawFullFileConsent,
   type CloudRecipeInputKind, type CloudRecipeSettings, type FullFileConsent } from '../core/cloudRecipe';
 import { CLOUD_RECIPE_PROTOCOL } from '../core/cloudRecipe';
+import { previewKey, previewOn } from '../core/previewFeatures';
 import { runCloudJob } from './cloudJobTransport';
 
 /**
@@ -98,14 +99,14 @@ export function inMemoryCloudRecipeService(
 }
 
 const FULL_FILE_KEY = 'kestrel.cloudRecipe.fullFile.v1';
-/** This device's own switch for the preview, like the other flagged previews: `localStorage[key] = '1'`. */
-export const CLOUD_RECIPE_PREVIEW_KEY = 'kestrel.preview.cloudRecipe.v1';
+/** This device's own switch for the preview (Settings → Preview features; the registry is src/core/previewFeatures.ts). */
+export const CLOUD_RECIPE_PREVIEW_KEY = previewKey('cloudRecipe');
 
 type Store = Pick<Storage, 'getItem' | 'setItem'> | null | undefined;
 const defaultStore = (): Store => (typeof localStorage === 'undefined' ? null : localStorage);
 
 export function cloudRecipePreviewOn(storage: Store = defaultStore()): boolean {
-  try { return storage?.getItem(CLOUD_RECIPE_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('cloudRecipe', storage);
 }
 
 /** The person's full-file opt-in on this device. Unreadable storage counts as off. */

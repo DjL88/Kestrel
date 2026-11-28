@@ -1,3 +1,5 @@
+import { previewKey, previewOn } from './previewFeatures';
+
 /**
  * Subject sharpness measured inside the subject's own mask instead of its detector box (x-std-mask-sharpness).
  *
@@ -28,12 +30,12 @@ export const MIN_MASK_SCORE = 0.5;
 /** A "subject" covering nearly the whole frame is a failed mask, not a subject. */
 export const MAX_MASK_COVERAGE = 0.9;
 
-/** Device preview switch: `localStorage['kestrel.preview.cullMaskSharpness.v1'] = '1'` turns masked sharpness on. */
-export const CULL_MASK_SHARPNESS_KEY = 'kestrel.preview.cullMaskSharpness.v1';
+/** Device preview switch (Settings → Preview features) that turns masked sharpness on. */
+export const CULL_MASK_SHARPNESS_KEY = previewKey('cullMaskSharpness');
 
 export function cullMaskSharpnessOn(storage: Pick<Storage, 'getItem'> | null | undefined =
   typeof localStorage === 'undefined' ? null : localStorage): boolean {
-  try { return storage?.getItem(CULL_MASK_SHARPNESS_KEY) === '1'; } catch { return false; }
+  return previewOn('cullMaskSharpness', storage);
 }
 
 /** Is this mask fit to measure with? */

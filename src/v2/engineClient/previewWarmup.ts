@@ -1,17 +1,18 @@
 import type { PhotoFrame } from '../../core/types';
+import { previewKey, previewOn } from '../../core/previewFeatures';
 
 /**
  * Culling read-ahead: while one photo is on the canvas, the photos either side of it are read, unpacked and decoded in
  * the background, so the next key press shows a picture that is already in memory. Only the same preview that would be
  * shown anyway is prepared (never a smaller stand-in), and nothing is written.
  *
- * A preview for now, off by default: an admin flag (`cullWarmup`) or this device's own switch,
- * `localStorage['kestrel.preview.cullWarmup.v1'] = '1'`, turns it on.
+ * A preview for now, off by default: an admin flag (`cullWarmup`) or this device's own switch
+ * (Settings → Preview features), turns it on.
  */
-export const CULL_WARMUP_PREVIEW_KEY = 'kestrel.preview.cullWarmup.v1';
+export const CULL_WARMUP_PREVIEW_KEY = previewKey('cullWarmup');
 
 export function cullWarmupPreviewOn(storage: Pick<Storage, 'getItem'> | null | undefined = typeof localStorage === 'undefined' ? null : localStorage): boolean {
-  try { return storage?.getItem(CULL_WARMUP_PREVIEW_KEY) === '1'; } catch { return false; }
+  return previewOn('cullWarmup', storage);
 }
 
 /**
