@@ -29,6 +29,7 @@ export const FLAG_INFO = {
   panorama: { name: 'Panorama', effect: 'Stitches photos into one new panorama.' },
   hdrMerge: { name: 'HDR merge', effect: 'Merges bracketed exposures into one new photo.' },
   onImageAdvice: { name: 'Advice on the photo', effect: 'Shows clipped areas, the focus point and a colour check on the photo, read-only. A preview.' },
+  verificationChain: { name: 'Checks on edits', effect: 'Shows whether an edit was checked on this device or in the cloud, and keeps anything unsure for review. A preview.' },
   savedViews: { name: 'Saved views', effect: 'Save a filter and sort to come back to.' },
   nextToReview: { name: 'Next to review', effect: 'A key that jumps to the next photo still to decide.' },
   cullWarmup: { name: 'Faster culling', effect: 'Prepares the next previews ahead while culling.' },

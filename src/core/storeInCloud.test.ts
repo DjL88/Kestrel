@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CloudUsage } from './cloudPlan';
-import { COLLABORATION_UI, cloudLimitNote, photosToStore, storeEstimate } from './storeInCloud';
+import { COLLABORATION_UI, cloudLimitNote, originalsBytes, photosToStore, storeEstimate } from './storeInCloud';
 
 const GB = 1_000_000_000; // as src/core/cloudPlan.ts counts it
 const usage = (change: Partial<CloudUsage>): CloudUsage => ({ plan: 'pro', photosUsed: 0, storedBytes: 0, downloadedBytes: 0, balancePence: 0, nowMs: 0, ...change });

@@ -42,7 +42,7 @@ test('?v2 Store in the cloud appears only once signed in as Pro, beside its own 
   await page.keyboard.press('Enter');
   const dialog = page.getByTestId('store-cloud-dialog');
   await expect(dialog.getByRole('heading', { name: 'Store in the cloud' })).toBeVisible();
-  await expect(dialog.getByTestId('store-cloud-filter').getByRole('radio')).toHaveCount(5);
+  await expect(dialog.getByTestId('store-cloud-filter').getByRole("radio")).toHaveCount(7);
   // Focus stays inside the dialog, and returns to the button that opened it.
   await page.keyboard.press('Shift+Tab');
   await expect(dialog.locator(':focus')).toHaveCount(1);

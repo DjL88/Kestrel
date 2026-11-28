@@ -1,4 +1,5 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
+import { readGesture } from '../../../core/gestureSettings';
 import EdgeProgress from './EdgeProgress';
 import FinishBestButton from './FinishBestButton';
 import { minutesLeft } from '../utils/edgeActivity';
@@ -63,6 +64,8 @@ interface FilmstripProps {
   moveTargets?: { id: string; name: string }[];
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
+  /** Auto for one photo (the photo menu's "Auto"), when the editor offers it. */
+  onAutoEdit?: (photoId: string) => void;
   onImport: () => void;
   onImportFolder: () => void;
   /** Live shoot: watch a folder for new frames, and what is being watched now. */
@@ -155,6 +158,7 @@ export default function Filmstrip({
   moveTargets = [],
   onPasteRecipe,
   onApplyLook,
+  onAutoEdit,
   onImport,
   onImportFolder,
   onWatchFolder,
@@ -225,20 +229,53 @@ export default function Filmstrip({
     if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
   }, []);
 
+  const lastPointerType = useRef('mouse');
+  /** The long press itself: the menu (default) or Select mode, as Settings > Gestures says. */
+  const fireLongPress = (photoId: string, x: number, y: number, action: 'menu' | 'select') => {
+    suppressTouchClick.current = true;
+    if (action === 'select') {
+      // The release of the long press must not count as a tap on the tile: it would put the photo straight back.
+      const swallow = (event: MouseEvent) => { event.stopPropagation(); event.preventDefault(); window.removeEventListener('click', swallow, true); };
+      window.addEventListener('click', swallow, true);
+      window.setTimeout(() => window.removeEventListener('click', swallow, true), 1500);
+      // As the Select button does: Select mode on, and this photo is the first one picked (or put back if it already was).
+      setTouchSelectionMode(true);
+      onSelectPhoto(photoId, { ctrl: true });
+    } else {
+      if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+      setTileMenu({ x, y, photoId });
+    }
+    cancelLongPress();
+  };
+
   const startLongPress = (event: React.PointerEvent<HTMLElement>, photoId: string) => {
+    lastPointerType.current = event.pointerType;
     if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !event.isPrimary || event.button !== 0) return;
     cancelLongPress();
     suppressTouchClick.current = false;
+    // Settings > Gestures: the menu (the default), Select mode, or nothing.
+    const action = readGesture('photoList.longPress');
+    if (action !== 'menu' && action !== 'select') return;
     const { pointerId, clientX: x, clientY: y } = event;
     touchPress.current = { pointerId, x, y, photoId };
     longPressTimer.current = window.setTimeout(() => {
       const press = touchPress.current;
       if (!press || press.pointerId !== pointerId) return;
-      suppressTouchClick.current = true;
-      if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
-      setTileMenu({ x: press.x, y: press.y, photoId });
-      cancelLongPress();
+      fireLongPress(photoId, press.x, press.y, action);
     }, 500);
+  };
+
+  /** The browser's own context-menu event. A mouse's right-click and the Menu key always open the menu. A touch long press
+   * also raises it (Android Chrome), and that is the long-press gesture, so it follows Settings > Gestures like the timer. */
+  const contextMenuAt = (x: number, y: number, photoId: string) => {
+    if (lastPointerType.current === 'touch' || lastPointerType.current === 'pen') {
+      if (suppressTouchClick.current) return; // the long press already acted
+      const action = readGesture('photoList.longPress');
+      if (action === 'menu' || action === 'select') fireLongPress(photoId, x, y, action);
+      return;
+    }
+    if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+    setTileMenu({ x, y, photoId });
   };
 
   const moveLongPress = (event: React.PointerEvent<HTMLElement>) => {
@@ -305,7 +342,7 @@ export default function Filmstrip({
   }, []);
   const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
   const items = useMemo(() => planFilmstrip(visiblePhotos, expandedBursts, openIds), [visiblePhotos, expandedBursts, openIds]);
-  const latest = useRef({ selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress: (_e: React.PointerEvent<HTMLElement>, _id: string) => {}, moveLongPress: (_e: React.PointerEvent<HTMLElement>) => {}, cancelLongPress: () => {} });
+  const latest = useRef({ selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress: (_e: React.PointerEvent<HTMLElement>, _id: string) => {}, contextMenuAt: (_x: number, _y: number, _id: string) => {}, moveLongPress: (_e: React.PointerEvent<HTMLElement>) => {}, cancelLongPress: () => {} });
   const tileActions = useMemo<TileActions>(() => ({
     select: (photoId, modifiers) => latest.current.onSelectPhoto(photoId, modifiers),
     toggleFlag: (photoId) => latest.current.onToggleFlag([photoId]),
@@ -314,6 +351,7 @@ export default function Filmstrip({
       setTileMenu({ x, y, photoId });
     },
     dragIds: (photoId) => draggedPhotoIds(photoId, latest.current.selectedPhotoIds),
+    contextMenu: (x, y, photoId) => latest.current.contextMenuAt(x, y, photoId),
     longPressStart: (event, photoId) => latest.current.startLongPress(event, photoId),
     longPressMove: (event) => latest.current.moveLongPress(event),
     longPressCancel: () => latest.current.cancelLongPress(),
@@ -324,7 +362,7 @@ export default function Filmstrip({
   // setBurstOpen and setTileMenu only call state setters, which never change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
-  latest.current = { selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress, moveLongPress, cancelLongPress };
+  latest.current = { selectedPhotoIds, items, onSelectPhoto, onToggleFlag, startLongPress, contextMenuAt, moveLongPress, cancelLongPress };
 
   // A big project (2,048 photos) draws only the tiles in view, plus a few either side. Small ones draw every tile, as
   // before. Positions come from the tile width measured on screen (a phone draws narrower tiles than the desktop).
@@ -839,29 +877,35 @@ export default function Filmstrip({
               onToggleFlag(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]);
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="flag" size={14} />
             <span>{STRINGS.filmstripLabels.label15}</span>
           </button>
+          {onAutoEdit && menuTargetIds.length === 1 && <button type="button" role="menuitem" data-testid="tile-menu-auto"
+            onClick={() => { onAutoEdit(tileMenu.photoId); setTileMenu(null); }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] pointer-coarse:min-h-11 pointer-coarse:text-sm">
+            <BrandIcon name="assist" size={14} />
+            <span>{STRINGS.autoEdit.label}</span>
+          </button>}
           {onCreateCollage && <button type="button" role="menuitem"
             onClick={() => { onCreateCollage(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label16}
           </button>}
           {onFocusStack && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={stackText.menuHint}
             onClick={() => { onFocusStack(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {stackText.menu(menuTargetIds.length)}
           </button>}
           {onStitchPanorama && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={panoText.menuHint}
             onClick={() => { onStitchPanorama(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
           {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
-            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}
           </button>}
           <button type="button" role="menuitem"
@@ -869,7 +913,7 @@ export default function Filmstrip({
               onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'reject');
               setTileMenu(null);
             }}
-            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label17}
           </button>
           <button type="button" role="menuitem"
@@ -877,7 +921,7 @@ export default function Filmstrip({
               onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'unreviewed');
               setTileMenu(null);
             }}
-            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {STRINGS.filmstripLabels.label18}
           </button>
           {photos.find((p) => p.id === tileMenu.photoId)?.burst?.ungrouped && (
@@ -887,14 +931,14 @@ export default function Filmstrip({
                 if (groupId) onSetBurstGrouped(groupId, true);
                 setTileMenu(null);
               }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
               {STRINGS.bursts.regroup}
             </button>
           )}
           {onMovePhotos && !collageMode && (
             <button type="button" role="menuitem"
               onClick={() => { setMoving(menuTargetIds); setTileMenu(null); }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
               {STRINGS.filmstripLabels.moveMenu}
             </button>
           )}
@@ -904,7 +948,7 @@ export default function Filmstrip({
                 setRemoveConfirm(menuTargetIds);
                 setTileMenu(null);
               }}
-              className="flex w-full px-3 py-2 text-left text-xs text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
+              className="flex w-full px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
               Remove {menuTargetIds.length > 1 ? `${menuTargetIds.length} photos` : 'photo'}…
             </button>
           )}
@@ -921,7 +965,7 @@ export default function Filmstrip({
                     onSetRating(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], rating);
                     setTileMenu(null);
                   }}
-                  className="min-h-8 min-w-7 rounded border border-[var(--border-subtle)] px-1 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                  className="min-h-8 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 rounded border border-[var(--border-subtle)] px-1 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                 >
                   {rating === 0 ? '–' : rating}
                 </button>
@@ -936,7 +980,7 @@ export default function Filmstrip({
               onPasteRecipe();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <BrandIcon name="paste" size={14} />
             <span>{STRINGS.filmstripLabels.label19}</span>
@@ -950,7 +994,7 @@ export default function Filmstrip({
                 if (event.target.value) onApplyLook(tileMenu.photoId, event.target.value);
                 setTileMenu(null);
               }}
-              className="mt-1 h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
+              className="mt-1 h-8 pointer-coarse:h-11 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
             >
               <option value="" disabled>{STRINGS.filmstripLabels.label22}</option>
               {looks.map((look) => <option key={look.id} value={look.id}>{look.name}</option>)}
@@ -963,7 +1007,7 @@ export default function Filmstrip({
               onExportSelected();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs pointer-coarse:min-h-11 pointer-coarse:text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="export" size={14} />
             <span>{STRINGS.filmstripLabels.label23}</span>

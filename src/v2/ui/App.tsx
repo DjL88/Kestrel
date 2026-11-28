@@ -20,6 +20,7 @@ import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
+import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { readCaptionTemplate } from '../../core/captionTemplate';
 import { usePresence } from './shell/usePresence';
@@ -1348,6 +1349,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                     actions.setGridViewOpen(false);
                   }}
                   onToggleFlag={actions.toggleFlag}
+                  onSetDecision={actions.setDecision}
+                  onAutoEdit={!editLocked ? actions.autoEdit : undefined}
                   onSetRating={actions.setRating}
                   onSetFilter={actions.setFilmstripFilter}
                   onSetSearch={actions.setFilmstripSearch}
@@ -1464,6 +1467,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   .map((project) => ({ id: project.id, name: project.name }))}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
+                onAutoEdit={!editLocked ? actions.autoEdit : undefined}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
                 // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot
@@ -1716,6 +1720,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         displayName={signedInName}
         renderPreview={actions.renderGalleryPreview}
+        readOriginal={workflowPreviewOn('cloudOriginals') ? actions.readVerifiedOriginal : undefined}
         usage={accountCloud}
         onTopUp={() => { setStoreCloudOpen(false); actions.setSettingsOpen(true, 'account'); }}
         onChanged={() => setShareVersion((n) => n + 1)}
