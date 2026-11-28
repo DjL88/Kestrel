@@ -10,6 +10,7 @@
     "clean": "rm -rf dist server.js",
     "model:species": "node scripts/fetch-species-model.mjs",
     "models:fetch": "node scripts/fetch-bundled-models.mjs",
+    "models:notices": "node --import tsx scripts/generate-model-notices.ts",
     "audit:words": "node tools/i18n/audit-ui.mjs --words",
     "lint": "node scripts/check-source-parse.mjs && tsc --noEmit",
     "test:e2e": "playwright test",

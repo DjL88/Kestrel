@@ -1,7 +1,7 @@
 # Enhance loop: models and licences (owner policy, 28 Nov 2026)
 
 The loop may use only models that are openly licensed for commercial redistribution, **including their training data**. No weights
-are in Git. Machine-readable copy: `src/core/enhanceModels.ts` (`loopMayUse`). Licences below are as recorded in the repo
+are in Git. Machine-readable copy: `src/core/enhanceModels.ts` (`loopMayUse`). **The licence record is `models/licences.json`** (verdicts from the 28 Nov 2026 audit; generated page `docs/notices/THIRD-PARTY-MODELS.md`). Where this table says `open` but the audit says AMBER or RED, the audit wins: CLIP and SmolVLM2 are AMBER (SmolVLM2 has the biggest training-data question); YOLOX, RF-DETR, DINOv2 and PP-OCRv5 are AMBER (low); U2-Netp, BiRefNet_lite, EfficientSAM-Ti and BioCLIP/BioCLIP 2 are RED; NAFNet-SIDD is AMBER. Licences below are as recorded in the repo
 (`models/README.md`, `docs/notices/`, `src/core/optionalModels.ts`) plus the author's knowledge of the training sets; I could not
 re-read upstream licence texts offline, so "verify" means the owner (or a licence check) must confirm before use.
 

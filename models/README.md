@@ -21,3 +21,13 @@ list changes; the vectors it makes are already committed in `src/assets/subject/
 `onnx/text_model_int8.onnx` from `Xenova/clip-vit-base-patch32` into `tools/subject-router/models/`.
 
 Do not replace a model without updating its checksum in the code and in this table. The app refuses a file that does not match.
+
+## Licence gate: adding a model requires a registry entry and verdict
+
+Owner policy (28 Nov 2026): only openly licensed models may ship. `models/licences.json` is the one source of truth: per model its ids, files,
+feature, code and weights licences, training-data note, verdict (green, amber or red), reason, source URLs, review date and the notice it needs.
+`src/core/modelLicences.test.ts` (part of `npm test`, so CI `check`) scans `src/assets/`, `public/models/`, `models/desktop-packs.json`,
+`models/bundled-models.json`, `src/core/optionalModels.ts`, the model catalogue and update slots, `scripts/models/manifest.json`, `src-tauri` and
+`services/cloud-runner`, and fails when a model has no entry, an entry has no review date or source, or a RED model is in a default installer.
+A RED model may stay in the repo only when it is off by default, out of the default installer packs and marked `shipDefault:false`. After editing the
+registry run `npm run models:notices` to regenerate `docs/notices/THIRD-PARTY-MODELS.md` (AMBER table and the Apache/MIT notices needed).
