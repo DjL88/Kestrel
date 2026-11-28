@@ -117,7 +117,7 @@ export default function CoPilotPanel({
 
       {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
 
-      {cvdGuidance && <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />}
+      {cvdGuidance && <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} {...colourVerdict} />}
 
       {/* Recommendations first: action and advice (Dave, 27 Nov: "This is very useful to show"). */}
       <div className="space-y-2.5" data-testid="copilot-recommendations">
