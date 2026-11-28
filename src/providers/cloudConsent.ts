@@ -1,4 +1,4 @@
-import { CLOUD_CONSENT_UNASKED, CLOUD_CONSENT_VERSION, answerCloudConsent, parseCloudConsent, type CloudConsent } from '../core/cloudConsent';
+import { CLOUD_CONSENT_UNASKED, answerCloudConsent, parseCloudConsent, type CloudConsent } from '../core/cloudConsent';
 
 /** This device's answer to "Use InFlight's cloud for this?" (src/core/cloudConsent.ts). */
 export const CLOUD_CONSENT_KEY = 'kestrel.cloudConsent.v1';
@@ -14,13 +14,9 @@ export function readStoredCloudConsent(storage: Store = defaultStore()): CloudCo
   } catch { return CLOUD_CONSENT_UNASKED; }
 }
 
-/**
- * The answer in force. A paying plan (Basic or Pro) is pre-opted-in: an unasked answer counts as yes for them, shown
- * to the person with a first-use notice and a visible off switch. An explicit no always wins.
- */
-export function readCloudConsent(storage: Store = defaultStore(), opts: { paying?: boolean } = {}): CloudConsent {
-  const stored = readStoredCloudConsent(storage);
-  return stored.answer === 'unasked' && opts.paying ? { answer: 'yes', version: CLOUD_CONSENT_VERSION } : stored;
+/** Entitlement is not consent. Only a valid, explicitly stored answer is in force. */
+export function readCloudConsent(storage: Store = defaultStore()): CloudConsent {
+  return readStoredCloudConsent(storage);
 }
 
 /**

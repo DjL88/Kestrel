@@ -1,4 +1,4 @@
-import { formatUploadSize, parseCloudRecipe, planRecipeUpload, recipeIsEmpty, CLOUD_RECIPE_PREVIEW_EDGE,
+import { formatUploadSize, parseCloudRecipe, planRecipeUpload, recipeIsEmpty, CLOUD_RECIPE_PREVIEW_EDGE, FULL_FILE_CONSENT_OFF,
   type CloudRecipe, type FullFileConsent, type RecipeUploadOption, type RecipeUploadPlan, type TransferEstimate } from '../../core/cloudRecipe';
 import type { EditWhy } from '../../core/editHistory';
 import type { PhotoEdit } from '../../core/photoEdits';
@@ -37,7 +37,7 @@ export interface CloudRecipeOffer {
   previewSource?: PreviewSource;
 }
 
-interface Prepared { offer: CloudRecipeOffer; blobs: Partial<Record<RecipeUploadOption['kind'], Blob>>; previewSource: PreviewSource }
+interface Prepared { offer: CloudRecipeOffer; blobs: Partial<Record<RecipeUploadOption['kind'], Blob>>; previewSource: PreviewSource; previewOnly: boolean }
 
 const dimensions = (frame: Pick<PhotoFrame, 'exif'>) => ({ width: frame.exif?.width, height: frame.exif?.height });
 const previewMegapixels = (frame: Pick<PhotoFrame, 'exif'>) => {
@@ -57,8 +57,10 @@ export const describeOption = (option: RecipeUploadOption, previewSource: Previe
   `${formatUploadSize(option.bytes)} ${option.kind === 'original' ? 'full original' : previewSource === 'copy' ? 'preview copy (2,560 px at most)' : 'smart preview'}`;
 
 export async function prepareCloudRecipe(
-  frame: PhotoFrame, sources: RecipeSources, fullFile: FullFileConsent, estimate: TransferEstimate = {},
+  frame: PhotoFrame, sources: RecipeSources, fullFile: FullFileConsent, estimate: TransferEstimate = {}, previewOnly = false,
 ): Promise<Prepared> {
+  // A project batch promises previews only, even if manual full-file permission was granted earlier.
+  if (previewOnly) fullFile = FULL_FILE_CONSENT_OFF;
   const smart = await sources.smartPreview(frame).catch(() => null);
   const copy = smart && smart.size > 0 ? null : await sources.previewCopy?.(frame).catch(() => null) ?? null;
   const preview = smart && smart.size > 0 ? smart : copy;
@@ -77,7 +79,7 @@ export async function prepareCloudRecipe(
     offer.sendLabel = describeOption(plan.send, previewSource);
     if (plan.alternative) offer.alternativeLabel = describeOption(plan.alternative, previewSource);
   }
-  return { offer, blobs, previewSource };
+  return { offer, blobs, previewSource, previewOnly };
 }
 
 /** inputDeleted: the service confirmed it deleted its copy of the picture when the job ended. */
@@ -91,12 +93,14 @@ export type CloudRecipeOutcome =
  * opt-in, and the opt-in is checked again here in case it was withdrawn while the offer was open.
  */
 export async function sendCloudRecipe(
-  prepared: Prepared, choice: 'send' | 'alternative', fullFile: FullFileConsent, service: CloudRecipeService, signal?: AbortSignal,
+  prepared: Prepared, choice: 'send' | 'alternative', fullFile: FullFileConsent, service: CloudRecipeService, signal?: AbortSignal, previewOnly = false,
 ): Promise<CloudRecipeOutcome> {
+  signal?.throwIfAborted();
   const { plan } = prepared.offer;
   if (plan.status !== 'ready') throw new Error('There is nothing to send for this photo.');
   const option = choice === 'alternative' ? plan.alternative : plan.send;
   if (!option) throw new Error('That choice is not available for this photo.');
+  if (option.kind === 'original' && (previewOnly || prepared.previewOnly)) throw new Error('Cloud edit batches only send previews. Nothing was sent.');
   if (option.kind === 'original' && !fullFile.on) throw new Error('Sending full originals is switched off in Settings.');
   const blob = prepared.blobs[option.kind];
   if (!blob || blob.size !== option.bytes) throw new Error('The picture changed after its size was shown. Nothing was sent.');
