@@ -150,6 +150,7 @@ export const pt: AreaTranslation<typeof source> = {
     editMenu: 'Editar',
     viewMenu: 'Ver',
     exportButton: 'Exportar',
+    exportAgainShort: 'Outra vez',
     assistModes: { solo: 'Solo', copilot: 'Copiloto', autopilot: 'Piloto automático' },
     assistModeHints: { solo: "Você edita. O InFlight nunca altera a sua fotografia e dá conselhos quando você pede.", copilot: "O InFlight faz sozinho as alterações pequenas e seguras e deixa as decisões de edição com você. Tudo o resto é uma sugestão.", autopilot: "O InFlight faz por você e diz por quê. O que for incerto fica à sua espera, e Desfazer reverte qualquer alteração." },
     fileActions: {

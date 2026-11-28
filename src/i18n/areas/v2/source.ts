@@ -149,6 +149,7 @@ export const source = {
     editMenu: 'Edit',
     viewMenu: 'View',
     exportButton: 'Export',
+    exportAgainShort: 'Again',
     assistModes: {
       solo: 'Solo',
       copilot: 'Co-pilot',

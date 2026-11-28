@@ -74,54 +74,14 @@ test('?v2 footer logo is a modest size', async ({ page }) => {
   expect(box?.height ?? 0).toBeGreaterThan(20);
 });
 
-test('?v2 zoom controls stay put while the picture scrolls, can be moved, and dock again', async ({ page }) => {
-  await page.goto('/?v2');
-  await page.evaluate(() => { try { localStorage.removeItem('inflight.v2.zoomBarOffset'); } catch { /* ignore */ } });
+test('?v2 zoom controls sit in the info bar under the photo, every button with a visible word', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: 'New project' }).first().click();
-  await page.getByLabel(/name/i).first().fill('Zoom bar');
-  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
-  const image = await page.evaluate(() => {
-    const canvas = document.createElement('canvas'); canvas.width = 1600; canvas.height = 1100;
-    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#586b82'; ctx.fillRect(0, 0, 1600, 1100); ctx.fillStyle = '#c9a36b'; ctx.fillRect(300, 200, 600, 400);
-    return canvas.toDataURL('image/png').split(',')[1];
-  });
-  const chooser = page.waitForEvent('filechooser');
-  await root.getByRole('button', { name: /^Import/ }).first().click();
-  await (await chooser).setFiles([{ name: 'zoom-bar.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
-  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
-
   const bar = root.getByTestId('canvas-viewport-controls');
-  await expect(bar).toHaveAttribute('data-docked', 'true');
-  const docked = (await bar.boundingBox())!;
-  // Zoom right in and scroll the picture: the bar does not travel with it.
-  for (let i = 0; i < 6; i += 1) await bar.getByRole('button', { name: 'Zoom in' }).click();
-  const scrolled = await root.locator('[data-testid="canvas-frame"]').evaluate((frame) => {
-    let el: HTMLElement | null = frame.parentElement;
-    while (el && !(el.scrollHeight > el.clientHeight + 4 && getComputedStyle(el).overflowY !== 'visible')) el = el.parentElement;
-    if (!el) return false;
-    el.scrollTop = el.scrollHeight; el.scrollLeft = el.scrollWidth; return el.scrollTop > 0;
-  });
-  expect(scrolled).toBe(true);
-  const afterScroll = (await bar.boundingBox())!;
-  expect(Math.abs(afterScroll.x - docked.x)).toBeLessThan(1);
-  expect(Math.abs(afterScroll.y - docked.y)).toBeLessThan(1);
-
-  // Undock: drag the grip up and to the left.
-  const grip = bar.getByTestId('zoom-bar-grip');
-  const g = (await grip.boundingBox())!;
-  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(g.x - 200, g.y - 150, { steps: 8 });
-  await page.mouse.up();
-  await expect(bar).toHaveAttribute('data-docked', 'false');
-  const moved = (await bar.boundingBox())!;
-  expect(docked.x - moved.x).toBeGreaterThan(150);
-  expect(docked.y - moved.y).toBeGreaterThan(100);
-  // The place is kept across a reload of the page view.
-  expect(await page.evaluate(() => localStorage.getItem('inflight.v2.zoomBarOffset'))).toMatch(/"right":\d+/);
-  // Home on the grip docks it again.
-  await grip.focus();
-  await page.keyboard.press('Home');
-  await expect(bar).toHaveAttribute('data-docked', 'true');
+  await expect(bar).toBeVisible();
+  await expect(root.getByTestId('canvas-status').getByTestId('canvas-viewport-controls')).toHaveCount(1);
+  for (const button of await bar.getByRole('button').all()) {
+    expect(((await button.innerText()) || '').trim().length, 'a button with no visible text').toBeGreaterThan(0);
+  }
+  await expect(root.getByTestId('zoom-bar-grip')).toHaveCount(0);
 });

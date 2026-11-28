@@ -150,6 +150,7 @@ export const sv: AreaTranslation<typeof source> = {
     editMenu: 'Redigera',
     viewMenu: 'Visa',
     exportButton: 'Exportera',
+    exportAgainShort: 'Igen',
     assistModes: { solo: 'Solo', copilot: 'Andrepilot', autopilot: 'Autopilot' },
     assistModeHints: { solo: "Du redigerar själv. InFlight ändrar aldrig ditt foto och ger råd när du ber om det.", copilot: "InFlight gör små, säkra ändringar själv och lämnar redigeringsbesluten åt dig. Allt annat är ett förslag.", autopilot: "InFlight gör det åt dig och säger varför. Det den är osäker på väntar på dig, och Ångra tar tillbaka varje ändring." },
     fileActions: {

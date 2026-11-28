@@ -150,6 +150,7 @@ export const nb: AreaTranslation<typeof source> = {
     editMenu: 'Rediger',
     viewMenu: 'Vis',
     exportButton: 'Eksporter',
+    exportAgainShort: 'Igjen',
     assistModes: { solo: 'Solo', copilot: 'Andrepilot', autopilot: 'Autopilot' },
     assistModeHints: { solo: "Du redigerer selv. InFlight endrer aldri bildet ditt og gir råd når du ber om det.", copilot: "InFlight gjør små, trygge endringer selv og overlater redigeringsvalgene til deg. Alt annet er et forslag.", autopilot: "InFlight gjør det for deg og sier hvorfor. Det den er usikker på, venter på deg, og Angre tar tilbake enhver endring." },
     fileActions: {

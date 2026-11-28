@@ -150,6 +150,7 @@ export const nl: AreaTranslation<typeof source> = {
     editMenu: 'Bewerken',
     viewMenu: 'Beeld',
     exportButton: 'Exporteren',
+    exportAgainShort: 'Opnieuw',
     assistModes: { solo: 'Solo', copilot: 'Copiloot', autopilot: 'Automatische piloot' },
     assistModeHints: { solo: "Jij bewerkt zelf. InFlight verandert je foto nooit en geeft advies als je erom vraagt.", copilot: "InFlight doet kleine, veilige wijzigingen zelf en laat de bewerkbeslissingen aan jou. Al het andere is een voorstel.", autopilot: "InFlight doet het voor je en zegt waarom. Wat het niet zeker weet, wacht op jou, en Ongedaan maken draait elke wijziging terug." },
     fileActions: {

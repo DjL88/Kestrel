@@ -150,6 +150,7 @@ export const cy: AreaTranslation<typeof source> = {
     editMenu: 'Golygu',
     viewMenu: 'Gweld',
     exportButton: 'Allforio',
+    exportAgainShort: 'Eto',
     assistModes: { solo: 'Unigol', copilot: 'Cyd-beilot', autopilot: 'Awtobeilot' },
     assistModeHints: { solo: "Chi sy'n golygu. Nid yw InFlight byth yn newid eich llun, ac mae'n rhoi cyngor pan fyddwch yn gofyn.", copilot: "Mae InFlight yn gwneud newidiadau bach, diogel ei hun ac yn gadael y penderfyniadau golygu i chi. Awgrym yw popeth arall.", autopilot: "Mae InFlight yn ei wneud i chi ac yn dweud pam. Mae unrhyw beth ansicr yn aros amdanoch, ac mae Dadwneud yn dileu unrhyw newid." },
     fileActions: {

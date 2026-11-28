@@ -150,6 +150,7 @@ export const de: AreaTranslation<typeof source> = {
     editMenu: 'Bearbeiten',
     viewMenu: 'Ansicht',
     exportButton: 'Exportieren',
+    exportAgainShort: 'Erneut',
     assistModes: { solo: 'Solo', copilot: 'Co-Pilot', autopilot: 'Autopilot' },
     assistModeHints: { solo: "Sie bearbeiten selbst. InFlight verändert Ihr Foto nie und gibt Rat, wenn Sie danach fragen.", copilot: "InFlight nimmt kleine, sichere Änderungen selbst vor und überlässt Ihnen die Entscheidungen über die Bearbeitung. Alles andere ist ein Vorschlag.", autopilot: "InFlight erledigt es für Sie und sagt, warum. Was unsicher ist, wartet auf Sie, und Rückgängig nimmt jede Änderung zurück." },
     fileActions: {

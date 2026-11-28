@@ -150,6 +150,7 @@ export const da: AreaTranslation<typeof source> = {
     editMenu: 'Rediger',
     viewMenu: 'Vis',
     exportButton: 'Eksportér',
+    exportAgainShort: 'Igen',
     assistModes: { solo: 'Solo', copilot: 'Andenpilot', autopilot: 'Autopilot' },
     assistModeHints: { solo: "Du redigerer selv. InFlight ændrer aldrig dit foto og giver råd, når du beder om det.", copilot: "InFlight foretager små, sikre ændringer selv og overlader beslutningerne om redigering til dig. Alt andet er et forslag.", autopilot: "InFlight gør det for dig og fortæller hvorfor. Det, den er usikker på, venter på dig, og Fortryd tager enhver ændring tilbage." },
     fileActions: {
