@@ -239,7 +239,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPricing(), loadPriceReview(), loadSafety(), loadCompliance(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPricing(), loadPriceReview(), loadSafety(), loadCompliance(), loadV2Proto(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
   if (!token) return;
   renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
@@ -253,6 +253,7 @@ act($('refresh-all'), 'click', async () => { await refreshAll(); say(''); });
 const PAGE_INTRO = {
   today: '',
   switches: 'Turn InFlight’s online services on or off.',
+  publish: 'Choose which version the private V2Proto preview shows. It changes only when you press Publish.',
   people: 'Give people Pro, see who has a licence, and free or cancel devices.',
   money: 'What people paid, refunds owed, each month’s figures, and the prices.',
   messages: 'Messages from the website, reports about shared galleries, and news to everyone.',
@@ -1042,6 +1043,47 @@ act(newsForm, 'submit', async (e) => {
     (r.emailWaiting ? r.emailWaiting + ' email(s) waiting' + (r.emailLimitReached ? ' because today’s email limit was reached' : '') + ': send again with the same reference tomorrow. ' : '') +
     (r.notTried ? r.notTried + ' not tried yet: send again with the same reference. ' : '') + 'Reference ' + r.broadcastId + '.';
 });
+
+// ---- Publish to V2Proto ---------------------------------------------------------------------------------------
+
+const BUILD_WORDS = { queued: 'Waiting to start', building: 'Building', done: 'Done: V2Proto now shows it', failed: 'Failed', unknown: 'Not known yet' };
+const CI_WORDS = { green: ['Passed', 'good'], red: ['Failed', 'bad'], pending: ['Still running', 'quiet'], unknown: ['Not known', 'quiet'] };
+let v2protoTimer;
+
+async function loadV2Proto() {
+  clearTimeout(v2protoTimer);
+  let v;
+  try { v = await lookUp('admin/v2proto'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('v2proto-unavailable').hidden = false; $('v2proto-body').hidden = true; return;
+  }
+  $('v2proto-unavailable').hidden = true; $('v2proto-body').hidden = false;
+  const last = v.last;
+  $('v2proto-last').textContent = last
+    ? BUILD_WORDS[last.state] + '. Commit ' + last.sha.slice(0, 7) + ' (' + last.message + '), published ' + when(last.atMs) + ' by account ' + last.by.slice(0, 8) + '.' + (last.reason ? ' ' + last.reason : '')
+    : 'Nothing published from here yet.';
+  $('v2proto-problem').hidden = !v.unavailable;
+  if (v.unavailable) $('v2proto-problem').textContent = v.reason;
+  const running = last && (last.state === 'queued' || last.state === 'building');
+  $('v2proto-table').tBodies[0].replaceChildren(...v.commits.map(c => {
+    const row = el('tr');
+    cell(row, code(c.sha.slice(0, 7)) );
+    const what = el('div'); what.append(el('div', c.message), el('div', when(c.committedAtMs) + (c.sha === v.latestGreenSha ? ' · latest green commit' : ''), 'muted'));
+    cell(row, what);
+    cell(row, badge(CI_WORDS[c.ci][0], CI_WORDS[c.ci][1]));
+    const publish = button('Publish', 'Publish commit ' + c.sha.slice(0, 7) + ' to V2Proto', '', async () => {
+      const ok = await ask('Publish commit ' + c.sha.slice(0, 7) + ' (' + c.message + ') to V2Proto? This changes only the private V2Proto preview that only you can open. The public website, downloads, updater and app stores are not touched.', { yes: 'Publish to V2Proto' });
+      if (!ok) return;
+      await api('admin/v2proto/publish', { sha: c.sha, confirmedSha: c.sha });
+      say('Started. V2Proto will show commit ' + c.sha.slice(0, 7) + ' when the build is done.');
+      await Promise.all([loadV2Proto(), loadAudit()]);
+    });
+    if (c.ci !== 'green' || running) publish.disabled = true;
+    cell(row, publish);
+    return row;
+  }));
+  if (running) v2protoTimer = setTimeout(() => { loadV2Proto().catch(() => {}); }, 20_000);
+}
 
 // ---- Compliance documents ------------------------------------------------------------------------------------
 

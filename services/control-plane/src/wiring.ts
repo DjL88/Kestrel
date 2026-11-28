@@ -27,6 +27,7 @@ import { SafetyService } from './contentSafety.ts';
 import { FirestoreMailLedger, Mailer, SmtpTransport, isMailAddress, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
 import { NoticeContacts, identityToolkitLookup, type FirebaseUserLookup } from './noticeContacts.ts';
 import { NewsBroadcaster } from './news.ts';
+import { cloudBuildHost, githubSource } from './v2protoPublish.ts';
 
 export interface WiringDeps {
   firestore?: FirestoreLike;
@@ -41,8 +42,11 @@ export interface WiringDeps {
   pushSender?: PushSender;
   /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
   firebaseUsers?: FirebaseUserLookup;
+  /** Tests: fake GitHub and Cloud Build. */
+  githubFetch?: typeof fetch;
+  cloudBuildFetch?: typeof fetch;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'contactNotify' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'contactNotify' | 'cloudBalance' | 'vertexLearning' | 'safety' | 'compliance' | 'v2protoPublish'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -137,6 +141,14 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   if (env.KCP_COMPLIANCE_BUCKET) {
     out.compliance = new ComplianceDocuments(new GcsComplianceStorage(await open(env.KCP_COMPLIANCE_BUCKET) as GcsListingBucketLike));
     out.enabled.push('compliance-documents');
+  }
+  // Publish to V2Proto from /admin (v2protoPublish.ts, infra/gcp/v2proto-publish.tf). Needs the repository, a read-only GitHub
+  // token (Secret Manager, never the repository) and the V2Proto-only Cloud Build trigger. Absent: the page says it is not set up.
+  if (env.KCP_V2PROTO_REPO && env.KCP_V2PROTO_PROJECT && env.KCP_V2PROTO_TRIGGER_ID && env.KCP_V2PROTO_GITHUB_TOKEN_SECRET) {
+    const token = deps.token ?? (() => metadataAccessToken());
+    const source = githubSource(env.KCP_V2PROTO_REPO, secretManagerValue(env.KCP_V2PROTO_GITHUB_TOKEN_SECRET, token), deps.githubFetch);
+    out.v2protoPublish = { source, builds: cloudBuildHost({ project: env.KCP_V2PROTO_PROJECT, triggerId: env.KCP_V2PROTO_TRIGGER_ID }, token, deps.cloudBuildFetch) };
+    out.enabled.push('v2proto-publish');
   }
   if (env.KCP_SAFE_COPY_BUCKET) {
     out.safeCopy = {
