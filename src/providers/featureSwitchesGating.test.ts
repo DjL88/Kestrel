@@ -17,12 +17,15 @@ const store = (): PackStore => ({ get: async () => undefined, has: async () => f
 test('a switched-off pack is hidden, never downloaded (no request), and comes back when switched on', async () => {
   const calls: string[] = [];
   const deps: PackDeps = { store: store(), fetch: (async (u: string) => { calls.push(u); return new Response(new Blob([payload as BlobPart]).stream()); }) as unknown as typeof fetch };
+  // Red models are off by default in beta builds: hidden until the owner switches them on.
+  assert.equal(await optionalModelStatus(pack, deps), 'unavailable');
+  setOwnerSwitches(parseSwitchDoc({ 'fine-edge-mask': { device: true } }));
   assert.equal(await optionalModelStatus(pack, deps), 'not-downloaded');
   off('fine-edge-mask');
   assert.equal(await optionalModelStatus(pack, deps), 'unavailable');
   await assert.rejects(downloadOptionalModel(pack, () => undefined, undefined, deps), /not offered/);
   assert.deepEqual(calls, []);
-  setOwnerSwitches(parseSwitchDoc({}));
+  setOwnerSwitches(parseSwitchDoc({ 'fine-edge-mask': { device: true } }));
   assert.equal(await optionalModelStatus(pack, deps), 'not-downloaded');
 });
 
@@ -39,4 +42,18 @@ test('a switched-off second opinion makes no request and says so calmly', async 
   await assert.rejects(askForReview(settings, 'v1', 'p', 'AAAA', undefined, (async () => { called = true; return new Response('{}'); }) as unknown as typeof fetch),
     (e: unknown) => e instanceof AiReviewError && e.reason === 'switchedOff');
   assert.equal(called, false);
+});
+
+test('offline with no list at all, the red models never start or fetch anything, and the fallbacks stay calm', async () => {
+  setOwnerSwitches(null);
+  for (const id of ['u2netp', 'bioclip-image-int8', 'efficientsam-ti-fp16.encoder', 'birefnet-lite-w16']) {
+    await assert.rejects(createOffThreadSession(id, new Uint8Array([1]), { startWorker: null }), (e: unknown) => e instanceof SwitchedOffError && e.message === 'This is not available right now.', id);
+  }
+  // The amber/green models and their loaders are untouched by the red defaults.
+  const session = await createOffThreadSession('dinov2-small-fp16', new Uint8Array([1]), { startWorker: null }).catch((e: unknown) => e);
+  assert.ok(!(session instanceof SwitchedOffError));
+  // Species: hidden (no download, no suggestion), so the person picks from the nearby-species list.
+  const { speciesStatus, downloadSpeciesModel } = await import('./speciesModel.ts');
+  assert.equal(await speciesStatus(), 'unavailable');
+  await assert.rejects(downloadSpeciesModel(() => undefined), /not set up/);
 });

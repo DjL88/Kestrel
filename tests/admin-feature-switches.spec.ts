@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-// /admin → Switches → Model and AI features: a calm table with in-app and cloud switches, a confirm step, reset. The endpoint is stubbed.
+// /admin → Switches → Model features: a calm table with in-app and cloud switches, a confirm step, reset. The endpoint is stubbed.
 let server: Server;
 let origin: string;
 test.beforeAll(async () => {
@@ -12,11 +12,11 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise((resolve) => server.close(resolve)); });
 
-type Row = { id: string; name: string; device: { applies: boolean; on: boolean }; cloud: { applies: boolean; on: boolean }; changedAtMs: number | null };
+type Row = { id: string; name: string; device: { applies: boolean; on: boolean; default: boolean }; cloud: { applies: boolean; on: boolean; default: boolean }; changedAtMs: number | null };
 const rows = (): Row[] => [
-  { id: 'species-id', name: 'Species identification', device: { applies: true, on: true }, cloud: { applies: false, on: true }, changedAtMs: null },
-  { id: 'cloud-processing', name: 'Cloud processing', device: { applies: true, on: true }, cloud: { applies: true, on: true }, changedAtMs: null },
-].map((r) => ({ ...r, description: 'Describes ' + r.name, owner: 'Owner', offEffect: 'Turning ' + r.name + ' off hides it.', scopes: [], changedBy: 'owner-account-1', ...{} }) as never);
+  { id: 'species-id', name: 'Species identification', device: { applies: true, on: true, default: true }, cloud: { applies: false, on: true, default: true }, changedAtMs: null },
+  { id: 'cloud-processing', name: 'Cloud processing', device: { applies: true, on: true, default: true }, cloud: { applies: true, on: true, default: true }, changedAtMs: null },
+].map((r) => ({ ...r, description: 'Describes ' + r.name, owner: 'Owner', offEffect: 'Turning ' + r.name + ' off hides it.', scopes: [], licence: { verdict: r.id === 'species-id' ? 'red' : 'green', reason: 'Audit reason for ' + r.name, reportDate: '2026-11-28' }, changedBy: 'owner-account-1', ...{} }) as never);
 
 async function open(page: Page, failList = false) {
   const state = rows();
@@ -58,7 +58,9 @@ test('each switch asks first, says what off does, and can be reset', async ({ pa
   const section = page.locator('#feature-switches');
   await expect(section.getByText('Species identification', { exact: true })).toBeVisible();
   await expect(section.getByText('Not used')).toBeVisible();
-  await expect(section.getByRole('button', { name: 'Reset Species identification to its default (on)' })).toBeDisabled();
+  await expect(section.getByText('Licence: red')).toBeVisible();
+  await expect(section.getByText('Audit reason for Species identification (audit 2026-11-28)')).toBeVisible();
+  await expect(section.getByRole('button', { name: 'Reset Species identification to its default' })).toBeDisabled();
 
   // Going back sends nothing.
   await section.getByRole('button', { name: 'Turn off Cloud processing cloud' }).click();
@@ -81,7 +83,7 @@ test('each switch asks first, says what off does, and can be reset', async ({ pa
   await ask.getByRole('button', { name: 'Go back' }).click();
 
   // Reset asks, then puts both back.
-  await section.getByRole('button', { name: 'Reset Cloud processing to its default (on)' }).click();
+  await section.getByRole('button', { name: 'Reset Cloud processing to its default' }).click();
   await ask.getByRole('button', { name: 'Reset to default' }).click();
   await expect(section.getByRole('button', { name: 'Turn off Cloud processing cloud' })).toBeVisible();
   expect(posts.at(-1)).toEqual({ path: '/v1/admin/feature-switches/reset', body: { id: 'cloud-processing' } });

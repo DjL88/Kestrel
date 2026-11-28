@@ -1039,6 +1039,11 @@ async function loadFeatureSwitches() {
   $('feature-switches-table').tBodies[0].replaceChildren(...list.map(f => {
     const row = el('tr');
     const what = el('div'); what.append(el('strong', f.name), el('div', f.description, 'muted'), el('div', 'If off: ' + f.offEffect, 'muted'));
+    if (f.licence) {
+      const verdict = { green: ['Licence: green', 'good'], amber: ['Licence: amber', 'quiet'], red: ['Licence: red', 'bad'] }[f.licence.verdict];
+      const note = el('div'); note.append(badge(verdict[0], verdict[1]), ' ', el('span', f.licence.reason + ' (audit ' + f.licence.reportDate + ')' + (f.device.default === false ? ' Off by default in beta builds.' : ''), 'muted'));
+      what.append(note);
+    }
     cell(row, what);
     for (const scope of ['device', 'cloud']) {
       const state = f[scope];
@@ -1049,7 +1054,7 @@ async function loadFeatureSwitches() {
       const label = (turnOn ? 'Turn on ' : 'Turn off ') + f.name + ' ' + SCOPE_WORDS[scope];
       box.append(button(turnOn ? 'Turn on' : 'Turn off', label, turnOn ? '' : 'danger', async () => {
         const sure = await ask((turnOn ? 'Turn on ' : 'Turn off ') + f.name + ' (' + SCOPE_WORDS[scope] + ')? ' +
-          (turnOn ? 'It goes back to working as shipped' : f.offEffect) + (scope === 'device' ? ' Installed apps follow this the next time they refresh.' : ' This takes effect on the server straight away.'),
+          (turnOn ? 'It will be available to people again' : f.offEffect) + (scope === 'device' ? ' Installed apps follow this the next time they refresh.' : ' This takes effect on the server straight away.'),
           { yes: turnOn ? 'Turn on' : 'Turn off', danger: !turnOn });
         if (!sure) return;
         await api('admin/feature-switches/set', { id: f.id, scope, on: turnOn });
@@ -1058,10 +1063,10 @@ async function loadFeatureSwitches() {
       }));
       cell(row, box);
     }
-    cell(row, el('span', f.changedAtMs ? when(f.changedAtMs) + ' by account ' + String(f.changedBy).slice(0, 8) : 'Never: default (on)', 'muted'));
-    const changed = ['device', 'cloud'].some(s => f[s].applies && !f[s].on) || f.changedAtMs;
-    const reset = button('Reset to default', 'Reset ' + f.name + ' to its default (on)', '', async () => {
-      if (!(await ask('Reset ' + f.name + ' to its default? Both switches go back to on, as shipped.', { yes: 'Reset to default' }))) return;
+    cell(row, el('span', f.changedAtMs ? when(f.changedAtMs) + ' by account ' + String(f.changedBy).slice(0, 8) : 'Never: default', 'muted'));
+    const changed = ['device', 'cloud'].some(s => f[s].applies && f[s].on !== f[s].default) || f.changedAtMs;
+    const reset = button('Reset to default', 'Reset ' + f.name + ' to its default', '', async () => {
+      if (!(await ask('Reset ' + f.name + ' to its default? Both switches go back to their defaults (on, except licence-red models, which stay off).', { yes: 'Reset to default' }))) return;
       await api('admin/feature-switches/reset', { id: f.id });
       await Promise.all([loadFeatureSwitches(), loadAudit()]);
       say(f.name + ' is back to its default.');

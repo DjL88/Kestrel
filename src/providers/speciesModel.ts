@@ -1,3 +1,4 @@
+import { ownerSwitchOff } from '../core/featureSwitches';
 import { createTimedSession } from './modelTiming';
 import { Sha256Stream, sha256Hex } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
@@ -31,7 +32,8 @@ let worldLoading: Promise<SpeciesLabel[]> | null = null;
 
 /** Is the feature set up, and has the model been downloaded to this device? Never throws. */
 export async function speciesStatus(): Promise<SpeciesStatus> {
-  if (!SPECIES_MODEL.url) return 'unavailable';
+  // Owner switch (featureSwitches.ts): hidden, not downloaded, not loaded. The person picks from the nearby-species list.
+  if (!SPECIES_MODEL.url || ownerSwitchOff('species-id')) return 'unavailable';
   // Desktop builds include the checked ONNX file in their assets. No second
   // download or user permission is necessary after installing the app.
   if (isDesktopApp() && SPECIES_MODEL.bundled) return 'ready';
@@ -43,7 +45,7 @@ export async function speciesStatus(): Promise<SpeciesStatus> {
 
 /** Download the model once, check it, and keep it on this device for offline use. */
 export async function downloadSpeciesModel(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
-  if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of InFlight.');
+  if (!SPECIES_MODEL.url || ownerSwitchOff('species-id')) throw new Error('Species suggestions are not set up in this copy of InFlight.');
   try {
     // The subject checker first: a browser never has species names without the check that keeps aircraft from them.
     const gateShare = GATE_MODEL.bytes / SPECIES_DOWNLOAD_BYTES;

@@ -1,7 +1,7 @@
 /** Everything the control-plane routes share: the store, limiters, sign-in, quotas and service gates. Built once per app. */
 import { dayKey, daysToSettle, freeStorageFor, settleStorageDays, storageAllowsUpload } from './cloudStorageBilling.ts';
 import { OWNED_GRANT_FLAG, type EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
-import { switchableFeature, type SwitchDoc, type SwitchScope } from '../../../src/core/featureSwitches.ts';
+import { defaultOn, switchableFeature, type SwitchDoc, type SwitchScope } from '../../../src/core/featureSwitches.ts';
 import { parseFlagSet, resolveFlagsForGrant, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { MergeRefusal } from './accountMerge.ts';
@@ -536,18 +536,19 @@ export function createContext(options: AppOptions) {
   /** What the signed public list carries: only what is off, with no names or times. */
   async function publicSwitchDoc(): Promise<SwitchDoc> {
     const rec = await loadFeatureSwitches();
-    const out: Record<string, Partial<Record<SwitchScope, false>>> = {};
+    // Explicit choices only, true or false: an owner "on" must reach apps whose built-in default is off (licence-red models).
+    const out: Record<string, Partial<Record<SwitchScope, boolean>>> = {};
     for (const [id, v] of Object.entries(rec)) {
-      const e: Partial<Record<SwitchScope, false>> = {};
-      if (v.device === false) e.device = false;
-      if (v.cloud === false) e.cloud = false;
+      const e: Partial<Record<SwitchScope, boolean>> = {};
+      if (typeof v.device === 'boolean') e.device = v.device;
+      if (typeof v.cloud === 'boolean') e.cloud = v.cloud;
       if (Object.keys(e).length) out[id] = e;
     }
     return out;
   }
   /** The cloud scope is enforced here, on every request that would start work. Unknown or unset means on. */
   async function cloudSwitchedOff(id: string): Promise<boolean> {
-    return (await loadFeatureSwitches())[id]?.cloud === false;
+    return ((await loadFeatureSwitches())[id]?.cloud ?? defaultOn(id)) === false;
   }
   async function grantFlagsFor(audience: Audience, deviceHash: string, appVersion: string, nowMs: number): Promise<Pick<EntitlementGrant, 'flags'>> {
     const flags = await loadFlags();

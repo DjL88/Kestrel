@@ -3,6 +3,9 @@ import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 import { MODEL_SLOTS } from '../core/modelUpdatePolicy.ts';
 import { canonicalJson } from '../core/signedEnvelope.ts';
+import { parseSwitchDoc, setOwnerSwitches } from '../core/featureSwitches.ts';
+// These tests are about checksums and fallbacks, not licences: the owner has switched the red mask model on for them.
+setOwnerSwitches(parseSwitchDoc({ 'subject-mask-model': { device: true }, 'species-id': { device: true } }));
 import { ModelUpdater, type ModelStoreLike } from './modelUpdater.ts';
 
 const b64 = (b: ArrayBuffer) => Buffer.from(b).toString('base64');

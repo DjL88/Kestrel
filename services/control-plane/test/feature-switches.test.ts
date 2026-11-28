@@ -17,7 +17,7 @@ const publicSwitches = async (h: Harness) => {
 test('only the owner can read, change or reset switches; refusals are audited and change nothing', async () => {
   const h = await startHarness();
   try {
-    assert.equal((await set(h, { id: 'species-id', scope: 'device', on: false }, h.user.token)).status, 403);
+    assert.equal((await set(h, { id: 'species-id', scope: 'device', on: true }, h.user.token)).status, 403);
     assert.equal((await h.call('GET', '/v1/admin/feature-switches', { token: h.user.token })).status, 403);
     assert.equal((await h.call('POST', '/v1/admin/feature-switches/reset', { token: h.user.token, body: { id: 'species-id' } })).status, 403);
     assert.equal((await h.call('GET', '/v1/admin/feature-switches')).status, 401);
@@ -27,28 +27,31 @@ test('only the owner can read, change or reset switches; refusals are audited an
   } finally { await h.close(); }
 });
 
-test('every change and reset is audited, defaults are on, and the signed public list carries only what is off', async () => {
+test('every change and reset is audited, defaults come from the licence audit, and the signed list carries explicit choices only', async () => {
   const h = await startHarness();
   try {
     const first = await h.call('GET', '/v1/admin/feature-switches', { token: h.adminToken });
-    const species = first.body.features.find((f: { id: string }) => f.id === 'species-id');
-    assert.deepEqual([species.device.on, species.device.default, species.cloud.applies, species.changedAtMs], [true, true, false, null]);
+    const byId = (body: { features: Array<{ id: string }> }, id: string) => body.features.find((f) => f.id === id) as never as { device: { on: boolean; default: boolean }; cloud: { applies: boolean }; licence: { verdict: string; reportDate: string }; changedAtMs: number | null; changedBy: string | null };
+    const species = byId(first.body, 'species-id');
+    assert.deepEqual([species.device.on, species.device.default, species.cloud.applies, species.changedAtMs, species.licence.verdict, species.licence.reportDate], [false, false, false, null, 'red', '2026-11-28'], 'red models are off by default');
+    for (const id of ['subject-mask-model', 'fine-edge-mask', 'tap-to-select']) assert.equal(byId(first.body, id).device.on, false, id);
+    for (const id of ['learned-denoise', 'category-gate', 'cloud-processing']) assert.equal(byId(first.body, id).device.on, true, id);
+    assert.deepEqual(await publicSwitches(h), {}, 'nothing explicit yet: apps use their built-in defaults');
 
-    assert.equal((await set(h, { id: 'species-id', scope: 'device', on: false })).status, 200);
+    assert.equal((await set(h, { id: 'species-id', scope: 'device', on: true })).status, 200);
     assert.equal((await set(h, { id: 'cloud-processing', scope: 'cloud', on: false })).status, 200);
-    assert.deepEqual(parseSwitchDoc(await publicSwitches(h)), { 'species-id': { device: false }, 'cloud-processing': { cloud: false } });
-    assert.equal(JSON.stringify(await publicSwitches(h)).includes(h.admin?.accountId ?? 'zzzz'), false, 'no account id in the public list');
-
+    assert.deepEqual(parseSwitchDoc(await publicSwitches(h)), { 'species-id': { device: true }, 'cloud-processing': { cloud: false } });
     const after = await h.call('GET', '/v1/admin/feature-switches', { token: h.adminToken });
-    const changed = after.body.features.find((f: { id: string }) => f.id === 'species-id');
-    assert.equal(changed.device.on, false);
-    assert.ok(changed.changedBy && changed.changedAtMs > 0);
+    const changed = byId(after.body, 'species-id');
+    assert.equal(changed.device.on, true);
+    assert.ok(changed.changedBy && (changed.changedAtMs ?? 0) > 0);
 
     assert.equal((await h.call('POST', '/v1/admin/feature-switches/reset', { token: h.adminToken, body: { id: 'species-id' } })).status, 200);
     assert.deepEqual(parseSwitchDoc(await publicSwitches(h)), { 'cloud-processing': { cloud: false } });
+    assert.equal(byId((await h.call('GET', '/v1/admin/feature-switches', { token: h.adminToken })).body, 'species-id').device.on, false, 'reset puts a red model back off');
 
     const audit = JSON.stringify((await h.call('GET', '/v1/admin/audit', { token: h.adminToken })).body);
-    for (const text of ['species-id device off', 'cloud-processing cloud off', 'feature-switch.reset']) assert.ok(audit.includes(text), text);
+    for (const text of ['species-id device on', 'cloud-processing cloud off', 'feature-switch.reset']) assert.ok(audit.includes(text), text);
   } finally { await h.close(); }
 });
 

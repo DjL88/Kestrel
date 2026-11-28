@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { accessCapabilities } from './commercialAccess.ts';
+import { parseSwitchDoc, setOwnerSwitches } from './featureSwitches';
+// The other tests here are about plans and flags, not licences: the owner has switched the red species models on for them.
+const SPECIES_ON = parseSwitchDoc({ 'species-id': { device: true } });
+setOwnerSwitches(SPECIES_ON);
 import { COMPILED_FLAGS, FEATURE_NAMES, FEATURES, featureAvailable } from './features.ts';
 
 const basic = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
@@ -68,10 +72,14 @@ test('local recovery remains available without a licence or Admin flags', () => 
 
 test('every on-device model is Basic by default (owner decision 13), and an admin flag can still restrict it', () => {
   const basic = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
+  // speciesId is the exception for beta builds: its models are licence-red, so the owner switch (featureSwitches.ts) has it off until the owner turns it on.
   for (const name of ['smartCulling', 'speciesId', 'subjectDetection', 'masks', 'autoTab'] as const) {
     assert.equal(featureAvailable(name, basic), true, name + ' is on for Basic with no flags');
     assert.equal(featureAvailable(name, basic, { flags: { [name]: { default: false, rules: [] } } }), false, name + ' can be switched off from /admin');
   }
+  setOwnerSwitches(null);
+  assert.equal(featureAvailable('speciesId', basic), false, 'species is off by default in beta builds');
+  setOwnerSwitches(SPECIES_ON);
   // The enhanced cloud models stay Pro and off until an admin flag enables them.
   for (const name of ['cloudAssist', 'onlineAi'] as const) assert.equal(featureAvailable(name, basic), false, name);
 });

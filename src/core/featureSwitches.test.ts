@@ -27,11 +27,34 @@ test('the registry has stable unique ids, two scopes at most, and every part is 
   assert.ok(ids.includes('cloud-processing') && ids.includes('own-ai-second-opinion') && ids.includes('enhance-loop'));
 });
 
-test('the default is current behaviour: nothing is off, and no copy means everything as shipped', () => {
-  assert.equal(ownerSwitchOff('species-id'), false);
-  assert.equal(ownerSwitchOffForModel('u2netp'), false);
+test('with no list at all (offline, first run) amber and green features are as shipped, and licence-red models are OFF', () => {
+  setOwnerSwitches(null);
+  for (const id of ['subject-mask-model', 'fine-edge-mask', 'tap-to-select', 'species-id']) {
+    assert.equal(switchableFeature(id)?.licence.verdict, 'red', id);
+    assert.equal(ownerSwitchOff(id), true, `${id} is off by default`);
+  }
+  for (const name of ['u2netp', 'birefnet-lite-w16', 'efficientsam-ti-fp16', 'efficientsam-ti-fp16.decoder', 'bioclip-image-int8', 'bioclip2-image-fp16']) assert.equal(ownerSwitchOffForModel(name), true, name);
+  assert.equal(featureAvailable('speciesId', full), false);
+  // Amber and green stay on: denoise, CLIP, detectors, similarity, previews.
+  for (const name of ['nafnet-sidd-w32-w16', 'clip-gate', 'clip-vit-b32-text-int8', 'yolox-tiny', 'rfdetr-nano-fp16', 'dinov2-small-fp16', 'markings-reader']) assert.equal(ownerSwitchOffForModel(name), false, name);
   assert.equal(ownerSwitchOffForPreview('enhanceLoop'), false);
+  for (const f of SWITCHABLE_FEATURES) {
+    assert.ok(f.licence.reason && f.licence.reportDate === '2026-11-28', f.id);
+    assert.equal(f.defaultOn === false, f.licence.verdict === 'red', `${f.id}: only red is off by default`);
+  }
+  assert.equal(switchableFeature('learned-denoise')?.licence.verdict, 'amber');
+  assert.equal(switchableFeature('category-gate')?.licence.verdict, 'amber');
+});
+
+test('the owner can switch a red feature on explicitly, and reset puts it back off', () => {
+  setOwnerSwitches(parseSwitchDoc({ 'species-id': { device: true } }));
+  assert.equal(ownerSwitchOffForModel('bioclip-image-int8'), false);
   assert.equal(featureAvailable('speciesId', full), true);
+  setOwnerSwitches(parseSwitchDoc({}));
+  assert.equal(ownerSwitchOffForModel('bioclip-image-int8'), true);
+});
+
+test('the default is current behaviour for the rest, and a missing list is harmless', () => {
   setOwnerSwitches(null);
   assert.deepEqual(parseSwitchDoc(undefined), NO_SWITCHES);
   assert.deepEqual(parseSwitchDoc('x'), NO_SWITCHES);
@@ -39,14 +62,15 @@ test('the default is current behaviour: nothing is off, and no copy means everyt
 
 test('a damaged or newer list never breaks an older app: unknown ids, scopes and values are dropped', () => {
   assert.deepEqual(parseSwitchDoc({ 'species-id': { device: false, cloud: false, extra: false }, 'future-thing': { device: false }, 'enhance-loop': { device: true }, 'fine-edge-mask': 'off' }),
-    { 'species-id': { device: false } }, 'cloud is not a scope of species-id, true is not an off, and unknown ids are ignored');
+    { 'species-id': { device: false }, 'enhance-loop': { device: true } }, 'cloud is not a scope of species-id, and unknown ids and non-booleans are ignored');
 });
 
 test('an off switch stops a model by its catalogue or session id, and only that model', () => {
-  setOwnerSwitches(parseSwitchDoc({ 'tap-to-select': { device: false } }));
+  setOwnerSwitches(parseSwitchDoc({ 'tap-to-select': { device: false }, 'subject-mask-model': { device: true } }));
   assert.equal(ownerSwitchOffForModel('efficientsam-ti-fp16'), true);
   assert.equal(ownerSwitchOffForModel('efficientsam-ti-fp16.encoder'), true);
-  assert.equal(ownerSwitchOffForModel('u2netp'), false);
+  assert.equal(ownerSwitchOffForModel('u2netp'), false, 'owner switched the red mask model on');
+  assert.equal(ownerSwitchOffForModel('dinov2-small-fp16'), false);
   assert.throws(() => assertModelAllowed('efficientsam-ti-fp16.decoder'), (e: unknown) => e instanceof SwitchedOffError && e.message === 'This is not available right now.');
   assert.doesNotThrow(() => assertModelAllowed('u2netp'));
 });
@@ -62,9 +86,10 @@ test('an off switch hides a preview even when this device turned it on, and neve
 });
 
 test('an off switch closes a flagged feature, but never an essential one', () => {
-  setOwnerSwitches(parseSwitchDoc({ 'species-id': { device: false }, 'cloud-processing': { device: false } }));
-  assert.equal(featureAvailable('speciesId', full), false);
-  assert.equal(evaluateFeature('speciesId', full).reason, 'kill-switch');
+  setOwnerSwitches(parseSwitchDoc({ 'species-id': { device: true }, 'finish-best': { device: false }, 'cloud-processing': { device: false } }));
+  assert.equal(featureAvailable('finishBest', full), false);
+  assert.equal(evaluateFeature('speciesId', full).on, true);
+  assert.equal(evaluateFeature('finishBest', full).reason, 'kill-switch');
   assert.equal(ownerSwitchOffForFeature('cloudAssist'), true);
   for (const essential of ['import', 'basicEditing', 'export', 'localBackup'] as const) assert.equal(featureAvailable(essential, full), true);
   assert.equal(switchableFeature('species-id')?.features?.includes('import' as never), false);

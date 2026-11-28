@@ -1,7 +1,7 @@
 /** The admin console routes (/v1/admin/*): allow-listed staff only. */
 import type { Route } from './http.ts';
 import crypto from 'node:crypto';
-import { SWITCHABLE_FEATURES, switchableFeature } from '../../../src/core/featureSwitches.ts';
+import { SWITCHABLE_FEATURES, defaultOn, switchableFeature } from '../../../src/core/featureSwitches.ts';
 import { parseFlagSet, MAX_GRANT_FLAGS } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, sha256Hex, signSession } from './crypto.ts';
@@ -471,8 +471,9 @@ export function adminRoutes(ctx: AppContext): Route[] {
       const record = await loadFeatureSwitches();
       const features = SWITCHABLE_FEATURES.map((f) => ({
         id: f.id, name: f.name, description: f.description, owner: f.owner, offEffect: f.offEffect, scopes: f.scopes,
-        device: { applies: f.scopes.includes('device'), on: record[f.id]?.device !== false, default: true },
-        cloud: { applies: f.scopes.includes('cloud'), on: record[f.id]?.cloud !== false, default: true },
+        licence: f.licence,
+        device: { applies: f.scopes.includes('device'), on: record[f.id]?.device ?? defaultOn(f.id), default: defaultOn(f.id) },
+        cloud: { applies: f.scopes.includes('cloud'), on: record[f.id]?.cloud ?? defaultOn(f.id), default: defaultOn(f.id) },
         changedBy: record[f.id]?.by ?? null, changedAtMs: record[f.id]?.atMs ?? null,
       }));
       return adminDone(claims, 'feature-switches.read', '', { features });
@@ -495,7 +496,7 @@ export function adminRoutes(ctx: AppContext): Route[] {
     },
   },
   {
-    method: 'POST', path: '/v1/admin/feature-switches/reset', summary: 'Put one feature back to its default (on for both scopes) (audited)', auth: 'admin', body: Schemas.AdminFeatureSwitchReset,
+    method: 'POST', path: '/v1/admin/feature-switches/reset', summary: 'Put one feature back to its default (on, except licence-red models which are off) (audited)', auth: 'admin', body: Schemas.AdminFeatureSwitchReset,
     handler: async (req) => {
       const claims = await admin(req, 'feature-switch.reset');
       const body = parseJson(Schemas.AdminFeatureSwitchReset, req.rawBody);
