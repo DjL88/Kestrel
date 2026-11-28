@@ -2093,12 +2093,15 @@ export default function Canvas({
 
           {/* Split: one labelled menu (Split this frame, Duplicate this frame, Resize this frame) beside the frame */}
           {features.splitFrames && (
-            <div className="hidden sm:block">
+            {/* The same 40 px footprint the old round button had, so the frame is centred exactly as before; the labelled button overflows it. */}
+            <div className="relative hidden h-10 w-10 shrink-0 sm:block">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2">
               <SplitMenu
                 onSplit={splitCountFor(activeSize.id) < MAX_SPLIT_FRAMES ? () => changeSplitCount(activeSize.id, Math.max(2, splitCountFor(activeSize.id) + 1)) : undefined}
                 onDuplicate={onDuplicateSize ? () => onDuplicateSize(activeSize.id) : undefined}
                 onResize={onOpenFormats}
               />
+              </div>
             </div>
           )}
         </div>
