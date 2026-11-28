@@ -247,7 +247,8 @@ export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' |
   if (chosen) return shown(chosen);
   const tag = speciesTagOf(frame);
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
+  // The app's own finding reads as the plain name; the Info panel's menu and tooltip say it is InFlight's finding.
+  return shown(tag);
 }
 
 /** The shown species name is InFlight's own suggestion (not one the person chose), so it can be looked at again. */

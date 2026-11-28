@@ -12,7 +12,6 @@ export const nb: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Ikke målt',
   notRecorded: 'Ikke registrert',
-  suggestedName: (name) => `${name} (forslag)`,
   subjectKinds: { wildlife: 'Dyreliv', people: 'Mennesker', landscape: 'Landskap', other: 'Annet motiv' },
   auto: {
     ready: 'Kontrollerte redigeringsforslag er klare til forhåndsvisning.',

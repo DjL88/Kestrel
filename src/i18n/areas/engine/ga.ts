@@ -12,7 +12,6 @@ export const ga: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Gan tomhas',
   notRecorded: 'Gan taifeadadh',
-  suggestedName: (name) => `${name} (moladh)`,
   subjectKinds: { wildlife: 'Fiadhúlra', people: 'Daoine', landscape: 'Tírdhreach', other: 'Ábhar eile' },
   auto: {
     ready: 'Tá moltaí eagarthóireachta seiceáilte réidh le réamhamharc.',

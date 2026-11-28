@@ -7,6 +7,7 @@ import { hdrText } from '../../../i18n/areas/hdr';
 import { stopsLabel } from '../../engineClient/hdrMergeOps';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
 import SpeciesNameField from './SpeciesNameField';
+import SpeciesActionsMenu from './SpeciesActionsMenu';
 import type { Photo, SpeciesPlace, WorkspaceStore } from '../contract';
 import type { ExternalApp } from '../../../core/externalEdit';
 import type { SpeciesArea } from '../../../core/speciesArea';
@@ -65,7 +66,7 @@ export default function InfoPanel({
   const [editingSpecies, setEditingSpecies] = useState(false);
   // Owner, 26 Nov: the camera and analysis first; the histogram and the file on a second tab. Kept while photos change.
   const [view, setView] = useState<'details' | 'file'>('details');
-  // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
+  // The name alone: kept apart from the shown label, which may be in the person's language.
   const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesName ?? photo?.speciesLabel ?? '');
   useEffect(() => {
     setEditingSpecies(false);
@@ -332,20 +333,17 @@ export default function InfoPanel({
                 <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>
               </form>
             ) : (
-              <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span className="flex flex-col items-end">
-                  <span>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
+              <dd className="flex min-w-0 flex-1 items-start justify-end gap-2 text-right text-[var(--text-primary)]">
+                <span className="flex min-w-0 flex-1 flex-col items-end">
+                  <span className="break-words" title={photo.speciesAuto ? STRINGS.panelWords.foundByApp : undefined}>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
                   {photo.speciesAreaLabel && <span data-testid="species-area-used" className="text-[0.6875rem] text-[var(--text-secondary)]">{photo.speciesAreaLabel}</span>}
+                  {photo.speciesAuto && <span className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.panelWords.foundByApp}</span>}
                 </span>
-                <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
-                  onClick={() => setEditingSpecies(true)}
-                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
-                {/* An automatic name only: take it off for good and let the species check look again (Dave, 27 Nov). */}
-                {photo.speciesAuto && onLookAgainAtSpecies && (
-                  <button type="button" data-testid="species-look-again" onClick={() => onLookAgainAtSpecies(photo.id)}
-                    title={STRINGS.panelWords.lookAgainHelp}
-                    className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.lookAgain}</button>
-                )}
+                {/* Edit manually always; Detect subject only for an automatic name: take it off for good and look again (Dave, 27 Nov). */}
+                <SpeciesActionsMenu
+                  onEditManually={() => setEditingSpecies(true)}
+                  onDetectSubject={photo.speciesAuto && onLookAgainAtSpecies ? () => onLookAgainAtSpecies(photo.id) : undefined}
+                />
               </dd>
             )}
           </div>

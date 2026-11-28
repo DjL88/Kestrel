@@ -19,7 +19,6 @@ test('every full language says every engine result, and no language adds keys th
 test('names, counts and notes survive translation, and unknown stays unknown', () => {
   for (const { code } of LANGUAGES) {
     const t = localiseFor(source, engineArea.translations, code);
-    assert.match(t.suggestedName('Red Kite'), /Red Kite/, `${code}: the suggested name is lost`);
     assert.match(t.denoise.protected(3), /3/, `${code}: the subject count is lost`);
     assert.match(t.denoise.leftAsItWas('NOTE'), /NOTE/, `${code}: the reason is lost`);
     assert.match(t.deepReview.conflict('READING', 'DETECTOR'), /READING[\s\S]*DETECTOR/, `${code}: both readings must be shown`);
@@ -30,13 +29,13 @@ test('names, counts and notes survive translation, and unknown stays unknown', (
   }
 });
 
-test('the Info panel gets a subject kind in words and the name without its suggestion marker', () => {
+test('the Info panel gets a subject kind in words and the plain name', () => {
   const frame = {
     id: 'f1', filename: 'IMG_1.JPG', stableKey: 'k', decision: 'undecided', exif: {},
     subjectKind: 'wildlife', tags: ['Red Kite'], autoTags: ['Red Kite'],
   } as unknown as PhotoFrame;
   const photo = frameToPhoto(frame, undefined);
   assert.equal(photo.category, source.subjectKinds.wildlife, 'the detector word "wildlife" is never shown as is');
-  assert.equal(photo.speciesLabel, source.suggestedName('Red Kite'));
+  assert.equal(photo.speciesLabel, 'Red Kite');
   assert.equal(photo.speciesName, 'Red Kite');
 });

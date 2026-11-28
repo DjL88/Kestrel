@@ -12,7 +12,6 @@ export const pt: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Não medido',
   notRecorded: 'Não registado',
-  suggestedName: (name) => `${name} (sugerido)`,
   subjectKinds: { wildlife: 'Vida selvagem', people: 'Pessoas', landscape: 'Paisagem', other: 'Outro motivo' },
   auto: {
     ready: 'Há sugestões de edição verificadas prontas a pré-visualizar.',
