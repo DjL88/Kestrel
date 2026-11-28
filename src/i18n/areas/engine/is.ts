@@ -12,7 +12,6 @@ export const is: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Ekki mælt',
   notRecorded: 'Ekki skráð',
-  suggestedName: (name) => `${name} (tillaga)`,
   subjectKinds: { wildlife: 'Villt dýr', people: 'Fólk', landscape: 'Landslag', other: 'Annað myndefni' },
   auto: {
     ready: 'Yfirfarnar tillögur að breytingum eru tilbúnar til forskoðunar.',

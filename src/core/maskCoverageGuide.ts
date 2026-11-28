@@ -21,10 +21,25 @@ export const OUTLINE_EDGE = 1024;
 /** How the guide shows the mask: a line round where it applies (the default), or the hatched area. */
 export type MaskGuideStyle = 'outline' | 'fill';
 
-export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number, style: MaskGuideStyle = 'fill') {
+/** The longest edge the outline is ever drawn at (about 2K: finer is invisible, and costs memory and time). */
+export const OUTLINE_EDGE_MAX = 2048;
+
+/**
+ * How many guide pixels the outline needs for a picture shown this many screen pixels along its long edge: as many as
+ * are shown (so the line is a few screen pixels wide at every zoom, never a coarse raster stretched), in steps of 512 so
+ * a zoom does not redraw it at every step, from OUTLINE_EDGE to OUTLINE_EDGE_MAX. The hatched fill is a pattern and stays small.
+ */
+export function guideEdgeFor(shownEdge: number, style: MaskGuideStyle): number {
+  if (style === 'fill') return FILL_EDGE;
+  if (!Number.isFinite(shownEdge) || shownEdge <= OUTLINE_EDGE) return OUTLINE_EDGE;
+  return Math.min(OUTLINE_EDGE_MAX, Math.ceil(shownEdge / 512) * 512);
+}
+
+export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number, style: MaskGuideStyle = 'fill', edge?: number) {
   const mask = masks.find(item => item.id === maskId && !item.hidden);
   if (!mask || !Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) return null;
-  const scale = Math.min(1, (style === 'outline' ? OUTLINE_EDGE : FILL_EDGE) / Math.max(sourceWidth, sourceHeight));
+  const wanted = edge && Number.isFinite(edge) && edge > 0 ? Math.min(edge, OUTLINE_EDGE_MAX) : style === 'outline' ? OUTLINE_EDGE : FILL_EDGE;
+  const scale = Math.min(1, wanted / Math.max(sourceWidth, sourceHeight));
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
   const weights = effectiveAlpha(mask, masks, width, height, { aspect: sourceHeight / sourceWidth, view: { x: 0, y: 0, w: 1, h: 1 } });

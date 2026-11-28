@@ -12,7 +12,6 @@ export const cy: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Heb ei fesur',
   notRecorded: 'Heb ei gofnodi',
-  suggestedName: (name) => `${name} (awgrym)`,
   subjectKinds: { wildlife: 'Bywyd gwyllt', people: 'Pobl', landscape: 'Tirwedd', other: 'Gwrthrych arall' },
   auto: {
     ready: 'Mae awgrymiadau golygu wedi’u gwirio yn barod i’w rhagweld.',

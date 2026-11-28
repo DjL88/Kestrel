@@ -173,7 +173,7 @@ test('Co-pilot shows only rendered alternatives and marks only the matching edit
 test('a subject name the app suggested is marked as a suggestion, a chosen one is not, and unknown stays unknown', async () => {
   const { speciesLabelOf } = await import('./frameToPhoto.ts');
   assert.equal(speciesLabelOf({}), undefined);
-  assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: ['Red kite'] }), 'Red kite (suggested)');
+  assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: ['Red kite'] }), 'Red kite');
   assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: [] }), 'Red kite');
   assert.equal(speciesLabelOf({ subjectNames: ['Common kestrel'], tags: ['Red kite'], autoTags: ['Red kite'] }), 'Common kestrel');
 });

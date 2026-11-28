@@ -12,7 +12,6 @@ export const gd: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Gun tomhas',
   notRecorded: 'Gun chlàradh',
-  suggestedName: (name) => `${name} (moladh)`,
   subjectKinds: { wildlife: 'Fiadh-bheatha', people: 'Daoine', landscape: 'Cruth-tìre', other: 'Cuspair eile' },
   auto: {
     ready: 'Tha molaidhean deasachaidh dearbhte deiseil airson ro-shealladh.',

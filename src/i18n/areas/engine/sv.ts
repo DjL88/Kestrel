@@ -12,7 +12,6 @@ export const sv: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Inte mätt',
   notRecorded: 'Inte registrerat',
-  suggestedName: (name) => `${name} (förslag)`,
   subjectKinds: { wildlife: 'Vilda djur', people: 'Människor', landscape: 'Landskap', other: 'Annat motiv' },
   auto: {
     ready: 'Kontrollerade redigeringsförslag är redo att förhandsvisas.',

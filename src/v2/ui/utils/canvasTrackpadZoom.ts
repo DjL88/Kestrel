@@ -72,3 +72,25 @@ export function mouseWheelZoom(current: number, deltaY: number, max = 8): number
   if (!Number.isFinite(deltaY) || deltaY === 0) return zoom;
   return Math.max(0.25, Math.min(max, deltaY < 0 ? zoom * 1.25 : zoom / 1.25));
 }
+
+/**
+ * The most "Zoom to eye/subject" may magnify, in the canvas's own units (1 = Fit). It is one picture pixel for each
+ * screen pixel the display really has, so 50% of the photo on a 2× screen and 100% on a 1× screen: past that the extra
+ * magnification shows nothing the screen can use. Never past 100% of the photo's own pixels (only the 100% control goes
+ * there, by name), and never below Fit. Without the photo's size: 2×, as before.
+ */
+export function focusZoomCeiling(fitScale: number | null, devicePixelRatio = 1): number {
+  if (!fitScale || !Number.isFinite(fitScale) || fitScale <= 0) return 2;
+  const ratio = Number.isFinite(devicePixelRatio) && devicePixelRatio >= 1 ? devicePixelRatio : 1;
+  return Math.max(1, Math.min(1 / fitScale, 1 / (fitScale * ratio)));
+}
+
+/**
+ * The zoom that keeps the same share of the photo's pixels on screen when Fit changes under it: a photo's true size can
+ * arrive after the 100% zoom was chosen (the first size is the preview's), and the same canvas zoom would then read as
+ * 20%, not 100%. Returns the canvas zoom for the same percentage at the new Fit.
+ */
+export function rebaseZoomForFit(zoom: number, oldFit: number, newFit: number): number {
+  if (![zoom, oldFit, newFit].every((v) => Number.isFinite(v) && v > 0)) return zoom;
+  return Math.max(0.25, zoom * (oldFit / newFit));
+}

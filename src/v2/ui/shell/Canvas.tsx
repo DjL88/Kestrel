@@ -4,7 +4,7 @@ import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CANVAS_TIPS_EVENT, TIP_MS, readTips, tipDue, tipShown, tipsAgain, writeTips, type CanvasTipKind } from '../utils/canvasTips';
-import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
+import { CANVAS_ZOOM_EVENT, focusZoomCeiling, isCanvasZoomAction, isMouseWheelNotch, keyboardZoomTarget, maxCanvasZoom, mouseWheelZoom, nextCanvasZoom, rebaseZoomForFit, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
@@ -171,6 +171,25 @@ function ZoomFullDevelopWatch({ photo, canvasZoom, onDevelopFullSize }: { photo:
   return null;
 }
 
+/**
+ * 100% was asked for, then the photo's true size arrived (a preview's size first, the sensor's after): the same canvas zoom
+ * would read as 20%. While the zoom is still the 100% that was asked for, it follows the new Fit so it stays 100%.
+ * A component of its own, like the watches above, so its effect is never a hook after an early return.
+ */
+function ActualHoldWatch({ photoId, fitScale, canvasZoom, intent, onSetZoom }: { photoId: string; fitScale: number | null; canvasZoom: number; intent: React.MutableRefObject<{ photoId: string } | null>; onSetZoom: (zoom: number) => void }) {
+  const last = useRef<{ photoId: string; fit: number | null } | null>(null);
+  useEffect(() => {
+    const previous = last.current;
+    last.current = { photoId, fit: fitScale };
+    if (intent.current?.photoId !== photoId || !fitScale) return;
+    if (!previous || previous.photoId !== photoId || !previous.fit || Math.abs(previous.fit - fitScale) / fitScale < 0.01) return;
+    if (Math.abs(previous.fit * canvasZoom - 1) > 0.02) { intent.current = null; return; }
+    onSetZoom(rebaseZoomForFit(canvasZoom, previous.fit, fitScale));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitScale, photoId]);
+  return null;
+}
+
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 /** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
@@ -254,6 +273,8 @@ export default function Canvas({
   const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
   const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
   const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
+  /** Set when the 100% control was used on this photo (see ActualHoldWatch). */
+  const actualIntent = useRef<{ photoId: string } | null>(null);
   const zoomRef = useRef(canvasZoom);
   /** How far in this photo may zoom (set each render once its Fit scale is known): far enough for 100% at any size. */
   const maxZoomRef = useRef(8);
@@ -1530,7 +1551,7 @@ export default function Canvas({
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
   const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
-  const healing = heal && (heal.placing || heal.spots.length) ? heal : undefined;
+  const healing = heal && (heal.placing || heal.spots.length || heal.candidates?.length) ? heal : undefined;
   const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping || healing
     ? (picture: { width: number; height: number }) => (
       <>
@@ -1587,7 +1608,7 @@ export default function Canvas({
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
-        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
+        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle} guideZoom={canvasZoom}
         maskOutline={variant === 'edited' && alt && !compareMode && hasCanvasMarks ? renderCanvasMarks : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
         onPictureSize={reportPictureSize} onBusyChange={alt ? setPictureBusy : undefined} onDetailLoading={alt ? setDetailLoading : undefined} />
@@ -1738,6 +1759,7 @@ export default function Canvas({
   const zoomToActual = (cameraPointOnly = false) => {
     const next = cameraPointOnly ? (fitScale ? 1 / fitScale : null) : keyboardZoomTarget('actual', canvasZoom, fitScale);
     if (next === null) return;
+    actualIntent.current = next === 1 || !photo || !fitScale ? null : { photoId: photo.id };
     if (next === 1 || !photo) { zoomAroundCentre(next); return; }
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
@@ -1814,7 +1836,8 @@ export default function Canvas({
     // 100% (one picture pixel per screen pixel) is the honest view for checking detail; at least 2× when the size is unknown.
     const target = focusZoom(focus, {
       current: canvasZoom,
-      actual: Math.max(fitScale ? 1 / fitScale : 2, focus.kind === 'subject' ? 1 : canvasZoom * 1.0001),
+      // Capped by the screen (one photo pixel per device pixel: about 50% on a 2× display), never past 100% of the photo.
+      actual: focusZoomCeiling(fitScale, typeof window === 'undefined' ? 1 : window.devicePixelRatio),
       pictureOnScreen: at.picture,
       view: { width: stage.clientWidth, height: stage.clientHeight },
     });
@@ -2058,6 +2081,7 @@ export default function Canvas({
             {/* Before / After split comparison or single view */}
             {inBorderFrame(activeSize, compareMode ? (
               <CompareSplit
+                zoom={canvasZoom}
                 before={renderSurface('original', `${photo.title} original`, buildImageStyle(activeSize), 'none')}
                 after={renderSurface('edited', `${photo.title} edited`, buildImageStyle(activeSize), filterCss)}
               />
@@ -2240,6 +2264,7 @@ export default function Canvas({
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       <ZoomPastPreviewWatch photoId={photo.id} active={pastPreview} onZoomPastPreview={onZoomPastPreview} />
+      <ActualHoldWatch photoId={photo.id} fitScale={fitScale} canvasZoom={canvasZoom} intent={actualIntent} onSetZoom={onSetZoom} />
       <ZoomFullDevelopWatch photo={photo} canvasZoom={canvasZoom} onDevelopFullSize={onDevelopFullSize} />
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
       <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">

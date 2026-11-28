@@ -32,6 +32,7 @@ export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
   return (masks ?? []).map((mask) => ({
     id: mask.id, name: layerName(mask), type: layerType(mask), visible: !mask.hidden,
     ...(isCombined(mask) ? { parts: maskParts(mask) } : {}),
+    invert: mask.invert,
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
@@ -116,6 +117,10 @@ export function setMaskParts(masks: readonly Mask[] | undefined, id: string, par
   if (!valid) return [...list];
   return change(list, id, (mask) => withParts(mask, parts));
 }
+
+/** Invert the selection of a mask: what it selected is left alone and the rest is adjusted. Setting it twice restores it. */
+export const setMaskInvert = (masks: readonly Mask[] | undefined, id: string, invert: boolean): Mask[] =>
+  change(masks, id, (mask) => (mask.invert === !!invert ? mask : { ...mask, invert: !!invert }));
 
 /** One restricting part (the older single limit), or none. */
 export function setMaskLimit(masks: readonly Mask[] | undefined, id: string, limit: MaskLimit | null): Mask[] {

@@ -390,6 +390,8 @@ export interface MaskLayer {
   geometry?: MaskGeometry;
   /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
   parts?: MaskLayerPart[];
+  /** The mask's own selection is swapped: what was selected is not, and the rest is. */
+  invert?: boolean;
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -446,13 +448,13 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
-  /** The species name shown is InFlight's own suggestion, so 'Not right? Look again' is offered. */
+  /** The species name shown is InFlight's own suggestion, so 'Detect subject' is offered. */
   speciesAuto?: boolean;
   /** The place an automatic species name was matched against, in the person's words ("Species list used: Worldwide"). */
   speciesAreaLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
+  /** The subject name alone, as stored, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
   vehicleKind?: string;
@@ -751,6 +753,8 @@ export interface PhotoSurfaceProps {
   maskGuideId?: string;
   /** The guide as a line round the mask (the V2 default) or the hatched area. */
   maskGuideStyle?: 'outline' | 'fill';
+  /** The canvas zoom (1 = Fit). The mask guide is redrawn finer when it is shown larger, so its line stays smooth. */
+  guideZoom?: number;
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
@@ -1202,6 +1206,8 @@ export interface WorkspaceActions {
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   /** Combine other masks into this one, in order; an empty list removes every part. */
   setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
+  /** Swap what a mask selects (invert the selection). Switching it again restores the original. */
+  setMaskInvert: (photoId: string, maskId: string, invert: boolean) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
