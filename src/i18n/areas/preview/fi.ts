@@ -27,6 +27,8 @@ export const fi: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Lähettää kuvasta 2 560 px:n älykkään esikatselun pilveen ja saa takaisin kumottavat muokkausasetukset. Se tarvitsee yhteyden ja lähettää kuvatietoja, joten jätä se pois päältä, jos haluat pitää kaiken tällä laitteella.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Vain työpöytäsovelluksessa. Kuvaa USB:llä kytketyllä kameralla ja tallentaa jokaisen kuvan valitsemaasi kansioon. Kokeiltu toistaiseksi vain simuloidulla kameralla.",
+  verificationChainName: "Vahvistusketju",
+  verificationChainDesc: "Erikoismalli ehdottaa, mitä kuvassa on, tämä laite vahvistaa sen, ja valinnainen pilvitarkistus on vain hiljainen kolmas mielipide esikatselusta. Se ei koskaan muuta kuvaasi tai päätöksiäsi.",
   ortWebgpuName: "Näytönohjain malleille",
   ortWebgpuDesc: "Vain työpöytäsovelluksessa. Kokeilee näytönohjainta laitteen malleille, varana suoritin. Sen tulosten ei ole vielä todistettu vastaavan suorittimen tuloksia.",
   focusStackName: "Tarkennuspinoaminen",

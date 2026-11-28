@@ -27,6 +27,8 @@ export const gd: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Cuiridh e ro-shealladh sgoinneil 2,560 px de dhealbh dhan neul agus gheibh e roghainnean deasachaidh air ais a ghabhas neo-dhèanamh. Feumaidh e ceangal agus cuiridh e dàta an deilbh, mar sin fàg dheth e gus a h-uile càil a chumail air an inneal seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Dìreach san app deasg. Togaidh e dealbhan le camara ceangailte tro USB agus sàbhailidh e gach frèam ann am pasgan a thaghas tu. Chan eil e air a dhearbhadh ach le camara aithriseach gu ruige seo.",
+  verificationChainName: "Slabhraidh dearbhaidh",
+  verificationChainDesc: "Molaidh modail shònraichte dè a tha ann an dealbh, daingnichidh an uidheam seo e, agus chan eil ann an sgrùdadh roghainneil sa chrann-sgòth ach treas beachd sàmhach air ro-shealladh. Chan atharraich e do dhealbh no do cho-dhùnaidhean a-chaoidh.",
   ortWebgpuName: "Cairt grafaigs airson modailean",
   ortWebgpuDesc: "Dìreach san app deasg. Feuchaidh e a' chairt grafaigs airson nam modailean air an inneal, leis a' phròiseasar mar chùl-taic. Chan eil e fhathast air a dhearbhadh gu bheil na freagairtean aige co-ionann ri an fheadhainn aig a' phròiseasar.",
   focusStackName: "Càrnadh fòcais",

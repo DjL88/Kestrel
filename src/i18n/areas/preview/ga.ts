@@ -27,6 +27,8 @@ export const ga: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Seolann sé réamhamharc cliste 2,560 px de ghrianghraf chuig an scamall agus faigheann sé socruithe eagarthóireachta ar ais is féidir a chealú. Teastaíonn nasc uaidh agus seolann sé sonraí an ghrianghraif, mar sin fág as é chun gach rud a choinneáil ar an ngléas seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Aip deisce amháin. Glacann sé grianghraif le ceamara atá plugáilte isteach trí USB agus sábhálann sé gach fráma i bhfillteán a roghnaíonn tú. Níor triaileadh ach le ceamara insamhlaithe go dtí seo.",
+  verificationChainName: "Slabhra fíoraithe",
+  verificationChainDesc: "Molann samhail speisialta cad atá i ngrianghraf, deimhníonn an gléas seo é, agus ní thugann seiceáil roghnach scamall ach tríú tuairim chiúin ar réamhamharc. Ní athraíonn sé do ghrianghraf ná do chinntí go deo.",
   ortWebgpuName: "Cárta grafaicí do mhúnlaí",
   ortWebgpuDesc: "Aip deisce amháin. Triaileann sé an cárta grafaicí do na múnlaí ar an ngléas, leis an bpróiseálaí mar chúltaca. Níl sé cruthaithe go fóill go bhfuil a thorthaí ar aon dul le torthaí an phróiseálaí.",
   focusStackName: "Cruachadh fócais",

@@ -27,6 +27,8 @@ export const nl: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Stuurt een slim voorbeeld van 2.560 px van een foto naar de cloud en krijgt ongedaan te maken bewerkinstellingen terug. Het heeft een verbinding nodig en verstuurt fotogegevens, dus laat het uit om alles op dit apparaat te houden.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Alleen in de desktop-app. Fotografeert met een camera die via USB is aangesloten en bewaart elk beeld in een map naar keuze. Tot nu toe alleen met een gesimuleerde camera geprobeerd.",
+  verificationChainName: "Verificatieketen",
+  verificationChainDesc: "Een gespecialiseerd model stelt voor wat er op een foto staat, dit apparaat bevestigt het, en een optionele cloudcontrole is slechts een rustige derde mening over een voorbeeld. Het wijzigt nooit uw foto of uw beslissingen.",
   ortWebgpuName: "Grafische kaart voor modellen",
   ortWebgpuDesc: "Alleen in de desktop-app. Probeert de grafische kaart voor de modellen op het apparaat, met de processor als terugval. Het is nog niet bewezen dat de uitkomsten gelijk zijn aan die van de processor.",
   focusStackName: "Focus stacking",

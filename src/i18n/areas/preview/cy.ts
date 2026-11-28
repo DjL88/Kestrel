@@ -27,6 +27,8 @@ export const cy: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Yn anfon rhagolwg clyfar 2,560 px o lun i'r cwmwl ac yn cael gosodiadau golygu y gellir eu dadwneud yn ôl. Mae angen cysylltiad ac mae'n anfon data'r llun, felly gadewch ef i ffwrdd i gadw popeth ar y ddyfais hon.",
   usbTetherName: "Clymu USB",
   usbTetherDesc: "Yr ap bwrdd gwaith yn unig. Yn tynnu lluniau gyda chamera wedi'i blygio i mewn drwy USB ac yn cadw pob ffrâm mewn ffolder o'ch dewis. Dim ond gyda chamera efelychiedig y'i profwyd hyd yma.",
+  verificationChainName: "Cadwyn gwirio",
+  verificationChainDesc: "Mae model arbenigol yn awgrymu beth sydd mewn llun, mae'r ddyfais hon yn ei gadarnhau, a dim ond trydydd barn dawel ar ragolwg yw'r gwiriad cwmwl dewisol. Nid yw byth yn newid eich llun na'ch penderfyniadau.",
   ortWebgpuName: "Cerdyn graffeg ar gyfer modelau",
   ortWebgpuDesc: "Yr ap bwrdd gwaith yn unig. Yn rhoi cynnig ar y cerdyn graffeg ar gyfer y modelau ar y ddyfais, gyda'r prosesydd wrth gefn. Nid yw wedi'i brofi eto bod ei atebion yn cyfateb i rai'r prosesydd.",
   focusStackName: "Pentyrru ffocws",

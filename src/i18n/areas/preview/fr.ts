@@ -27,6 +27,8 @@ export const fr: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envoie un aperçu intelligent de 2 560 px d'une photo vers le cloud et reçoit en retour des réglages de retouche annulables. Cela demande une connexion et envoie des données de photo : laissez-le désactivé pour tout garder sur cet appareil.",
   usbTetherName: "Connexion USB à l'appareil photo",
   usbTetherDesc: "Application de bureau uniquement. Photographie avec un appareil branché en USB et enregistre chaque image dans un dossier de votre choix. Essayé jusqu'ici seulement avec un appareil simulé.",
+  verificationChainName: "Chaîne de vérification",
+  verificationChainDesc: "Un modèle spécialisé propose ce que contient une photo, cet appareil le confirme, et une vérification facultative dans le cloud n'est qu'un troisième avis discret sur un aperçu. Elle ne modifie jamais votre photo ni vos décisions.",
   ortWebgpuName: "Carte graphique pour les modèles",
   ortWebgpuDesc: "Application de bureau uniquement. Essaie la carte graphique pour les modèles sur l'appareil, avec le processeur en secours. Ses résultats ne sont pas encore prouvés identiques à ceux du processeur.",
   focusStackName: "Empilement de mise au point",

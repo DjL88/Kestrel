@@ -27,6 +27,8 @@ export const it: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Invia al cloud un'anteprima intelligente da 2.560 px di una foto e riceve impostazioni di modifica annullabili. Richiede una connessione e invia dati della foto: lo lasci disattivato per tenere tutto su questo dispositivo.",
   usbTetherName: "Tethering USB",
   usbTetherDesc: "Solo app desktop. Scatta con una fotocamera collegata via USB e salva ogni immagine in una cartella a sua scelta. Finora provato solo con una fotocamera simulata.",
+  verificationChainName: "Catena di verifica",
+  verificationChainDesc: "Un modello specializzato propone che cosa c'è in una foto, questo dispositivo lo conferma e un controllo facoltativo nel cloud è solo un terzo parere discreto su un'anteprima. Non cambia mai la tua foto né le tue decisioni.",
   ortWebgpuName: "Scheda grafica per i modelli",
   ortWebgpuDesc: "Solo app desktop. Prova la scheda grafica per i modelli sul dispositivo, con il processore come alternativa. Non è ancora dimostrato che i suoi risultati coincidano con quelli del processore.",
   focusStackName: "Focus stacking",

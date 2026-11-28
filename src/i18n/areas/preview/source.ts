@@ -26,7 +26,7 @@ export const source = {
   cloudRecipeName: "Cloud edit settings",
   cloudRecipeDesc: "Sends a 2,560 px smart preview of a photo to the cloud and gets back undoable edit settings. It needs a connection and sends photo data, so leave it off to keep everything on this device.",
   verificationChainName: "Verification chain",
-  verificationChainDesc: "A specialist model proposes what is in a photo, this device confirms it, and an optional cloud check is only a quiet third opinion on a preview. It never changes your photo or your decisions.",
+  verificationChainDesc: "A specialist model proposes what is in a photo and this device confirms it. An optional cloud check is only a quiet third opinion. It never changes your photo or your decisions.",
   usbTetherName: "USB tethering",
   usbTetherDesc: "Desktop app only. Shoots with a camera plugged in by USB and saves each frame to a folder you choose. Tried only with a simulated camera so far.",
   ortWebgpuName: "Graphics card for models",

@@ -27,6 +27,8 @@ export const pt: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envia para a nuvem uma pré-visualização inteligente de 2560 px de uma foto e recebe definições de edição que pode anular. Precisa de ligação e envia dados da foto, por isso deixe-o desligado para manter tudo neste dispositivo.",
   usbTetherName: "Ligação USB à câmara",
   usbTetherDesc: "Só na aplicação de ambiente de trabalho. Fotografa com uma câmara ligada por USB e guarda cada imagem numa pasta à sua escolha. Até agora só testado com uma câmara simulada.",
+  verificationChainName: "Cadeia de verificação",
+  verificationChainDesc: "Um modelo especializado propõe o que há numa fotografia, este dispositivo confirma-o e uma verificação opcional na nuvem é apenas uma terceira opinião discreta sobre uma pré-visualização. Nunca altera a sua fotografia nem as suas decisões.",
   ortWebgpuName: "Placa gráfica para os modelos",
   ortWebgpuDesc: "Só na aplicação de ambiente de trabalho. Tenta a placa gráfica para os modelos no dispositivo, com o processador como alternativa. Ainda não está provado que os resultados coincidam com os do processador.",
   focusStackName: "Empilhamento de foco",

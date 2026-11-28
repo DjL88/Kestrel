@@ -27,6 +27,8 @@ export const is: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sendir 2.560 px snjallforskoðun af mynd í skýið og fær til baka vinnslustillingar sem hægt er að afturkalla. Hún þarf tengingu og sendir myndgögn, svo hafðu hana slökkta til að halda öllu á þessu tæki.",
   usbTetherName: "USB-tenging myndavélar",
   usbTetherDesc: "Aðeins í skjáborðsforritinu. Myndar með myndavél sem er tengd með USB og vistar hverja mynd í möppu að þínu vali. Aðeins reynt með hermdri myndavél til þessa.",
+  verificationChainName: "Staðfestingarkeðja",
+  verificationChainDesc: "Sérhæft líkan leggur til hvað er á ljósmynd, þetta tæki staðfestir það og valfrjáls skýjaskoðun er aðeins þriðja, hljóðlát álit á forskoðun. Hún breytir aldrei myndinni þinni eða ákvörðunum þínum.",
   ortWebgpuName: "Skjákort fyrir líkön",
   ortWebgpuDesc: "Aðeins í skjáborðsforritinu. Reynir skjákortið fyrir líkönin á tækinu, með örgjörvann til vara. Enn er ekki sannað að niðurstöður þess séu þær sömu og örgjörvans.",
   focusStackName: "Fókusstöflun",

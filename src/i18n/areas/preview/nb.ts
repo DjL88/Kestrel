@@ -27,6 +27,8 @@ export const nb: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sender et smart forhåndsbilde på 2 560 px av et bilde til skyen og får redigeringsinnstillinger tilbake som kan angres. Det trenger en tilkobling og sender bildedata, så la det stå av for å beholde alt på denne enheten.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bare i skrivebordsappen. Fotograferer med et kamera koblet til via USB og lagrer hvert bilde i en mappe du velger. Så langt bare prøvd med et simulert kamera.",
+  verificationChainName: "Bekreftelseskjede",
+  verificationChainDesc: "En spesialisert modell foreslår hva som er på et bilde, denne enheten bekrefter det, og en valgfri skysjekk er bare en stille tredje mening om en forhåndsvisning. Den endrer aldri bildet eller avgjørelsene dine.",
   ortWebgpuName: "Grafikkort for modeller",
   ortWebgpuDesc: "Bare i skrivebordsappen. Prøver grafikkortet for modellene på enheten, med prosessoren som reserve. Svarene er ennå ikke bevist å stemme med prosessorens.",
   focusStackName: "Fokusstabling",

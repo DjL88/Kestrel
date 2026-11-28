@@ -27,6 +27,8 @@ export const da: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sender et smart eksempel på 2.560 px af et billede til skyen og får redigeringsindstillinger tilbage, som kan fortrydes. Det kræver en forbindelse og sender billeddata, så lad det være slået fra for at beholde alt på denne enhed.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Kun i skrivebordsappen. Fotograferer med et kamera tilsluttet via USB og gemmer hvert billede i en mappe, du vælger. Hidtil kun prøvet med et simuleret kamera.",
+  verificationChainName: "Verifikationskæde",
+  verificationChainDesc: "En specialiseret model foreslår, hvad der er på et foto, denne enhed bekræfter det, og et valgfrit skytjek er kun en stille tredje mening om et eksempel. Det ændrer aldrig dit foto eller dine beslutninger.",
   ortWebgpuName: "Grafikkort til modeller",
   ortWebgpuDesc: "Kun i skrivebordsappen. Prøver grafikkortet til modellerne på enheden med processoren som reserve. Dets resultater er endnu ikke bevist at svare til processorens.",
   focusStackName: "Fokusstabling",

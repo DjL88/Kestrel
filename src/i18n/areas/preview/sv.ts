@@ -27,6 +27,8 @@ export const sv: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Skickar en smart förhandsbild på 2 560 px av en bild till molnet och får tillbaka redigeringsinställningar som går att ångra. Det kräver en anslutning och skickar bilddata, så låt det vara av för att behålla allt på den här enheten.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bara i skrivbordsappen. Fotograferar med en kamera ansluten via USB och sparar varje bild i en mapp du väljer. Hittills bara prövat med en simulerad kamera.",
+  verificationChainName: "Verifieringskedja",
+  verificationChainDesc: "En specialiserad modell föreslår vad som finns på ett foto, den här enheten bekräftar det, och en valfri molnkontroll är bara en lugn tredje åsikt om en förhandsvisning. Den ändrar aldrig ditt foto eller dina beslut.",
   ortWebgpuName: "Grafikkort för modeller",
   ortWebgpuDesc: "Bara i skrivbordsappen. Provar grafikkortet för modellerna på enheten, med processorn som reserv. Dess svar är ännu inte bevisade stämma med processorns.",
   focusStackName: "Fokusstackning",

@@ -27,6 +27,8 @@ export const de: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sendet eine 2.560-px-Smart-Vorschau eines Fotos in die Cloud und erhält rückgängig machbare Einstellungen für die Bearbeitung zurück. Es braucht eine Verbindung und sendet Fotodaten; lassen Sie es aus, damit alles auf diesem Gerät bleibt.",
   usbTetherName: "USB-Tethering",
   usbTetherDesc: "Nur Desktop-App. Fotografiert mit einer per USB angeschlossenen Kamera und speichert jedes Bild in einen Ordner Ihrer Wahl. Bisher nur mit einer simulierten Kamera erprobt.",
+  verificationChainName: "Prüfkette",
+  verificationChainDesc: "Ein Spezialmodell schlägt vor, was auf einem Foto zu sehen ist, dieses Gerät bestätigt es, und eine optionale Cloud-Prüfung ist nur eine stille dritte Meinung zu einer Vorschau. Sie ändert nie Ihr Foto oder Ihre Entscheidungen.",
   ortWebgpuName: "Grafikkarte für Modelle",
   ortWebgpuDesc: "Nur Desktop-App. Versucht die Grafikkarte für die Modelle auf dem Gerät, mit dem Prozessor als Rückfall. Ihre Ergebnisse sind noch nicht als gleich mit denen des Prozessors belegt.",
   focusStackName: "Fokus-Stacking",
