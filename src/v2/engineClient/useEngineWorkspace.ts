@@ -176,6 +176,7 @@ import { readSplitPanOffset } from './splitFrameOps';
 import { useTapSelect } from './useTapSelect';
 import { addHealSpot as addSpot, canAddHealSpot, nextHealSource, removeHealSpot as removeSpot, sizeToRadius, updateHealSpot as changeSpot } from './healOps';
 import { applyHeal, findHealSources } from '../../core/heal';
+import { findSpotCandidates } from '../../core/healCandidates';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
 import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
@@ -260,6 +261,20 @@ async function healSourcesFor(frame: PhotoFrame, source: BrowserPreviewProvider,
   const others = (frame.edit?.heal ?? []).filter((spot) => spot.id !== skip);
   applyHeal(pixels, canvas.width, canvas.height, 4, 255, others, { aspect: canvas.height / canvas.width, view: { x: 0, y: 0, w: 1, h: 1 } });
   const found = findHealSources(pixels, canvas.width, canvas.height, 4, at.x, at.y, r);
+  canvas.width = 0; canvas.height = 0;
+  return found;
+}
+
+/** Specks worth a look on the framed picture, with the photo's existing spots already applied so covered ones are not offered again. */
+async function healCandidatesFor(frame: PhotoFrame, source: BrowserPreviewProvider) {
+  const image = await boundedSource(frame, source);
+  const framing = frame.framing ?? DEFAULT_FRAMING;
+  const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+  const canvas = document.createElement('canvas');
+  drawFramedPhoto(image, canvas, framing, { scale: Math.min(1, 1600 / Math.max(width, height)) });
+  const pixels = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height).data;
+  applyHeal(pixels, canvas.width, canvas.height, 4, 255, frame.edit?.heal ?? [], { aspect: canvas.height / canvas.width, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const found = findSpotCandidates(pixels, canvas.width, canvas.height, 4);
   canvas.width = 0; canvas.height = 0;
   return found;
 }
@@ -4121,6 +4136,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       // Only this photo: a spot belongs to the dust or twig on the picture it was placed on.
       editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), heal: addSpot(current.edit?.heal, spotId, at, r, sources[0]) }));
       return { result: 'added', spotId };
+    },
+    findHealCandidates: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame || !provider.current) return null;
+      return healCandidatesFor(frame, provider.current).catch(() => null);
     },
     updateHealSpot: (photoId, spotId, change) => editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), heal: changeSpot(frame.edit?.heal, spotId, change) })),
     nextHealSource: async (photoId, spotId) => {

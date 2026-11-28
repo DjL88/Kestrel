@@ -141,3 +141,20 @@ test('a spot can switch to an exact clone, copy from elsewhere, be hidden and be
   await expect(heal).toContainText('0 spots');
   await expect(frame.locator('[data-heal-spot]')).toHaveCount(0);
 });
+
+test('Find spots offers numbered candidates, Cover adds one, and a clean photo says so plainly', async ({ page }) => {
+  const { root, frame } = await openDustyPhoto(page);
+  const heal = root.getByTestId('v2-heal');
+  await heal.getByTestId('v2-heal-find').click();
+  await expect(heal.getByTestId('v2-heal-note')).toContainText('possible spot', { timeout: 20000 });
+  await expect(heal.getByTestId('v2-heal-candidates')).toContainText('Possible spot 1');
+  // Shown as a numbered outline on the photo, not by colour alone.
+  await expect(frame.locator('[data-heal-candidate="1"]')).toHaveCount(1);
+  await heal.getByTestId('v2-heal-cover').first().click();
+  await expect(heal.getByTestId('v2-heal-note')).toContainText('Spot covered', { timeout: 20000 });
+  await expect(heal).toContainText('1 spot');
+  await expect(heal.getByTestId('v2-heal-candidates')).toHaveCount(0);
+  // Covered, so a second search finds nothing and says so.
+  await heal.getByTestId('v2-heal-find').click();
+  await expect(heal.getByTestId('v2-heal-note')).toContainText('No clear specks found', { timeout: 20000 });
+});
