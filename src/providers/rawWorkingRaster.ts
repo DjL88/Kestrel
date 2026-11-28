@@ -42,17 +42,23 @@ export function acceptSensorRgb16(buffer: ArrayBuffer, maxPixels = 80_000_000): 
  * SHA-256 of immutable source bytes, in bounded chunks (no second full RAW allocation).
  * This is a source identity, NOT a camera-profile or codec-licence certificate.
  */
-export async function hashRawSource(original: Blob, chunkBytes = 1024 * 1024): Promise<string> {
+export async function hashRawSource(original: Blob, chunkBytes = 1024 * 1024, signal?: AbortSignal): Promise<string> {
+  signal?.throwIfAborted();
+  const size = original.size;
   if (!Number.isSafeInteger(chunkBytes) || chunkBytes < 4096 || chunkBytes > 4 * 1024 * 1024 ||
-      !Number.isSafeInteger(original.size) || original.size <= 0)
+      !Number.isSafeInteger(size) || size <= 0)
     throw new Error('Cannot verify empty or invalid RAW source.');
   const sha = new Sha256Stream();
-  for (let offset = 0; offset < original.size; offset += chunkBytes) {
-    const part = new Uint8Array(await original.slice(offset, Math.min(original.size, offset + chunkBytes)).arrayBuffer());
-    if (part.byteLength !== Math.min(chunkBytes, original.size - offset))
+  for (let offset = 0; offset < size; offset += chunkBytes) {
+    signal?.throwIfAborted();
+    const part = new Uint8Array(await original.slice(offset, Math.min(size, offset + chunkBytes)).arrayBuffer());
+    signal?.throwIfAborted();
+    if (original.size !== size || part.byteLength !== Math.min(chunkBytes, size - offset))
       throw new Error('The RAW source changed while it was being read.');
     sha.update(part);
   }
+  signal?.throwIfAborted();
+  if (original.size !== size) throw new Error('The RAW source changed while it was being read.');
   return sha.digest();
 }
 
@@ -71,8 +77,9 @@ export function checkRawDecodeInputBudget(original: Blob, maxPixels: number, max
 
 /** Opt-in W1 integration seam. No JPEG fallback. HE/HE* included (owner decision, 25 Nov 2026), and labelled as such. */
 export async function openSensorWorkingRaster(
-  original: Blob, filename: string, maxPixels = 80_000_000, expectedSourceSha256?: string,
+  original: Blob, filename: string, maxPixels = 80_000_000, expectedSourceSha256?: string, signal?: AbortSignal,
 ): Promise<SensorWorkingRaster> {
+  signal?.throwIfAborted();
   if (!isDevelopRawFile(filename))
     throw new Error('Unsupported RAW extension. The original is unchanged.');
   if (expectedSourceSha256 !== undefined && !/^[0-9a-f]{64}$/.test(expectedSourceSha256))
@@ -81,16 +88,20 @@ export async function openSensorWorkingRaster(
   checkRawDecodeInputBudget(original, maxPixels);
   // Bind to the selected catalogue original before invoking any decoder.
   const sourceBytes = original.size;
-  const before = await hashRawSource(original);
+  const before = await hashRawSource(original, undefined, signal);
+  signal?.throwIfAborted();
   if (expectedSourceSha256 && before !== expectedSourceSha256)
     throw new Error('The selected original no longer matches its recorded SHA-256. No edit source was opened.');
   // The decoder recognises camera bytes independently of the suffix. Keep
   // the HE gate for renamed files, without claiming that this proves rights.
   const codec = await requireVerifiedNikonPrecisionMode(original);
+  signal?.throwIfAborted();
   const decoded = await developRawRgb16(original);
+  signal?.throwIfAborted();
   // Files backed by removable/network storage can change while decoding.
-  if (original.size !== sourceBytes || await hashRawSource(original) !== before)
+  if (original.size !== sourceBytes || await hashRawSource(original, undefined, signal) !== before)
     throw new Error('The original changed during RAW decoding. No edit source was opened.');
+  signal?.throwIfAborted();
   const raster = acceptSensorRgb16(decoded, maxPixels);
   raster.sourceSha256 = before;
   raster.sourceBytes = sourceBytes;
