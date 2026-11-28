@@ -29,3 +29,24 @@ test('failed or incomplete render is not cached; explicit clear drops partial co
   assert.equal(await cache.get('a', 3, 1, async () => ['new one','new two','new three']), 'new two');
   await assert.rejects(cache.get('a', 3, 3, async () => ['x','y','z']), /Invalid/);
 });
+
+
+test('clear during render prevents a late composition from being cached', async () => {
+  const cache = createSplitRenderCache<string>();
+  let finish!: (panels: string[]) => void;
+  const old = cache.get('a', 2, 0, () => new Promise(resolve => { finish = resolve; }));
+  cache.clear();
+  finish(['old0', 'old1']);
+  assert.equal(await old, 'old0');
+  assert.equal(await cache.get('a', 2, 1, async () => ['fresh0', 'fresh1']), 'fresh1');
+});
+
+test('late final panel cannot evict a newer composition', async () => {
+  const cache = createSplitRenderCache<string>();
+  let finish!: (panels: string[]) => void;
+  const old = cache.get('old', 2, 1, () => new Promise(resolve => { finish = resolve; }));
+  assert.equal(await cache.get('new', 2, 0, async () => ['new0', 'new1']), 'new0');
+  finish(['old0', 'old1']);
+  assert.equal(await old, 'old1');
+  assert.equal(await cache.get('new', 2, 1, async () => { throw Error('new composition was evicted'); }), 'new1');
+});
