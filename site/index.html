@@ -10,9 +10,6 @@
   <meta name="keywords" content="photo editor for beginners, easy photo editing software, colour blind friendly photo editor, colorblind accessible photo app, colour vision deficiency, deuteranopia protanopia tritanopia, ADHD friendly software, autism friendly app, neurodivergent friendly design, sensory friendly interface, accessible photo editing, UK photo software, made in Britain, made in the UK, European software, GDPR, privacy-first photo editor, offline photo editor, no account photo editing, bring your own cloud storage, bring your own AI key, choose your own storage provider, data sovereignty, own your data, bird identification app, bird ID software, red kite, kestrel, merlin, wildlife photography software, RAW photo editor Nikon">
   <!-- InFlight's own downloads (infra/gcp); the bucket/endpoint stay as "kestrel" for backward compatibility — see docs/brand/inflight/. -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
-  <!-- The public web editor's address (owner decision 24 Nov 2026: the site opens the V2 editor). Empty until it has a
-       public route: Sign in then points at the downloads. /V2Proto is the private test site and must not go here. -->
-  <meta name="inflight-web-app" content="">
   <meta property="og:site_name" content="InFlight">
   <meta property="og:title" content="InFlight — Cull, edit and share a shoot, even offline.">
   <meta property="og:description" content="Cull, edit and share a shoot, even with no signal. No generated pixels, your originals are never changed, and Basic is free to keep.">
@@ -384,7 +381,7 @@
   <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#how" data-i18n="navHow">How it works</a><a href="#shoots" data-i18n="navShoot">On a shoot</a><a href="#pricing" data-i18n="navPlans">Plans</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
   <div class="bar-end">
     <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
-    <a class="cta small" data-web-app="signin" data-web-app-word="signIn" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
+    <a class="cta small" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
   </div>
 </div></header>
 <main id="top">
@@ -431,11 +428,8 @@
     <div class="welcome">
       <h2 data-i18n="welcomeTitle">Welcome to InFlight</h2>
       <p class="invite" data-i18n="inviteOnly">By invitation only while we test.</p>
-      <a class="cta block" data-web-app="signin" data-web-app-word="signIn" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
-      <a class="ghost block" data-web-app="signup" href="#downloads" data-i18n="signUp" hidden>Create an account</a>
-      <a class="ghost block" data-web-app="guest" href="#downloads" data-i18n="guestTry" hidden>Try it as a guest</a>
-      <p class="fine" data-web-app-closed data-i18n="webAppSoon">The web editor isn’t open to everyone yet. Download InFlight for your computer or phone: it works offline, with no account.</p>
-      <p class="fine" data-web-app-open data-i18n="guestNote" hidden>As a guest you edit your own photos in this browser, but nothing is kept once you close the tab. Signed in, your web projects live in InFlight's cloud.</p>
+      <a class="cta block" href="#downloads" data-i18n="heroDownloads">Explore downloads</a>
+      <p class="fine" data-i18n="platformsNote">InFlight is for macOS, Windows, Linux, iOS and Android, and has no web editor. A platform has a download only when its button appears below; the rest are coming soon. It works offline, with no account.</p>
       <a class="centre-link" href="#contact" data-i18n="requestInvite">Request an invitation</a>
     </div>
   </section>
@@ -452,7 +446,7 @@
   <section class="wrap" aria-labelledby="why-title">
     <h2 id="why-title" data-i18n="whyTitle">Why photographers switch to InFlight</h2>
     <ul class="why">
-      <li><strong data-i18n="why3Title">Same app on every device</strong><span data-i18n="why3Body">Mac, Windows and the web share one set of screens, and the iPhone, iPad and Android apps, still to come, will be built from the same code, so nothing has to be learned twice.</span></li>
+      <li><strong data-i18n="why3Title">Same app on every device</strong><span data-i18n="why3Body">Mac, Windows and Linux share one set of screens, and the iPhone, iPad and Android apps, still to come, will be built from the same code, so nothing has to be learned twice.</span></li>
       <li><strong data-i18n="why4Title">Honest about your photos</strong><span data-i18n="why4Body">No generated pixels and no invented detail. When it isn't sure of a species or a colour, it says so, in words, never by colour alone.</span></li>
     </ul>
   </section>
@@ -1077,24 +1071,6 @@
         banner.hidden = false;
       }
     } catch { /* flags unavailable: keep the page as it is */ }
-  })();
-</script>
-<script>
-  // Sign in, Create an account and Try it as a guest open the web editor at its public address: one setting, the
-  // inflight-web-app meta tag in <head>. While it is empty there is no public web editor (/V2Proto is the private test
-  // site), so the page offers the downloads instead and says the web editor is not open yet.
-  (function webAppLinks() {
-    const base = document.querySelector('meta[name="inflight-web-app"]')?.content.trim();
-    if (!base) return;
-    for (const link of document.querySelectorAll('[data-web-app]')) {
-      const url = new URL(base, location.href);
-      url.hash = link.dataset.webApp;
-      link.href = url.pathname + url.search + url.hash;
-      link.hidden = false;
-      if (link.dataset.webAppWord) window.KestrelI18n?.bind(link, link.dataset.webAppWord);
-    }
-    for (const note of document.querySelectorAll('[data-web-app-closed]')) note.hidden = true;
-    for (const note of document.querySelectorAll('[data-web-app-open]')) note.hidden = false;
   })();
 </script>
 <script>

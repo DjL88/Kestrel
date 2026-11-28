@@ -153,7 +153,7 @@ Keep edit recipes, catalogue operations and rendering contracts shared. Use per-
 | --- | --- |
 | macOS, Windows and Linux | Desktop application for the full Library and editor, local and mounted-volume folders, and camera/RAW adapters where validated. Verify Nikon SDK runtime availability per OS and CPU before committing to official Nikon rendering on that target. |
 | iOS and Android | Phone layout for culling and quick edits, tablet layout for larger previews and precise controls. Use device photo pickers and save/share sheets with tablet and touch acceptance tests. |
-| Web editor | Offline editing after the app has loaded and cached. The browser remains responsible for filesystem permissions and storage limits. |
+| Web editor | None is published (owner decision, 28 Nov 2026). The browser build exists only for development, Playwright tests and the private /V2Proto preview. A Pro-only web editor or a read-only gallery may come later. |
 | Browser extension | Explicitly send a user-selected image to an InFlight workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
 
 Keep sign-in optional. If a paid tier is added, separate entitlement from file storage. Local projects, original files and offline editing should work independently of any supported account or sync provider. Any future sync should be opt-in, limited to its stated data, and avoid uploading originals by default.

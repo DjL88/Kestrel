@@ -9,7 +9,6 @@ export const gd: AreaTranslation<typeof source> = {
     originals: "Fanaidh na dealbhan tùsail agad far a bheil iad. Cha bhi InFlight a-chaoidh gan atharrachadh, gan gluasad no gan cur an àite.",
     undo: "Gabhaidh gach deasachadh a neo-dhèanamh. Glèidhidh InFlight reasabaidh de na h-atharraichean agad, chan e lethbhreac ùr den dealbh.",
     backup: "Glèidhidh lethbhreac-glèidhidh pròiseict na co-dhùnaidhean, na rangachaidhean agus na deasachaidhean agad, ach chan e na faidhlichean RAW fhèin. Dèan lethbhreac-glèidhidh de na dealbhan tùsail cuideachd.",
-    webNote: "Ann am brabhsair-lìn, iarraidh InFlight air a' bhrabhsair an stòras aige a chumail nuair a leanas tu air adhart. Chì thu dè tha sin a' ciallachadh anns na Roghainnean, fo Stòras.",
     done: "Tha mi a' tuigsinn",
   },
   browserStorage: {

@@ -9,7 +9,6 @@ export const pt: AreaTranslation<typeof source> = {
     originals: "As suas fotografias originais ficam onde estão. O InFlight nunca as altera, move ou substitui.",
     undo: "Todas as edições podem ser anuladas. O InFlight guarda uma receita das suas alterações, não uma nova cópia da fotografia.",
     backup: "Uma cópia de segurança do projeto guarda as suas decisões, classificações e edições, mas não os ficheiros RAW. Faça também cópia dos originais.",
-    webNote: "Num navegador web, o InFlight vai pedir ao navegador que guarde o seu armazenamento quando continuar. Pode ver o que isso significa em Definições, em Armazenamento.",
     done: "Entendi",
   },
   browserStorage: {

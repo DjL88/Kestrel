@@ -9,7 +9,6 @@ export const cy: AreaTranslation<typeof source> = {
     originals: "Mae eich lluniau gwreiddiol yn aros lle maen nhw. Nid yw InFlight byth yn eu newid, eu symud na'u disodli.",
     undo: "Gellir dadwneud pob golygiad. Mae InFlight yn cadw rysáit o'ch newidiadau, nid copi newydd o'r llun.",
     backup: "Mae copi wrth gefn o brosiect yn cadw eich penderfyniadau, sgorau a golygiadau, ond nid y ffeiliau RAW eu hunain. Cadwch gopi wrth gefn o'ch rhai gwreiddiol hefyd.",
-    webNote: "Mewn porwr gwe, bydd InFlight yn gofyn i'r porwr gadw ei storfa pan fyddwch yn parhau. Gallwch weld beth mae hynny'n ei olygu yn y Gosodiadau, dan Storfa.",
     done: "Iawn",
   },
   browserStorage: {

@@ -8,8 +8,8 @@ const localStore = () => { try { return globalThis.localStorage ?? null; } catch
 
 /**
  * First run (PRODUCT-SPEC §3.1): three plain facts, shown once on the projects hub and never again after "Got it".
- * It sits in the page rather than over it, so nothing is blocked while it is showing. On the web, "Got it" is also
- * the moment InFlight asks the browser to keep its storage; the answer is shown in Settings → Storage.
+ * It sits in the page rather than over it, so nothing is blocked while it is showing. Outside the desktop shell (the dev and test
+ * harness; InFlight publishes no web editor), "Got it" also asks the browser to keep its storage; the answer is in Settings → Storage.
  */
 export default function WelcomeCard() {
   const [open, setOpen] = useState(() => !welcomeSeen(localStore()));
@@ -30,7 +30,6 @@ export default function WelcomeCard() {
         <li>{t.welcome.undo}</li>
         <li>{t.welcome.backup}</li>
       </ul>
-      {onWeb && <p className="mt-3 text-xs leading-relaxed text-[var(--text-secondary)]">{t.welcome.webNote}</p>}
       <div className="mt-4 flex justify-end">
         <button type="button" onClick={dismiss}
           className="min-h-11 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-sm font-semibold text-[var(--text-on-accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-accent)]">
