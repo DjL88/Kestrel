@@ -1554,7 +1554,7 @@ export default function Canvas({
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
   const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
-  const healing = heal && (heal.placing || heal.spots.length) ? heal : undefined;
+  const healing = heal && (heal.placing || heal.spots.length || heal.candidates?.length) ? heal : undefined;
   const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping || healing
     ? (picture: { width: number; height: number }) => (
       <>

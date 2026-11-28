@@ -2,8 +2,13 @@ import React from 'react';
 import type { HealSpotView } from '../contract';
 import { healText as T } from '../../../i18n/areas/heal';
 
+export interface HealCandidate { x: number; y: number; r: number; contrast: number; tone: 'darker' | 'lighter' }
+
 export interface HealCanvasState {
   spots: HealSpotView[];
+  /** Specks found for the person to cover or skip, drawn as numbered square outlines (a spot is a circle). */
+  candidates?: HealCandidate[];
+  onCoverCandidate?: (candidate: HealCandidate) => void;
   selectedId: string | null;
   /** While placing, a click or tap on the picture adds a spot there. */
   placing: boolean;
@@ -28,7 +33,7 @@ const ARROWS: Record<string, { x: number; y: number }> = {
  * it copies from, joined by a line, which can be dragged or moved with the arrow keys. White on a dark halo, so it reads
  * on any photograph, and shape (solid or dashed), not colour, says which is which.
  */
-export default function HealLayer({ picture, spots, selectedId, placing, newRadius, onPlace, onSelect, onMoveSource }: Props) {
+export default function HealLayer({ picture, spots, candidates = [], onCoverCandidate, selectedId, placing, newRadius, onPlace, onSelect, onMoveSource }: Props) {
   const { width, height } = picture;
   const edge = Math.max(width, height);
   const group = React.useRef<SVGGElement | null>(null);
@@ -67,6 +72,25 @@ export default function HealLayer({ picture, spots, selectedId, placing, newRadi
           }} />
       )}
       {placing && hover && haloed('hover', (p) => <circle cx={unit(hover.x)} cy={vunit(hover.y)} r={newRadius * edge} {...(p as React.SVGProps<SVGCircleElement>)} />, true)}
+      {candidates.map((candidate, index) => {
+        const half = Math.max(candidate.r * edge, edge * 0.008) * 1.3;
+        const cx = unit(candidate.x), cy = vunit(candidate.y);
+        const label = `${T.candidate(index + 1)}, ${T.candidateTone(candidate.tone)}: ${T.cover}`;
+        return (
+          <g key={`candidate-${index}`} data-heal-candidate={index + 1}>
+            {haloed('box', (p) => <rect x={cx - half} y={cy - half} width={half * 2} height={half * 2} {...(p as React.SVGProps<SVGRectElement>)} />, true)}
+            <text x={cx + half + 3} y={cy - half - 3} fontSize={Math.max(12, edge * 0.014)} fontWeight={700} fill="#ffffff" stroke="rgba(0,0,0,0.75)" strokeWidth={3} paintOrder="stroke"
+              style={{ pointerEvents: 'none' }}>{index + 1}</text>
+            {!placing && (
+              <rect x={cx - half} y={cy - half} width={half * 2} height={half * 2} fill="transparent" role="button" tabIndex={0} aria-label={label}
+                style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => { event.stopPropagation(); onCoverCandidate?.(candidate); }}
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onCoverCandidate?.(candidate); } }} />
+            )}
+          </g>
+        );
+      })}
       {spots.map((spot, index) => {
         const selected = spot.id === selectedId;
         const source = drag?.id === spot.id ? drag : spot;

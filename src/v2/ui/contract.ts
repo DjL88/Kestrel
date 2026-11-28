@@ -1155,6 +1155,8 @@ export interface WorkspaceActions {
   /** Spot healing: cover a spot at `at` (framed photo, 0–1) with pixels copied from the best nearby place found on the
    * photo. 'full' when the photo already has the most spots allowed; 'no-source' when nothing nearby fits. */
   addHealSpot?: (photoId: string, at: { x: number; y: number }, size: number) => Promise<{ result: 'added'; spotId: string } | { result: 'full' | 'no-source' | 'unreadable' }>;
+  /** Look for small specks (dust, droplets, flecks) to suggest covering. Null when the photo could not be read. Changes nothing. */
+  findHealCandidates?: (photoId: string) => Promise<Array<{ x: number; y: number; r: number; contrast: number; tone: 'darker' | 'lighter' }> | null>;
   updateHealSpot?: (photoId: string, spotId: string, change: HealSpotChange) => void;
   /** Copy from the next best nearby place instead. False when there is no other. */
   nextHealSource?: (photoId: string, spotId: string) => Promise<boolean>;
