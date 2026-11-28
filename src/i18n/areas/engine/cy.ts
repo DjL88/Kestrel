@@ -21,6 +21,13 @@ export const cy: AreaTranslation<typeof source> = {
     looksGood: 'Mae’n edrych yn dda: mae’r gwerthoedd a fesurwyd o fewn yr ystod, felly ni newidiwyd dim.',
     cannotImprove: 'Does dim modd gwella hyn yn ddiogel, felly ni newidiwyd dim.',
     withheld: 'Cafodd golygiad a awgrymwyd ei ddal yn ôl am iddo fethu gwiriad.',
+    alreadyEnhanced: 'Wedi’i wella eisoes: mae canlyniad diwethaf Auto yn dal ar y llun hwn, ac ni fyddai ei redeg eto yn newid dim. Dadwneud, neu symud llithrydd a rhedeg Auto eto.',
+    guard: {
+      held: 'Byddai ysgafnhau’r llun hwn yn llosgi’r goleuadau llachar, felly gadawyd ef fel y mae.',
+      recovered: 'Tynnwyd y goleuadau llachar i lawr ychydig fel nad yw’r ysgafnhau yn eu llosgi.',
+      zoned: 'Mae’r ysgafnhau’n targedu’r ardaloedd tywyll yn hytrach na’r ffrâm gyfan, fel bod yr ardaloedd golau’n cadw eu manylion.',
+      liftedLess: 'Cadwyd yr ysgafnhau’n llai nag y gallai fod fel nad yw’r ardaloedd golau’n llosgi.',
+    },
     reasons: {
       clipWhite: 'Byddai ysgafnhau yn llosgi ardaloedd golau, fel diferion dŵr, allan i wyn pur.',
       crushedBlack: 'Byddai’r golygu yn gwasgu ardaloedd tywyll i ddu pur.',

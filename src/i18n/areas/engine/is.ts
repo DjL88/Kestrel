@@ -21,6 +21,13 @@ export const is: AreaTranslation<typeof source> = {
     looksGood: 'Lítur vel út: mæld gildi eru innan marka, svo engu var breytt.',
     cannotImprove: 'Ekki er hægt að bæta þetta á öruggan hátt, svo engu var breytt.',
     withheld: 'Tillögu að breytingu var haldið aftur af því að hún stóðst ekki prófun.',
+    alreadyEnhanced: 'Þegar bætt: síðasta niðurstaða Auto er enn á þessari mynd og ný keyrsla breytti engu. Afturkallaðu hana, eða færðu sleða og keyrðu Auto aftur.',
+    guard: {
+      held: 'Að lýsa þessa mynd myndi brenna út ljósu svæðin, svo henni var haldið óbreyttri.',
+      recovered: 'Ljósu svæðin voru dregin lítillega niður svo lýsingin brenni þau ekki út.',
+      zoned: 'Lýsingin beinist að dökku svæðunum frekar en allri myndinni svo björt svæði haldi smáatriðum.',
+      liftedLess: 'Lýsingin var höfð minni en hún hefði getað verið svo björt svæði brenni ekki út.',
+    },
     reasons: {
       clipWhite: 'Birtuhækkun myndi brenna ljós svæði, eins og vatnsdropa, út í hreint hvítt.',
       crushedBlack: 'Breytingin myndi þjappa dökkum svæðum niður í hreint svart.',

@@ -21,6 +21,13 @@ export const it: AreaTranslation<typeof source> = {
     looksGood: 'Va bene così: i valori misurati sono nell’intervallo, quindi non è stato cambiato nulla.',
     cannotImprove: 'Non si può migliorare in sicurezza, quindi non è stato cambiato nulla.',
     withheld: 'Una modifica suggerita è stata trattenuta perché non ha superato un controllo.',
+    alreadyEnhanced: 'Già migliorata: l’ultimo risultato di Auto è ancora su questa foto e rieseguirlo non cambierebbe nulla. Annulla, oppure sposta un cursore ed esegui di nuovo Auto.',
+    guard: {
+      held: 'Schiarire questa foto brucerebbe le alte luci, quindi è stata lasciata com’è.',
+      recovered: 'Le alte luci sono state ridotte un poco perché la schiarita non le bruci.',
+      zoned: 'La schiarita agisce sulle zone scure e non su tutta l’inquadratura, così le zone chiare mantengono i dettagli.',
+      liftedLess: 'La schiarita è stata mantenuta più contenuta del possibile per non bruciare le zone chiare.',
+    },
     reasons: {
       clipWhite: 'Schiarire brucerebbe zone chiare, come gli spruzzi d’acqua, fino al bianco puro.',
       crushedBlack: 'La modifica schiaccerebbe le zone scure fino al nero puro.',

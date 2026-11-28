@@ -8,6 +8,8 @@ import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
 import { sceneHintsFromPhotoTags } from '../../core/photoTagHints';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
+import { stripAutoLayer } from '../../core/autoLayer';
+import { guardHighlights } from '../../core/autoHighlightGuard';
 import { leanProposal, type Leaning } from '../../core/editStyle';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
@@ -54,6 +56,8 @@ export interface AutoRun {
    * gives one, and only when the core finds a better framing. It is a suggestion: nothing is cropped until it is accepted.
    */
   cropSuggestion?: { box: SubjectFractions };
+  /** The photo already carries Auto's recipe and a fresh Auto would leave it exactly as it is: nothing is stacked. */
+  alreadyEnhanced?: boolean;
 }
 
 export function subjectKindOf(frame: Pick<PhotoFrame, 'subjectKind' | 'tags' | 'subjectNames'>): InsightSubjectKind {
@@ -126,7 +130,12 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   if (!context || analysisCanvas.width < 16 || analysisCanvas.height < 16) return unavailable('too-small');
   const analysis = context.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
   const category = subjectKindOf(frame);
-  const base: PhotoEdit = frame.edit ?? DEFAULT_EDIT;
+  const current: PhotoEdit = frame.edit ?? DEFAULT_EDIT;
+  // Auto replaces its own previous contribution instead of adding to it (src/core/autoLayer.ts): it works from the look
+  // without Auto's last layer, and leaves alone any control the person moved since.
+  const layer = stripAutoLayer(frame.edit, frame.editHistory);
+  const base: PhotoEdit = layer.base;
+  const keptKeys = new Set(layer.kept);
 
   let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
   let species: SpeciesGuess | null = null;
@@ -180,9 +189,29 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // lifted (wildlife is usually just underexposed), as in naturalAuto. The person's own tag, night and astro still do.
   const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || (sceneHints.preserveDark === true && sceneHints.darkMeasuredOnly !== true) };
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
-  const global = leaned.edit;
-  const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
-  let naturalPlan = timedStep('auto:plan', () => planAuto({ ...input, proposal: global }));
+  const global: PhotoEdit = { ...leaned.edit };
+  for (const key of keptKeys) {
+    if (key === 'masks') continue;
+    const target = global as unknown as Record<string, unknown>; const mine = base as unknown as Record<string, unknown>;
+    if (mine[key] === undefined) delete target[key]; else target[key] = mine[key];
+  }
+  const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations, protectedKeys: layer.kept };
+  // The highlight guard (src/core/autoHighlightGuard.ts): every plan is measured on its lifted render and bounded, so a
+  // lift that rescues a dark subject cannot blow a bright sky. What it had to do is said in the detail lines.
+  const guardNotes: string[] = [];
+  const planGuarded = (proposal: PhotoEdit): AutoPlan => {
+    const planned = planAuto({ ...input, proposal });
+    if (planned.verdict.kind !== 'improved') return planned;
+    const guard = guardHighlights({ pixels: analysis.data, width: analysis.width, height: analysis.height, base, proposal: planned.proposal });
+    if (guard.action === 'none') return planned;
+    if (!guard.satisfied) {
+      guardNotes.push(engineText.auto.guard.held);
+      return { ...planned, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'Lifting this photo would blow out its highlights, so it was left as it is' } };
+    }
+    guardNotes.push(guard.action === 'recovered' ? engineText.auto.guard.recovered : guard.action === 'zoned' ? engineText.auto.guard.zoned : engineText.auto.guard.liftedLess);
+    return { ...planned, proposal: guard.edit };
+  };
+  let naturalPlan = timedStep('auto:plan', () => planGuarded(global));
   let plan = naturalPlan;
   const recipes: Omit<AutoCandidate, 'after'>[] = [];
   const describeEdit = (edit: PhotoEdit, local = false) => acceptedAutoChanges(base, edit, local).map((change) => change.key === 'subjectMask'
@@ -211,7 +240,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       segmentation, maskId: newId(), framingKey: framingKey(framing), extra: natural.subjectEdit,
     });
     if (local.usedMask) {
-      const subjectPlan = planAuto({ ...input, proposal: local.edit });
+      const subjectPlan = planGuarded(local.edit);
       if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
         plan = subjectPlan;
         recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
@@ -223,7 +252,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     const local = proposeGroupSubjectAuto(analysis.data, analysis.width, analysis.height, global, subjects,
       subjects.map(() => newId()), (frame.exif?.iso ?? 0) >= 1600);
     if (local !== global) {
-      const subjectPlan = planAuto({ ...input, proposal: local });
+      const subjectPlan = planGuarded(local);
       if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
         recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
         plan = subjectPlan;
@@ -248,7 +277,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // so a dark photo still gets the gentler lift Auto always offered rather than nothing.
   const bigLift = natural.edit.exposure > BIG_LIFT_FALLBACK_UNITS;
   if (bigLift && recipes.length && !rendered.candidates.length && recipes.some(recipe => recipe.id === 'natural')) {
-    const gentler = planAuto({ ...input, proposal: { ...global, exposure: Math.min(global.exposure ?? 0, BIG_LIFT_FALLBACK_UNITS) } });
+    const gentler = planGuarded({ ...global, exposure: Math.min(global.exposure ?? 0, BIG_LIFT_FALLBACK_UNITS) });
     if (gentler.verdict.kind === 'improved') {
       const retry = renderAutoCandidates(analysisCanvas, base, [{ id: 'natural', edit: gentler.proposal, summary: describeEdit(gentler.proposal) }],
         subjectInstances.map(instance => instance.mask), expectation);
@@ -259,17 +288,20 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     plan, naturalPlan, base, recipeCount: recipes.length,
     candidateEdits: rendered.candidates.map((candidate) => candidate.edit), rejected: rendered.rejected,
   });
+  // Auto's previous layer was taken out above; if the fresh recipe equals what the photo has now, nothing is stacked.
+  const alreadyEnhanced = layer.stripped && sameRecipe(plan.proposal, current) && recipes.length > 0;
+  plan = { ...plan, base: current };
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
-  const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
+  const improved = !alreadyEnhanced && rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
   // A tag or the person's own words ("low key", night) took a lift away: say so, rather than "looks good" or "unsafe".
   const heldDark = natural.heldBack === 'dark-on-purpose';
   const rejectedWords = rendered.rejected.slice(0, 3).map((reason) => reasonWords(reason) ?? reason);
   const planReason = plan.verdict.kind === 'cannot-improve-safely' ? reasonWords(plan.verdict.reason) : null;
   const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...(planReason && !rendered.candidates.length ? [planReason] : []), ...(rendered.rejected.length ? [engineText.auto.withheld, ...rejectedWords] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
-    headline: rendered.candidates.length ? engineText.auto.ready
+    ...rendered, plan, improved, ...(alreadyEnhanced ? { alreadyEnhanced } : {}), detail: [...described.detail, ...(improved ? guardNotes : []), ...(planReason && !rendered.candidates.length ? [planReason] : []), ...(rendered.rejected.length ? [engineText.auto.withheld, ...rejectedWords] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    headline: alreadyEnhanced ? engineText.auto.alreadyEnhanced : rendered.candidates.length ? engineText.auto.ready
       : recipes.length ? (rendered.rejected.length ? (reasonWords(rendered.rejected[0]) ?? engineText.auto.noneDifferent) : engineText.auto.noneDifferent) : headlineFor(plan, heldDark),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
