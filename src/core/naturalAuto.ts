@@ -92,6 +92,8 @@ const toPerceptual = (l: number) => (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (
 const LINEAR_8 = Float32Array.from({ length: 256 }, (_, i) => toLinear(i / 255));
 /** Slider units: exposure 1 is 0.4 EV (see `editParams`). */
 const EV_PER_UNIT = 0.4;
+/** Slider units to stops, for other modules that must read an edit's exposure as light (noise is judged at the shown exposure). */
+export const EXPOSURE_EV_PER_UNIT = EV_PER_UNIT;
 const MAX_ANALYSIS_PIXELS = 1_200_000;
 const BINS = 1024;
 
@@ -131,6 +133,8 @@ interface Analysis {
   hue: Float32Array;
   rLin: Float32Array;
   bLin: Float32Array;
+  /** Brightest channel, perceptual 0..1: a saturated feather clips this before its lightness does. */
+  peak: Float32Array;
   /** Per-pixel block class: 0 smooth, 1 ordinary, 2 textured, 3 noise-dominated. */
   blockClass: Uint8Array;
   blockOf: (i: number) => number;
@@ -149,7 +153,7 @@ function analyse(pixels: RgbaPixels, width: number, height: number): Analysis {
   const n = width * height;
   const sixteen = pixels instanceof Uint16Array;
   const lum = new Float32Array(n), chroma = new Float32Array(n), hue = new Float32Array(n);
-  const rLin = new Float32Array(n), bLin = new Float32Array(n);
+  const rLin = new Float32Array(n), bLin = new Float32Array(n), peak = new Float32Array(n);
   for (let i = 0, j = 0; i < n; i += 1, j += 4) {
     const r = sixteen ? toLinear(pixels[j] / 65535) : LINEAR_8[pixels[j]];
     const g = sixteen ? toLinear(pixels[j + 1] / 65535) : LINEAR_8[pixels[j + 1]];
@@ -157,6 +161,7 @@ function analyse(pixels: RgbaPixels, width: number, height: number): Analysis {
     rLin[i] = r; bLin[i] = b;
     lum[i] = toPerceptual(0.2126 * r + 0.7152 * g + 0.0722 * b);
     const hi = Math.max(r, g, b);
+    peak[i] = toPerceptual(hi);
     chroma[i] = hi > 0 ? (hi - Math.min(r, g, b)) / hi : 0;
     hue[i] = hueOf(r, g, b);
   }
@@ -210,7 +215,7 @@ function analyse(pixels: RgbaPixels, width: number, height: number): Analysis {
     blockClass[i] = cls[k];
     if (lum[i] > 0.9 && brightArea[k]) brightDetail[i] = 1;
   }
-  return { width, height, lum, chroma, hue, rLin, bLin, blockClass, blockOf, blockMean: mean, blockCount: blocks, energy, brightDetail };
+  return { width, height, lum, chroma, hue, rLin, bLin, peak, blockClass, blockOf, blockMean: mean, blockCount: blocks, energy, brightDetail };
 }
 
 class Histogram {
@@ -255,6 +260,10 @@ export const LOW_KEY_DIM = 0.3;
 export const LOW_KEY_BACKGROUND = 0.1;
 /** Where that lift aims: under mid-grey, so the subject still reads as lit against the dark. */
 export const LOW_KEY_TARGET = 0.36;
+/** The lit part of a low-key frame must reach at least this perceptual level (about a stop under mid-grey is not enough). */
+export const LOW_KEY_LIT = 0.5;
+/** The most Auto lifts a genuinely dark subject, in slider units (5 units is 2 EV, the owner's own edit of a dark kingfisher). */
+export const DARK_LIFT_MAX_UNITS = 5;
 
 export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const { pixels, width, height } = input;
@@ -291,7 +300,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   // refHi is the highlight evidence. For block-based detail a bright pixel counts only when it has bright, textured
   // neighbours: next to a subject's edge bright pixels are sky or bokeh, and without a mask a blown area cannot be
   // told from a white sky, so it is not acted on.
-  const frame = new Histogram(), ref = new Histogram(), refHi = new Histogram();
+  const frame = new Histogram(), ref = new Histogram(), refHi = new Histogram(), refPeak = new Histogram();
   let refCount = 0, chromaSum = 0, refChroma = 0, warmRich = 0, vividGreen = 0, brightSmooth = 0, brightTextured = 0;
   let neutralR = 0, neutralB = 0, neutral = 0, shadowArea = 0;
   for (let i = 0; i < n; i += 1) {
@@ -299,7 +308,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     frame.add(L);
     chromaSum += c;
     if (isRef(i)) {
-      ref.add(L); refCount += 1; refChroma += c;
+      ref.add(L); refPeak.add(a.peak[i]); refCount += 1; refChroma += c;
       if (reference !== 'detail' || L <= 0.9 || a.brightDetail[i]) refHi.add(L);
     }
     if (L > 0.2 && c > 0.45 && h >= 8 && h <= 50) warmRich += 1;
@@ -339,12 +348,14 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const brightBackground = scene.brightSmooth >= 0.06;
   // Low-key: most of the frame near black with a clearly lit subject (thresholds from the legacy engine's kingfisher
   // calibration: 70% of the frame below 0.12, the lit part at least 0.2 above the median).
-  const lowKey = frame.at(0.7) < 0.12 && ref.at(0.95) > 0.25 && ref.at(0.95) - scene.frameMedian > 0.2;
+  // Only when the lit part is genuinely lit (30 Nov 2026 beta: a dark, underexposed kingfisher was called low-key and left dark;
+  // wildlife is more often simply underexposed). A dim subject on a dark scene is underexposed, not a mood, so it is lifted.
+  const lowKey = frame.at(0.7) < 0.12 && ref.at(0.95) > LOW_KEY_LIT && ref.at(0.95) - scene.frameMedian > 0.3;
   const highIso = (input.iso ?? 0) >= 1600;
   const shadowsAreNoise = scene.shadowNoisy >= 0.3 || highIso;
   // Subdued: a dark, noisy scene (woodland at high ISO). Lifting it would turn noise into grey mush. Clean dark
   // shadows are not "subdued": they can be lifted without that harm.
-  const subdued = !lowKey && shadowsAreNoise && scene.frameMedian < 0.32 && refMedian >= 0.16 &&
+  const subdued = !lowKey && reference !== 'subject' && shadowsAreNoise && scene.frameMedian < 0.32 && refMedian >= 0.16 &&
     scene.shadowArea > 0.25 && scene.shadowStructured < 0.35;
 
   // Exposure follows the subject (or the in-focus detail), never a bright sky or bokeh.
@@ -367,8 +378,15 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     }
   } else if (refMedian < darkThreshold && refMedian > 0) {
     const wanted = toLinear(target) / Math.max(toLinear(refMedian), 1e-4);
-    const headroom = refP98 > 0 ? toLinear(0.96) / Math.max(toLinear(refP98), 1e-4) : wanted;
-    gain = clamp(Math.min(wanted, Math.max(1, headroom)), 1, 2 ** (1.25 * EV_PER_UNIT));
+    // A big lift is held back by the brightest channel too: a saturated feather (a kingfisher's blue and orange) clips one
+    // channel before its lightness does.
+    const lightHeadroom = refP98 > 0 ? toLinear(0.96) / Math.max(toLinear(refP98), 1e-4) : wanted;
+    const peakP99 = refPeak.at(0.99);
+    const channelHeadroom = peakP99 > 0 ? toLinear(0.97) / Math.max(toLinear(peakP99), 1e-4) : wanted;
+    const headroom = refMedian < 0.3 ? Math.min(lightHeadroom, channelHeadroom) : lightHeadroom;
+    // A genuinely dark subject needs more than a nudge (the owner's kingfisher wanted +2 EV): the cap grows as it darkens.
+    const maxUnits = refMedian < 0.2 ? DARK_LIFT_MAX_UNITS : refMedian < 0.3 ? 2.5 : 1.25;
+    gain = clamp(Math.min(wanted, Math.max(1, headroom)), 1, 2 ** (maxUnits * EV_PER_UNIT));
     // With a bright background and a validated subject, the subject mask does the lifting instead.
     if (subjectDarkerThanBackground) gain = 1;
     else if (brightBackground) gain = Math.min(gain, 2 ** (0.25 * EV_PER_UNIT));
@@ -378,7 +396,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     // Only darken when the subject or the in-focus detail itself is blown, not the sky behind it.
     gain = clamp(toLinear(0.94) / Math.max(toLinear(refP98), 1e-4), 2 ** (-0.75 * EV_PER_UNIT), 1);
   }
-  edit.exposure = clamp(roundTenth(Math.log2(gain) / EV_PER_UNIT), -0.7, 1.2);
+  edit.exposure = clamp(roundTenth(Math.log2(gain) / EV_PER_UNIT), -0.7, DARK_LIFT_MAX_UNITS);
   if (Math.abs(edit.exposure) < 0.1) edit.exposure = 0;
   const appliedGain = 2 ** (edit.exposure * EV_PER_UNIT);
   if (edit.exposure > 0) notes.push(reference === 'subject' ? 'The subject is on the dark side, so exposure goes up a little.' :
@@ -389,7 +407,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const refBright = refHi.above(0.95, appliedGain);
   const texturedClipping = scene.brightTextured * (appliedGain > 1 ? appliedGain : 1);
   if (refBright > 0.01 || texturedClipping > 0.004) {
-    edit.highlights = -clamp(round(0.3 + refBright * 8), 0.3, 0.8);
+    edit.highlights = -clamp(round(0.3 + refBright * 8), 0.3, appliedGain >= 2 ** (2.5 * EV_PER_UNIT) ? 1.4 : 0.8);
     notes.push('Bright detail is close to clipping, so highlights are recovered gently.');
   } else if (brightBackground) {
     notes.push('The bright background looks intentional, so it stays bright.');
@@ -467,7 +485,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const preserveLight = policy.preserveLight || hints.preserveLight === true;
   // A scene tag InFlight measured itself (style.low-key) is not the person's intent: where the frame also measures as
   // low-key, the dim subject is still lifted, the dark background keeps its mood and the render checks decide.
-  const darkHintIsOurOwn = hints.darkMeasuredOnly === true && lowKey && !policy.preserveDark;
+  const darkHintIsOurOwn = hints.darkMeasuredOnly === true && !policy.preserveDark;
   const preserveDark = policy.preserveDark || (hints.preserveDark === true && !darkHintIsOurOwn);
   if (darkHintIsOurOwn && edit.exposure > 0) notes.push('The photo is tagged low-key from InFlight\'s own measurement, so only the subject is lifted and the dark background stays dark.');
   const preserveSoft = policy.preserveSoft || hints.preserveSoft === true;

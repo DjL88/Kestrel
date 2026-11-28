@@ -57,6 +57,7 @@ import { lazyPart } from './utils/lazyPart';
 import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
+import type { HealCandidate } from './shell/HealLayer';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
@@ -375,7 +376,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // Spot healing: shown on the photo while its section in the Masks panel is on screen.
   const [healShown, setHealShown] = useState(false);
-  const [healUi, setHealUi] = useState<{ photoId: string; placing: boolean; selectedId: string | null; note?: string; busy?: boolean } | null>(null);
+  const [healUi, setHealUi] = useState<{ photoId: string; placing: boolean; selectedId: string | null; note?: string; busy?: boolean; candidates?: HealCandidate[] } | null>(null);
   const [healSize, setHealSize] = useState(() => radiusToSize(DEFAULT_HEAL_RADIUS));
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
@@ -506,8 +507,39 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       return { ...base, busy: false, note };
     });
   }, [actions, healSize]);
+  const findHealSpots = React.useCallback(async (photoId: string) => {
+    if (!actions.findHealCandidates) return;
+    setHealUi((current) => ({ photoId, placing: false, selectedId: null, ...(current?.photoId === photoId ? { candidates: current.candidates } : {}), busy: true, note: healText.finding }));
+    const found = await actions.findHealCandidates(photoId).catch(() => null);
+    setHealUi((current) => {
+      const base = current?.photoId === photoId ? current : { photoId, placing: false, selectedId: null };
+      if (!found) return { ...base, busy: false, candidates: undefined, note: healText.unreadable };
+      return { ...base, busy: false, candidates: found, note: found.length ? healText.found(found.length) : healText.foundNone };
+    });
+  }, [actions]);
+  const coverCandidates = React.useCallback(async (photoId: string, which: HealCandidate[]) => {
+    if (!actions.addHealSpot) return;
+    setHealUi((current) => (current?.photoId === photoId ? { ...current, busy: true } : current));
+    let lastOutcome: Awaited<ReturnType<NonNullable<typeof actions.addHealSpot>>> | null = null;
+    const done = new Set<HealCandidate>();
+    for (const candidate of which) {
+      lastOutcome = await actions.addHealSpot(photoId, { x: candidate.x, y: candidate.y }, radiusToSize(candidate.r)).catch(() => ({ result: 'unreadable' as const }));
+      if (lastOutcome.result === 'added') done.add(candidate); else if (lastOutcome.result === 'full') break;
+    }
+    setHealUi((current) => {
+      if (current?.photoId !== photoId) return current;
+      const note = lastOutcome && lastOutcome.result === 'added' ? healText.added
+        : lastOutcome?.result === 'full' ? healText.full(MAX_HEAL_SPOTS) : lastOutcome?.result === 'no-source' ? healText.noSource : healText.unreadable;
+      return { ...current, busy: false, candidates: (current.candidates ?? []).filter((candidate) => !done.has(candidate)), note };
+    });
+  }, [actions]);
+  const skipCandidates = React.useCallback((photoId: string, which: HealCandidate[]) => {
+    setHealUi((current) => (current?.photoId === photoId ? { ...current, candidates: (current.candidates ?? []).filter((candidate) => !which.includes(candidate)), note: undefined } : current));
+  }, []);
   const healCanvas = React.useMemo(() => (healShown && activePhoto && actions.addHealSpot ? {
     spots: activePhoto.healSpots ?? [],
+    candidates: healFor?.candidates ?? [],
+    onCoverCandidate: (candidate: HealCandidate) => { void coverCandidates(activePhoto.id, [candidate]); },
     selectedId: healFor?.selectedId ?? null,
     placing: Boolean(healFor?.placing),
     newRadius: sizeToRadius(healSize),
@@ -515,7 +547,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     onSelect: (spotId: string) => setHealUi((current) => ({ ...(current?.photoId === activePhoto.id ? current : { placing: false }), photoId: activePhoto.id, selectedId: spotId, note: undefined })),
     onMoveSource: (spotId: string, source: { sx: number; sy: number }) => actions.updateHealSpot?.(activePhoto.id, spotId, { source }),
     onStopPlacing: () => setHealUi((current) => (current ? { ...current, placing: false } : current)),
-  } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot]);
+  } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot, coverCandidates]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -967,6 +999,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
                   note={healFor?.note}
                   busy={healFor?.busy}
+                  candidates={healFor?.candidates ?? []}
+                  onFind={actions.findHealCandidates ? () => { void findHealSpots(activePhoto.id); } : undefined}
+                  onCover={(which) => { void coverCandidates(activePhoto.id, which); }}
+                  onSkip={(which) => skipCandidates(activePhoto.id, which)}
                   onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
                   onNextSource={(photoId, spotId) => {
                     if (!actions.nextHealSource) return;

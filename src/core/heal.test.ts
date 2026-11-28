@@ -135,3 +135,19 @@ test('a photo with healing is an edit, and the 16-bit export carries it', () => 
   assert.equal(master16Blocker(edit, undefined), null);
   assert.match(master16Blocker({ ...edit, heal: [spot({ r: 9 })] }, undefined) ?? '', /spot healing is invalid/);
 });
+
+test('findSpotCandidates offers isolated specks, not smooth gradients or long edges', async () => {
+  const { findSpotCandidates } = await import('./healCandidates');
+  const width = 300, height = 200;
+  const clean = picture(width, height);
+  assert.deepEqual(findSpotCandidates(clean, width, height, 4), []);
+  const dusty = picture(width, height, { cx: 150, cy: 100, r: 3 });
+  const found = findSpotCandidates(dusty, width, height, 4);
+  assert.equal(found.length, 1);
+  assert.ok(Math.abs(found[0].x - 0.5) < 0.01 && Math.abs(found[0].y - 0.5) < 0.01);
+  assert.equal(found[0].tone, 'darker');
+  // A hard vertical edge is not a speck.
+  const edgeShot = picture(width, height);
+  for (let y = 0; y < height; y += 1) for (let x = 150; x < width; x += 1) { const i = (y * width + x) * 4; edgeShot[i] = edgeShot[i + 1] = edgeShot[i + 2] = 250; }
+  assert.deepEqual(findSpotCandidates(edgeShot, width, height, 4), []);
+});

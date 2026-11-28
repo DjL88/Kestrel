@@ -1,6 +1,7 @@
 import React from 'react';
 import type { HealSpotChange, Photo } from '../contract';
 import { healText as T } from '../../../i18n/areas/heal';
+import type { HealCandidate } from '../shell/HealLayer';
 import BrandIcon from '../icons/BrandIcon';
 
 interface HealSectionProps {
@@ -16,6 +17,11 @@ interface HealSectionProps {
   /** A short message about the last action, in plain words. */
   note?: string;
   busy?: boolean;
+  /** Specks found by Find spots, waiting to be covered or skipped. */
+  candidates?: HealCandidate[];
+  onFind?: () => void;
+  onCover?: (which: HealCandidate[]) => void;
+  onSkip?: (which: HealCandidate[]) => void;
   onUpdate: (photoId: string, spotId: string, change: HealSpotChange) => void;
   onNextSource: (photoId: string, spotId: string) => void;
   onRemove: (photoId: string, spotId: string) => void;
@@ -40,7 +46,7 @@ const sliderRow = (id: string, label: string, value: number, onChange: (value: n
  * photo's recipe; the pixels placed are always copied from the same photo.
  */
 export default function HealSection({
-  photo, placing, onSetPlacing, newSize, onSetNewSize, selectedId, onSelect, note, busy,
+  photo, placing, onSetPlacing, newSize, onSetNewSize, selectedId, onSelect, note, busy, candidates = [], onFind, onCover, onSkip,
   onUpdate, onNextSource, onRemove, onClear, onShown,
 }: HealSectionProps) {
   React.useEffect(() => {
@@ -70,11 +76,42 @@ export default function HealSection({
         <BrandIcon name={placing ? 'check' : 'brush'} size={14} />
         <span>{placing ? T.stop : T.start}</span>
       </button>
+      {onFind && (
+        <button type="button" data-testid="v2-heal-find" disabled={busy} onClick={onFind}
+          className="flex h-9 w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--border-default)] disabled:opacity-50">
+          <BrandIcon name="search" size={14} />
+          <span>{T.find}</span>
+        </button>
+      )}
       {placing && <p className="text-[0.6875rem] text-[var(--text-secondary)]">{T.placing}</p>}
       {sliderRow('v2-heal-new-size', T.size, newSize, onSetNewSize, 'v2-heal-new-size')}
       <p role="status" aria-live="polite" data-testid="v2-heal-note" className="min-h-[1em] text-[0.6875rem] text-[var(--text-secondary)]">
         {busy ? T.working : note ?? ''}
       </p>
+      {candidates.length > 0 && (
+        <div className="space-y-1.5" data-testid="v2-heal-candidates">
+          <ul className="space-y-1.5">
+            {candidates.map((candidate, position) => (
+              <li key={`${candidate.x}-${candidate.y}`} className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 py-1.5">
+                <span className="min-w-0 flex-1 truncate text-xs text-[var(--text-primary)]">
+                  {T.candidate(position + 1)}
+                  <span className="ml-2 text-[0.625rem] text-[var(--text-muted)]">{T.candidateTone(candidate.tone)}</span>
+                </span>
+                <button type="button" disabled={busy} aria-label={T.coverCandidate(position + 1)} data-testid="v2-heal-cover" onClick={() => onCover?.([candidate])}
+                  className="text-[0.6875rem] font-medium text-[var(--brand-accent)] underline disabled:opacity-50">{T.cover}</button>
+                <button type="button" aria-label={`${T.skip}: ${T.candidate(position + 1)}`} onClick={() => onSkip?.([candidate])}
+                  className="text-[0.6875rem] font-medium text-[var(--text-secondary)] underline">{T.skip}</button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-3">
+            <button type="button" disabled={busy} data-testid="v2-heal-cover-all" onClick={() => onCover?.(candidates)}
+              className="text-[0.6875rem] font-medium text-[var(--brand-accent)] underline disabled:opacity-50">{T.coverAll}</button>
+            <button type="button" onClick={() => onSkip?.(candidates)}
+              className="text-[0.6875rem] font-medium text-[var(--text-secondary)] underline">{T.skipAll}</button>
+          </div>
+        </div>
+      )}
       {spots.length === 0 ? (
         <p className="text-[0.6875rem] text-[var(--text-muted)]">{T.empty}</p>
       ) : (

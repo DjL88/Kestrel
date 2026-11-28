@@ -21,7 +21,8 @@ import { decodeHeifForDisplay } from '../../providers/heifDecode';
 import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
-import { ANYWAY_DENOISE_STRENGTH, anywayLuminanceStrength, luminanceStrengthFor, VISIBLE_NOISE_SIGMA, type NoiseMeasurement } from '../../core/noiseEstimate';
+import { ANYWAY_DENOISE_STRENGTH, anywayLuminanceStrength, liftForNoise, luminanceStrengthFor, VISIBLE_NOISE_SIGMA, type NoiseMeasurement } from '../../core/noiseEstimate';
+import { EXPOSURE_EV_PER_UNIT } from '../../core/naturalAuto';
 import { mosaicExclusion, noiseLayout, type SubjectCoverage } from './noiseSampling';
 import { language } from '../../i18n/messages';
 import { fullDevelopPossible } from './fullDevelop';
@@ -39,7 +40,7 @@ const round3 = (v: number) => Math.round(v * 1000) / 1000;
  * left out, so the flattest parts of the background decide (`measureBackgroundNoise`); the estimator falls back to the
  * whole frame, and says so, when the subject leaves too little background.
  */
-async function measureFullSizeNoise(source: HTMLImageElement, framing: PhotoFraming, compute: DenoiseCompute, subject?: SubjectCoverage): Promise<NoiseMeasurement> {
+async function measureFullSizeNoise(source: HTMLImageElement, framing: PhotoFraming, compute: DenoiseCompute, subject?: SubjectCoverage, liftEv = 0): Promise<NoiseMeasurement> {
   const rotated = framing.turns % 2 !== 0;
   const crop = cropRectangle(rotated ? source.naturalHeight : source.naturalWidth, rotated ? source.naturalWidth : source.naturalHeight, framing);
   const layout = noiseLayout(crop.width, crop.height);
@@ -62,7 +63,8 @@ async function measureFullSizeNoise(source: HTMLImageElement, framing: PhotoFram
     ctx.drawImage(tile!, dx, dy);
   });
   const exclude = subject ? mosaicExclusion(layout, crop.width, crop.height, subject) : undefined;
-  return compute.measureBackground(ctx.getImageData(0, 0, width, height).data, width, height, exclude);
+  // Read at the exposure the photo is shown at: a lifted dark frame shows more noise than the unlifted pixels do.
+  return compute.measureBackground(liftForNoise(ctx.getImageData(0, 0, width, height).data, liftEv), width, height, exclude);
 }
 
 /** Lets the editor handle input between the two canvas reads denoise still does on this thread. */
@@ -256,7 +258,8 @@ async function denoiseVerifiedSource(
   await yieldToInterface();
   signal?.throwIfAborted();
   const measurement = await measureFullSizeNoise(source, framing, compute,
-    combinedAlpha ? { alpha: combinedAlpha, width: original.width, height: original.height } : undefined);
+    combinedAlpha ? { alpha: combinedAlpha, width: original.width, height: original.height } : undefined,
+    (frame.edit?.exposure ?? 0) * EXPOSURE_EV_PER_UNIT);
   signal?.throwIfAborted();
   const sigma = measurement.sigma;
   const iso = typeof frame.exif?.iso === 'number' && frame.exif.iso > 0 ? frame.exif.iso : undefined;

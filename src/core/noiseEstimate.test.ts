@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { anywayLuminanceStrength, ANYWAY_LUMINANCE_STRENGTH, estimateNoiseSigma, luminanceStrengthFor, measureBackgroundNoise, MIN_BACKGROUND_BLOCKS, VISIBLE_NOISE_SIGMA } from './noiseEstimate';
+import { liftForNoise, anywayLuminanceStrength, ANYWAY_LUMINANCE_STRENGTH, estimateNoiseSigma, luminanceStrengthFor, measureBackgroundNoise, MIN_BACKGROUND_BLOCKS, VISIBLE_NOISE_SIGMA } from './noiseEstimate';
 
 /** Seeded Gaussian noise (Box-Muller) on a picture made by `base`. */
 function picture(width: number, height: number, sigma: number, base: (x: number, y: number) => number, seed = 7): Uint8ClampedArray {
@@ -141,4 +141,25 @@ test('"Denoise anyway" is gentle, never below the default, and never stronger th
   assert.equal(anywayLuminanceStrength(null), ANYWAY_LUMINANCE_STRENGTH);
   assert.equal(anywayLuminanceStrength(8), luminanceStrengthFor(8));
   assert.ok(ANYWAY_LUMINANCE_STRENGTH <= 0.5);
+});
+
+// Owner's dark kingfisher (28 Nov 2026 beta): denoise said "no visible noise" because the noise was read on the dark,
+// unlifted pixels, yet after a +2 EV lift the grain is plain. Noise is judged at the exposure the photo is shown at.
+test('a dark frame reads clean as shot but noisy once lifted by two stops', () => {
+  const dark = picture(256, 256, 0.9, (x) => 22 + (x % 64) / 8);
+  const asShot = estimateNoiseSigma(dark, 256, 256) as number;
+  const lifted = estimateNoiseSigma(liftForNoise(dark, 2), 256, 256) as number;
+  assert.ok(asShot < VISIBLE_NOISE_SIGMA, `as shot ${asShot}`);
+  assert.ok(lifted > VISIBLE_NOISE_SIGMA, `lifted ${lifted}`);
+  assert.ok(luminanceStrengthFor(lifted) > 0 && luminanceStrengthFor(asShot) === 0);
+});
+
+test('lifting for the noise reading never touches the original pixels, and only ever brightens', () => {
+  const dark = picture(64, 64, 1, () => 30);
+  const copy = Uint8ClampedArray.from(dark);
+  const lifted = liftForNoise(dark, 1);
+  assert.deepEqual(dark, copy);
+  assert.ok(lifted[0] > dark[0]);
+  assert.equal(liftForNoise(dark, 0), dark, 'no lift: the same pixels');
+  assert.equal(liftForNoise(dark, -1), dark, 'a darkening is never applied');
 });
