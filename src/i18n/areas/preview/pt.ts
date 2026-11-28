@@ -31,6 +31,8 @@ export const pt: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envia para a nuvem uma pré-visualização inteligente de 2560 px de uma foto e recebe definições de edição que pode anular. Precisa de ligação e envia dados da foto, por isso deixe-o desligado para manter tudo neste dispositivo.",
   usbTetherName: "Ligação USB à câmara",
   usbTetherDesc: "Só na aplicação de ambiente de trabalho. Fotografa com uma câmara ligada por USB e guarda cada imagem numa pasta à sua escolha. Até agora só testado com uma câmara simulada.",
+  maskBrushName: "Pincel de máscara",
+  maskBrushDesc: "Pinte uma máscara à mão sobre a fotografia, ou afine uma máscara de motivo ou de fundo, com o pincel e a borracha em Máscaras. As pinceladas fazem parte da edição reversível; o ficheiro original nunca é alterado.",
   tapForPhotoName: "Toque na fotografia para ocultar as barras",
   tapForPhotoDesc: "Num ecrã tátil, um toque na fotografia oculta as barras e os painéis para que a fotografia ocupe todo o ecrã. Outro toque volta a mostrá-los.",
   cloudOriginalsName: "Originais completos na nuvem",

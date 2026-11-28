@@ -5,6 +5,8 @@ import { MAX_MASK_PARTS } from '../../../core/maskTypes';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 import { MASK_SLIDERS } from '../../engineClient/maskOps';
+import { brushText } from '../../../i18n/areas/brush';
+import { BRUSH_SIZE_MAX, BRUSH_SIZE_MIN } from '../utils/brushStroke';
 
 interface MasksPanelProps {
   photo: Photo | null;
@@ -26,7 +28,15 @@ interface MasksPanelProps {
   /** Tap to select (optional pack); absent where the engine does not offer it. */
   tapSelect?: TapSelectState;
   tapActions?: Pick<WorkspaceActions, 'downloadTapSelect' | 'startTapSelect' | 'setTapSelectMode' | 'newTapSubject' | 'finishTapSelect'>;
+  /** The mask brush can paint (its preview is on and the engine has it). Off: Brush and Eraser stay disabled. */
+  brushOn?: boolean;
+  /** Brush size, 1 to 100. */
+  brushSize?: number;
+  onSetBrushSize?: (size: number) => void;
 }
+
+/** The masks a brush paints on: brush masks, and subject or background masks (paint adds, erase removes). */
+const paintableLayer = (layer: MaskLayer | undefined) => layer?.type === 'brush' || layer?.type === 'subject' || layer?.type === 'background';
 
 export default function MasksPanel({
   photo,
@@ -46,6 +56,9 @@ export default function MasksPanel({
   onPreviewMask,
   tapSelect,
   tapActions,
+  brushOn = false,
+  brushSize = 20,
+  onSetBrushSize,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
@@ -61,6 +74,8 @@ export default function MasksPanel({
     seen.current = { photoId: photo.id, ids };
   }, [photo?.id, photo?.masks]);
   const previewId = photo?.masks.find(layer => layer.id === openId && layer.visible)?.id;
+  const openLayer = photo?.masks.find(layer => layer.id === previewId);
+  const brushActive = activeMaskTool === 'brush' || activeMaskTool === 'eraser';
   // The detection asked for last, so only its row says it is working (Dave, 27 Nov: the row looked done before it ran).
   const [asked, setAsked] = React.useState<Exclude<MaskLayer['type'], 'tonal'> | null>(null);
   React.useEffect(() => setAsked(null), [photo?.id]);
@@ -153,17 +168,23 @@ export default function MasksPanel({
           {STRINGS.masks.manualToolsHeading}
         </h3>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-          {manualTools.map((tool) => (
+          {manualTools.map((tool) => {
+            const paints = tool.id === 'brush' || tool.id === 'eraser';
+            return (
             <button
               key={tool.id}
               type="button"
-              disabled={tool.id === 'brush' || tool.id === 'eraser'}
-              title={tool.id === 'brush' || tool.id === 'eraser'
-                ? STRINGS.panelWords.paintingUnavailable
+              data-testid={`mask-tool-${tool.id}`}
+              disabled={paints && !brushOn}
+              aria-pressed={paints && brushOn ? activeMaskTool === tool.id : undefined}
+              title={paints
+                ? (brushOn ? brushText.help : brushText.unavailable)
                 : STRINGS.panelWords.addShapeMask}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 if (tool.id === 'area' || tool.id === 'gradient') onAddMaskLayer(photo.id, tool.id);
+                // Brush paints on the open brush, subject or background mask; with none open it starts a new brush mask.
+                if (tool.id === 'brush' && !paintableLayer(openLayer)) onAddMaskLayer(photo.id, 'brush');
               }}
               className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[0.6875rem] font-medium transition-colors ${
                 activeMaskTool === tool.id
@@ -174,8 +195,44 @@ export default function MasksPanel({
               <BrandIcon name={tool.icon} size={16} />
               <span>{tool.label}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
+        {brushOn && <p className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">{brushText.refine}</p>}
+        {brushOn && brushActive && (
+          <div data-testid="mask-brush-controls" className="space-y-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5">
+            <p role="status" data-testid="mask-brush-status" className="text-[0.6875rem] leading-relaxed text-[var(--text-primary)]">
+              {paintableLayer(openLayer) && openLayer
+                ? (activeMaskTool === 'eraser' ? brushText.erasing(openLayer.name) : brushText.painting(openLayer.name))
+                : brushText.pickMask}
+            </p>
+            <div role="group" aria-label={brushText.mode} className="grid grid-cols-2 gap-1.5">
+              {(['brush', 'eraser'] as const).map((mode) => (
+                <button key={mode} type="button" data-testid={`mask-brush-mode-${mode}`} aria-pressed={activeMaskTool === mode}
+                  onClick={() => onSetMaskTool(mode)}
+                  className={`flex min-h-9 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border text-xs font-medium ${activeMaskTool === mode
+                    ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
+                    : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                  <BrandIcon name={mode === 'brush' ? 'brush' : 'eraser'} size={14} />
+                  <span>{mode === 'brush' ? brushText.paint : brushText.erase}</span>
+                  {activeMaskTool === mode && <BrandIcon name="check" size={12} />}
+                </button>
+              ))}
+            </div>
+            <label htmlFor="mask-brush-size" className="flex items-center justify-between text-[0.6875rem] text-[var(--text-secondary)]">
+              <span>{brushText.size}</span>
+              <span className="tabular-nums text-[var(--text-primary)]">{brushSize}</span>
+            </label>
+            <input id="mask-brush-size" data-testid="mask-brush-size" type="range" min={BRUSH_SIZE_MIN} max={BRUSH_SIZE_MAX} step={1} value={brushSize}
+              aria-keyshortcuts="[ ]" onChange={(event) => onSetBrushSize?.(Number(event.target.value))}
+              className="w-full accent-[var(--brand-accent)]" />
+            <p className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">{brushText.help}</p>
+            <button type="button" data-testid="mask-brush-stop" onClick={() => onSetMaskTool('subject')}
+              className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+              <BrandIcon name="close" size={12} /><span>{brushText.stop}</span>
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Active Mask Layers */}
@@ -207,6 +264,7 @@ export default function MasksPanel({
                   >
                     <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
                     {layer.parts?.length ? <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{`· ${STRINGS.panelWords.combined}`}</span> : null}
+                    {layer.strokes ? <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{`· ${brushText.strokes(layer.strokes)}`}</span> : null}
                     <span className="ml-2 text-[0.625rem] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
                   </button>
                   <button

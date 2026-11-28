@@ -1,4 +1,4 @@
-import { MASK_EDIT_KEYS, MAX_MASKS, MAX_MASK_PARTS, isCombined, maskParts, type MaskEditKey, type Mask, type MaskLimit, type MaskPart } from '../../core/maskTypes';
+import { MASK_EDIT_KEYS, MAX_MASKS, MAX_MASK_PARTS, createBrushStroke, isCombined, maskParts, type MaskEditKey, type Mask, type MaskLimit, type MaskPart } from '../../core/maskTypes';
 import type { MaskGeometryField, MaskLayer } from '../ui/contract';
 
 /** The sliders a mask offers in V2. Each is a real local control; the range is the core's own (-2 to 2, sharpen from 0). */
@@ -36,6 +36,7 @@ export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
     invert: mask.invert,
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
     ...(mask.kind === 'tonal' ? { tonal: { band: mask.band, low: mask.low, high: mask.high } } : {}),
+    ...(mask.kind === 'brush' || mask.kind === 'subject' ? { strokes: mask.strokes.length } : {}),
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
   }));
@@ -133,6 +134,37 @@ export function setMaskTonalRange(masks: readonly Mask[] | undefined, id: string
 /** Invert the selection of a mask: what it selected is left alone and the rest is adjusted. Setting it twice restores it. */
 export const setMaskInvert = (masks: readonly Mask[] | undefined, id: string, invert: boolean): Mask[] =>
   change(masks, id, (mask) => (mask.invert === !!invert ? mask : { ...mask, invert: !!invert }));
+
+/** The most brush strokes one mask keeps, and the most coordinates (x, y pairs flattened) one stroke keeps. */
+export const MAX_BRUSH_STROKES = 300;
+export const MAX_STROKE_VALUES = 3000;
+
+/** True for the masks a brush can paint on: brush masks, and subject or background masks (paint adds, erase removes). */
+export const isPaintable = (mask: Pick<Mask, 'kind'> | undefined): boolean => mask?.kind === 'brush' || mask?.kind === 'subject';
+
+/** One painted stroke: x, y pairs 0 to 1 across the framed photo, the radius in widths of the photo, and whether it erases. */
+export interface PaintedStroke { points: number[]; radius: number; erase: boolean }
+
+/**
+ * Add one brush stroke to a brush, subject or background mask. Returns the masks unchanged (the same array) when the mask
+ * cannot take paint, already holds MAX_BRUSH_STROKES, or the stroke has no usable point, so nothing is recorded in History.
+ * Points are clamped to the photo and the stroke is cut at MAX_STROKE_VALUES. On an inverted mask the stroke is stored as its
+ * opposite, so painting always adds to what the person sees selected.
+ */
+export function addMaskStroke(masks: readonly Mask[] | undefined, id: string, stroke: PaintedStroke): Mask[] {
+  const list = (masks ?? []) as Mask[];
+  const target = list.find((mask) => mask.id === id);
+  if (!target || (target.kind !== 'brush' && target.kind !== 'subject') || target.strokes.length >= MAX_BRUSH_STROKES) return list;
+  const points: number[] = [];
+  for (let i = 0; i + 1 < stroke.points.length && points.length < MAX_STROKE_VALUES; i += 2) {
+    const x = stroke.points[i], y = stroke.points[i + 1];
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y)));
+  }
+  if (points.length < 2 || !Number.isFinite(stroke.radius) || stroke.radius <= 0) return list;
+  const radius = Math.min(0.5, Math.max(0.002, stroke.radius));
+  const painted = createBrushStroke(points, radius, stroke.erase, target.invert);
+  return list.map((mask) => (mask === target && (mask.kind === 'brush' || mask.kind === 'subject') ? { ...mask, strokes: [...mask.strokes, painted] } : mask));
+}
 
 /** One restricting part (the older single limit), or none. */
 export function setMaskLimit(masks: readonly Mask[] | undefined, id: string, limit: MaskLimit | null): Mask[] {

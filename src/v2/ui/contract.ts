@@ -396,6 +396,8 @@ export interface MaskLayer {
   parts?: MaskLayerPart[];
   /** The mask's own selection is swapped: what was selected is not, and the rest is. */
   invert?: boolean;
+  /** Brush, subject and background masks only: how many brush strokes paint or erase it. */
+  strokes?: number;
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -1193,7 +1195,7 @@ export interface WorkspaceActions {
   /** True when a font of this name is installed on this device. */
   hasDeviceFont: (fontName: string) => boolean;
 
-  // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
+  // Genuine non-destructive masks. Brush painting goes through paintMask (Masks › Brush, a preview).
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: Exclude<MaskLayer['type'], 'tonal'>) => void;
   /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
@@ -1208,6 +1210,11 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  /**
+   * Add one brush stroke to a brush, subject or background mask (one History step). Points are x, y pairs 0 to 1 across the
+   * framed photo; the radius is in widths of the photo. Absent where the engine has no brush.
+   */
+  paintMask?: (photoId: string, maskId: string, stroke: { points: number[]; radius: number; erase: boolean }) => void;
   /** Combine other masks into this one, in order; an empty list removes every part. */
   setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
   /** Add a mask that picks pixels by brightness (shadows, highlights, blacks, whites or a custom range). */

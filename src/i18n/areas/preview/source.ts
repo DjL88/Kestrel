@@ -39,6 +39,8 @@ export const source = {
   tapForPhotoDesc: "On a touch screen, one tap on the photo hides the bars and panels so the photo has the whole screen. Another tap brings them back.",
   usbTetherName: "USB tethering",
   usbTetherDesc: "Desktop app only. Shoots with a camera plugged in by USB and saves each frame to a folder you choose. Tried only with a simulated camera so far.",
+  maskBrushName: "Mask brush",
+  maskBrushDesc: "Paint a mask by hand on the photo, or refine a subject or background mask, with Brush and Eraser in Masks. Strokes are part of the reversible edit; the original file is never changed.",
   ortWebgpuName: "Graphics card for models",
   ortWebgpuDesc: "Desktop app only. Tries the graphics card for the on-device models, with the processor as the fallback. Its answers are not yet proven to match the processor's.",
   focusStackName: "Focus stacking",

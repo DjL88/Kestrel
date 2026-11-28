@@ -58,6 +58,9 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import type { HealCandidate } from './shell/HealLayer';
+import type { BrushCanvasState } from './shell/BrushLayer';
+import { DEFAULT_BRUSH_SIZE, brushRadius, stepBrushSize } from './utils/brushStroke';
+import { previewOn, previewsVersion, subscribePreviews } from '../../core/previewFeatures';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
@@ -378,6 +381,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [healShown, setHealShown] = useState(false);
   const [healUi, setHealUi] = useState<{ photoId: string; placing: boolean; selectedId: string | null; note?: string; busy?: boolean; candidates?: HealCandidate[] } | null>(null);
   const [healSize, setHealSize] = useState(() => radiusToSize(DEFAULT_HEAL_RADIUS));
+  const [brushSize, setBrushSize] = useState(DEFAULT_BRUSH_SIZE);
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
   // A line round the mask by default, so the edit inside stays visible; the hatched area is one press away.
@@ -548,6 +552,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     onMoveSource: (spotId: string, source: { sx: number; sy: number }) => actions.updateHealSpot?.(activePhoto.id, spotId, { source }),
     onStopPlacing: () => setHealUi((current) => (current ? { ...current, placing: false } : current)),
   } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot, coverCandidates]);
+  // The mask brush (a preview): paints the brush, subject or background mask open in the Masks panel.
+  React.useSyncExternalStore(subscribePreviews, previewsVersion, previewsVersion);
+  const brushOn = previewOn('maskBrush') && Boolean(actions.paintMask);
+  const brushLayer = brushOn && activePhoto && maskGuide?.photoId === activePhoto.id
+    ? activePhoto.masks.find((layer) => layer.id === maskGuide.maskId && layer.visible) : undefined;
+  const paintMask = actions.paintMask;
+  const brushCanvas = React.useMemo<BrushCanvasState | undefined>(() => (
+    paintMask && activePhoto && brushLayer && (brushLayer.type === 'brush' || brushLayer.type === 'subject' || brushLayer.type === 'background')
+      && (store.activeMaskTool === 'brush' || store.activeMaskTool === 'eraser') ? {
+      name: brushLayer.name,
+      erase: store.activeMaskTool === 'eraser',
+      radius: brushRadius(brushSize),
+      onStroke: (points: number[], erase: boolean) => paintMask(activePhoto.id, brushLayer.id, { points, radius: brushRadius(brushSize), erase }),
+      onResize: (step: 1 | -1) => setBrushSize((size) => stepBrushSize(size, step)),
+    } : undefined), [paintMask, activePhoto, brushLayer, store.activeMaskTool, brushSize]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -971,6 +990,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onPreviewMask={setMaskGuide}
             tapSelect={store.tapSelect}
             tapActions={actions}
+            brushOn={brushOn}
+            brushSize={brushSize}
+            onSetBrushSize={setBrushSize}
           />
           </div>
         );
@@ -1466,6 +1488,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onTapSelect={actions.tapSelectAt}
                   neutralPick={neutralPick}
                   heal={healCanvas}
+                  brush={brushCanvas}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);

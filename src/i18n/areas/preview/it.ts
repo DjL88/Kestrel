@@ -31,6 +31,8 @@ export const it: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Invia al cloud un'anteprima intelligente da 2.560 px di una foto e riceve impostazioni di modifica annullabili. Richiede una connessione e invia dati della foto: lo lasci disattivato per tenere tutto su questo dispositivo.",
   usbTetherName: "Tethering USB",
   usbTetherDesc: "Solo app desktop. Scatta con una fotocamera collegata via USB e salva ogni immagine in una cartella a sua scelta. Finora provato solo con una fotocamera simulata.",
+  maskBrushName: "Pennello maschera",
+  maskBrushDesc: "Dipinga a mano una maschera sulla foto, o affini una maschera del soggetto o dello sfondo, con pennello e gomma in Maschere. Le pennellate fanno parte della modifica reversibile; il file originale non viene mai modificato.",
   tapForPhotoName: "Tocca la foto per nascondere le barre",
   tapForPhotoDesc: "Su uno schermo tattile, un tocco sulla foto nasconde barre e pannelli, così la foto occupa tutto lo schermo. Un altro tocco le riporta.",
   cloudOriginalsName: "Originali completi nel cloud",

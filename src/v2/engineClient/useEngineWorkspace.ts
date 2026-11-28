@@ -90,7 +90,7 @@ import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { workflowPreviewOn } from './workflowPreview';
-import { previewsVersion, subscribePreviews } from '../../core/previewFeatures';
+import { previewOn, previewsVersion, subscribePreviews } from '../../core/previewFeatures';
 import { useFinishBest } from './useFinishBest';
 import { recordCullObservations, rescoreFromObservations, type ScanEvidence } from '../../core/cullObservationStore';
 import { applyCullRules, proposedKeepers, rankWithRules, type CullRules } from '../../core/cullRules';
@@ -177,11 +177,12 @@ import { useTapSelect } from './useTapSelect';
 import { addHealSpot as addSpot, canAddHealSpot, nextHealSource, removeHealSpot as removeSpot, sizeToRadius, updateHealSpot as changeSpot } from './healOps';
 import { applyHeal, findHealSources } from '../../core/heal';
 import { findSpotCandidates } from '../../core/healCandidates';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps';
+import { addMaskStroke, canAddMask, isPaintable, MAX_BRUSH_STROKES, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps';
 import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, createTonalMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
+import { brushText } from '../../i18n/areas/brush';
 import { v2Text } from '../../i18n/areas/v2';
 import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
 import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
@@ -1694,14 +1695,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice, onScreen: screen === 'editor' && !importing ? activeId : null });
 
-  /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
+  /** Reuse actual area, gradient and brush masks from the shared engine. Sky detection is not offered; the brush is a preview. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
     if (type === 'sky') { setNotice(engineText.workspace.skyUnavailable); return; }
-    if (type === 'brush') { setNotice(engineText.workspace.brushUnavailable); return; }
+    if (type === 'brush' && !previewOn('maskBrush')) { setNotice(engineText.workspace.brushUnavailable); return; }
     const project = stateRef.current;
     const frame = project?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
     if (!project || !frame) return;
     if (!canAddMask(frame.edit?.masks)) { setNotice(engineText.workspace.masksFull); return; }
+    if (type === 'brush') {
+      // An empty brush mask: it selects nothing until the person paints on the photo (Masks › Brush, a preview).
+      const shape = createMask('brush', newId());
+      editFrames([photoId], (latest) => canAddMask(latest.edit?.masks)
+        ? ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), shape] }) : latest.edit);
+      setNotice(brushText.added);
+      return;
+    }
     if (type === 'area' || type === 'gradient') {
       const shape = createMask(type === 'area' ? 'radial' : 'linear', newId());
       editFrames([photoId], (latest) => canAddMask(latest.edit?.masks)
@@ -3862,6 +3871,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     setMaskTonalRange: (photoId, maskId, end, value) => editMasks(photoId, masks => setMaskTonalRange(masks, maskId, end, value)),
     setMaskInvert: (photoId, maskId, invert) => editMasks(photoId, masks => setMaskInvert(masks, maskId, invert)),
+    paintMask: (photoId, maskId, stroke) => {
+      // One stroke is one History step. A stroke the mask cannot take (full, or not a paintable mask) records nothing.
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const masks = frame?.edit?.masks;
+      if (!frame || addMaskStroke(masks, maskId, stroke) === masks) {
+        const target = masks?.find((mask) => mask.id === maskId);
+        if (target && isPaintable(target) && 'strokes' in target && target.strokes.length >= MAX_BRUSH_STROKES) setNotice(brushText.full(MAX_BRUSH_STROKES));
+        return;
+      }
+      editMasks(photoId, (current) => addMaskStroke(current, maskId, stroke));
+    },
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
     runExport: (request) => {
       stub.actions.setExportOpen(false);

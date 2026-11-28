@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMask, createTonalMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskLimit, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps.ts';
+import { addMaskStroke, canAddMask, isPaintable, masksToLayers, MAX_BRUSH_STROKES, MAX_STROKE_VALUES, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskLimit, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps.ts';
 import { applyMasks, effectiveAlpha, fullContext, lumaFromRgba8, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
@@ -311,4 +311,39 @@ test('a tonal mask adjusts only the chosen brightnesses in real pixels, can be r
   const both = setMaskParts([createTonalMask('highlights', 'h'), createMask('radial', 'o')], 'h', [{ id: 'o', mode: 'intersect' }]);
   const alpha = effectiveAlpha(both[0], both, 16, 1, { ...fullContext(16, 1), luma: lumaFromRgba8(ramp()) });
   assert.equal(alpha[0], 0);
+});
+
+test('a brush stroke is added to a brush mask, clamped to the photo, and stored as its opposite on an inverted mask', () => {
+  const masks = addMaskStroke([createMask('brush', 'b')], 'b', { points: [-0.2, 0.5, 0.4, 1.3], radius: 0.05, erase: false });
+  const brush = masks[0] as Extract<Mask, { kind: 'brush' }>;
+  assert.equal(brush.strokes.length, 1);
+  assert.deepEqual(brush.strokes[0], { points: [0, 0.5, 0.4, 1], radius: 0.05, erase: false });
+  const inverted = addMaskStroke([{ ...createMask('brush', 'b'), invert: true }], 'b', { points: [0.5, 0.5], radius: 0.05, erase: false });
+  assert.equal((inverted[0] as Extract<Mask, { kind: 'brush' }>).strokes[0].erase, true);
+  assert.equal(masksToLayers(masks)[0].strokes, 1);
+});
+
+test('painting refines a subject or background mask: paint adds, erase removes', () => {
+  const masks = addMaskStroke([subject('s')], 's', { points: [0.5, 0.5], radius: 0.2, erase: false });
+  const before = effectiveAlpha(subject('s'), [subject('s')], 16, 16, { aspect: 1, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const after = effectiveAlpha(masks[0], masks, 16, 16, { aspect: 1, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const centre = 8 * 16 + 8;
+  assert.equal(before[centre], 0);
+  assert.ok(after[centre] > 0.5, `painted centre is selected (${after[centre]})`);
+  const erased = addMaskStroke(masks, 's', { points: [0.5, 0.5], radius: 0.2, erase: true });
+  const cleared = effectiveAlpha(erased[0], erased, 16, 16, { aspect: 1, view: { x: 0, y: 0, w: 1, h: 1 } });
+  assert.ok(cleared[centre] < 0.1, `erased centre is cleared (${cleared[centre]})`);
+});
+
+test('a stroke that cannot be used leaves the masks as they were (nothing for History)', () => {
+  const masks = [createMask('radial', 'r'), createMask('brush', 'b')];
+  assert.equal(addMaskStroke(masks, 'r', { points: [0.5, 0.5], radius: 0.05, erase: false }), masks, 'an oval takes no paint');
+  assert.equal(addMaskStroke(masks, 'b', { points: [Number.NaN, 0.5], radius: 0.05, erase: false }), masks, 'no usable point');
+  assert.equal(addMaskStroke(masks, 'b', { points: [0.5, 0.5], radius: 0, erase: false }), masks, 'no radius');
+  assert.equal(addMaskStroke(masks, 'missing', { points: [0.5, 0.5], radius: 0.05, erase: false }), masks);
+  const full: Mask = { ...createMask('brush', 'f'), strokes: Array.from({ length: MAX_BRUSH_STROKES }, () => ({ points: [0.1, 0.1], radius: 0.01, erase: false })) } as Mask;
+  assert.equal(addMaskStroke([full], 'f', { points: [0.5, 0.5], radius: 0.05, erase: false })[0], full);
+  const long = addMaskStroke(masks, 'b', { points: Array.from({ length: MAX_STROKE_VALUES + 40 }, () => 0.5), radius: 0.05, erase: false });
+  assert.equal((long[1] as Extract<Mask, { kind: 'brush' }>).strokes[0].points.length, MAX_STROKE_VALUES);
+  assert.ok(isPaintable(masks[1]) && !isPaintable(masks[0]) && isPaintable(subject('s', true)));
 });

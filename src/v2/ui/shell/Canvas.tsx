@@ -43,6 +43,7 @@ import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
 import { adviceGate, readAdviceChoice, writeAdviceChoice, type AdviceChoice } from '../../../core/adviceSetting';
 import { adviceFocus } from '../utils/adviceFocus';
 import HealLayer, { type HealCanvasState } from './HealLayer';
+import BrushLayer, { type BrushCanvasState } from './BrushLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { isMobileShell } from '../../../providers/desktopShell';
@@ -97,6 +98,8 @@ interface CanvasProps {
   neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
   /** Spot healing circles and placing, while the Masks panel shows them. Escape stops placing. */
   heal?: HealCanvasState & { onStopPlacing: () => void };
+  /** The mask brush, while Brush or Eraser is on and a brush, subject or background mask is open (Masks panel). */
+  brush?: BrushCanvasState;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -222,6 +225,7 @@ export default function Canvas({
   onTapSelect,
   neutralPick,
   heal,
+  brush,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -1251,7 +1255,7 @@ export default function Canvas({
         // One clean tap gives the photo the whole screen, or brings the bars back. Tools that use a tap on the picture
         // (tap to select, heal, the neutral picker) keep it; so does anything the tap landed on that is a control.
         const onControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"], [role="slider"]');
-        if (tapTogglesCanvasOnly && !onControl && !neutralPick && !heal?.placing && tapSession?.photoId !== photo.id
+        if (tapTogglesCanvasOnly && !onControl && !neutralPick && !heal?.placing && !brush && tapSession?.photoId !== photo.id
           && isTap(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t)) {
           if (tapToggleTimer.current !== null) {
             window.clearTimeout(tapToggleTimer.current); tapToggleTimer.current = null; // second tap: a double tap, not ours
@@ -1511,10 +1515,12 @@ export default function Canvas({
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
   const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
   const healing = heal && (heal.placing || heal.spots.length || heal.candidates?.length) ? heal : undefined;
-  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping || healing
+  const painting = brush && selectedMask && !tapping && !healing?.placing ? brush : undefined;
+  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping || healing || painting
     ? (picture: { width: number; height: number }) => (
       <>
         {healing && !tapping && <HealLayer picture={picture} {...healing} />}
+        {painting && <BrushLayer picture={picture} {...painting} />}
         {selectedShape && onSetMaskGeometry && !tapping && !healing?.placing && (
           <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
             onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
