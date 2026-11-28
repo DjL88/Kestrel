@@ -181,6 +181,15 @@
 /* Upright tablet: a half-height bottom sheet; the filmstrip steps aside while it is open. */
 .inflight-v2[data-v2-layout="tablet-portrait"] .v2-sheet-open .v2-filmstrip { display: none; }
 
+/* Tap for photo (preview `tapForPhoto`): on a phone, with the bars hidden by a tap, the canvas's own bar and the zoom
+   bar step aside too and the stage loses its margin, so the photo has the screen. The "Show panels" button stays in the
+   line under the photo, and a second tap brings everything back. */
+@media (pointer: coarse) and (max-width: 767px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 1023px) {
+  .inflight-v2[data-v2-photo-only] .v2-canvas-bar,
+  .inflight-v2[data-v2-photo-only] [data-testid="canvas-viewport-controls"] { display: none; }
+  .inflight-v2[data-v2-photo-only] [data-testid="canvas-stage"] { padding: 0; }
+}
+
 /* Nothing shown by colour alone (owner checklist, WCAG 1.4.1): what is current or selected also carries a shape, a short
    solid bar at its edge. It is drawn from the element's own state (aria-pressed, or data-selected where the element is
    not a button), so the picture and what a screen reader says cannot disagree. */
@@ -320,9 +329,15 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
   .inflight-v2 [data-testid="canvas-tip"][data-tip="view"] { display: none; }
   /* Small controls inside a dense row (the (i) button, a slider's value) keep their look and the row's height, but a
      finger can press anywhere in a 44px square around them. */
-  .inflight-v2 .v2-hit { position: relative; }
+  .inflight-v2 .v2-hit:not(.absolute):not(.fixed) { position: relative; }
   .inflight-v2 .v2-hit::after {
     content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: max(100%, var(--touch-min)); height: max(100%, var(--touch-min));
   }
+}
+
+/* A long press on a picture on a touch screen should not offer the browser's "Save image" or "Copy" sheet: InFlight has its
+   own photo menu. Scoped to pictures inside the studio. */
+@media (pointer: coarse) {
+  .inflight-v2 img, .inflight-v2 canvas, .inflight-v2 .v2-no-callout { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 }

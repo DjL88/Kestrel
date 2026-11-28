@@ -67,3 +67,6 @@ public/models/efficientsam-ti-encoder-fp16.onnx
 public/models/efficientsam-ti-decoder-fp16.onnx
 public/models/nafnet-sidd-w32-w16.onnx
 public/models/birefnet-lite-w16.onnx
+
+# golden-path scorecard output (npm run golden-path)
+/golden-path-out/

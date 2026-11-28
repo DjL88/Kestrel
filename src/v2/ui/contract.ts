@@ -57,6 +57,7 @@ export type SettingsTabId =
   | 'aiProviders'
   | 'storage'
   | 'keyboard'
+  | 'gestures'
   | 'presets'
   | 'formats'
   | 'language'

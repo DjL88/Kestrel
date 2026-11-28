@@ -29,6 +29,8 @@ interface ExportDialogProps {
   open: boolean;
   photo: Photo | null;
   selectedPhotoIds: string[];
+  /** Photos in this export that exist here only as cloud previews (up to 2048 px): they export at preview size or smaller. */
+  previewOnlyCount?: number;
   onClose: () => void;
   onExport: (request: ExportRequest) => void;
   /** Brand kits (K080). Absent while the preview is off, and then the section is not shown. */
@@ -53,6 +55,7 @@ export default function ExportDialog({
   open,
   photo,
   selectedPhotoIds,
+  previewOnlyCount = 0,
   onClose,
   onExport,
   brandKits,
@@ -217,6 +220,7 @@ export default function ExportDialog({
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                 {STRINGS.exportDialog.photosHeading}
               </h3>
+              {previewOnlyCount > 0 && <p role="status" className="text-xs text-[var(--text-secondary)]" data-testid="export-preview-only">{STRINGS.exportDialog.previewOnlyExport(previewOnlyCount)}</p>}
               <div className="space-y-1.5">
                 {photoIds.length > 1 ? <p className="text-xs text-[var(--text-secondary)]">{STRINGS.exportDialog.batchActiveGroup}</p> : photo.editGroups.map((g) => {
                   const checked = selectedGroupIds.includes(g.id);

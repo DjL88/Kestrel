@@ -15,7 +15,7 @@ export function readStoredCloudConsent(storage: Store = defaultStore()): CloudCo
 }
 
 /**
- * The answer in force. A paying plan (Basic or Pro) is pre-opted-in: an unasked answer counts as yes for them, shown
+ * The answer in force. A paid plan (Pro or Pro Plus; Basic, the free plan, has no cloud and is never pre-opted-in) is pre-opted-in: an unasked answer counts as yes for them, shown
  * to the person with a first-use notice and a visible off switch. An explicit no always wins.
  */
 export function readCloudConsent(storage: Store = defaultStore(), opts: { paying?: boolean } = {}): CloudConsent {

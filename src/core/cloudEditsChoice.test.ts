@@ -42,8 +42,9 @@ test('pickForCloud: stars, then score, then catalogue order, unscored last, remo
   ];
   assert.deepEqual(pickForCloud(photos).map((p) => p.id), ['e', 'b', 'd', 'a', 'c', 'f']);
   // 498 of 500 used: only the two best go, not photos 1 and 2.
-  assert.deepEqual(pickForCloud(photos, { plan: 'basic', photosUsed: 498, balancePence: 0 }).map((p) => p.id), ['e', 'b']);
-  assert.deepEqual(pickForCloud(photos, { plan: 'basic', photosUsed: 500, balancePence: 0 }), []);
+  assert.deepEqual(pickForCloud(photos, { plan: 'pro', photosUsed: 498, balancePence: 0 }).map((p) => p.id), ['e', 'b']);
+  assert.deepEqual(pickForCloud(photos, { plan: 'pro', photosUsed: 500, balancePence: 0 }), []);
   assert.equal(pickForCloud(photos, { plan: 'pro', photosUsed: 0, balancePence: 0 }).length, 6);
-  assert.deepEqual(cloudEditsPhotos('all', photos, { plan: 'basic', photosUsed: 499, balancePence: 0 }), ['e']);
+  assert.deepEqual(pickForCloud(photos, { plan: 'basic', photosUsed: 0, balancePence: 0 }), [], 'Basic has no cloud');
+  assert.deepEqual(cloudEditsPhotos('all', photos, { plan: 'pro', photosUsed: 499, balancePence: 0 }), ['e']);
 });

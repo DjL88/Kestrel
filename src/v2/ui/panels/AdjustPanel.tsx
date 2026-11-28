@@ -192,9 +192,11 @@ export default function AdjustPanel({
     <div className="space-y-3 md:space-y-5">
       {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
       {onToggleCvdGuidance && (
+        // On a phone this switch lives with the project (grid ⋯ menu), not on each photo; its notes still show here when on.
         <div className="space-y-2">
-          {cvdOfferPending && onAnswerCvdOffer && <ColourVisionOffer onAnswer={onAnswerCvdOffer} />}
-          <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
+          {/* The offer is for the desktop panel; on a phone the switch lives with the project, so the sheet keeps its height. */}
+          {cvdOfferPending && onAnswerCvdOffer && <div className="max-md:hidden"><ColourVisionOffer onAnswer={onAnswerCvdOffer} /></div>}
+          <div className="max-md:hidden"><ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} /></div>
           {cvdGuidance && (
             <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />
           )}
@@ -234,7 +236,7 @@ export default function AdjustPanel({
         <p className="v2-mouse-hint text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
 
         <div
-          className="grid grid-cols-2 gap-2"
+          className="grid grid-cols-2 gap-2 max-md:flex max-md:snap-x max-md:overflow-x-auto max-md:pb-1"
           onMouseLeave={() => onHoverLook(null)}
         >
           {builtInLooks.map((look) => {
@@ -249,7 +251,7 @@ export default function AdjustPanel({
                 onBlur={() => onHoverLook(null)}
                 aria-pressed={active}
                 onClick={() => { onApplyLook(photo.id, look.id); onHoverLook(null); }}
-                className={`group flex flex-col overflow-hidden rounded-[var(--radius-sm)] border text-left transition-colors ${
+                className={`group flex flex-col overflow-hidden rounded-[var(--radius-sm)] border text-left transition-colors max-md:w-[6.5rem] max-md:shrink-0 max-md:snap-start ${
                   active
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
@@ -291,8 +293,8 @@ export default function AdjustPanel({
             {entry.label}
           </button>
         ))}
-        <button type="button" aria-label={STRINGS.adjust.resetPhoto} onClick={() => onResetPhoto(photo.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)]">
-          <BrandIcon name="restore" size={14} />
+        <button type="button" onClick={() => onResetPhoto(photo.id)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-full border border-[var(--border-subtle)] px-3 text-xs font-medium text-[var(--text-muted)]">
+          <BrandIcon name="restore" size={14} /><span>{STRINGS.adjust.resetPhoto}</span>
         </button>
       </div>
       {/* Advanced Edits in groups (Dave, 27 Nov: "group the edit sliders more distinctly"): each a labelled card that

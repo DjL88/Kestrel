@@ -18,12 +18,12 @@ test('?v2 Store in the cloud appears only once signed in as Pro, beside its own 
   await expect(header.getByTestId('share-button'), 'sharing with people is paused').toHaveCount(0);
   await expect(header.getByTestId('cloud-limit-full')).toHaveCount(0);
 
-  // Sign in as the sample Pro account (4.1 GB stored against 2.5 GB included).
+  // Sign in as the sample Pro account (12.1 GB stored against 10 GB included).
   await openV2Settings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Account' }).click();
   await settings.getByRole('button', { name: /Google/ }).first().click();
-  await expect(settings.getByTestId('cloud-meter-storage')).toContainText('4.1 GB of 2.5 GB');
+  await expect(settings.getByTestId('cloud-meter-storage')).toContainText('12.1 GB of 10.0 GB');
   await page.getByRole('button', { name: 'Close settings' }).click();
 
   const store = header.getByTestId('store-cloud-button');
@@ -42,7 +42,7 @@ test('?v2 Store in the cloud appears only once signed in as Pro, beside its own 
   await page.keyboard.press('Enter');
   const dialog = page.getByTestId('store-cloud-dialog');
   await expect(dialog.getByRole('heading', { name: 'Store in the cloud' })).toBeVisible();
-  await expect(dialog.getByTestId('store-cloud-filter').getByRole('radio')).toHaveCount(5);
+  await expect(dialog.getByTestId('store-cloud-filter').getByRole("radio")).toHaveCount(7);
   // Focus stays inside the dialog, and returns to the button that opened it.
   await page.keyboard.press('Shift+Tab');
   await expect(dialog.locator(':focus')).toHaveCount(1);

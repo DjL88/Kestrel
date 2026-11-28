@@ -209,7 +209,7 @@ export default function TopBar({
           className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap shrink-0"
         >
           <BrandIcon name="arrow-left" size={16} />
-          <span className="hidden sm:inline">{STRINGS.topBar.backShort}</span>
+          <span>{STRINGS.topBar.backShort}</span>
         </button>
 
         <div className="hidden h-5 w-px bg-[var(--border-subtle)] shrink-0 md:block" aria-hidden="true" />
@@ -479,10 +479,12 @@ export default function TopBar({
               title={`${label} (${chordLabel(shortcut, isMac)})`}
               disabled={!enabled}
               onClick={action}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
+              className="inline-flex h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] px-1 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
             >
               {/* Redo is Undo mirrored: the refresh arrows already mean Export again in this bar, so the two must not match. */}
               <BrandIcon name="undo" size={17} className={icon === 'refresh' ? '-scale-x-100' : undefined} />
+              {/* A visible name under the icon: an action never rests on an unlabelled symbol. */}
+              <span className="text-[0.625rem] font-medium leading-none">{label}</span>
             </button>
           ))}
         </div>
@@ -548,7 +550,7 @@ export default function TopBar({
             onClick={onQuickExport}
             aria-label={STRINGS.exportDialog.quickExport}
             title={STRINGS.exportDialog.quickExport}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] md:h-9 md:w-9 lg:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] max-md:hidden md:h-9 md:w-9 lg:hidden"
           >
             <BrandIcon name="refresh" size={15} />
           </button>

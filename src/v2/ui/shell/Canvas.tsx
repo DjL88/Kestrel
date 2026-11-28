@@ -1,4 +1,4 @@
-import { stepFrom, swipeIntent } from '../utils/swipe';
+import { isTap, stepFrom, swipeIntent } from '../utils/swipe';
 import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
@@ -33,6 +33,8 @@ import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
+import { createDoubleTapDetector, DOUBLE_TAP_GAP_MS } from '../../../core/touchGestures';
+import { readGesture } from '../../../core/gestureSettings';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
 import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
@@ -138,6 +140,11 @@ interface CanvasProps {
   /** Canvas only is on: the header, rail, panels and filmstrip are hidden, so the canvas offers the way back. */
   canvasOnly?: boolean;
   onToggleCanvasOnly?: () => void;
+  /** Touch: one clean tap on the photo turns Canvas only on or off (preview `tapForPhoto`). A tool that reads taps keeps them. */
+  tapTogglesCanvasOnly?: boolean;
+  /** Canvas only, for culling with the bars hidden: where this photo is in the project ("3 of 20") and its flag. */
+  canvasOnlyPosition?: string;
+  onToggleFlag?: () => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
   onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
@@ -233,6 +240,9 @@ export default function Canvas({
   onToggleFullScreen,
   neighbourPhotos,
   canvasOnly = false,
+  tapTogglesCanvasOnly = false,
+  canvasOnlyPosition,
+  onToggleFlag,
   onToggleCanvasOnly,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -594,6 +604,10 @@ export default function Canvas({
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number; lastCentreX: number; lastCentreY: number } | null>(null);
   const touchPan = useRef<{ x: number; y: number } | null>(null);
+  // A double-tap on the photo is decided from pointer events, not `dblclick`, which iOS and the Android WebView do not
+  // reliably fire for a touch. `lastTouchDoubleTap` stops a `dblclick` that does follow from also acting (it opens Crop).
+  const doubleTap = useRef(createDoubleTapDetector());
+  const lastTouchDoubleTap = useRef(Number.NEGATIVE_INFINITY);
   /** A mouse or pen dragging the empty stage to move round a zoomed-in photo. */
   const marginPan = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
   const [marginPanning, setMarginPanning] = useState(false);
@@ -622,6 +636,12 @@ export default function Canvas({
   }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
+  // Tap for photo: the toggle waits out the double-tap window, so the second tap of a double tap (which zooms, or what
+  // Settings > Gestures says) cancels it and the bars do not blink. The newest callback is read when the wait ends.
+  const tapToggleTimer = useRef<number | null>(null);
+  const toggleCanvasOnlyRef = useRef(onToggleCanvasOnly);
+  toggleCanvasOnlyRef.current = onToggleCanvasOnly;
+  useEffect(() => () => { if (tapToggleTimer.current !== null) window.clearTimeout(tapToggleTimer.current); }, []);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
   // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
@@ -1153,6 +1173,7 @@ export default function Canvas({
       swipeRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, pinched: false };
       endHold();
       holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
+      if (readGesture('canvas.longPress') === 'off') return true;
       holdRef.current.timer = window.setTimeout(() => {
         holdRef.current.timer = null;
         if (touchPoints.current.size !== 1) return;
@@ -1239,8 +1260,25 @@ export default function Canvas({
     const swipe = swipeRef.current;
     if (touchPoints.current.size === 0) {
       swipeRef.current = null;
+      if (swipe && !swipe.pinched && !heldOriginal && (e.currentTarget as HTMLElement).dataset.testid === 'canvas-frame') {
+        if (doubleTap.current.lift({ x: swipe.x, y: swipe.y, t: swipe.t }, { x: e.clientX, y: e.clientY, t: e.timeStamp })) {
+          lastTouchDoubleTap.current = e.timeStamp;
+          onTouchDoubleTap(e.clientX, e.clientY);
+        }
+      } else doubleTap.current.reset();
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
+        // One clean tap gives the photo the whole screen, or brings the bars back. Tools that use a tap on the picture
+        // (tap to select, heal, the neutral picker) keep it; so does anything the tap landed on that is a control.
+        const onControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"], [role="slider"]');
+        if (tapTogglesCanvasOnly && !onControl && !neutralPick && !heal?.placing && tapSession?.photoId !== photo.id
+          && isTap(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t)) {
+          if (tapToggleTimer.current !== null) {
+            window.clearTimeout(tapToggleTimer.current); tapToggleTimer.current = null; // second tap: a double tap, not ours
+          } else {
+            tapToggleTimer.current = window.setTimeout(() => { tapToggleTimer.current = null; toggleCanvasOnlyRef.current?.(); }, DOUBLE_TAP_GAP_MS + 20);
+          }
+        }
         if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
         else if (intent === 'previous-photo') { if (swipeBetweenPhotos) onStepPhoto?.(-1); }
         else if (intent === 'next-format' || intent === 'previous-format') {
@@ -1272,6 +1310,7 @@ export default function Canvas({
   const handleTouchCancel = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.has(e.pointerId)) return false;
     endHold();
+    doubleTap.current.reset();
     swipeRef.current = null;
     touchPoints.current.clear();
     touchGesture.current = null;
@@ -1719,6 +1758,37 @@ export default function Canvas({
     setEyeTarget((count) => count + 1);
     if (Math.abs(next - canvasZoom) > 0.0005) onSetZoom(next);
   };
+  /**
+   * A double-tap (touch). By convention (Apple Photos, Google Photos, Lightroom mobile) it zooms in on the spot tapped to
+   * 100%, and again goes back to Fit; in Crop it puts the picture back in the crop window (Lightroom resets the crop the
+   * same way). Each is a choice in Settings > Gestures (gestureSettings). Never the only way: Fit, 100%
+   * and Crop all have visible buttons and keys.
+   */
+  const onTouchDoubleTap = (clientX: number, clientY: number) => {
+    const cropping = revealSizeId === activeSize.id;
+    if (cropping) {
+      const inCrop = readGesture('crop.doubleTap');
+      if (inCrop === 'resetCrop') onUpdateCrop(photo.id, activeSize.id, { zoom: 1, panX: 0, panY: 0 });
+      else if (inCrop === 'exitCrop') setRevealSizeId(null);
+      return;
+    }
+    const action = readGesture('canvas.doubleTap');
+    if (action === 'off') return;
+    if (action === 'openCrop') { setRevealSizeId(activeSize.id); return; }
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    if (canvasZoom > 1.05 || !stage || !frame || !fitScale) { zoomAroundCentre(canvasZoom > 1.05 ? 1 : Math.min(maxZoom, 2)); return; }
+    const next = Math.min(maxZoom, 1 / fitScale);
+    if (!(next > canvasZoom)) return;
+    const frameRect = anchorRect(frame);
+    const stageRect = stage.getBoundingClientRect();
+    // Keep the spot under the finger where it is while the picture grows round it.
+    keepAt.current = {
+      fx: clamp((clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((clientY - frameRect.top) / frameRect.height, 0, 1),
+      x: clientX - stageRect.left, y: clientY - stageRect.top, zoom: next, at: performance.now(),
+    };
+    onSetZoom(next);
+  };
   zoomKeyRef.current = (action) => {
     if (action === 'actual') { zoomToActual(); return; }
     const next = keyboardZoomTarget(action, canvasZoom, fitScale, maxZoom);
@@ -1930,7 +2000,7 @@ export default function Canvas({
             onPointerMove={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchMove(e); } }}
             onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
             onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
-            onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
+            onDoubleClick={(e) => { if (e.timeStamp - lastTouchDoubleTap.current < 800) return; if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             data-shape-pending={shapePending ? 'true' : undefined}
             className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               revealing ? 'cursor-move' : activeSize.kind === 'video' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
@@ -2296,11 +2366,11 @@ export default function Canvas({
                 aria-pressed={action.pressed}
                 disabled={action.disabled}
                 onClick={action.run}
-                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11"
+                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11 max-md:px-2"
               >
                 <BrandIcon name={action.icon} size={16} />
                 {/* Words beside the icons where there is room (Windows beta: the icons alone were unclear). */}
-                <span aria-hidden="true" className="hidden text-xs lg:inline">{action.short}</span>
+                <span aria-hidden="true" className="hidden text-xs max-md:inline lg:inline">{action.short}</span>
               </button>
             ))}
           </div>
@@ -2623,12 +2693,23 @@ export default function Canvas({
           </div>
         )}
         {canvasOnly && onToggleCanvasOnly && (
-          <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
-            onClick={onToggleCanvasOnly}
-            className="ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            <BrandIcon name="panel" size={14} />
-            {STRINGS.canvas.canvasOnlyBack}
-          </button>
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {/* With the bars hidden the photo can still be culled: its place, and its flag as a word and an icon. */}
+            {canvasOnlyPosition && <span data-testid="canvas-only-position" className="text-[var(--text-secondary)]">{canvasOnlyPosition}</span>}
+            {onToggleFlag && (
+              <button type="button" data-testid="canvas-only-flag" aria-pressed={photo.decision === 'keep'} onClick={onToggleFlag}
+                className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name={photo.decision === 'keep' ? 'flag' : 'flag-off'} size={14} />
+                {photo.decision === 'keep' ? STRINGS.filmstrip.unflagAction : STRINGS.filmstrip.flagAction}
+              </button>
+            )}
+            <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
+              onClick={onToggleCanvasOnly}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="panel" size={14} />
+              {STRINGS.canvas.canvasOnlyBack}
+            </button>
+          </span>
         )}
       </div>
     </main>

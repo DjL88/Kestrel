@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CloudUsage } from './cloudPlan';
-import { COLLABORATION_UI, cloudLimitNote, photosToStore, storeEstimate } from './storeInCloud';
+import { COLLABORATION_UI, cloudLimitNote, originalsBytes, photosToStore, storeEstimate } from './storeInCloud';
 
 const GB = 1_000_000_000; // as src/core/cloudPlan.ts counts it
 const usage = (change: Partial<CloudUsage>): CloudUsage => ({ plan: 'pro', photosUsed: 0, storedBytes: 0, downloadedBytes: 0, balancePence: 0, nowMs: 0, ...change });
@@ -35,14 +35,14 @@ test('the size is an estimate against the account\'s own storage, and says when 
 });
 
 test('nothing is shown below 80%; from there the numbers; at the limit, Full', () => {
-  assert.equal(cloudLimitNote(usage({ storedBytes: 1.9 * GB, photosUsed: 3999 })), null);
+  assert.equal(cloudLimitNote(usage({ plan: 'plus', storedBytes: 1.9 * GB, photosUsed: 3999 })), null);
   assert.equal(cloudLimitNote(null), null);
   const storage = cloudLimitNote(usage({ storedBytes: 2.1 * GB }))!;
   assert.deepEqual({ kind: storage.kind, percent: storage.percent, full: storage.full }, { kind: 'storage', percent: 84, full: false });
-  const edits = cloudLimitNote(usage({ photosUsed: 4200 }))!;
+  const edits = cloudLimitNote(usage({ plan: 'plus', photosUsed: 4200 }))!;
   assert.deepEqual({ kind: edits.kind, used: edits.used, included: edits.included, full: edits.full }, { kind: 'edits', used: 4200, included: 5000, full: false });
   // A full limit comes before one that is only close.
-  const full = cloudLimitNote(usage({ storedBytes: 2.2 * GB, photosUsed: 5000 }))!;
+  const full = cloudLimitNote(usage({ plan: 'plus', storedBytes: 2.2 * GB, photosUsed: 5000 }))!;
   assert.deepEqual({ kind: full.kind, full: full.full, percent: full.percent }, { kind: 'edits', full: true, percent: 100 });
   // Storage not reported by the server: only what is known is judged.
   assert.equal(cloudLimitNote(usage({ storedBytes: undefined, photosUsed: 10 })), null);

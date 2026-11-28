@@ -16,9 +16,17 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: 'kestrel.preview.finish-best.v1',
+  /** Store the full original in the cloud with each chosen photo (lossless on another device), until proven with a real account. */
+  cloudOriginals: 'kestrel.preview.cloud-originals.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  /** Touch screens: one tap on the photo hides the bars and panels so the photo has the screen; a tap brings them back. */
+  tapForPhoto: 'kestrel.preview.tap-for-photo.v1',
+  /** The phone's two pages (photo grid, then one-photo editor, no filmstrip). Always on in the phone app shell; here for a browser. */
+  phoneTwoPages: 'kestrel.preview.phone-two-pages.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',
+  /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */
+  verificationChain: 'kestrel.preview.verification-chain.v1',
 } as const;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;
