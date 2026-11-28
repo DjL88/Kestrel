@@ -23,6 +23,8 @@ export const de: AreaTranslation<typeof source> = {
   cullRulesDesc: "Der Auswahl-Assistent arbeitet mit gespeicherten Messwerten jedes Fotos und gibt Ihnen Regler für Regeln. Er schlägt vor, Sie entscheiden.",
   cullMaskSharpnessName: "Schärfe im Motiv",
   cullMaskSharpnessDesc: "Misst beim Aussortieren die Schärfe nur innerhalb der Motivkontur statt im Rahmen. Ohne brauchbare Kontur bleibt der Rahmenwert.",
+  enhanceLoopName: "Verbessern mit Prüfungen",
+  enhanceLoopDesc: "Auto misst das Foto, folgt den belegten Bearbeitungsregeln, rendert seine eigene Bearbeitung, prüft das tatsächliche Ergebnis und passt es höchstens fünfmal an. Danach bietet es drei Optionen mit einem Favoriten an. Alles bleibt auf diesem Gerät, das Original wird nie verändert.",
   cloudRecipeName: "Bearbeitung aus der Cloud",
   cloudRecipeDesc: "Sendet eine 2.560-px-Smart-Vorschau eines Fotos in die Cloud und erhält rückgängig machbare Einstellungen für die Bearbeitung zurück. Es braucht eine Verbindung und sendet Fotodaten; lassen Sie es aus, damit alles auf diesem Gerät bleibt.",
   usbTetherName: "USB-Tethering",

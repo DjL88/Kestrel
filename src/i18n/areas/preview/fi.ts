@@ -23,6 +23,8 @@ export const fi: AreaTranslation<typeof source> = {
   cullRulesDesc: "Valintaavustaja käyttää kunkin kuvan tallennettuja mittauksia ja antaa sinulle sääntöjen liukusäätimet. Se ehdottaa ja sinä päätät.",
   cullMaskSharpnessName: "Terävyys kohteen sisällä",
   cullMaskSharpnessDesc: "Mittaa valinnassa terävyyden vain kohteen ääriviivan sisältä eikä sen laatikosta. Ilman käyttökelpoista ääriviivaa laatikon mittaus säilyy.",
+  enhanceLoopName: "Paranna tarkistuksilla",
+  enhanceLoopDesc: "Auto mittaa kuvan, noudattaa lähteistettyjä muokkausohjeita, tekee oman muokkauksensa, tarkistaa todellisen tuloksen ja säätää sitä enintään viisi kertaa. Sitten se tarjoaa kolme vaihtoehtoa ja suosikin. Kaikki pysyy tällä laitteella, eikä alkuperäistä muuteta koskaan.",
   cloudRecipeName: "Pilven muokkausasetukset",
   cloudRecipeDesc: "Lähettää kuvasta 2 560 px:n älykkään esikatselun pilveen ja saa takaisin kumottavat muokkausasetukset. Se tarvitsee yhteyden ja lähettää kuvatietoja, joten jätä se pois päältä, jos haluat pitää kaiken tällä laitteella.",
   usbTetherName: "USB-tethering",

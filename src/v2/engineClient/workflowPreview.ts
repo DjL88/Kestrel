@@ -28,6 +28,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   phoneTwoPages: previewKey('phoneTwoPages'),
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: previewKey('onImageAdvice'),
+  /** Closed enhance loop: Auto measures, follows the cited guidance, renders, checks and tweaks, then offers three options (src/core/enhanceLoop.ts). */
+  enhanceLoop: previewKey('enhanceLoop'),
   /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */
   verificationChain: previewKey('verificationChain'),
 } satisfies Partial<Record<PreviewId, string>>;

@@ -23,6 +23,8 @@ export const da: AreaTranslation<typeof source> = {
   cullRulesDesc: "Udvælgelsesassistenten arbejder ud fra gemte målinger af hvert billede og giver dig skydere til regler. Den foreslår, og du bestemmer.",
   cullMaskSharpnessName: "Skarphed inde i motivet",
   cullMaskSharpnessDesc: "Måler ved udvælgelse skarpheden kun inde i motivets omrids i stedet for dets ramme. Uden et brugbart omrids beholdes rammemålingen.",
+  enhanceLoopName: "Forbedr med kontroller",
+  enhanceLoopDesc: "Auto måler fotoet, følger de kildehenviste redigeringsråd, laver sin egen redigering, tjekker det faktiske resultat og justerer det højst fem gange. Derefter tilbyder den tre muligheder med en favorit. Alt bliver på denne enhed, og originalen ændres aldrig.",
   cloudRecipeName: "Redigeringsindstillinger i skyen",
   cloudRecipeDesc: "Sender et smart eksempel på 2.560 px af et billede til skyen og får redigeringsindstillinger tilbage, som kan fortrydes. Det kræver en forbindelse og sender billeddata, så lad det være slået fra for at beholde alt på denne enhed.",
   usbTetherName: "USB-tethering",
