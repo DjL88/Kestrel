@@ -104,7 +104,10 @@ export async function fetchList(entries, folder, host = process.env.KESTREL_BUND
 async function main() {
   const args = new Set(process.argv.slice(2));
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const entries = readList(readFileSync(join(root, 'models', 'bundled-models.json'), 'utf8'));
+  const shipped = readList(readFileSync(join(root, 'models', 'bundled-models.json'), 'utf8'));
+  // Test-only data (RED species vectors the unit tests read): fetched like the rest, never shipped (see red-model-files.mjs).
+  const testOnly = readList(readFileSync(join(root, 'models', 'test-only-models.json'), 'utf8'));
+  const entries = [...shipped, ...testOnly];
   if (args.has('--upload-commands')) { console.log(uploadCommands(entries).join('\n')); return; }
   const { problems } = await fetchList(entries, join(root, 'public', 'models'));
   if (!problems.length) { console.log(`Bundled models: all ${entries.length} in place and matching their checksums.`); return; }

@@ -20,3 +20,10 @@ test('the installer lists carry no RED file', () => {
     assert.deepEqual(files.filter((f) => RED_MODEL_FILES.includes(f)), [], list);
   }
 });
+
+test('the test-only list holds exactly the species lists, so tests still find them but no installer list does', () => {
+  const read = (name) => JSON.parse(readFileSync(new URL(`../models/${name}`, import.meta.url), 'utf8')).files.map((f) => f.file);
+  const testOnly = read('test-only-models.json');
+  assert.ok(testOnly.includes('species-world.json') && testOnly.includes('species-mammals.json'));
+  assert.ok(testOnly.every((file) => RED_MODEL_FILES.includes(file)), 'test-only files must be stripped from builds');
+});
