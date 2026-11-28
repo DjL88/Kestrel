@@ -153,6 +153,26 @@ export function planAuto(input: PlanInput): AutoPlan {
   }, notes };
 }
 
+/**
+ * The plan once the real renders have been checked. Never leaves a preferred plan pointing at a rejected render, and
+ * never invents a rejection: with no recipe proposed at all (a photo that "looks good", or one held back by the
+ * person's own dark-on-purpose tag) the plan's own verdict stands, rather than becoming "cannot improve this safely".
+ */
+export function settleAfterRender(input: {
+  plan: AutoPlan; naturalPlan: AutoPlan; base: PhotoEdit; recipeCount: number;
+  /** The edits of the renders that passed and look different. */
+  candidateEdits: readonly PhotoEdit[]; rejected: readonly string[];
+}): AutoPlan {
+  const { naturalPlan, base, candidateEdits } = input;
+  let plan = input.plan;
+  const survived = (edit: PhotoEdit) => candidateEdits.includes(edit);
+  if (!survived(plan.proposal) && survived(naturalPlan.proposal)) plan = naturalPlan;
+  if (input.recipeCount > 0 && !survived(plan.proposal)) {
+    plan = { ...plan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: input.rejected[0] ?? 'No preferred rendered edit passed all checks' } };
+  }
+  return plan;
+}
+
 /** The recipe at a chosen strength (0 to 1). 0 is exactly the starting look; 1 is the checked recipe. */
 export function recipeAtStrength(plan: Pick<AutoPlan, 'base' | 'proposal'>, strength: number): PhotoEdit {
   const s = Math.min(1, Math.max(0, strength));

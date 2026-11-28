@@ -73,6 +73,13 @@ export interface NaturalAutoResult {
   scene: SceneReport;
   /** True when InFlight decided the photo already works and suggests nothing. */
   abstained: boolean;
+  /** True when the frame itself measured as low-key (a lit subject on a near-black scene), whatever any tag said. */
+  lowKey: boolean;
+  /**
+   * 'dark-on-purpose' when a tag or the person's own words ("low key", night, astro) removed a lift Auto would have made, so
+   * the screen can say that, rather than that the photo was unsafe to edit or already good.
+   */
+  heldBack: 'dark-on-purpose' | null;
 }
 
 const EMPTY: GlobalAutoEdit = { exposure: 0, warmth: 0, shadows: 0, highlights: 0, contrast: 0, vibrance: 0 };
@@ -255,7 +262,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const n = width * height;
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 16 || height < 16 ||
       pixels.length !== n * 4 || n > MAX_ANALYSIS_PIXELS) {
-    return { edit: { ...EMPTY }, subjectEdit: null, notes: ['This preview is too small or too large to analyse.'], scene: emptyScene(), abstained: true };
+    return { edit: { ...EMPTY }, subjectEdit: null, notes: ['This preview is too small or too large to analyse.'], scene: emptyScene(), abstained: true, lowKey: false, heldBack: null };
   }
   const a = analyse(pixels, width, height);
 
@@ -458,7 +465,11 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const policy = preservationPolicy(input.photographyObservations);
   const hints = input.sceneHints ?? {};
   const preserveLight = policy.preserveLight || hints.preserveLight === true;
-  const preserveDark = policy.preserveDark || hints.preserveDark === true;
+  // A scene tag InFlight measured itself (style.low-key) is not the person's intent: where the frame also measures as
+  // low-key, the dim subject is still lifted, the dark background keeps its mood and the render checks decide.
+  const darkHintIsOurOwn = hints.darkMeasuredOnly === true && lowKey && !policy.preserveDark;
+  const preserveDark = policy.preserveDark || (hints.preserveDark === true && !darkHintIsOurOwn);
+  if (darkHintIsOurOwn && edit.exposure > 0) notes.push('The photo is tagged low-key from InFlight\'s own measurement, so only the subject is lifted and the dark background stays dark.');
   const preserveSoft = policy.preserveSoft || hints.preserveSoft === true;
   if (hints.preserveBright) {
     // Snow and high-key: a bright frame is meant to be bright; keep white white rather than grey.
@@ -480,7 +491,9 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     edit.warmth = 0;
     notes.push('Photography guidance preserves intentional lighting colour.');
   }
+  let heldBack: NaturalAutoResult['heldBack'] = null;
   if (preserveDark) {
+    if (edit.exposure > 0 || edit.shadows > 0 || (subjectEdit.shadows ?? 0) > 0) heldBack = 'dark-on-purpose';
     if (edit.exposure > 0) edit.exposure = 0;
     if (edit.shadows > 0) edit.shadows = 0;
     delete subjectEdit.shadows;
@@ -496,7 +509,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const localChanged = Object.keys(subjectEdit).length > 0;
   const abstained = !globalChanged && !localChanged;
   if (abstained) notes.push('This photo already works, so InFlight leaves it as it is.');
-  return { edit, subjectEdit: localChanged ? subjectEdit : null, notes, scene, abstained };
+  return { edit, subjectEdit: localChanged ? subjectEdit : null, notes, scene, abstained, lowKey, heldBack };
 }
 
 /** Render a recipe on an 8-bit preview with the same CPU maths export uses (tone, detail, masks). */

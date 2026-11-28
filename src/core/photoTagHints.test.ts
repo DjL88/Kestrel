@@ -58,3 +58,18 @@ test('overcast keeps contrast gentle and adds no warming', () => {
   assert.ok(grey.contrast <= 0.1 && grey.contrast >= 0, 'contrast kept gentle, never reversed');
   assert.ok((grey.warmth ?? 0) <= 0, 'no warming');
 });
+
+test('a low-key tag InFlight measured itself is told apart from one the person, the clock or the image model gave', () => {
+  const withSource = (id: string, source: string) => ({
+    stableKey: 'k', photoTags: { schema: 1, sourceStableKey: 'k', tags: [{ id, facet: id.split('.')[0], source }], byLane: {} },
+  }) as unknown as Pick<PhotoFrame, 'stableKey' | 'photoTags'>;
+  assert.deepEqual(sceneHintsFromPhotoTags(withSource('style.low-key', 'computed')), { preserveDark: true, darkMeasuredOnly: true });
+  assert.deepEqual(sceneHintsFromPhotoTags(withSource('style.low-key', 'user')), { preserveDark: true });
+  assert.deepEqual(sceneHintsFromPhotoTags(withSource('style.low-key', 'clip')), { preserveDark: true });
+  assert.deepEqual(sceneHintsFromPhotoTags(withSource('light.night', 'computed')), { preserveDark: true }, 'night is from the clock: a hard hold');
+  const both = {
+    stableKey: 'k', photoTags: { schema: 1, sourceStableKey: 'k', byLane: {}, tags: [
+      { id: 'style.low-key', facet: 'style', source: 'computed' }, { id: 'light.night', facet: 'light', source: 'computed' }] },
+  } as unknown as Pick<PhotoFrame, 'stableKey' | 'photoTags'>;
+  assert.deepEqual(sceneHintsFromPhotoTags(both), { preserveDark: true }, 'any other dark tag keeps the hold');
+});
