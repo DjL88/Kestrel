@@ -53,3 +53,13 @@ nusb = "0.2"
 # Free memory and CPU load for the task scheduler (src-tauri/src/resource_sample.rs), so it can run several heavy jobs
 # at once only when the machine has room. Only the system figures are read, never other programs' details.
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
+
+# `cargo test` runs the unit tests inside this example (the dump's JSON contract and the HE route).
+[[example]]
+name = "raw_dump"
+path = "examples/raw_dump.rs"
+test = true
+
+[dev-dependencies]
+# Builds the synthetic DNG that examples/raw_dump.rs tests against (same pinned version kestrel-raw uses).
+ticoraw = { version = "=0.2.0", default-features = false }

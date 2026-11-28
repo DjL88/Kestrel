@@ -156,6 +156,52 @@ class Reading(unittest.TestCase):
         np.testing.assert_allclose(planes[1:], 0.0)
 
 
+class RawDumpRoute(unittest.TestCase):
+    """The `--raw-dump` route: Kestrel's own decoder, including Nikon HE/HE*, and what it says about itself."""
+
+    def test_reads_a_dump_with_or_without_the_decoder_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "a.NEF").write_bytes(b"ok")
+            with_field = raw_source.read_planes(tmp / "a.NEF", fake_tool(tmp, FAKE_RAW_DUMP))
+            self.assertEqual(with_field.shape, (4, 350, 450))
+            self.assertTrue(0.0 <= float(with_field.min()) and float(with_field.max()) <= 1.0)
+            # A dump from an older raw_dump has no `decoder`; it must still read the same.
+            older = fake_tool(tmp, FAKE_RAW_DUMP.replace(', "decoder": "rawler"', ""))
+            self.assertNotIn("decoder", older.read_text() + (tmp / "raw_dump.py").read_text())
+            np.testing.assert_array_equal(raw_source.read_planes(tmp / "a.NEF", older), with_field)
+
+    def test_a_raw_dump_that_cannot_read_nikon_he_is_told_to_rebuild(self):
+        failing = ('import sys\n'
+                   'sys.exit("Error: DecoderFailed(\'NEF compression Some(HighEfficencyStar) is not supported\')")\n')
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "z8.NEF").write_bytes(b"ok")
+            with self.assertRaises(raw_source.UnsupportedRaw) as caught:
+                raw_source.read_planes(tmp / "z8.NEF", fake_tool(tmp, failing))
+            self.assertIn("rebuild", str(caught.exception))
+            self.assertIn("HighEfficencyStar", str(caught.exception))
+
+    def test_make_pairs_names_the_decoder_that_read_each_dump(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            dumps, out = tmp / "dumps", tmp / "pairs"
+            dumps.mkdir()
+            for stem, decoder in (("he", "nikon-he-star"), ("old", None)):
+                raw = (512 + np.arange(900 * 700, dtype=np.uint32).reshape(700, 900) % 8000).astype("<u2")
+                raw.tofile(dumps / f"{stem}.u16")
+                meta = {"name": stem, "make": "Nikon", "model": "Z 8", "width": 900, "height": 700, "cpp": 1, "cfa": "RGGB",
+                        "cfa_width": 2, "cfa_height": 2, "black": [512] * 4, "white": [16383], "iso": 64}
+                if decoder:
+                    meta["decoder"] = decoder
+                (dumps / f"{stem}.json").write_text(json.dumps(meta))
+            run = subprocess.run([sys.executable, str(HERE / "make_pairs.py"), str(dumps), str(out), "--crops", "1", "--size", "64"],
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn("Nikon Z 8 [nikon-he-star]: 1 pairs", run.stdout)
+            self.assertIn("Nikon Z 8: 1 pairs", run.stdout)  # no decoder field, no label, no guess
+
+
 class Calibration(unittest.TestCase):
     def test_measures_known_noise_from_a_textured_picture(self):
         rng = np.random.default_rng(1)
@@ -202,9 +248,23 @@ FAKE_RAW_DUMP = textwrap.dedent("""
     raw = (512 + scene * (16383 - 512)).astype("<u2")
     raw.tofile(out / (src.stem + ".u16"))
     meta = {"name": src.stem, "make": "Test", "model": "Cam", "width": 900, "height": 700, "cpp": 1, "cfa": "RGGB",
-            "cfa_width": 2, "cfa_height": 2, "black": [512, 512, 512, 512], "white": [16383], "iso": 100}
+            "cfa_width": 2, "cfa_height": 2, "black": [512, 512, 512, 512], "white": [16383], "iso": 100, "decoder": "rawler"}
     (out / (src.stem + ".json")).write_text(json.dumps(meta))
 """)
+
+
+def fake_tool(folder: Path, script: str) -> Path:
+    """Wrap a Python script as an executable `raw_dump`, on Windows (.cmd) and elsewhere."""
+    body = folder / "raw_dump.py"
+    body.write_text(script)
+    if os.name == "nt":
+        tool = folder / "raw_dump.cmd"
+        tool.write_text(f'@"{sys.executable}" "{body}" %*\n')
+    else:
+        tool = folder / "raw_dump"
+        tool.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{body}" "$@"\n')
+        tool.chmod(0o755)
+    return tool
 
 
 class Dataset(unittest.TestCase):
@@ -239,15 +299,7 @@ class Dataset(unittest.TestCase):
     def test_end_to_end_from_catalogue_rows_to_crops_and_a_resumable_log(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            fake = tmp / "raw_dump.py"
-            fake.write_text(FAKE_RAW_DUMP)
-            if os.name == "nt":
-                tool = tmp / "raw_dump.cmd"
-                tool.write_text(f'@"{sys.executable}" "{fake}" %*\n')
-            else:
-                tool = tmp / "raw_dump"
-                tool.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{fake}" "$@"\n')
-                tool.chmod(0o755)
+            tool = fake_tool(tmp, FAKE_RAW_DUMP)
             for name, body in (("a.NEF", b"ok"), ("bb.NEF", b"ok"), ("bad.NEF", b"broken")):
                 (tmp / name).write_bytes(body)
             photos = tmp / "photos.csv"

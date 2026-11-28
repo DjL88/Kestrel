@@ -126,7 +126,9 @@ def main() -> int:
             np.savez_compressed(args.out / f"{meta['name']}-{index:02d}.npz", noisy=pair["noisy"], clean=pair["clean"],
                                 iso=pair["iso"], a=pair["a"], b=pair["b"], make=meta["make"], model=meta["model"])
             made += 1
-        print(f"{meta['make']} {meta['model']}: {args.crops} pairs")
+        # `decoder` says what read the file (rawler, or ticoraw for Nikon HE/HE*); dumps from an older raw_dump lack it.
+        decoder = f" [{meta['decoder']}]" if meta.get("decoder") else ""
+        print(f"{meta['make']} {meta['model']}{decoder}: {args.crops} pairs")
     print(f"{made} pairs written to {args.out}")
     return 0
 

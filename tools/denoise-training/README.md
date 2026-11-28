@@ -64,8 +64,14 @@ Each script explains its options with `--help`.
 ## Limits
 
 * Bayer sensors only. Fujifilm X-Trans and linear (already demosaiced) DNGs are skipped with a message.
-* rawpy (LibRaw) does not read Nikon High Efficiency (★) NEFs; those are skipped. Lossless and uncompressed NEFs work.
-  `--raw-dump` uses Kestrel's own decoder instead, if you have built `src-tauri/examples/raw_dump.rs`.
+* rawpy (LibRaw) does not read Nikon High Efficiency (HE and HE★) NEFs; on that route those are skipped. Lossless and
+  uncompressed NEFs work. `--raw-dump` uses Kestrel's own sensor decoder instead (`kestrel_raw::nikon_he::decode_sensor`,
+  the one the app uses), which does read HE and HE★ from their sensor data (Z 8, Z 9, Z f, Z6III, Z5II, Z50II, ZR).
+  Build it with `cd src-tauri && cargo run --release --example raw_dump -- <file.NEF> <out-folder>`, or `cargo build
+  --release --example raw_dump` and pass the built `raw_dump(.exe)` to `--raw-dump`. Each dump's `.json` has a `decoder`
+  field (`rawler`, `nikon-he` or `nikon-he-star`) saying what read the file. A `raw_dump` built before that field existed
+  fails on HE files with "NEF compression Some(HighEfficencyStar) is not supported"; rebuild it. Build without the
+  default `nikon-he` feature and HE files are refused again.
 * Training on synthetic noise is the standard approach, but real sensors also have pattern noise and in-camera
   processing that the model does not reproduce. A small set of real pairs (a burst on a tripod at base ISO and at
   high ISO) would make a better validation set; see "Next" below.
