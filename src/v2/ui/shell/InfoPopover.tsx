@@ -46,7 +46,7 @@ export default function InfoPopover({ title, body }: InfoPopoverProps) {
           e.stopPropagation();
           if (place) hide(); else show();
         }}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+        className="v2-hit inline-flex h-5 w-5 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
       >
         <BrandIcon name="info" size={13} />
       </button>
