@@ -704,6 +704,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       touchDensity: 'comfortable',
       hand: 'right',
       cvdGuidance: false,
+      // The sample workspace is not a first run, so it does not ask the one-time colour-words question.
+      cvdOfferAnswered: true,
       ongoingCritique: true,
       defaultAssistMode: 'copilot',
       language: 'en-GB',
