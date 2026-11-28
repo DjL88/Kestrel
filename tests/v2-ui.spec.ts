@@ -418,7 +418,8 @@ test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, 
   // Compare is greyed out, with the reason, while a photo is split.
   const compare = root.getByRole('button', { name: 'Compare', exact: true });
   await expect(compare).toBeEnabled();
-  await root.getByRole('button', { name: /Split across 2 frames/ }).first().click();
+  await root.getByTestId('split-menu-button').click();
+  await root.getByTestId('split-menu-split').click();
   await expect(compare).toBeDisabled();
   // Left-handed mode puts the tools on the right.
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
