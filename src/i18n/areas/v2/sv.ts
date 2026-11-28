@@ -1322,6 +1322,8 @@ export const sv: AreaTranslation<typeof source> = {
       tooCool: "Färgerna ser för kalla ut (blå)",
       greenTint: "Färgerna har en grön ton",
       magentaTint: "Färgerna har en magenta ton",
+      castLeft: 'En svag färgton finns kvar i de neutrala partierna. Mer korrigering skulle inte synas, så den lämnas.',
+      castNatural: 'Den varma tonen är naturlig för det här ljuset och lämnas som den är.',
       redGreenAlike: "Röda och gröna områden kan vara svåra att skilja åt",
       unsure: "Inte säker på färgerna i det här fotot",
     },

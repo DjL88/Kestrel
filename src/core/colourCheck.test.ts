@@ -61,7 +61,9 @@ test('over-strong colour is reported, with which colours', () => {
 
 test('a colour cast on things that should be grey is named by direction', () => {
   const warm = checkColour({ after: bands([[1, [150, 130, 100]]]) });
-  assert.deepEqual(find(warm.findings, 'cast'), { id: 'cast', severity: 'tip', direction: 'warm', amount: 'clear' });
+  const warmCast = find(warm.findings, 'cast');
+  assert.deepEqual({ ...warmCast, size: undefined }, { id: 'cast', severity: 'tip', direction: 'warm', amount: 'clear', size: undefined });
+  assert.ok((warmCast as { size?: number }).size! >= 0.018, 'the measured strength is carried for sizing a correction');
   const cool = checkColour({ after: bands([[1, [118, 128, 145]]]) });
   assert.equal(find(cool.findings, 'cast')?.direction, 'cool');
   const green = checkColour({ after: bands([[1, [120, 138, 120]]]) });

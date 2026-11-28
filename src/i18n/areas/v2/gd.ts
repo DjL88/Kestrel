@@ -1323,6 +1323,8 @@ export const gd: AreaTranslation<typeof source> = {
       tooCool: "Tha na dathan a’ coimhead ro fhuar (gorm)",
       greenTint: "Tha fiamh uaine air na dathan",
       magentaTint: "Tha fiamh magenta air na dathan",
+      castLeft: 'Tha beagan de dhath air fhàgail anns na raointean neodrach. Cha dèanadh barrachd ceartachaidh diofar a chithear, mar sin thèid fhàgail.',
+      castNatural: 'Tha an tòn blàth nàdarra airson an t-solais seo, mar sin thèid fhàgail mar a tha e.',
       redGreenAlike: "Dh’fhaodadh gum bi e doirbh raointean dearga is uaine aithneachadh bho chèile",
       unsure: "Chan eil cinnt mu na dathan san dealbh seo",
     },

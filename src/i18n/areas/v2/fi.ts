@@ -1323,6 +1323,8 @@ export const fi: AreaTranslation<typeof source> = {
       tooCool: "Värit näyttävät liian kylmiltä (sininen)",
       greenTint: "Väreissä on vihreä sävy",
       magentaTint: "Väreissä on magentan sävy",
+      castLeft: 'Neutraaleihin alueisiin jää hento värisävy. Lisäkorjaus ei näkyisi, joten se jätetään.',
+      castNatural: 'Lämmin sävy on luonnollinen tässä valossa, joten se jätetään ennalleen.',
       redGreenAlike: "Punaisia ja vihreitä alueita voi olla vaikea erottaa",
       unsure: "Tämän kuvan väreistä ei ole varmuutta",
     },

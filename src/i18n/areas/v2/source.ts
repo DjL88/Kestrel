@@ -1365,6 +1365,8 @@ export const source = {
       tooCool: "Colours look too cool (blue)",
       greenTint: "Colours look green-tinted",
       magentaTint: "Colours look magenta-tinted",
+      castLeft: "A slight colour tint is left in the neutral areas. Correcting it further would not make a visible difference, so it is left.",
+      castNatural: "The warm tone looks natural for this light, so it is left as it is.",
       redGreenAlike: "Red and green areas may be hard to tell apart",
       unsure: "Not sure about the colours in this photo",
     },

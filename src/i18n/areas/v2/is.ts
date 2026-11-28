@@ -1322,6 +1322,8 @@ export const is: AreaTranslation<typeof source> = {
       tooCool: "Litirnir virðast of kaldir (bláir)",
       greenTint: "Litirnir hafa grænan blæ",
       magentaTint: "Litirnir hafa blárauðan blæ",
+      castLeft: 'Dauður litblær er eftir í hlutlausu svæðunum. Frekari leiðrétting myndi ekki sjást, svo hann er látinn vera.',
+      castNatural: 'Hlýi tónninn er eðlilegur fyrir þessa lýsingu og er látinn vera.',
       redGreenAlike: "Erfitt getur verið að greina rauð og græn svæði í sundur",
       unsure: "Ekki viss um litina í þessari mynd",
     },

@@ -1322,6 +1322,8 @@ export const cy: AreaTranslation<typeof source> = {
       tooCool: "Mae’r lliwiau’n edrych yn rhy oer (glas)",
       greenTint: "Mae arlliw gwyrdd ar y lliwiau",
       magentaTint: "Mae arlliw magenta ar y lliwiau",
+      castLeft: 'Mae arlliw lliw ysgafn ar ôl yn yr ardaloedd niwtral. Ni fyddai ei gywiro ymhellach yn newid dim y gellir ei weld, felly caiff ei adael.',
+      castNatural: 'Mae’r tôn gynnes yn naturiol ar gyfer y golau hwn, felly caiff ei gadael fel y mae.',
       redGreenAlike: "Gall fod yn anodd gwahaniaethu rhwng ardaloedd coch a gwyrdd",
       unsure: "Ddim yn siŵr am y lliwiau yn y llun hwn",
     },

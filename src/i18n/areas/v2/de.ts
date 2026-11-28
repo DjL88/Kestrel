@@ -1322,6 +1322,8 @@ export const de: AreaTranslation<typeof source> = {
       tooCool: "Farben wirken zu kühl (blau)",
       greenTint: "Farben haben einen Grünstich",
       magentaTint: "Farben haben einen Magentastich",
+      castLeft: 'In den neutralen Bereichen bleibt ein leichter Farbstich. Eine weitere Korrektur würde nichts Sichtbares ändern, daher bleibt er.',
+      castNatural: 'Der warme Ton passt zu diesem Licht und bleibt, wie er ist.',
       redGreenAlike: "Rote und grüne Bereiche sind vielleicht schwer zu unterscheiden",
       unsure: "Bei den Farben in diesem Foto nicht sicher",
     },

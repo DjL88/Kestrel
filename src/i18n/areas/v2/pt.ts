@@ -1322,6 +1322,8 @@ export const pt: AreaTranslation<typeof source> = {
       tooCool: "As cores parecem demasiado frias (azul)",
       greenTint: "As cores puxam para o verde",
       magentaTint: "As cores puxam para o magenta",
+      castLeft: 'Fica um ligeiro tom de cor nas zonas neutras. Corrigi-lo mais não mudaria nada de visível, por isso fica.',
+      castNatural: 'O tom quente é natural para esta luz, por isso fica como está.',
       redGreenAlike: "Pode ser difícil distinguir as áreas vermelhas e verdes",
       unsure: "Sem certeza sobre as cores desta foto",
     },
