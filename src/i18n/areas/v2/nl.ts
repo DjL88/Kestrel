@@ -1228,7 +1228,7 @@ export const nl: AreaTranslation<typeof source> = {
     colourDenoise: 'Kleurruis',
     denoiseZones: {
       heading: 'Ruisonderdrukking per toon',
-      hint: 'Voegt korrelverzachting toe aan één helderheidsbereik, bovenop de luminantieruisonderdrukking. De zones lopen zacht in elkaar over en de ruisonderdrukking gebeurt vóór het verscherpen.',
+      hint: 'Voegt extra korrelverzachting toe aan één helderheidsbereik. De zones lopen zacht in elkaar over en de ruis wordt verminderd vóór het verscherpen.',
       blacks: 'Zwarten',
       shadows: 'Schaduwen',
       mids: 'Middentonen',

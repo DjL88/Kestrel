@@ -1228,8 +1228,8 @@ export const gd: AreaTranslation<typeof source> = {
     luminanceDenoise: 'Gràinne soillseachd',
     colourDenoise: 'Gràinne dhathan',
     denoiseZones: {
-      heading: 'Lùghdachadh fuaim a rèir tòna',
-      hint: 'Cuiridh e rèidheachadh gràinne ri aon raon soilleireachd a-mhàin, a bharrachd air lùghdachadh fuaim soilleireachd. Tha na sònaichean a’ measgachadh gu rèidh agus thèid lùghdachadh fuaim a dhèanamh ro bhiorachadh.',
+      heading: 'Lùghdachadh gràinne a rèir tòna',
+      hint: 'Cuiridh e rèidheachadh gràinne ri aon raon soilleireachd a-mhàin, a bharrachd air gràinne soillseachd. Tha na sònaichean a’ measgachadh gu rèidh agus thèid an gràinne a lùghdachadh ro bhiorachadh.',
       blacks: 'Dubha',
       shadows: 'Sgàilean',
       mids: 'Meadhan-tònaichean',
