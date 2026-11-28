@@ -11,7 +11,7 @@ import { frameAndEditOffThread } from './raw16Edit';
 /** The RAW's sensor picture at 16 bits, bound to the recorded original fingerprint when there is one. Not yet framed or edited. */
 export async function openRaw16(original: Blob, filename: string, options?: { originalSha256?: string; signal?: AbortSignal }): Promise<Rgb16Image> {
   options?.signal?.throwIfAborted();
-  const { image } = await openSensorWorkingRaster(original, filename, undefined, options?.originalSha256);
+  const { image } = await openSensorWorkingRaster(original, filename, undefined, options?.originalSha256, options?.signal);
   options?.signal?.throwIfAborted();
   return image;
 }
@@ -63,7 +63,7 @@ export interface Raw16Working {
 /** Develop the RAW at 16 bits once and keep a measuring-size copy (longest edge maxEdge). Same checks as renderRaw16. */
 export async function openRaw16Working(original: Blob, filename: string, shown: HTMLImageElement, maxEdge = 512, options?: { originalSha256: string; signal?: AbortSignal }): Promise<Raw16Working> {
   options?.signal?.throwIfAborted();
-  const { image: full } = await openSensorWorkingRaster(original, filename, undefined, options?.originalSha256);
+  const { image: full } = await openSensorWorkingRaster(original, filename, undefined, options?.originalSha256, options?.signal);
   options?.signal?.throwIfAborted();
   const turn = await turnToShown(full, shown);
   return { picture: shrinkRgb16(full, maxEdge), turn };

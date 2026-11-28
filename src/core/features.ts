@@ -55,6 +55,10 @@ export const FEATURES = {
   // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   // Stays off until it is checked on a real shoot that it proposes keepers, not only rejects.
   cullRules: 'flagged',
+  // Finish my best: say "best 50 / best 10% / all" and the app edits those photos best first in one batch on this device,
+  // then shows a review (Keep or Undo each). Off for everyone until an admin flag (or this device's preview switch,
+  // localStorage kestrel.preview.finish-best.v1 = 1) turns it on. Not a paywall.
+  finishBest: 'flagged',
   // Auto-pilot edits the photos of a new import in the background, best first, one undo step each (a preview): off for
   // everyone until an admin flag (or this device's preview switch, kestrel.preview.flight-batch.v1 = 1) turns it on.
   flightBatch: 'flagged',
@@ -65,6 +69,9 @@ export const FEATURES = {
   // drawn on the canvas, read-only. A preview, off for everyone until an admin flag (or this device's preview switch,
   // `localStorage['kestrel.preview.on-image-advice.v1'] = '1'`) turns it on. Not a paywall.
   onImageAdvice: 'flagged',
+  // Verification chain: a specialist proposes, the on-device vision AI confirms, and the cloud is a quiet third opinion on
+  // previews only. A preview, off for everyone until an admin flag (or kestrel.preview.verification-chain.v1 = 1). Not a paywall.
+  verificationChain: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

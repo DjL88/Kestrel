@@ -57,6 +57,7 @@ export type SettingsTabId =
   | 'aiProviders'
   | 'storage'
   | 'keyboard'
+  | 'gestures'
   | 'presets'
   | 'formats'
   | 'language'
@@ -995,6 +996,8 @@ export interface WorkspaceActions {
   rankCulling?: (rules: CullRulesView) => CullRankingView;
   /** Keep the photos the rules propose, as one step that Undo takes back. Never rejects. Returns how many were kept. */
   applyCullRules?: (rules: CullRulesView) => number;
+  /** Finish my best (a preview off by default; present only while it is on): plan, run and review one best-first batch. */
+  finishBest?: import('../engineClient/useFinishBest').FinishBestControl;
   reconnectOriginal: (photoId: string) => void;
   /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
   saveDngCopy: (photoId: string) => void;

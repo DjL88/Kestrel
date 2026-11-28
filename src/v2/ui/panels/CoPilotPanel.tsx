@@ -103,8 +103,9 @@ export default function CoPilotPanel({
 
   return (
     <div className="space-y-4">
-      {/* Mode summary */}
-      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
+      {/* Mode summary. On a phone the sheet is short and already named after the mode, so the choice is one slim row
+          with no card round it and the recommendations start straight under it. */}
+      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 max-md:border-0 max-md:bg-transparent max-md:p-0">
         {/* This project's own mode; Settings only sets the default for new projects. */}
         <FlightModePicker compact name="project-flight-mode" label={STRINGS.copilot.modeForProject}
           value={assistMode} onChange={onSetAssistMode} />

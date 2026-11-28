@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 /** G10: V2 Settings shows the commit the app was built from, and the served build-info.json says the same. */
 test('?v2 Settings shows the build commit, matching build-info.json', async ({ page, request }) => {
@@ -10,7 +11,7 @@ test('?v2 Settings shows the build commit, matching build-info.json', async ({ p
   expect(typeof info.dirty).toBe('boolean');
 
   await page.goto('/?v2');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Privacy' }).click();
   const section = settings.getByTestId('v2-build-information');
