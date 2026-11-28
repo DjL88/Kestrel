@@ -7,9 +7,12 @@
  * £29.99 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
  * Basic again; projects, edits and exports are never locked. One-off licences sold before then are still honoured.
  *
- * Cloud, the same for everyone who signs in (unused free photos and downloads carry over for one month, owner 26 Nov 2026):
- *  - cloud processing: a monthly photo allowance (Basic 500, Pro 5,000), then paid from the cloud balance;
- *  - storage: Pro includes 2.5 GB, Basic none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
+ * Cloud (owner decision, 28 Nov 2026): Free has NO cloud at all. Pro (£2.99 a month) includes 500 cloud photos a month and
+ * Pro Plus (£9.99 a month) 5,000; after that, or on Free, only a top-up pays for more, and Free needs a top-up to use
+ * the cloud at all. Cloud is used only when the device is at capacity AND online AND signed in AND credits remain.
+ * Unused photos and downloads carry over for one month (owner 26 Nov 2026):
+ *  - cloud processing: a monthly photo allowance (Free 0, Pro 500, Pro Plus 5,000), then paid from the cloud balance;
+ *  - storage: Pro and Pro Plus include 2.5 GB, Free none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
  *    later a fixed storage plan by Direct Debit (STORAGE_PLANS);
  *  - downloads (other devices, collaborators, galleries, restores): 1 GB a month free, then pay per GB.
  * Prices include VAT and are set so each line keeps at least 60% margin after VAT, Paddle fees and Google's London list
@@ -17,21 +20,24 @@
  * cloud work pauses until the next month or a top-up.
  */
 
-export type SoftwarePlan = 'basic' | 'pro';
+/** 'basic' is the Free plan (the id is kept for stored data); 'plus' is Pro Plus. */
+export type SoftwarePlan = 'basic' | 'pro' | 'plus';
 
 export const SOFTWARE_PRICES = {
   /** Pro, paid monthly. */
   proMonthlyPence: 299,
   /** Pro, paid yearly. */
   proAnnualPence: 2999,
+  /** Pro Plus, paid monthly only. */
+  plusMonthlyPence: 999,
 } as const;
 
 /** Cloud photos included each calendar month (UTC). */
-export const MONTHLY_PHOTO_ALLOWANCE: Record<SoftwarePlan, number> = { basic: 500, pro: 5000 };
+export const MONTHLY_PHOTO_ALLOWANCE: Record<SoftwarePlan, number> = { basic: 0, pro: 500, plus: 5000 };
 
 const GB = 1_000_000_000;
 /** Cloud storage included with each plan. Basic has none: every stored GB is paid from the balance. */
-export const FREE_STORAGE_BYTES_BY_PLAN: Record<SoftwarePlan, number> = { basic: 0, pro: 2.5 * GB };
+export const FREE_STORAGE_BYTES_BY_PLAN: Record<SoftwarePlan, number> = { basic: 0, pro: 2.5 * GB, plus: 2.5 * GB };
 export const freeStorageBytes = (plan: SoftwarePlan) => FREE_STORAGE_BYTES_BY_PLAN[plan] ?? 0;
 export const FREE_DOWNLOAD_BYTES_PER_MONTH = 1 * GB;
 
@@ -104,6 +110,9 @@ export function marginOf(pricePence: number, costPence: number, keepRatio = KEEP
   const kept = pricePence * keepRatio;
   return kept > 0 ? (kept - costPence) / kept : 0;
 }
+
+/** Free (the 'basic' id) has no cloud at all, not even by top-up. Pro and Pro Plus do. */
+export const planHasCloud = (plan: SoftwarePlan): boolean => plan === 'pro' || plan === 'plus';
 
 const whole = (n: number) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
 
@@ -204,7 +213,7 @@ export interface TaskEstimate {
   canRunInCloud: boolean;
 }
 
-/** What a cloud task in the Task Manager will use, before it starts. */
+/** What a cloud task in the Task Manager will use, before it starts. Free never runs in the cloud: it runs on this device. */
 export function estimateCloudTask(photos: number, usage: Pick<CloudUsage, 'plan' | 'photosUsed' | 'balancePence'>): TaskEstimate {
   const n = whole(photos);
   const allowance = MONTHLY_PHOTO_ALLOWANCE[usage.plan] ?? MONTHLY_PHOTO_ALLOWANCE.basic;
@@ -212,7 +221,7 @@ export function estimateCloudTask(photos: number, usage: Pick<CloudUsage, 'plan'
   const fromAllowance = Math.min(n, left);
   const paidPhotos = n - fromAllowance;
   const pence = Math.ceil((paidPhotos * PAYG_PENCE.extraPhotoTenths) / 10);
-  return { photos: n, fromAllowance, paidPhotos, allowanceLeftAfter: left - fromAllowance, pence, canRunInCloud: pence <= whole(usage.balancePence) };
+  return { photos: n, fromAllowance, paidPhotos, allowanceLeftAfter: left - fromAllowance, pence, canRunInCloud: planHasCloud(usage.plan) && pence <= whole(usage.balancePence) };
 }
 
 export function formatPence(pence: number): string {
@@ -226,7 +235,7 @@ export function formatBytes(bytes: number): string {
 
 /** The control plane's `/v1/me/usage` answer as the Account panel's usage, or null when it lacks the plan fields. */
 export function usageFromServer(body: { plan?: string; photosUsed?: number; bytes?: number; balanceCredits?: number; storedBytes?: number }, nowMs: number): CloudUsage | null {
-  if (body.plan !== 'basic' && body.plan !== 'pro') return null;
+  if (body.plan !== 'basic' && body.plan !== 'pro' && body.plan !== 'plus') return null;
   return {
     plan: body.plan, photosUsed: whole(body.photosUsed ?? 0), downloadedBytes: whole(body.bytes ?? 0),
     balancePence: Math.floor((Number.isFinite(body.balanceCredits) ? body.balanceCredits! : 0)),

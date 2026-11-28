@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor, photosThatFit,
+  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor, photosThatFit, planHasCloud,
   estimateCloudTask, formatBytes, storageFull, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, SOFTWARE_PRICES, usageSummary,
 } from './cloudPlan.ts';
 
@@ -22,10 +22,12 @@ test('every fixed storage plan keeps at least 60% margin even when completely fu
   }
 });
 
-test('allowances: Basic 500 photos and no storage, Pro 5,000 photos and 2.5 GB; 1 GB downloads free for everyone', () => {
-  assert.equal(MONTHLY_PHOTO_ALLOWANCE.basic, 500);
-  assert.equal(MONTHLY_PHOTO_ALLOWANCE.pro, 5000);
-  assert.deepEqual(FREE_STORAGE_BYTES_BY_PLAN, { basic: 0, pro: 2.5e9 });
+test('allowances: Free no cloud, Pro 500 photos, Pro Plus 5,000, both with 2.5 GB; 1 GB downloads free for everyone', () => {
+  assert.equal(MONTHLY_PHOTO_ALLOWANCE.basic, 0);
+  assert.equal(MONTHLY_PHOTO_ALLOWANCE.pro, 500);
+  assert.equal(MONTHLY_PHOTO_ALLOWANCE.plus, 5000);
+  assert.deepEqual(FREE_STORAGE_BYTES_BY_PLAN, { basic: 0, pro: 2.5e9, plus: 2.5e9 });
+  assert.deepEqual([planHasCloud('basic'), planHasCloud('pro'), planHasCloud('plus')], [false, true, true]);
   assert.equal(FREE_DOWNLOAD_BYTES_PER_MONTH, 1e9);
 });
 
@@ -35,14 +37,14 @@ test('the allowance month resets on the 1st, UTC, including across a year end', 
 });
 
 test('Pro is a subscription only: £2.99 a month or £29 a year, with no one-off and no rent to own', () => {
-  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999 });
+  assert.deepEqual(SOFTWARE_PRICES, { proMonthlyPence: 299, proAnnualPence: 2999, plusMonthlyPence: 999 });
 });
 
 test('within the free amounts nothing is charged', () => {
-  const s = usageSummary({ plan: 'pro', photosUsed: 1200, storedBytes: 1e9, downloadedBytes: 2e8, balancePence: 0, nowMs: NOW });
+  const s = usageSummary({ plan: 'pro', photosUsed: 200, storedBytes: 1e9, downloadedBytes: 2e8, balancePence: 0, nowMs: NOW });
   assert.equal(s.chargePence, 0);
   assert.equal(s.paused, false);
-  assert.deepEqual(s.meters.map(m => m.percent), [24, 40, 20]);
+  assert.deepEqual(s.meters.map(m => m.percent), [40, 40, 20]);
 });
 
 test('Basic includes no cloud storage: every stored GB is charged', () => {
@@ -54,7 +56,7 @@ test('Basic includes no cloud storage: every stored GB is charged', () => {
 });
 
 test('over the free amounts each line is charged at its own rate and rounded up once', () => {
-  const s = usageSummary({ plan: 'pro', photosUsed: 6000, storedBytes: 12.5e9, downloadedBytes: 3e9, balancePence: 1000, nowMs: NOW });
+  const s = usageSummary({ plan: 'pro', photosUsed: 1500, storedBytes: 12.5e9, downloadedBytes: 3e9, balancePence: 1000, nowMs: NOW });
   // 1,000 photos × 0.3p = 300p; 10 GB × 7p = 70p; 2 GB × 33p = 66p
   assert.deepEqual(s.meters.map(m => Math.round(m.chargePence)), [300, 70, 66]);
   assert.equal(s.chargePence, 436);
@@ -70,11 +72,19 @@ test('when charges pass the balance cloud work pauses; the balance never goes ne
 });
 
 test('a cloud task uses the allowance first, then the balance, else runs on this device', () => {
-  assert.deepEqual(estimateCloudTask(300, { plan: 'basic', photosUsed: 100, balancePence: 0 }),
+  assert.deepEqual(estimateCloudTask(300, { plan: 'pro', photosUsed: 100, balancePence: 0 }),
     { photos: 300, fromAllowance: 300, paidPhotos: 0, allowanceLeftAfter: 100, pence: 0, canRunInCloud: true });
-  assert.deepEqual(estimateCloudTask(300, { plan: 'basic', photosUsed: 400, balancePence: 0 }),
+  assert.deepEqual(estimateCloudTask(300, { plan: 'pro', photosUsed: 400, balancePence: 0 }),
     { photos: 300, fromAllowance: 100, paidPhotos: 200, allowanceLeftAfter: 0, pence: 60, canRunInCloud: false });
-  assert.equal(estimateCloudTask(300, { plan: 'basic', photosUsed: 400, balancePence: 500 }).canRunInCloud, true);
+  assert.equal(estimateCloudTask(300, { plan: 'pro', photosUsed: 400, balancePence: 500 }).canRunInCloud, true);
+  assert.equal(estimateCloudTask(300, { plan: 'plus', photosUsed: 400, balancePence: 0 }).canRunInCloud, true, 'Pro Plus has 5,000 a month');
+});
+
+test('Free has no cloud at all: a task never runs in the cloud, even with a top-up balance', () => {
+  const e = estimateCloudTask(10, { plan: 'basic', photosUsed: 0, balancePence: 5000 });
+  assert.equal(e.canRunInCloud, false);
+  assert.equal(e.fromAllowance, 0);
+  assert.equal(usageSummary({ plan: 'basic', photosUsed: 0, downloadedBytes: 0, balancePence: 0, nowMs: NOW }).meters[0].included, 0);
 });
 
 test('formatting', () => {
