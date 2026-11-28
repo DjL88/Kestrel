@@ -58,7 +58,6 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
-import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
 import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
@@ -1073,6 +1072,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const phoneGridPage = phoneTwoPages && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
+  // Preview, off unless switched on for this device: a tap on the photo hides the bars and panels (touch screens).
+  const [tapForPhoto] = useState(() => workflowPreviewOn('tapForPhoto'));
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
   useEffect(() => {
     const sheet = sheetEl;
@@ -1132,6 +1133,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
+      data-v2-photo-only={tapForPhoto && canvasOnlyShown ? '' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
@@ -1467,6 +1469,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   neighbourPhotos={neighbourPhotos}
                   canvasOnly={canvasOnlyShown}
                   onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
+                  tapTogglesCanvasOnly={tapForPhoto}
+                  canvasOnlyPosition={tapForPhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
+                  onToggleFlag={tapForPhoto ? () => { actions.toggleFlag([activePhoto.id]); advanceAfterDecision([activePhoto.id]); } : undefined}
                 />
               )}
 
