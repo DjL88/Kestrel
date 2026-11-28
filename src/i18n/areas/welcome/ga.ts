@@ -9,7 +9,6 @@ export const ga: AreaTranslation<typeof source> = {
     originals: "Fanann do ghrianghraif bhunaidh san áit a bhfuil siad. Ní athraíonn, ní bhogann agus ní ionadaíonn InFlight iad riamh.",
     undo: "Is féidir gach eagarthóireacht a chealú. Coinníonn InFlight oideas de na hathruithe a rinne tú, ní cóip nua den ghrianghraf.",
     backup: "Coinníonn cúltaca tionscadail do chinntí, do rátálacha agus d'eagarthóireacht, ach ní na comhaid RAW féin. Déan cúltaca de do bhunghrianghraif freisin.",
-    webNote: "I mbrabhsálaí gréasáin, iarrfaidh InFlight ar an mbrabhsálaí a stóras a choinneáil nuair a leanann tú ar aghaidh. Feicfidh tú cad is brí leis sin sna Socruithe, faoi Stóras.",
     done: "Tuigim",
   },
   browserStorage: {

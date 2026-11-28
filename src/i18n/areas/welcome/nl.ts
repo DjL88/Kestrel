@@ -9,7 +9,6 @@ export const nl: AreaTranslation<typeof source> = {
     originals: "Uw originele foto's blijven waar ze zijn. InFlight wijzigt, verplaatst of vervangt ze nooit.",
     undo: "Elke bewerking kan ongedaan worden gemaakt. InFlight bewaart een recept van uw wijzigingen, geen nieuwe kopie van de foto.",
     backup: "Een projectback-up bewaart uw keuzes, beoordelingen en bewerkingen, maar niet de RAW-bestanden zelf. Maak ook een back-up van uw originelen.",
-    webNote: "In een webbrowser vraagt InFlight de browser om zijn opslag te bewaren wanneer u verdergaat. Wat dat betekent, leest u in Instellingen, onder Opslag.",
     done: "Begrepen",
   },
   browserStorage: {

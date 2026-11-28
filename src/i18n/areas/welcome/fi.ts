@@ -9,7 +9,6 @@ export const fi: AreaTranslation<typeof source> = {
     originals: "Alkuperäiset kuvasi pysyvät siellä, missä ne ovat. InFlight ei koskaan muuta, siirrä tai korvaa niitä.",
     undo: "Jokaisen muokkauksen voi perua. InFlight tallentaa reseptin muutoksistasi, ei uutta kopiota kuvasta.",
     backup: "Projektin varmuuskopio säilyttää valintasi, arviosi ja muokkauksesi, mutta ei itse RAW-tiedostoja. Varmuuskopioi myös alkuperäiset kuvat.",
-    webNote: "Verkkoselaimessa InFlight pyytää selainta säilyttämään tallennustilansa, kun jatkat. Mitä se tarkoittaa, kerrotaan kohdassa Asetukset, Tallennus.",
     done: "Selvä",
   },
   browserStorage: {

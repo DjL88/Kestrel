@@ -9,7 +9,6 @@ export const nb: AreaTranslation<typeof source> = {
     originals: "Originalbildene dine blir der de er. InFlight endrer, flytter eller erstatter dem aldri.",
     undo: "Alle redigeringer kan angres. InFlight lagrer en oppskrift på endringene dine, ikke en ny kopi av bildet.",
     backup: "En prosjektsikkerhetskopi tar vare på valgene, vurderingene og redigeringene dine, men ikke selve RAW-filene. Ta også sikkerhetskopi av originalene.",
-    webNote: "I en nettleser ber InFlight nettleseren om å beholde lagringen sin når du fortsetter. Hva det betyr, står i Innstillinger under Lagring.",
     done: "Skjønner",
   },
   browserStorage: {

@@ -9,7 +9,6 @@ export const de: AreaTranslation<typeof source> = {
     originals: "Ihre Originalfotos bleiben, wo sie sind. InFlight verändert, verschiebt oder ersetzt sie nie.",
     undo: "Jede Bearbeitung lässt sich rückgängig machen. InFlight speichert ein Rezept Ihrer Änderungen, keine neue Kopie des Fotos.",
     backup: "Eine Projektsicherung enthält Ihre Entscheidungen, Bewertungen und Bearbeitungen, aber nicht die RAW-Dateien selbst. Sichern Sie Ihre Originale zusätzlich.",
-    webNote: "Im Webbrowser bittet InFlight den Browser beim Fortfahren, seinen Speicher zu behalten. Was das bedeutet, steht in den Einstellungen unter Speicher.",
     done: "Verstanden",
   },
   browserStorage: {

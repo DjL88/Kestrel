@@ -9,7 +9,6 @@ export const source = {
     originals: "Your original photos stay where they are. InFlight never changes, moves or replaces them.",
     undo: "Every edit can be undone. InFlight keeps a recipe of your changes, not a new copy of the photo.",
     backup: "A project backup keeps your decisions, ratings and edits, but not the RAW files themselves. Keep your originals backed up as well.",
-    webNote: "In a web browser, InFlight will ask the browser to keep its storage when you continue. You can see what that means in Settings, under Storage.",
     done: "Got it",
   },
   browserStorage: {

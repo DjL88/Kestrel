@@ -9,7 +9,6 @@ export const is: AreaTranslation<typeof source> = {
     originals: "Upprunalegu myndirnar þínar eru áfram þar sem þær eru. InFlight breytir þeim aldrei, færir þær eða skiptir þeim út.",
     undo: "Allar breytingar má afturkalla. InFlight geymir uppskrift að breytingunum þínum, ekki nýtt afrit af myndinni.",
     backup: "Öryggisafrit verkefnis geymir val þitt, einkunnir og breytingar, en ekki RAW-skrárnar sjálfar. Taktu líka afrit af upprunalegu myndunum.",
-    webNote: "Í vafra biður InFlight vafrann um að halda geymslunni sinni þegar þú heldur áfram. Hvað það þýðir sérðu í Stillingum, undir Geymsla.",
     done: "Skilið",
   },
   browserStorage: {
