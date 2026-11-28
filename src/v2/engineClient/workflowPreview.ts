@@ -11,6 +11,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   brandKits: 'kestrel.preview.brand-kits.v1',
   /** Auto leans towards the edits this person keeps, undoes or corrects, learnt on this device (x-spec-personal-style). */
   editStyle: 'kestrel.preview.edit-style.v1',
+  /** Auto-pilot edits the photos of a new import in the background, best first (src/core/flightModes.ts planAutoBatch). */
+  flightBatch: 'kestrel.preview.flight-batch.v1',
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   usbTether: 'kestrel.preview.usb-tether.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */

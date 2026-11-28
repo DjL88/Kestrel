@@ -65,6 +65,8 @@ import {
 import { SHORT_LANDSCAPE_QUERY } from '../utils/layoutQueries';
 
 interface CanvasProps {
+  /** Floats over the bottom-left of the stage (the Auto banner): never in the layout, so the canvas keeps its size and nothing in the toolbar above is covered. */
+  floating?: React.ReactNode;
   /** Engine-supplied renderer; falls back to a plain image. */
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
   maskGuideId?: string;
@@ -177,6 +179,7 @@ const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getB
 const FRAME_BORDER = 1;
 
 export default function Canvas({
+  floating,
   PhotoSurface,
   colourAreas,
   assistMode = 'copilot',
@@ -2375,6 +2378,7 @@ export default function Canvas({
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
       </div>
+        {floating && <div data-capture-ignore className="absolute bottom-16 left-3 right-3 z-20 sm:bottom-3 sm:right-auto sm:max-w-lg">{floating}</div>}
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label={STRINGS.canvas.viewportControls}

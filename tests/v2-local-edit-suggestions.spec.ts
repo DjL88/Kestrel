@@ -39,7 +39,8 @@ test('Co-pilot renders a local edit preview and only changes the photo after App
   await expect(after).toHaveAttribute('src', /^data:image\/jpeg/);
   expect(await after.getAttribute('src')).not.toBe(await before.getAttribute('src'));
   const phone = testInfo.project.name === 'phone';
-  const undo = studio.getByRole('button', { name: 'Undo', exact: true });
+  // The toolbar's Undo; after Apply the canvas banner also offers an Undo for Auto's change.
+  const undo = studio.locator('button[aria-label="Undo"]');
   if (phone) await expect(undo).toBeDisabled();
   await studio.getByRole('button', { name: 'Apply', exact: true }).first().click();
   await expect(studio.getByRole('button', { name: 'Applied', exact: true })).toBeDisabled();

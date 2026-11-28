@@ -66,6 +66,24 @@ test('does not apply an old proposal after the active group or version changes',
   }
 });
 
+test('the background batch edits a photo that is not open, as one undo step, and still never over an edit', () => {
+  const state = { ...project(original), selectedFrameId: 'other-photo' };
+  assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000), state, 'a photo that is not open is refused by default');
+  const result = commitAutoEdit(state, 'project', original, proposal, 2000, { by: 'auto', notes: ['why'] }, { anyPhoto: true });
+  assert.equal(result.frames[0].edit, proposal);
+  assert.equal(result.frames[0].editHistory?.steps.length, 1);
+  assert.equal(stepEdit(result.frames[0], -1).edit, undefined);
+  const edited = recordEdit(original, { edit: { ...DEFAULT_EDIT, exposure: -0.4 } }, 1500);
+  const kept = { ...project(edited), selectedFrameId: 'other-photo' };
+  assert.equal(commitAutoEdit(kept, 'project', original, proposal, 2000, undefined, { anyPhoto: true }), kept);
+});
+
+test('the background batch never edits a photo that was rejected after it was planned', () => {
+  const rejected = { ...original, decision: 'reject' as const };
+  const state = { ...project(rejected), selectedFrameId: 'other-photo' };
+  assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000, undefined, { anyPhoto: true }), state);
+});
+
 test('a held Auto-pilot edit says it was held, where the suggestion is, and that nothing changed', async () => {
   const AUTOPILOT_HELD_FOR_REVIEW = (await import('./commitAutoEdit.ts')).autopilotHeldForReview();
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /held this edit for your review/);
