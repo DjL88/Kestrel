@@ -116,7 +116,7 @@ test('?v2 layer mask: a layer can show only inside one of the photo\'s masks, or
   await mask.getByRole('combobox', { name: 'Mask' }).selectOption({ index: 1 });
   // Inside the oval the layer still shows; above it, the photo shows again.
   await expect.poll(() => redness(0.5, 0.2), { timeout: 15000 }).toBeLessThan(10);
-  expect(await redness(0.5, 0.5)).toBeGreaterThan(150);
+  await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeGreaterThan(150);
   // Outside: the opposite.
   await mask.getByRole('radio', { name: 'Outside the mask' }).click();
   await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeLessThan(10);
