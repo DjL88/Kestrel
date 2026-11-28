@@ -2130,6 +2130,11 @@ export const cy: AreaTranslation<typeof source> = {
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Toriad awgrymedig: amlinell doredig ar y llun. Does dim yn newid nes i chi dderbyn.',
+    accept: 'Derbyn y toriad',
+    dismiss: 'Gwrthod',
+  },
   maskCanvas: {
     outline: (n) => `${n} · amlinell ar y llun`,
     overlayShown: (n) => `${n} · troshaen yn dangos (yr ardal streipiog yw lle mae’n gweithio)`,

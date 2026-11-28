@@ -2130,6 +2130,11 @@ export const is: AreaTranslation<typeof source> = {
     forgetLink: 'Biðja InFlight að eyða aðgangsgögnunum mínum',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Tillaga að skurði: strikað útlínusvæði á myndinni. Ekkert breytist fyrr en þú samþykkir.',
+    accept: 'Samþykkja skurð',
+    dismiss: 'Hafna',
+  },
   maskCanvas: {
     outline: (n) => `${n} · útlína á myndinni`,
     overlayShown: (n) => `${n} · yfirlag sýnilegt (skyggða svæðið er þar sem það virkar)`,

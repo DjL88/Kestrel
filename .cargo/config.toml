@@ -1,0 +1,10 @@
+# Android only. Google Play requires native libraries to load on devices with 16 KB memory pages. Rust on NDK r27 links
+# with 4 KB alignment by default (NDK r28 and later use 16 KB), so ask for it explicitly. Harmless on older devices.
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+[target.x86_64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+[target.armv7-linux-androideabi]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+[target.i686-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]

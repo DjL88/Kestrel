@@ -2131,6 +2131,11 @@ export const gd: AreaTranslation<typeof source> = {
     forgetLink: 'Iarr air InFlight dàta a’ chunntais agam a sguabadh às',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Gearradh air a mholadh: loidhne bhristeach air an dealbh. Cha atharraich dad gus an gabh thu ris.',
+    accept: 'Gabh ris a’ ghearradh',
+    dismiss: 'Leig seachad',
+  },
   maskCanvas: {
     outline: (n) => `${n} · oir-loidhne air an dealbh`,
     overlayShown: (n) => `${n} · tar-chòmhdach ga shealltainn (is e an raon stiallach far a bheil e an sàs)`,

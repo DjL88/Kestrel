@@ -2130,6 +2130,11 @@ export const da: AreaTranslation<typeof source> = {
     forgetLink: 'Bed InFlight om at slette mine kontodata',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
+  cropSuggestion: {
+    label: 'Foreslået beskæring: stiplet kant på fotoet. Intet ændres, før du accepterer.',
+    accept: 'Accepter beskæring',
+    dismiss: 'Afvis',
+  },
   maskCanvas: {
     outline: (n) => `${n} · omrids på fotoet`,
     overlayShown: (n) => `${n} · overlay vist (skraveret område = hvor den virker)`,

@@ -37,3 +37,26 @@ export const flipCrop = (crop: CropTransform | undefined, axis: 'horizontal' | '
   patchCrop(crop, axis === 'horizontal' ? { flipH: !(crop ?? DEFAULT_CROP).flipH } : { flipV: !(crop ?? DEFAULT_CROP).flipV });
 
 export const rotateCrop = (crop: CropTransform | undefined): CropTransform => patchCrop(crop, { rotateDeg: (((crop ?? DEFAULT_CROP).rotateDeg + 90) % 360) });
+
+/** True when a format's crop is still the untouched whole picture, the only state a crop suggestion is offered over. */
+export const isUntouchedCrop = (crop: CropTransform | undefined): boolean => {
+  const c = crop ?? DEFAULT_CROP;
+  return c.zoom === 1 && c.panX === 0 && c.panY === 0 && c.insetTop === 0 && c.insetRight === 0 && c.insetBottom === 0 && c.insetLeft === 0
+    && !c.flipH && !c.flipV && c.rotateDeg === 0;
+};
+
+/**
+ * The crop patch (zoom and pan) that shows `rect`, a rectangle of the picture in fractions with the frame's own shape.
+ * At zoom 1 the frame shows the largest centred window of that shape; zoom shrinks the window and the pan, a share of the
+ * frame, moves the picture under it. Insets are cleared. Apply it through the one crop path so it is one undoable step.
+ */
+export function cropPatchForRect(rect: { x0: number; y0: number; x1: number; y1: number }, pictureAspect: number, frameAspect: number): Partial<CropTransform> | null {
+  const rectW = rect.x1 - rect.x0, rectH = rect.y1 - rect.y0;
+  if (!(pictureAspect > 0) || !(frameAspect > 0) || !(rectW > 0) || !(rectH > 0)) return null;
+  const windowW = Math.min(1, frameAspect / pictureAspect);
+  const zoom = windowW / rectW;
+  if (!Number.isFinite(zoom) || zoom < 1) return null;
+  const panX = ((0.5 - (rect.x0 + rect.x1) / 2) * 100) / rectW;
+  const panY = ((0.5 - (rect.y0 + rect.y1) / 2) * 100) / rectH;
+  return { zoom, panX, panY, insetTop: 0, insetRight: 0, insetBottom: 0, insetLeft: 0 };
+}

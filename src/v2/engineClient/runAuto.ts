@@ -1,6 +1,8 @@
 import { proposeGroupSubjectAuto, groupSubjectSafe } from '../../core/groupSubjectAuto';
 import type { InstanceFinding } from '../../providers/multiSubjectDetector';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
+import { subjectBox } from '../../core/subjectCrop';
+import { proposeCrop, type SubjectFractions } from '../../core/proposeCrop';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
@@ -46,6 +48,11 @@ export interface AutoRun {
   colour?: ColourReport;
   /** The person's learnt leanings this suggestion was leaned by (personal style preview, off by default). Empty when none. */
   leanings?: Leaning[];
+  /**
+   * Where the subject is, offered so the canvas can suggest a crop (src/core/proposeCrop.ts). Only a high-confidence mask
+   * gives one, and only when the core finds a better framing. It is a suggestion: nothing is cropped until it is accepted.
+   */
+  cropSuggestion?: { box: SubjectFractions };
 }
 
 export function subjectKindOf(frame: Pick<PhotoFrame, 'subjectKind' | 'tags' | 'subjectNames'>): InsightSubjectKind {
@@ -242,5 +249,13 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
     leanings: leaned.applied,
+    ...cropSuggestionFor(segmentation, analysis.width, analysis.height),
   };
+}
+
+/** The subject's box, only when the mask is reliable and the core would suggest a tighter crop for the picture's own shape. */
+function cropSuggestionFor(segmentation: { grid: SubjectGrid; confidence: string } | null | undefined, width: number, height: number): { cropSuggestion?: { box: SubjectFractions } } {
+  if (!segmentation || segmentation.confidence !== 'high') return {};
+  const box = subjectBox(segmentation.grid);
+  return box && proposeCrop({ box, imageWidth: width, imageHeight: height }) ? { cropSuggestion: { box } } : {};
 }

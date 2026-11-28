@@ -408,6 +408,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(urls?.unsupported ? {} : extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
+    ...(assist && matchesAutoSource(assist.run, frame) && assist.run.cropSuggestion ? { cropSuggestion: assist.run.cropSuggestion } : {}),
     assistCritique: {
       ...(assist && matchesAutoSource(assist.run, frame)
         ? assistCritiqueFor(assist, frame.edit)

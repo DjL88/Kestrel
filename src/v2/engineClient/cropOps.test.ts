@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_CROP, flipCrop, patchCrop, readCrops, rotateCrop, sanitiseCrop } from './cropOps.ts';
+import { proposeCrop } from '../../core/proposeCrop.ts';
+import { DEFAULT_CROP, DEFAULT_CROP as UNTOUCHED, cropPatchForRect, isUntouchedCrop, flipCrop, patchCrop, readCrops, rotateCrop, sanitiseCrop } from './cropOps.ts';
 
 test('a photo with no stored crops has none, and a damaged value falls back to the default', () => {
   assert.deepEqual(readCrops(undefined), {});
@@ -53,4 +54,23 @@ test('invalid and inherited format keys are discarded on reopen', () => {
   const stored = readCrops(JSON.parse('{"__proto__":{"zoom":3},"constructor":{"zoom":2},"bad/id":{"zoom":5},"ig-portrait":{"zoom":2}}'));
   assert.deepEqual(Object.keys(stored), ['ig-portrait']);
   assert.equal(stored['ig-portrait'].zoom, 2);
+});
+
+test('a crop suggestion becomes one zoom and pan patch that shows that rectangle', () => {
+  const picture = 3 / 2;
+  const rect = proposeCrop({ box: { x0: 0.1, y0: 0.55, x1: 0.28, y1: 0.8 }, imageWidth: 6000, imageHeight: 4000 })!;
+  const patch = cropPatchForRect(rect, picture, picture)!;
+  const w = 1 / patch.zoom!;
+  assert.ok(Math.abs(w - (rect.x1 - rect.x0)) < 1e-9);
+  // the window centre the pan implies is the rectangle's centre
+  assert.ok(Math.abs(0.5 - (patch.panX! / 100) * w - (rect.x0 + rect.x1) / 2) < 1e-9);
+  assert.ok(Math.abs(0.5 - (patch.panY! / 100) * w - (rect.y0 + rect.y1) / 2) < 1e-9);
+  assert.equal(cropPatchForRect(rect, 0, 1), null);
+});
+
+test('only an untouched crop is offered a suggestion', () => {
+  assert.equal(isUntouchedCrop(undefined), true);
+  assert.equal(isUntouchedCrop(UNTOUCHED), true);
+  assert.equal(isUntouchedCrop({ ...UNTOUCHED, zoom: 1.2 }), false);
+  assert.equal(isUntouchedCrop({ ...UNTOUCHED, flipH: true }), false);
 });
