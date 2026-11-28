@@ -39,5 +39,7 @@ export default defineConfig({
     url: 'http://127.0.0.1:4173',
     // The command builds the app first. That alone takes 40-60s on the Windows laptop, so 60s (the default) is not enough.
     timeout: 180_000,
+    // Locally, reuse a server that is already up (the golden-path scorecard starts one once and runs many specs).
+    reuseExistingServer: !process.env.CI,
   },
 });
