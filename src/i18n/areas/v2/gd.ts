@@ -1006,6 +1006,11 @@ export const gd: AreaTranslation<typeof source> = {
     cvdOff: "Dheth",
     cvdOnHint: "Innsidh e ann am faclan soilleir mar a tha na dathan a’ coimhead, le aon ghnogag gus an ceartachadh.",
     cvdOffHint: "Cuir air e gus dathan ainmeachadh ann am faclan fhad 's a tha thu a' deasachadh.",
+    cvdOfferQuestion: "A bheil thu airson dathan ainmeachadh ann am faclan?",
+    cvdOfferYes: "Tha",
+    cvdOfferNo: "Chan eil, tapadh leibh",
+    cvdOfferYesLabel: "Tha, ainmich dathan ann am faclan",
+    cvdOfferNoLabel: "Chan eil, tapadh leibh, na ainmich dathan ann am faclan",
     resetPhoto: 'Ath-shuidhich an dealbh',
     stopsSuffix: 'EV',
     tooltips: {

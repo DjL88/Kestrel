@@ -1005,6 +1005,11 @@ export const cy: AreaTranslation<typeof source> = {
     cvdOff: "I ffwrdd",
     cvdOnHint: "Yn dweud mewn geiriau plaen sut mae’r lliwiau’n edrych, gydag un tap i’w cywiro.",
     cvdOffHint: "Trowch ymlaen i gael enwau lliwiau mewn geiriau wrth olygu.",
+    cvdOfferQuestion: "Enwi lliwiau mewn geiriau?",
+    cvdOfferYes: "Ie",
+    cvdOfferNo: "Dim diolch",
+    cvdOfferYesLabel: "Ie, enwi lliwiau mewn geiriau",
+    cvdOfferNoLabel: "Dim diolch, peidio enwi lliwiau mewn geiriau",
     resetPhoto: 'Ailosod y llun',
     stopsSuffix: 'EV',
     tooltips: {

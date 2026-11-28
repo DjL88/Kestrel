@@ -1005,6 +1005,11 @@ export const fr: AreaTranslation<typeof source> = {
     cvdOff: "Désactivé",
     cvdOnHint: "Dit en mots simples à quoi ressemblent les couleurs, avec un geste pour les corriger.",
     cvdOffHint: "Activez cette option pour que les couleurs soient nommées en mots pendant la retouche.",
+    cvdOfferQuestion: "Nommer les couleurs en mots ?",
+    cvdOfferYes: "Oui",
+    cvdOfferNo: "Non merci",
+    cvdOfferYesLabel: "Oui, nommer les couleurs en mots",
+    cvdOfferNoLabel: "Non merci, ne pas nommer les couleurs en mots",
     resetPhoto: 'Réinitialiser la photo',
     stopsSuffix: 'IL',
     tooltips: {

@@ -846,6 +846,11 @@ export const source = {
     cvdOff: 'Off',
     cvdOnHint: "Says in plain words how the colours look, with one tap to correct them.",
     cvdOffHint: 'Turn on to have colours named in words while you edit.',
+    cvdOfferQuestion: "Name colours in words?",
+    cvdOfferYes: "Yes",
+    cvdOfferNo: "No thanks",
+    cvdOfferYesLabel: "Yes, name colours in words",
+    cvdOfferNoLabel: "No thanks, do not name colours in words",
     resetPhoto: 'Reset photo',
     stopsSuffix: 'EV',
     tooltips: {

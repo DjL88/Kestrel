@@ -12,6 +12,7 @@ import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
 import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 import ColourVisionToggle from './ColourVisionToggle';
+import ColourVisionOffer from './ColourVisionOffer';
 import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
 import AutoEditButton, { type AutoEditButtonProps } from './AutoEditButton';
 
@@ -22,6 +23,9 @@ interface AdjustPanelProps {
   cvdGuidance: boolean;
   /** Turns Colour-vision support on or off here; it is the same setting as Settings → Assistance. */
   onToggleCvdGuidance?: () => void;
+  /** The one-time first-run offer to name colours in words: shown until answered, never again after. */
+  cvdOfferPending?: boolean;
+  onAnswerCvdOffer?: (yes: boolean) => void;
   /** One-click Auto at the top of the panel. Absent: no button (a locked photo, or no engine). */
   autoEdit?: Omit<AutoEditButtonProps, 'photoId'>;
   /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. */
@@ -140,6 +144,8 @@ export default function AdjustPanel({
   looks,
   cvdGuidance,
   onToggleCvdGuidance,
+  cvdOfferPending,
+  onAnswerCvdOffer,
   colourVerdict,
   autoEdit,
   hideReadouts,
@@ -187,6 +193,7 @@ export default function AdjustPanel({
       {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
       {onToggleCvdGuidance && (
         <div className="space-y-2">
+          {cvdOfferPending && onAnswerCvdOffer && <ColourVisionOffer onAnswer={onAnswerCvdOffer} />}
           <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
           {cvdGuidance && (
             <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />

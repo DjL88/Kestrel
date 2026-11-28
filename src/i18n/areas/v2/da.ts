@@ -1005,6 +1005,11 @@ export const da: AreaTranslation<typeof source> = {
     cvdOff: "Fra",
     cvdOnHint: "Siger med enkle ord, hvordan farverne ser ud, med ét tryk for at rette dem.",
     cvdOffHint: "Slå til for at få farverne navngivet med ord, mens du redigerer.",
+    cvdOfferQuestion: "Navngive farver med ord?",
+    cvdOfferYes: "Ja",
+    cvdOfferNo: "Nej tak",
+    cvdOfferYesLabel: "Ja, navngiv farver med ord",
+    cvdOfferNoLabel: "Nej tak, navngiv ikke farver med ord",
     resetPhoto: 'Nulstil foto',
     stopsSuffix: 'EV',
     tooltips: {

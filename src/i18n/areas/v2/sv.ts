@@ -1005,6 +1005,11 @@ export const sv: AreaTranslation<typeof source> = {
     cvdOff: "Av",
     cvdOnHint: "Säger med enkla ord hur färgerna ser ut, med ett tryck för att rätta dem.",
     cvdOffHint: "Slå på för att få färgerna beskrivna med ord medan du redigerar.",
+    cvdOfferQuestion: "Namnge färger med ord?",
+    cvdOfferYes: "Ja",
+    cvdOfferNo: "Nej tack",
+    cvdOfferYesLabel: "Ja, namnge färger med ord",
+    cvdOfferNoLabel: "Nej tack, namnge inte färger med ord",
     resetPhoto: 'Återställ foto',
     stopsSuffix: 'EV',
     tooltips: {

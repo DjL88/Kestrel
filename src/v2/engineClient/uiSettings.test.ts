@@ -66,3 +66,8 @@ test('focus mode for the filmstrip row is kept between sessions, and only a true
   assert.equal(parseSavedUi(JSON.stringify({ settings: { filmstripFocus: false } })).settings.filmstripFocus, false);
   assert.equal(parseSavedUi(JSON.stringify({ settings: { filmstripFocus: 'yes' } })).settings.filmstripFocus, undefined);
 });
+
+test('the colour-words offer answer is remembered only as a real boolean', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { cvdOfferAnswered: true, cvdGuidance: false } })).settings.cvdOfferAnswered, true);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { cvdOfferAnswered: 'yes' } })).settings.cvdOfferAnswered, undefined);
+});

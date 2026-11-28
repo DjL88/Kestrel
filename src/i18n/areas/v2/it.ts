@@ -1005,6 +1005,11 @@ export const it: AreaTranslation<typeof source> = {
     cvdOff: "Disattivo",
     cvdOnHint: "Dice in parole semplici come appaiono i colori, con un tocco per correggerli.",
     cvdOffHint: "Attivalo per avere i colori indicati a parole mentre modifichi.",
+    cvdOfferQuestion: "Nominare i colori a parole?",
+    cvdOfferYes: "Sì",
+    cvdOfferNo: "No, grazie",
+    cvdOfferYesLabel: "Sì, nomina i colori a parole",
+    cvdOfferNoLabel: "No, grazie, non nominare i colori a parole",
     resetPhoto: 'Ripristina foto',
     stopsSuffix: 'EV',
     tooltips: {
