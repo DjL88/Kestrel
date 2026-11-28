@@ -139,7 +139,7 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
   };
 
   // The outline model is the one that must work; if it can't load, say so now rather than after the detector runs.
-  await load();
+  if (!SUBJECT_MASK_STAND_IN) await load(); // the test double needs no network
   assertSubjectActive(options.signal);
   let found: Awaited<ReturnType<typeof import('./objectDetector').findSubject>> = null;
   try {
