@@ -32,7 +32,11 @@ export type ColourFinding =
   /** Strong colours have run out of range on screen and lost their detail (flat patches). */
   | { id: 'clippedColour'; severity: 'warning'; share: number; families: ColourFamily[] }
   /** Things that should be neutral (grey, white) lean towards one colour. */
-  | { id: 'cast'; severity: 'tip'; direction: CastDirection; amount: 'slight' | 'clear' }
+  | { id: 'cast'; severity: 'tip'; direction: CastDirection; amount: 'slight' | 'clear';
+      /** Strength of the lean in the neutral areas (OKLab a/b distance), for sizing a correction. */
+      size?: number;
+      /** After a re-measure (src/core/castCurve.ts): 'fixable' by `fixDelta` slider units, 'left' = nothing visible can be gained, 'natural' = warm light that looks right. */
+      status?: 'fixable' | 'left' | 'natural'; fixDelta?: number }
   /** Hardly any colour at all, but not black and white. Said as information, not as a fault. */
   | { id: 'muted'; severity: 'info' }
   /** Two large areas differ mainly by red against green, so they look alike to many colour-blind viewers. */
@@ -242,7 +246,8 @@ export function checkColour({ after, before, subject, blackAndWhite = false }: C
       clippedFamilies.set(family, (clippedFamilies.get(family) ?? 0) + 1);
     }
     // Near-neutral, mid-tone pixels show a cast best (grey world on things that are probably grey).
-    if (chroma < 0.05 && L > 0.25 && L < 0.92) {
+    // A subject (an orange kingfisher) is never the reference: the cast is judged from what is around it.
+    if (chroma < 0.05 && L > 0.25 && L < 0.92 && !(subject && (subject[p] ?? 0) > 0.35)) {
       neutralCount += 1;
       neutralA += A;
       neutralB += B;
@@ -286,7 +291,7 @@ export function checkColour({ after, before, subject, blackAndWhite = false }: C
       const hue = hueOf(a, b);
       // Warm covers orange-yellow, cool covers blue-cyan; the green–magenta axis is the camera's tint.
       const direction: CastDirection = hue >= 30 && hue < 120 ? 'warm' : hue >= 120 && hue < 180 ? 'green' : hue >= 180 && hue < 300 ? 'cool' : 'magenta';
-      findings.push({ id: 'cast', severity: 'tip', direction, amount: size >= 0.018 ? 'clear' : 'slight' });
+      findings.push({ id: 'cast', severity: 'tip', direction, amount: size >= 0.018 ? 'clear' : 'slight', size });
     }
   }
 

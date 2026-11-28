@@ -1,3 +1,4 @@
+import { hasDenoiseZones, type DenoiseZones } from './denoiseZones';
 import type { TrueDetailAi } from './trueDetailAi';
 import { hasActiveMasks, type Mask } from './maskTypes';
 import { hasHeal, type HealSpot } from './heal';
@@ -51,6 +52,8 @@ export interface PhotoEdit {
   denoise?: number;
   /** Edge-aware luminance noise reduction, 0–2, before tone and detail. */
   denoiseLuminance?: number;
+  /** Classical luminance denoise added per tonal zone (Blacks, Shadows, Mids, Highlights, Whites), each 0 to 2, on top of denoiseLuminance. Absent = none. */
+  denoiseZones?: DenoiseZones;
   /** TrueDetail AI denoise: a learned denoiser's stored result, blended into the subject and eye regions. Absent = off. */
   trueDetailAi?: TrueDetailAi;
   /** Export-time enlargement: 2 or 4 times the picture's own size, by the deterministic resampler (no model, nothing uploaded). Absent = off. */
@@ -102,7 +105,7 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasCaptureDetail(edit) && !hasFringeEdit(edit) && !hasLensCorrection(edit.lens) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks) && !hasHeal(edit.heal);
+  return !edit.denoise && !edit.denoiseLuminance && !hasDenoiseZones(edit.denoiseZones) && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasCaptureDetail(edit) && !hasFringeEdit(edit) && !hasLensCorrection(edit.lens) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks) && !hasHeal(edit.heal);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */

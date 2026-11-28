@@ -30,6 +30,7 @@ import { guardianNote, type AssistGuardian } from './assistGuardian';
 import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable } from './autoUnavailable';
 import { colourAreas, colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { colourVerdict } from '../../core/colourVerdict';
+import { recastReport } from '../../core/castCurve';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { isRawPreviewFile, shownFileFormat } from '../../core/rawFormats';
@@ -156,6 +157,8 @@ export function styleNoteFor(leanings: readonly Leaning[] | undefined): string |
 export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
+  // The cast advice is re-measured for the recipe the photo has now: it clears once satisfied, or says it cannot go further.
+  const colour = run.colour ? recastReport(run.colour, run.castCurve, currentEdit) : undefined;
   const matching = run.candidates.find((candidate) => candidate.edit === currentEdit);
   const fromBase = sameRecipe(run.plan.base, currentEdit) || (assist.safeApplied !== undefined && currentEdit === assist.safeApplied);
   const available = matching ? [matching] : fromBase ? run.candidates : [];
@@ -177,10 +180,10 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
   return {
     subjectNote: run.headline,
     // The warnings are said in words from the colour check, never as the check's internal codes.
-    colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
-    colourCheck: run.colour ? colourWords(run.colour) : undefined,
-    ...(run.colour ? { colourVerdict: colourVerdict(run.colour) } : {}),
-    ...(run.colour && colourAreas(run.colour).length ? { colourAreas: colourAreas(run.colour) } : {}),
+    colourConfidence: [run.detail[1], ...colourWarningSentences(colour)].filter(Boolean).join(' '),
+    colourCheck: colour ? colourWords(colour) : undefined,
+    ...(colour ? { colourVerdict: colourVerdict(colour) } : {}),
+    ...(colour && colourAreas(colour).length ? { colourAreas: colourAreas(colour) } : {}),
     kelvinEstimate: '',
     suggestions,
   };
