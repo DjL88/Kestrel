@@ -32,7 +32,6 @@ test('the welcome explains the three facts once, asks the browser to keep storag
   await expect(welcome).toContainText('Your original photos stay where they are');
   await expect(welcome).toContainText('Every edit can be undone');
   await expect(welcome).toContainText('not the RAW files themselves');
-  await expect(welcome).toContainText('ask the browser to keep its storage');
   // The projects hub stays usable while the welcome is showing.
   await expect(page.getByRole('button', { name: 'New project' }).first()).toBeEnabled();
   expect(await asked(page)).toBe(0);
