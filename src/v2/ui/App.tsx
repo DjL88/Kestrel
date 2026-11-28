@@ -58,6 +58,8 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import type { HealCandidate } from './shell/HealLayer';
+import { previewOn, previewsVersion, subscribePreviews } from '../../core/previewFeatures';
+import LiveShootPanel from './dialogs/LiveShootPanel';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
@@ -548,6 +550,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     onMoveSource: (spotId: string, source: { sx: number; sy: number }) => actions.updateHealSpot?.(activePhoto.id, spotId, { source }),
     onStopPlacing: () => setHealUi((current) => (current ? { ...current, placing: false } : current)),
   } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot, coverCandidates]);
+  // Live shoot panel (desktop app, a preview): one place to start and stop a live shoot.
+  React.useSyncExternalStore(subscribePreviews, previewsVersion, previewsVersion);
+  const livePanelOn = previewOn('liveShoot') && Boolean(actions.startLiveShoot && actions.stopLiveShoot);
+  const [livePanelOpen, setLivePanelOpen] = useState(false);
+  // A live shoot belongs to the project it started in: leaving the project closes the panel (the workspace stops the shoot).
+  useEffect(() => { setLivePanelOpen(false); }, [store.activeProjectId]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -1561,13 +1569,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImportFolder={actions.importFolder}
                 // Live shooting (watch a folder, show on other screens, camera Wi-Fi, USB) belongs to a Tethered shoot
                 // project (owner, 26 Nov). A live session already running elsewhere can still be seen and stopped.
-                onWatchFolder={tetheredProject ? actions.watchFolder : undefined}
+                // With the Live shoot panel preview on, one Live shoot button opens the panel in place of the four.
+                onWatchFolder={tetheredProject && !livePanelOn ? actions.watchFolder : undefined}
                 onStopWatchingFolder={actions.stopWatchingFolder}
-                onReceiveFromCamera={tetheredProject ? actions.receiveFromCamera : undefined}
+                onReceiveFromCamera={tetheredProject && !livePanelOn ? actions.receiveFromCamera : undefined}
                 shootRoom={store.shootRoom}
-                onOpenShootRoom={tetheredProject ? actions.openShootRoom : undefined}
+                onOpenShootRoom={tetheredProject && !livePanelOn ? actions.openShootRoom : undefined}
                 onCloseShootRoom={actions.closeShootRoom}
-                onTetherCamera={tetheredProject ? actions.tetherCamera : undefined}
+                onTetherCamera={tetheredProject && !livePanelOn ? actions.tetherCamera : undefined}
+                onOpenLiveShoot={tetheredProject && livePanelOn ? () => setLivePanelOpen(true) : undefined}
                 focusRow={filmstripFocus}
                 onSetFocusRow={(on) => actions.updateSettings({ filmstripFocus: on })}
                 liveFolder={store.liveFolder}
@@ -1778,6 +1788,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       {printing && <React.Suspense fallback={null}><PrintDialog result={printing.result} onClose={closePrint} /></React.Suspense>}
       {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
         formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
+      {livePanelOn && livePanelOpen && tetheredProject && (
+        <LiveShootPanel looks={store.looks} liveFolder={store.liveFolder} shootRoom={store.shootRoom} liveShootLook={store.liveShootLook}
+          usbAvailable={Boolean(actions.tetherCamera)} onStart={actions.startLiveShoot!} onStop={actions.stopLiveShoot!}
+          onClose={() => setLivePanelOpen(false)} />
+      )}
       {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
       <React.Suspense fallback={null}><ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}

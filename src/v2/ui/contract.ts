@@ -892,6 +892,8 @@ export interface WorkspaceStore {
   /** Live shoot room: the links other screens on this network open, and how many frames are showing there. */
   shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
+  /** Live shoot panel (preview): the look added to each frame as it arrives, by name, while a live shoot runs. */
+  liveShootLook?: string | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -902,7 +904,7 @@ export interface WorkspaceStore {
 export interface LiveTether { camera: string; fetching: string | null }
 
 /** What to type into a Wi-Fi camera's FTP transfer settings while InFlight's inbox is on (desktop app). */
-export interface LiveFtpInbox { addresses: string[]; port: number; user: string; password: string }
+export interface LiveFtpInbox { addresses: string[]; port: number; user: string; password: string; /** The saved port was taken, so this shoot listens on another. */ portChanged?: boolean }
 
 export interface WorkspaceActions {
   // Navigation & Projects
@@ -979,6 +981,13 @@ export interface WorkspaceActions {
   closeShootRoom?: () => void;
   /** Live shoot over USB: save each frame the connected camera takes into a chosen folder and watch it (desktop app, preview). */
   tetherCamera?: () => void;
+  /**
+   * Live shoot panel (desktop app, preview): start from camera Wi-Fi (the device's saved FTP credentials), a folder, or USB,
+   * with an optional next-capture look and the client room. False when nothing started (a picker was cancelled).
+   */
+  startLiveShoot?: (choice: import('../../core/liveShootSettings').LiveShootChoice) => Promise<boolean>;
+  /** End the live shoot: stop watching, and switch the FTP inbox and the client room off. */
+  stopLiveShoot?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

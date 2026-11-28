@@ -31,6 +31,8 @@ export const fi: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Lähettää kuvasta 2 560 px:n älykkään esikatselun pilveen ja saa takaisin kumottavat muokkausasetukset. Se tarvitsee yhteyden ja lähettää kuvatietoja, joten jätä se pois päältä, jos haluat pitää kaiken tällä laitteella.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Vain työpöytäsovelluksessa. Kuvaa USB:llä kytketyllä kameralla ja tallentaa jokaisen kuvan valitsemaasi kansioon. Kokeiltu toistaiseksi vain simuloidulla kameralla.",
+  liveShootName: "Suoran kuvauksen paneeli",
+  liveShootDesc: "Vain työpöytäsovelluksessa. Yksi paneeli aloittaa suoran kuvauksen kameran Wi-Fistä, kansiosta tai USB:stä. Se voi antaa jokaiselle uudelle kuvalle tyylin ja näyttää kuvauksen muilla näytöillä. Ei vielä testattu oikealla kameralla.",
   tapForPhotoName: "Napauta kuvaa piilottaaksesi palkit",
   tapForPhotoDesc: "Kosketusnäytöllä yksi napautus kuvaan piilottaa palkit ja paneelit, jolloin kuva saa koko näytön. Toinen napautus tuo ne takaisin.",
   cloudOriginalsName: "Täydet alkuperäiset pilveen",

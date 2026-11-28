@@ -31,6 +31,8 @@ export const nb: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sender et smart forhåndsbilde på 2 560 px av et bilde til skyen og får redigeringsinnstillinger tilbake som kan angres. Det trenger en tilkobling og sender bildedata, så la det stå av for å beholde alt på denne enheten.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bare i skrivebordsappen. Fotograferer med et kamera koblet til via USB og lagrer hvert bilde i en mappe du velger. Så langt bare prøvd med et simulert kamera.",
+  liveShootName: "Panel for livefotografering",
+  liveShootDesc: "Bare i skrivebordsappen. Ett panel starter en livefotografering fra kameraets wifi, en mappe eller USB. Det kan gi hvert nye bilde en look og vise fotograferingen på andre skjermer. Ennå ikke testet med et ekte kamera.",
   tapForPhotoName: "Trykk på bildet for å skjule linjene",
   tapForPhotoDesc: "På en berøringsskjerm skjuler ett trykk på bildet linjer og paneler, slik at bildet får hele skjermen. Et nytt trykk henter dem tilbake.",
   cloudOriginalsName: "Fulle originaler i skyen",

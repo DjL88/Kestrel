@@ -31,6 +31,8 @@ export const nl: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Stuurt een slim voorbeeld van 2.560 px van een foto naar de cloud en krijgt ongedaan te maken bewerkinstellingen terug. Het heeft een verbinding nodig en verstuurt fotogegevens, dus laat het uit om alles op dit apparaat te houden.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Alleen in de desktop-app. Fotografeert met een camera die via USB is aangesloten en bewaart elk beeld in een map naar keuze. Tot nu toe alleen met een gesimuleerde camera geprobeerd.",
+  liveShootName: "Paneel voor live fotograferen",
+  liveShootDesc: "Alleen in de desktop-app. Eén paneel start live fotograferen via camera-wifi, een map of USB. Het kan elke nieuwe foto een look geven en de sessie op andere schermen tonen. Nog niet getest met een echte camera.",
   tapForPhotoName: "Tik op de foto om de balken te verbergen",
   tapForPhotoDesc: "Op een aanraakscherm verbergt één tik op de foto de balken en panelen, zodat de foto het hele scherm heeft. Nog een tik brengt ze terug.",
   cloudOriginalsName: "Volledige originelen in de cloud",

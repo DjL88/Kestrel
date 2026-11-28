@@ -31,6 +31,8 @@ export const da: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Sender et smart eksempel på 2.560 px af et billede til skyen og får redigeringsindstillinger tilbage, som kan fortrydes. Det kræver en forbindelse og sender billeddata, så lad det være slået fra for at beholde alt på denne enhed.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Kun i skrivebordsappen. Fotograferer med et kamera tilsluttet via USB og gemmer hvert billede i en mappe, du vælger. Hidtil kun prøvet med et simuleret kamera.",
+  liveShootName: "Panel til livefotografering",
+  liveShootDesc: "Kun i skrivebordsappen. Ét panel starter en livefotografering fra kameraets wi-fi, en mappe eller USB. Det kan give hvert nyt billede et look og vise fotograferingen på andre skærme. Endnu ikke testet med et rigtigt kamera.",
   tapForPhotoName: "Tryk på fotoet for at skjule bjælkerne",
   tapForPhotoDesc: "På en berøringsskærm skjuler ét tryk på fotoet bjælker og paneler, så fotoet får hele skærmen. Endnu et tryk bringer dem tilbage.",
   cloudOriginalsName: "Fulde originaler i skyen",

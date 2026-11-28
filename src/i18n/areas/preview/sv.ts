@@ -31,6 +31,8 @@ export const sv: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Skickar en smart förhandsbild på 2 560 px av en bild till molnet och får tillbaka redigeringsinställningar som går att ångra. Det kräver en anslutning och skickar bilddata, så låt det vara av för att behålla allt på den här enheten.",
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bara i skrivbordsappen. Fotograferar med en kamera ansluten via USB och sparar varje bild i en mapp du väljer. Hittills bara prövat med en simulerad kamera.",
+  liveShootName: "Panel för livefotografering",
+  liveShootDesc: "Bara i skrivbordsappen. En panel startar en livefotografering från kamerans wifi, en mapp eller USB. Den kan ge varje ny bild en look och visa fotograferingen på andra skärmar. Ännu inte testat med en riktig kamera.",
   tapForPhotoName: "Tryck på fotot för att dölja fälten",
   tapForPhotoDesc: "På en pekskärm döljer ett tryck på fotot fälten och panelerna så att fotot får hela skärmen. Ett tryck till tar tillbaka dem.",
   cloudOriginalsName: "Fulla original i molnet",

@@ -1,4 +1,5 @@
 import { FTP_INBOX_PORT, FTP_INBOX_USER, ftpInboxPassword } from '../core/ftpInboxPassword';
+import type { FtpCredentials } from '../core/liveShootSettings';
 import { isDesktopApp } from './desktopShell';
 
 /**
@@ -12,21 +13,30 @@ export interface FtpInbox {
   port: number;
   user: string;
   password: string;
+  /** The saved port was taken by another program, so the inbox listens on another one this time (the camera must use it). */
+  portChanged?: boolean;
 }
 
 export const canReceiveFromCamera = () => isDesktopApp();
 
-/** Ask for the folder, start the inbox there. Null when the person cancels. Throws with a readable reason on failure. */
-export async function startFtpInbox(): Promise<FtpInbox | null> {
+/**
+ * Ask for the folder, start the inbox there. Null when the person cancels. Throws with a readable reason on failure.
+ * With `credentials` (the Live shoot panel), the device's saved user, password and port are used, so the camera's FTP
+ * profile keeps working between shoots; without, a new password is made each time, as before.
+ */
+export async function startFtpInbox(credentials?: FtpCredentials): Promise<FtpInbox | null> {
   if (!isDesktopApp()) return null;
   const { open } = await import('@tauri-apps/plugin-dialog');
   const folder = await open({ directory: true, multiple: false, recursive: true, title: 'Choose the folder camera photos arrive in' });
   if (typeof folder !== 'string') return null;
   const { invoke } = await import('@tauri-apps/api/core');
-  const password = ftpInboxPassword();
+  const user = credentials?.user ?? FTP_INBOX_USER;
+  const password = credentials?.password ?? ftpInboxPassword();
+  const port = credentials?.port ?? FTP_INBOX_PORT;
   try {
-    const info = await invoke<{ port: number; addresses: string[] }>('ftp_inbox_start', { folder, user: FTP_INBOX_USER, password, port: FTP_INBOX_PORT });
-    return { folder, addresses: info.addresses, port: info.port, user: FTP_INBOX_USER, password };
+    // The desktop app falls back to a free port when this one is taken (src-tauri/src/lib.rs ftp_inbox_start).
+    const info = await invoke<{ port: number; addresses: string[] }>('ftp_inbox_start', { folder, user, password, port });
+    return { folder, addresses: info.addresses, port: info.port, user, password, ...(info.port !== port ? { portChanged: true } : {}) };
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'The camera inbox could not start.');
   }

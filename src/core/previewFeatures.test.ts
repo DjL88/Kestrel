@@ -30,6 +30,7 @@ const KEYS: Record<string, string> = {
   enhanceLoop: 'kestrel.preview.enhance-loop.v1',
   ownSpecies: 'kestrel.preview.own-species.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  liveShoot: 'kestrel.preview.live-shoot.v1',
   tapForPhoto: 'kestrel.preview.tap-for-photo.v1',
   cloudOriginals: 'kestrel.preview.cloud-originals.v1',
   phoneTwoPages: 'kestrel.preview.phone-two-pages.v1',
