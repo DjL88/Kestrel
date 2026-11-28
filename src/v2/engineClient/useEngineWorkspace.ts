@@ -137,8 +137,12 @@ import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraP
 import { runV2Denoise } from './runDenoise';
 import { cloudRecipeEdit, cloudRecipeWhy, prepareCloudRecipe, sendCloudRecipe, type CloudRecipeOffer } from './runCloudRecipe';
 import { cloudRecipePreviewOn, httpCloudRecipeService, readFullFileConsent, saveFullFileConsent } from '../../providers/cloudRecipeService';
-import { readCloudConsent, saveCloudConsent } from '../../providers/cloudConsent';
+import { readCloudConsent as readStoredConsent, saveCloudConsent } from '../../providers/cloudConsent';
+import { hasPaidPlan } from '../../providers/licenceStore';
 import type { CloudUsage } from '../../core/cloudPlan';
+
+// A paying plan is pre-opted-in to the cloud; an explicit No always wins (src/providers/cloudConsent.ts).
+const readCloudConsent = () => readStoredConsent(undefined, { paying: hasPaidPlan() });
 import { previewBlobFromUrl, previewCopyForCloud } from '../../providers/recipePreviewCopy';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
@@ -2197,6 +2201,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Auto-pilot means automatic: with the project's choice made and the one-time yes given, the run starts by itself once
   // importing and Auto pick are quiet (Best and Top 50 follow Auto pick's ranking, so it waits for that). A run that
   // stopped (allowance used up, offline) is not started again by itself in this session; the button still works.
+  // First use on a paying plan: switch on the account's standing consent once, say plainly what is sent, and never
+  // swallow a failure. An explicit No on this device is left alone.
+  const paidConsentTried = useRef(false);
+  useEffect(() => {
+    if (!cloudRecipeOn || paidConsentTried.current || !hasPaidPlan() || !accountConnection()) return;
+    if (readStoredConsent().answer === 'no') return;
+    let agreed = false;
+    try { agreed = localStorage.getItem('kestrel.cloudAiAgreed.v1') === '1'; } catch { /* unreadable: ask the server again */ }
+    paidConsentTried.current = true;
+    if (agreed) return;
+    agreeManagedAi().then(() => {
+      try { localStorage.setItem('kestrel.cloudAiAgreed.v1', '1'); } catch { /* shown again next launch, harmless */ }
+      setNotice(v2Text.cloudEdits.autoOn);
+    }).catch(() => setNotice(v2Text.cloudEdits.agreeFailed));
+  });
   const cloudEditsAutoBlocked = useRef(new Set<string>());
   const projectKey = state?.shoot.id ?? '';
   const backgroundBusy = taskList.some((task) => (task.kind === 'import' || task.kind === 'cull') && (task.state === 'running' || task.state === 'queued' || task.state === 'paused'));
@@ -3852,7 +3871,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setCloudRecipeFullFile: (on: boolean) => saveFullFileConsent(on).on,
       cloudRecipeFullFileOn: () => readFullFileConsent().on,
       cloudConsent: () => readCloudConsent().answer,
-      setCloudConsent: (answer: 'yes' | 'no' | 'ask') => saveCloudConsent(answer).answer,
+      setCloudConsent: (answer: 'yes' | 'no' | 'ask') => { saveCloudConsent(answer); return readCloudConsent().answer; },
       setCloudUsageHint: (usage: CloudUsage | undefined) => { setCloudUsageHint(usage); },
     } : {}),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),

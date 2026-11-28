@@ -24,7 +24,17 @@ test('a yes that cannot be saved is not in force, and unreadable storage is unas
   assert.equal(readCloudConsent(null).answer, 'unasked');
 });
 
-test('a legacy implicit answer without an explicit timestamp never grants permission', () => {
+test('a paying plan is pre-opted-in when unasked, and an explicit no always wins', () => {
+  const store = memory();
+  assert.equal(readCloudConsent(store, { paying: false }).answer, 'unasked');
+  assert.equal(readCloudConsent(store, { paying: true }).answer, 'yes');
+  saveCloudConsent('no', 5, store);
+  assert.equal(readCloudConsent(store, { paying: true }).answer, 'no');
+  saveCloudConsent('yes', 6, store);
+  assert.equal(readCloudConsent(store, { paying: false }).answer, 'yes');
+});
+
+test('a legacy implicit answer without an explicit timestamp is not an explicit yes', () => {
   const store = memory();
   store.map.set(CLOUD_CONSENT_KEY, JSON.stringify({ answer: 'yes', version: 1 }));
   assert.equal(readCloudConsent(store).answer, 'unasked');
