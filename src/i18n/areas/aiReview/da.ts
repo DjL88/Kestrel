@@ -52,6 +52,7 @@ export const da: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "InFlights onlinehjælper er kun åben for inviterede testere. Brug din egen AI eller en model på denne computer i stedet.",
     signIn: "Log ind på din InFlight-konto for at bruge InFlights onlinehjælper.",
+    switchedOff: "Dette er ikke tilgængeligt lige nu. Intet er ændret.",
     setup: 'Din AI er ikke sat op endnu, eller samtykket mangler.',
     key: 'Din AI siger, at nøglen er forkert eller ikke tilladt. Tjek den på din konto hos udbyderen.',
     offline: 'Du er offline. InFlights eget farvetjek virker stadig.',

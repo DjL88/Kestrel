@@ -32,6 +32,8 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_SHOW_ONLINE_HELPER: 'true',
+      // Licence-red models are off by default in real builds (src/core/featureSwitches.ts); the model specs need them on.
+      VITE_KESTREL_TEST_RED_MODELS_ON: '1',
       VITE_SPECIES_MODEL_URL: '/stand-in-species.onnx',
       // The category gate's stand-in always "sees" a bird (tools/subject-router/make_stand_in_gate.py).
       VITE_GATE_MODEL_URL: '/stand-in-gate.onnx',

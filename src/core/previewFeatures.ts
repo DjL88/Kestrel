@@ -1,4 +1,5 @@
 import type { Feature } from './features';
+import { ownerSwitchOffForPreview } from './featureSwitches';
 
 /**
  * Every device-local preview switch, in one place. A preview is a feature that is still being proven, so it is off
@@ -69,6 +70,8 @@ const deviceStorage = (): Storage | null => {
 
 /** Is this preview's switch on for this device? Unreadable storage counts as off. */
 export function previewOn(id: PreviewId, storage: Reader | null | undefined = deviceStorage()): boolean {
+  // The owner's switch (src/core/featureSwitches.ts) can only turn a preview off; it never turns one on.
+  if (ownerSwitchOffForPreview(id)) return false;
   try { return storage?.getItem(previewKey(id)) === '1'; } catch { return false; }
 }
 

@@ -1,6 +1,7 @@
 /** Everything the control-plane routes share: the store, limiters, sign-in, quotas and service gates. Built once per app. */
 import { dayKey, daysToSettle, freeStorageFor, settleStorageDays, storageAllowsUpload } from './cloudStorageBilling.ts';
 import { OWNED_GRANT_FLAG, type EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
+import { defaultOn, switchableFeature, type SwitchDoc, type SwitchScope } from '../../../src/core/featureSwitches.ts';
 import { parseFlagSet, resolveFlagsForGrant, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { MergeRefusal } from './accountMerge.ts';
@@ -202,6 +203,11 @@ export function createContext(options: AppOptions) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
+    // Owner off switch, cloud scope (featureSwitches.ts): refuses new work calmly; finished jobs stay downloadable.
+    if (await cloudSwitchedOff('cloud-processing')) {
+      await audit(accountId, 'cloud.job.create', 'denied', 'owner switch');
+      throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is not available right now. Local work is unaffected.', true);
+    }
     const limit = await accountCloudPhotos(accountId, cloud);
     if (limit <= 0) {
       await audit(accountId, 'cloud.job.create', 'denied', 'not a paid plan');
@@ -229,6 +235,12 @@ export function createContext(options: AppOptions) {
     const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
     const cloud = await cloudGate(claims.sub);
+    // Per-feature owner switches (cloud scope): a model that must not run stops here, before anything is reserved or uploaded.
+    const kindSwitch = body.kind === 'denoise' ? 'learned-denoise' : body.kind === 'recipe' ? 'cloud-recipe' : null;
+    if (kindSwitch && (await cloudSwitchedOff(kindSwitch))) {
+      await audit(claims.sub, 'cloud.job.create', 'denied', `owner switch ${kindSwitch}`);
+      throw new ApiError(503, 'CLOUD_DISABLED', 'This is not available right now. Nothing was uploaded. Local work is unaffected.', true);
+    }
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
     // Recipe jobs (x-std-cloud-recipe): their own switch, off by default, and they must say which picture they carry.
     if (body.kind === 'recipe') {
@@ -465,6 +477,7 @@ export function createContext(options: AppOptions) {
   }
   async function safeCopyUploadGate(accountId: string, level: typeof SAFE_COPY_LEVELS[number]) {
     const sc = safeCopyCfg();
+    if (await cloudSwitchedOff('cloud-storage')) throw new ApiError(503, 'SAFE_COPY_DISABLED', 'Cloud storage is not available right now. Your existing copy stays readable.', true);
     if (!(await switchOn('safe-copy'))) throw new ApiError(503, 'SAFE_COPY_DISABLED', 'Safe copy uploads are switched off for now. Your existing copy stays readable.', true);
     if (!(await sc.catalog.getSettings(accountId))[level]) throw new ApiError(403, 'SAFE_COPY_NOT_ENABLED', `Turn on safe copy for ${level} first. It is off until you choose.`);
     const plans = await store.listLicencesForAccount(accountId);
@@ -500,6 +513,42 @@ export function createContext(options: AppOptions) {
   const FLAGS_SETTING = 'feature_flags';
   async function loadFlags(): Promise<FlagSet> {
     try { return parseFlagSet(JSON.parse((await store.getSetting(FLAGS_SETTING)) ?? '{}')); } catch { return {}; }
+  }
+  // Owner off switches for model-backed features (src/core/featureSwitches.ts). One settings document, only explicit
+  // choices stored: `{ [id]: { device?: boolean, cloud?: boolean, by, atMs } }`. Absent means the default, which is on.
+  const SWITCHES_SETTING = 'feature_switches';
+  type SwitchRecord = Record<string, { device?: boolean; cloud?: boolean; by: string; atMs: number }>;
+  async function loadFeatureSwitches(): Promise<SwitchRecord> {
+    try {
+      const raw = JSON.parse((await store.getSetting(SWITCHES_SETTING)) ?? '{}') as unknown;
+      const out: SwitchRecord = {};
+      if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
+      for (const [id, v] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
+        const feature = switchableFeature(id);
+        if (!feature || typeof v !== 'object' || v === null) continue;
+        const entry: SwitchRecord[string] = { by: typeof v.by === 'string' ? v.by : '', atMs: typeof v.atMs === 'number' ? v.atMs : 0 };
+        for (const scope of feature.scopes) if (typeof v[scope] === 'boolean') entry[scope] = v[scope] as boolean;
+        if (entry.device !== undefined || entry.cloud !== undefined) out[id] = entry;
+      }
+      return out;
+    } catch { return {}; }
+  }
+  /** What the signed public list carries: only what is off, with no names or times. */
+  async function publicSwitchDoc(): Promise<SwitchDoc> {
+    const rec = await loadFeatureSwitches();
+    // Explicit choices only, true or false: an owner "on" must reach apps whose built-in default is off (licence-red models).
+    const out: Record<string, Partial<Record<SwitchScope, boolean>>> = {};
+    for (const [id, v] of Object.entries(rec)) {
+      const e: Partial<Record<SwitchScope, boolean>> = {};
+      if (typeof v.device === 'boolean') e.device = v.device;
+      if (typeof v.cloud === 'boolean') e.cloud = v.cloud;
+      if (Object.keys(e).length) out[id] = e;
+    }
+    return out;
+  }
+  /** The cloud scope is enforced here, on every request that would start work. Unknown or unset means on. */
+  async function cloudSwitchedOff(id: string): Promise<boolean> {
+    return ((await loadFeatureSwitches())[id]?.cloud ?? defaultOn(id)) === false;
   }
   async function grantFlagsFor(audience: Audience, deviceHash: string, appVersion: string, nowMs: number): Promise<Pick<EntitlementGrant, 'flags'>> {
     const flags = await loadFlags();
@@ -589,7 +638,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, accountCloudPlan, accountCloudPhotos, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, paddleSandbox, mayBuy, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, accountCloudPlan, accountCloudPhotos, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, storageGate, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, SWITCHES_SETTING, loadFeatureSwitches, publicSwitchDoc, cloudSwitchedOff, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

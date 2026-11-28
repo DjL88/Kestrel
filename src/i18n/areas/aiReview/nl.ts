@@ -52,6 +52,7 @@ export const nl: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "De online helper van InFlight is alleen open voor uitgenodigde testers. Gebruik je eigen AI of een model op deze computer.",
     signIn: "Meld je aan bij je InFlight-account om de online helper van InFlight te gebruiken.",
+    switchedOff: "Dit is op dit moment niet beschikbaar. Er is niets gewijzigd.",
     setup: 'Uw AI is nog niet ingesteld, of de toestemming ontbreekt.',
     key: 'Uw AI meldt dat de sleutel onjuist of niet toegestaan is. Controleer hem in het account bij uw aanbieder.',
     offline: 'U bent offline. De kleurcontrole van InFlight werkt nog steeds.',

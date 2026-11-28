@@ -19,7 +19,7 @@ import { offlineDeadline, Version, Schemas, esc, MAIL_PAGE_HEADERS, mailPage } f
 import type { AppContext } from './appContext.ts';
 
 export function generalRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, paddleSandbox, mayBuy, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
+  const { options, config, store, now, paddleSandbox, mayBuy, authLimiter, contactLimiter, contactGlobalLimiter, activateLimiter, paddleLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, providerRoute, switchOn, aiCall, cloudGate, cloudJobStart, cloudJobOwned, settleFailedCloudJob, collab, cloud, notify, pushCfg, news, contactsCfg, galleryCfg, gallery, ownerSuspended, safetyCfg, safety, safeCopyCfg, safeCopyUploadGate, admin, loadFlags, publicSwitchDoc, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, verifiedModelManifest } = ctx;
   return [
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
@@ -438,7 +438,7 @@ export function generalRoutes(ctx: AppContext): Route[] {
   },
   {
     method: 'GET', path: '/v1/flags/public', summary: 'Signed feature flags for people without an account: no named users or organisations', auth: 'none', response: Schemas.ManifestResponse,
-    handler: async () => ({ status: 200, body: signEnvelope({ schema: 1, flags: forPublicDocument(await loadFlags()) }, config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } }),
+    handler: async () => ({ status: 200, body: signEnvelope({ schema: 1, flags: forPublicDocument(await loadFlags()), switches: await publicSwitchDoc() }, config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } }),
   },
   {
     method: 'GET', path: '/v1/desktop/releases', summary: 'Latest published desktop release, for a notice only (never an auto-update)', auth: 'none', response: Schemas.ReleaseResponse,

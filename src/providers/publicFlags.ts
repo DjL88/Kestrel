@@ -9,9 +9,10 @@
  */
 import { openEnvelope, type PinnedKeys } from '../core/signedEnvelope';
 import { parseFlagSet, type FlagSet } from '../core/featureFlags';
+import { parseSwitchDoc, type SwitchDoc } from '../core/featureSwitches';
 
 export const PUBLIC_FLAGS_KEY = 'kestrel.public-flags.v1';
-export const PUBLIC_FLAGS_REFRESH_MS = 24 * 60 * 60 * 1000;
+export const PUBLIC_FLAGS_REFRESH_MS = 6 * 60 * 60 * 1000; // owner off switches (featureSwitches.ts) ride on this document, so a withdrawn model reaches devices within hours
 const TIMEOUT_MS = 8_000;
 
 interface Stored { fetchedAtMs: number; envelope: unknown }
@@ -22,6 +23,8 @@ export interface PublicFlagsOptions {
   fetch: typeof fetch;
   now: () => number;
   online?: () => boolean;
+  /** Told the owner's switches from every verified copy (kept or fresh). A copy without any means none are off. */
+  onSwitches?: (doc: SwitchDoc) => void;
 }
 
 export class PublicFlags {
@@ -41,6 +44,7 @@ export class PublicFlags {
     if ('failure' in opened) return null;
     const payload = opened.payload as { schema?: unknown; flags?: unknown } | null;
     if (!payload || typeof payload !== 'object' || payload.schema !== 1) return null;
+    this.o.onSwitches?.(parseSwitchDoc((payload as { switches?: unknown }).switches));
     return parseFlagSet(payload.flags);
   }
 

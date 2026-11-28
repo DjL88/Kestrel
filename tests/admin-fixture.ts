@@ -47,6 +47,7 @@ export const ADMIN_DATA: Record<string, unknown> = {
     { at_ms: T - 20 * min, actor: 'acc_owner01', action: 'switch.set', outcome: 'allowed', detail: 'push on' },
     { at_ms: T - 30 * min, actor: 'anonymous', action: 'admin.signin', outcome: 'denied', detail: 'not on the allow-list (abc123def456)' },
   ] },
+  '/v1/admin/feature-switches': { features: [] },
   '/v1/admin/flags': { flags: {
     accountData: { default: true, rules: [] },
     cloudRecipe: { default: true, rules: [] },

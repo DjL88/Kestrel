@@ -1,3 +1,4 @@
+import { ownerSwitchOffForModel } from '../core/featureSwitches';
 import { Sha256Stream } from '../core/sha256';
 import { BUNDLED_PACK_IDS, optionalModelBytes, optionalModelConfigured, type OptionalModel, type OptionalModelFile } from '../core/optionalModels';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
@@ -34,7 +35,8 @@ const defaults = (): PackDeps => ({ store: deviceStore, fetch: (...args) => fetc
 /** The pack ships inside this installer: every file has a published name to be served under. */
 export const isBundledPack = (model: OptionalModel, deps: Pick<PackDeps, 'bundled'> = defaults()) =>
   Boolean(deps.bundled?.has(model.id)) && Object.values(model.files).every((file) => Boolean(file.file));
-const offered = (model: OptionalModel, deps: PackDeps) => isBundledPack(model, deps) || optionalModelConfigured(model, deps.resolveUrl !== undefined);
+// An owner switch (src/core/featureSwitches.ts) hides a pack: not offered, not downloaded, not loaded.
+const offered = (model: OptionalModel, deps: PackDeps) => !ownerSwitchOffForModel(model.id) && (isBundledPack(model, deps) || optionalModelConfigured(model, deps.resolveUrl !== undefined));
 
 /** A kept file is known by its pack, role and SHA-256, wherever it was downloaded from. */
 const keyOf = (model: OptionalModel, role: string, file: OptionalModelFile) => `${model.id}/${role}#${file.sha256}`;

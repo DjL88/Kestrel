@@ -58,6 +58,7 @@ export const source = {
     other: 'Something went wrong asking your AI. Nothing was changed.',
     notInvited: "InFlight’s online helper is open to invited testers only. Use your own AI helper or a model on this computer instead.",
     signIn: "Sign in to your InFlight account to use InFlight’s online helper.",
+    switchedOff: "This isn’t available right now. Nothing was changed.",
   },
   assistant: {
     title: 'Suggestions from your AI assistant',

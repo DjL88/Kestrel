@@ -52,6 +52,7 @@ export const fi: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "InFlightin verkkoavustaja on vain kutsuttujen testaajien käytössä. Käytä sen sijaan omaa tekoälyäsi tai tämän tietokoneen mallia.",
     signIn: "Kirjaudu InFlight-tilillesi käyttääksesi InFlightin verkkoavustajaa.",
+    switchedOff: "Tämä ei ole nyt käytettävissä. Mitään ei muutettu.",
     setup: 'Tekoälyäsi ei ole vielä otettu käyttöön, tai suostumus puuttuu.',
     key: 'Tekoälysi mukaan avain on väärä tai sitä ei sallita. Tarkista se palveluntarjoajasi tililtä.',
     offline: 'Olet offline-tilassa. InFlightin oma värintarkistus toimii silti.',

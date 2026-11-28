@@ -1,3 +1,4 @@
+import { assertModelAllowed } from '../core/featureSwitches';
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { createOrtSession } from './ortRuntime';
 
@@ -21,6 +22,7 @@ export function timeRuns(id: string, session: Session, source: 'use' | 'measure'
 
 export async function createTimedSession(ort: Ort, id: string, bytes: Uint8Array, options: Parameters<Ort['InferenceSession']['create']>[1],
   source: 'use' | 'measure' = 'use'): Promise<Session> {
+  assertModelAllowed(id); // owner switch (src/core/featureSwitches.ts): a switched-off model is never started, whatever calls it
   const started = performance.now();
   const session = await createOrtSession(ort, bytes, options);
   recordModelLoad(id, performance.now() - started, source);

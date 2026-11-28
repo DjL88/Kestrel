@@ -1,3 +1,4 @@
+import { assertModelAllowed } from '../core/featureSwitches';
 import { createOffThreadSession, type OffThreadSession } from './offThreadSession';
 import { sha256Hex } from '../core/sha256';
 import { assertSubjectActive, boundedSubjectGuide } from '../core/subjectCancellation';
@@ -20,6 +21,7 @@ let loading: Promise<OffThreadSession> | null = null;
  */
 function load(): Promise<OffThreadSession> {
   loading ??= (async () => {
+    assertModelAllowed('u2netp'); // switched off by the owner: no bytes are read, and callers fall back as for any unavailable model
     const updated = await installedModel('u2netp');
     let bytes: ArrayBuffer;
     if (updated) {

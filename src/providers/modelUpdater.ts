@@ -5,6 +5,7 @@
  * list. A bad download leaves the previous model in place. The loaders use an installed model first and the bundled one
  * otherwise, so an offline or failed check changes nothing.
  */
+import { ownerSwitchOffForModel } from '../core/featureSwitches';
 import { dueForDataCheck, type DataAsset } from '../core/dataUpdateManifest';
 import { openSignedDataManifest, stageDownloadedAsset, type InstalledAsset } from '../core/modelDelivery';
 import { planModelUpdates, type SkippedModel } from '../core/modelUpdatePolicy';
@@ -96,6 +97,8 @@ export class ModelUpdater {
     const skipped = [...plan.skipped];
     const rejected: { id: string; reason: string }[] = [];
     for (const asset of plan.install) {
+      // The owner switched this model off: do not fetch it, and do not call that a failure.
+      if (ownerSwitchOffForModel(asset.id)) { skipped.push({ id: asset.id, reason: 'switched_off' }); continue; }
       if (!force && asset.bytes > MAX_BACKGROUND_MODEL_BYTES) {
         skipped.push({ id: asset.id, reason: 'manual_approval_required' });
         continue;

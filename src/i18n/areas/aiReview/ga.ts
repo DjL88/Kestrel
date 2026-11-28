@@ -52,6 +52,7 @@ export const ga: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "Níl cúntóir ar líne InFlight ar oscailt ach do thástálaithe le cuireadh. Bain úsáid as d’AI féin nó as samhail ar an ríomhaire seo ina ionad.",
     signIn: "Sínigh isteach i do chuntas InFlight chun cúntóir ar líne InFlight a úsáid.",
+    switchedOff: "Níl sé seo ar fáil faoi láthair. Níor athraíodh aon rud.",
     setup: 'Níl do AI socraithe fós, nó tá an comhaontú in easnamh.',
     key: 'Deir do AI go bhfuil an eochair mícheart nó nach bhfuil cead aici. Seiceáil í i do chuntas leis an soláthraí.',
     offline: 'Tá tú as líne. Oibríonn seiceáil datha InFlight féin fós.',
