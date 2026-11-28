@@ -14,7 +14,6 @@ import UserLooksSection, { type UserLookActions } from './UserLooksSection';
 import ColourVisionToggle from './ColourVisionToggle';
 import ColourVisionOffer from './ColourVisionOffer';
 import ColourVerdictLine, { type ColourVerdictLineProps } from './ColourVerdictLine';
-import AutoEditButton, { type AutoEditButtonProps } from './AutoEditButton';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -26,9 +25,7 @@ interface AdjustPanelProps {
   /** The one-time first-run offer to name colours in words: shown until answered, never again after. */
   cvdOfferPending?: boolean;
   onAnswerCvdOffer?: (yes: boolean) => void;
-  /** One-click Auto at the top of the panel. Absent: no button (a locked photo, or no engine). */
-  autoEdit?: Omit<AutoEditButtonProps, 'photoId'>;
-  /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. */
+  /** Colour-vision support's verdict line: its actions. The verdict itself comes from the photo. (Auto itself moved to the Flight panel.) */
   colourVerdict?: Omit<ColourVerdictLineProps, 'photoId' | 'verdict' | 'words'>;
   hideReadouts: boolean;
   /** Settings → Show advanced controls: colour grading and channel curves. */
@@ -147,7 +144,6 @@ export default function AdjustPanel({
   cvdOfferPending,
   onAnswerCvdOffer,
   colourVerdict,
-  autoEdit,
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
@@ -190,7 +186,6 @@ export default function AdjustPanel({
 
   return (
     <div className="space-y-3 md:space-y-5">
-      {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
       {onToggleCvdGuidance && (
         // On a phone this switch lives with the project (grid ⋯ menu), not on each photo; its notes still show here when on.
         <div className="space-y-2">
