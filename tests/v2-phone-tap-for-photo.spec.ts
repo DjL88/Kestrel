@@ -78,3 +78,20 @@ test('switched on: with the bars hidden the photo can still be flagged, and its 
   const first = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').first();
   await expect(first.getByRole('button', { name: was === 'true' ? /^Flag / : /^Unflag / })).toBeVisible();
 });
+
+test('switched on: a double-tap still zooms, and the bars stay', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone', 'Touch layout only.');
+  await page.addInitScript((key) => localStorage.setItem(key, '1'), FLAG);
+  const studio = await openStudio(page);
+  const zoom = studio.getByTestId('zoom-percent');
+  const before = await zoom.innerText();
+  const box = (await studio.getByTestId('canvas-frame').boundingBox())!;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await page.touchscreen.tap(x, y);
+  await page.waitForTimeout(250);
+  await page.touchscreen.tap(x, y);
+  await page.waitForTimeout(600);
+  await expect(studio.getByTestId('canvas-only-exit')).toHaveCount(0);
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' })).toBeVisible();
+  expect(await zoom.innerText()).not.toBe(before);
+});

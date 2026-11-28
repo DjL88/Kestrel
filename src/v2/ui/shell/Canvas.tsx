@@ -33,7 +33,7 @@ import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
-import { createDoubleTapDetector } from '../../../core/touchGestures';
+import { createDoubleTapDetector, DOUBLE_TAP_GAP_MS } from '../../../core/touchGestures';
 import { readGesture } from '../../../core/gestureSettings';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
@@ -636,8 +636,8 @@ export default function Canvas({
   }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
-  // Tap for photo: the toggle waits a moment, so the second tap of a double tap (which opens Crop) cancels it and the
-  // bars do not blink. The newest callback is read when the wait ends.
+  // Tap for photo: the toggle waits out the double-tap window, so the second tap of a double tap (which zooms, or what
+  // Settings > Gestures says) cancels it and the bars do not blink. The newest callback is read when the wait ends.
   const tapToggleTimer = useRef<number | null>(null);
   const toggleCanvasOnlyRef = useRef(onToggleCanvasOnly);
   toggleCanvasOnlyRef.current = onToggleCanvasOnly;
@@ -1276,7 +1276,7 @@ export default function Canvas({
           if (tapToggleTimer.current !== null) {
             window.clearTimeout(tapToggleTimer.current); tapToggleTimer.current = null; // second tap: a double tap, not ours
           } else {
-            tapToggleTimer.current = window.setTimeout(() => { tapToggleTimer.current = null; toggleCanvasOnlyRef.current?.(); }, 280);
+            tapToggleTimer.current = window.setTimeout(() => { tapToggleTimer.current = null; toggleCanvasOnlyRef.current?.(); }, DOUBLE_TAP_GAP_MS + 20);
           }
         }
         if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
