@@ -5,26 +5,31 @@
  */
 export function createSplitRenderCache<T>() {
   let current: { key: string; panels: readonly T[] } | undefined;
+  let generation = 0;
   return {
     async get(key: string, count: number, index: number, render: () => Promise<readonly T[]>): Promise<T> {
       if (!Number.isInteger(count) || count < 1 || count > 5 ||
           !Number.isInteger(index) || index < 0 || index >= count) {
         throw new RangeError('Invalid split export panel.');
       }
-      if (current?.key !== key || current.panels.length !== count) {
+      let composition = current;
+      if (composition?.key !== key || composition.panels.length !== count) {
+        const owner = ++generation;
         current = undefined;
         const panels = await render();
         if (panels.length !== count || Array.from(panels).some(panel => panel == null)) {
           throw new Error('A requested split panel was not rendered.');
         }
-        current = { key, panels };
+        composition = { key, panels };
+        // Late renders cannot restore a cleared composition or evict a newer one.
+        if (owner === generation) current = composition;
       }
-      const panel = current.panels[index];
+      const panel = composition.panels[index];
       // Consecutive panels reuse one composition; release after the last.
       // Failed delivery can still be retried using the immutable job snapshot.
-      if (index === count - 1) current = undefined;
+      if (index === count - 1 && current === composition) current = undefined;
       return panel;
     },
-    clear() { current = undefined; },
+    clear() { generation++; current = undefined; },
   };
 }

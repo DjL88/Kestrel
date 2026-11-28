@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptSensorRgb16, hashRawSource, checkRawDecodeInputBudget } from './rawWorkingRaster';
+import { acceptSensorRgb16, hashRawSource, checkRawDecodeInputBudget, openSensorWorkingRaster } from './rawWorkingRaster';
 
 function rgb16(width: number, height: number, samples: number[]): ArrayBuffer {
   const buffer = new ArrayBuffer(8 + samples.length * 2);
@@ -60,4 +60,35 @@ test('rejects excessive RAW input and invalid pixel budget before decode', () =>
   assert.throws(() => checkRawDecodeInputBudget(new Blob([]), 1), /budget/);
   assert.throws(() => checkRawDecodeInputBudget(new Blob(['abc']), 1, 2), /budget/);
   assert.doesNotThrow(() => checkRawDecodeInputBudget(new Blob(['abc']), 1, 3));
+});
+
+
+test('RAW fingerprint cancellation stops at the first cancelled range', async () => {
+  const controller = new AbortController();
+  let reads = 0;
+  class InterruptedRaw extends Blob {
+    override slice(start?: number, end?: number, type?: string): Blob {
+      reads++;
+      if (reads === 2) controller.abort();
+      return super.slice(start, end, type);
+    }
+  }
+  const source = new InterruptedRaw([new Uint8Array(20_000)]);
+  await assert.rejects(hashRawSource(source, 4096, controller.signal), { name: 'AbortError' });
+  assert.equal(reads, 2);
+});
+
+test('cancelled RAW work never opens the sensor decoder or reads source ranges', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let reads = 0;
+  class UnreadRaw extends Blob {
+    override slice(start?: number, end?: number, type?: string): Blob {
+      reads++;
+      return super.slice(start, end, type);
+    }
+  }
+  const source = new UnreadRaw([new Uint8Array(8192)]);
+  await assert.rejects(openSensorWorkingRaster(source, 'bird.NEF', undefined, undefined, controller.signal), { name: 'AbortError' });
+  assert.equal(reads, 0);
 });

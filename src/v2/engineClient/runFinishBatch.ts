@@ -1,5 +1,5 @@
 import { engineScheduler, type SchedulerTicket } from '../../core/engineScheduler';
-import { MAX_WHY_NOTES, recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
+import { MAX_WHY_NOTES, stepEdit, type EditWhy } from '../../core/editHistory';
 import { planFinish, type FinishPlan, type FinishRequest } from '../../core/finishPlan';
 import { rawJpegPairs } from '../../core/rawJpegPairs';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -8,7 +8,8 @@ import type { CullingState, PhotoFrame } from '../../core/types';
 import { v2Text } from '../../i18n/areas/v2';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { composeDenoiseRecipe } from './denoiseRecipe';
-import { readEditGroups, syncEditGroup } from './editGroupState';
+import { syncEditGroup } from './editGroupState';
+import { autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
 import type { DenoiseOutcome } from './runDenoise';
 import type { AutoRun } from './runAuto';
 
@@ -73,7 +74,7 @@ export async function finishOne(photoId: string, filename: string, deps: FinishD
   const frame = deps.frame(photoId);
   if (!frame || frame.removedAt != null) return result('skipped', words.editedMeanwhile);
   // Edited since the plan was made (by hand, or by Auto-pilot): that look is the photographer's.
-  if (alreadyEdited(frame)) return result('skipped', words.editedMeanwhile);
+  if (alreadyEdited(frame) || frame.decision === 'reject' || frame.exif?.rejectedByMetadata || autopilotSkipsEditedElsewhere(frame)) return result('skipped', words.editedMeanwhile);
   try {
     deps.stage?.(words.lookStage);
     const run = await deps.auto(frame, signal);
@@ -143,17 +144,8 @@ export async function finishOne(photoId: string, filename: string, deps: FinishD
  * and refused when the person edited, reframed, removed or replaced the photo meanwhile. One recorded step.
  */
 export function commitFinishEdit(state: CullingState, projectId: string, examined: PhotoFrame, proposal: PhotoEdit, at: number, why?: EditWhy): CullingState {
-  if (state.shoot.id !== projectId || alreadyEdited(examined)) return state;
-  const index = state.frames.findIndex((frame) => frame.id === examined.id);
-  const frame = state.frames[index];
-  if (!frame || frame.removedAt != null || alreadyEdited(frame) ||
-      frame.framing !== examined.framing || frame.stableKey !== examined.stableKey ||
-      frame.originalSha256 !== examined.originalSha256 ||
-      readEditGroups(frame).activeId !== readEditGroups(examined).activeId ||
-      frame.editVersions?.activeId !== examined.editVersions?.activeId) return state;
-  const frames = state.frames.slice();
-  frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at, why));
-  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
+  // Same transaction and stale-result checks as the background Auto-pilot path.
+  return commitAutoEdit(state, projectId, examined, proposal, at, why, { anyPhoto: true });
 }
 
 /** True while the batch's own step is still the last one and in force, so Undo takes back exactly that. */

@@ -101,3 +101,10 @@ test('Auto-pilot skips only photos whose file says they were edited elsewhere', 
   assert.deepEqual(editStatusWords(edited.exif.editStatus), { kind: 'edited-elsewhere', label: 'Edited elsewhere', detail: 'Saved by GIMP 2.10.' });
   assert.equal(editStatusWords({ kind: 'unknown', evidence: [] }).detail, 'The file does not say.');
 });
+
+
+test('background Auto does not overwrite a look identified as edited elsewhere after analysis', () => {
+  const edited = { ...original, exif: { editStatus: { kind: 'edited-elsewhere' as const, evidence: [{ kind: 'editing-app' as const, app: 'GIMP 2.10' }] } } };
+  const state = project(edited);
+  assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000, undefined, { anyPhoto: true }), state);
+});

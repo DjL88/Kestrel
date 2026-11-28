@@ -335,7 +335,7 @@ export function createEngineScheduler(options: {
       // The slot is given back when the photo finishes, or at once when its task is cancelled: a photo that ignores
       // the stop (a hung read, a stuck analysis) must never keep every other task "waiting for processing slot".
       let holding = true;
-      job.releaseSlot = () => {
+      const releaseThisSlot = () => {
         if (!holding) return;
         holding = false;
         job.active = false;
@@ -343,6 +343,7 @@ export function createEngineScheduler(options: {
         job.releaseSlot = null;
         used[job.resource] = Math.max(0, used[job.resource] - 1);
       };
+      job.releaseSlot = releaseThisSlot;
       const item = job.items[index];
       const controller = new AbortController();
       job.controller = controller;
@@ -354,43 +355,44 @@ export function createEngineScheduler(options: {
       const ctx: ScheduledContext = {
         signal: controller.signal,
         stage(stage) {
-          job.lastActivity = now();
-          if (!job.cancelled && !controller.signal.aborted) {
+          if (holding && !job.cancelled && !controller.signal.aborted) {
+            job.lastActivity = now();
             item.detail = stage;
             job.handle.patch({ stage, detail: `${item.label}: ${stage}` });
             updateItems(job);
           }
         },
         reportProgress(done, total, detail) {
-          job.lastActivity = now();
-          if (!job.cancelled && !controller.signal.aborted) {
+          if (holding && !job.cancelled && !controller.signal.aborted) {
+            job.lastActivity = now();
             job.manualProgress = true;
             job.handle.progress(done, total, detail);
           }
         },
         setSubitems(subitems) {
+          if (!holding || job.cancelled || controller.signal.aborted) return;
           job.lastActivity = now();
-          if (job.cancelled || controller.signal.aborted) return;
           job.subitems = subitems.map(sub => ({ ...sub, state: 'queued' }));
           updateItems(job);
         },
         updateSubitem(id, state, detail) {
+          if (!holding || job.cancelled || controller.signal.aborted || !job.subitems) return;
           job.lastActivity = now();
-          if (job.cancelled || controller.signal.aborted || !job.subitems) return;
           job.subitems = job.subitems.map(sub => sub.id === id ? { ...sub, state, ...(detail ? { detail } : {}) } : sub);
           updateItems(job);
         },
         setLocation(location) {
+          if (!holding || job.cancelled || controller.signal.aborted) return;
           job.cloud = location === 'cloud';
           job.lastActivity = now();
-          if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location });
+          job.handle.patch({ location });
         },
         checkCancelled() {
           controller.signal.throwIfAborted();
           if (job.cancelled) throw new Error('Job cancelled.');
         },
         commitIfCurrent(commit) {
-          if (job.cancelled || controller.signal.aborted || (item.state !== 'running' && !item.confirmed)) return false;
+          if (!holding || job.cancelled || controller.signal.aborted || (item.state !== 'running' && !item.confirmed)) return false;
           commit();
           return true;
         },
@@ -413,6 +415,10 @@ export function createEngineScheduler(options: {
       void (async () => {
         try {
           await job.work(index, ctx);
+          // A watchdog may have started another photo in this same batch. Its predecessor
+          // must not overwrite the watchdog's failure or mutate the successor's state.
+          // A confirmed irreversible output is recorded separately by acknowledgeCommitted.
+          if (!holding) return;
           if ((controller.signal.aborted || job.cancelled) && !item.confirmed) {
             item.state = 'cancelled';
           } else {
@@ -425,6 +431,8 @@ export function createEngineScheduler(options: {
             }
           }
         } catch (error) {
+          // A late AbortError belongs to the abandoned photo, not the live batch.
+          if (!holding) return;
           // A cancelled native save picker is cancellation, not a failed image.
           if (error instanceof DOMException && error.name === 'AbortError' && !job.cancelled)
             store.cancel(job.id);
@@ -438,9 +446,10 @@ export function createEngineScheduler(options: {
             item.detail = error instanceof Error ? error.message : String(error);
           }
         } finally {
-          // Already given back by Cancel: this late finish changes nothing more (its result was never committed).
+          // Cancel or the watchdog may already have released this dispatch. Never call
+          // job.releaseSlot here: it can now belong to a different photo in the same batch.
           const abandoned = !holding;
-          job.releaseSlot?.();
+          releaseThisSlot();
           if (abandoned) { setTimeout(pump, 0); return; }
           if (job.cancelled) { job.finish('cancelled'); }
           else {
