@@ -1,4 +1,4 @@
-import { checkColour } from './colourCheck';
+import { checkColour, toOklab } from './colourCheck';
 import { assessNaturalAuto, subjectWeights } from './naturalAuto';
 import { superviseAutoRender } from './autoRenderSupervisor';
 import { observeFrame, lightness, type FrameStats } from './enhanceObserve';
@@ -15,7 +15,7 @@ import type { SubjectGrid } from './maskTypes';
 
 export type IssueId =
   | 'clippedMore' | 'tooDark' | 'subjectDark' | 'tooBright' | 'shadowsCrushed' | 'noisier' | 'flat' | 'harsh'
-  | 'castRemains' | 'colourPushed' | 'haloOrCrunch' | 'detailLost' | 'leakage' | 'banding' | 'gate' | 'cropChanged';
+  | 'blotchy' | 'castRemains' | 'colourPushed' | 'haloOrCrunch' | 'detailLost' | 'leakage' | 'banding' | 'gate' | 'cropChanged';
 
 export interface Issue {
   id: IssueId;
@@ -102,6 +102,25 @@ export function runGates(
   return { safe: true, reason: 'Clipping, detail, halos, subject edges, banding, colour and framing are all within limits' };
 }
 
+/** Colour blotchiness in dark, smooth areas: how much a and b wander inside flat 12x12 blocks (Oklab). Higher = blotchier. */
+export function chromaBlotch(rgba: Uint8ClampedArray, width: number, height: number): number {
+  const B = 12;
+  let total = 0, count = 0;
+  for (let by = 0; by + B <= height; by += B) for (let bx = 0; bx + B <= width; bx += B) {
+    let sl = 0, sl2 = 0, sa = 0, sa2 = 0, sb = 0, sb2 = 0;
+    for (let y = by; y < by + B; y += 1) for (let x = bx; x < bx + B; x += 1) {
+      const i = (y * width + x) * 4;
+      const [L, a, b] = toOklab(rgba[i], rgba[i + 1], rgba[i + 2]);
+      sl += L; sl2 += L * L; sa += a; sa2 += a * a; sb += b; sb2 += b * b;
+    }
+    const n = B * B, ml = sl / n;
+    if (ml > 0.45 || Math.sqrt(Math.max(0, sl2 / n - ml * ml)) > 0.05) continue; // dark and smooth blocks only
+    total += Math.sqrt(Math.max(0, sa2 / n - (sa / n) ** 2)) + Math.sqrt(Math.max(0, sb2 / n - (sb / n) ** 2));
+    count += 1;
+  }
+  return count >= 8 ? total / count : 0;
+}
+
 const TARGET = [0.4, 0.58] as const;
 /** Visible noise relative to how bright the picture is: brightening a dark photo raises sigma on the 0-255 scale, but not what the eye sees against the brighter picture. */
 export const relativeNoise = (s: FrameStats) => (s.noiseSigma ?? 0) / Math.max(255 * s.p50, 12);
@@ -127,6 +146,8 @@ export function critiqueRender(
   if (!ctx.preserveLight && after.p50 > 0.74 && after.p05 > 0.2) add('tooBright', `The picture is bright overall (median lightness ${after.p50.toFixed(2)})`);
   if (after.clipLow - before.clipLow > 0.01) add('shadowsCrushed', `More of the shadows are crushed to black (${(after.clipLow * 100).toFixed(1)}%)`);
   if (noisier(before, after)) add('noisier', `The picture looks noisier than before (grain about ${(after.noiseSigma ?? 0).toFixed(1)}, was ${(before.noiseSigma ?? 0).toFixed(1)}, against a brighter picture)`);
+  const blotchAfter = chromaBlotch(afterPx, ctx.width, ctx.height), blotchBefore = chromaBlotch(beforePx, ctx.width, ctx.height);
+  if (blotchAfter > 0.012 && blotchAfter > blotchBefore * 1.3) add('blotchy', `Dark areas look blotchy in colour (${blotchAfter.toFixed(3)}, was ${blotchBefore.toFixed(3)})`);
   if (!dark && !ctx.guidance.protect.soft && after.spread < 0.42 && !ctx.guidance.rules.some((r) => r.id === 'scene.fog')) add('flat', `The tones are still flat (using ${(after.spread * 100).toFixed(0)}% of the range)`);
   if (after.clipHigh > 0.004 && after.clipLow > 0.01 && after.spread > 0.92) add('harsh', 'The contrast is harsh, with both blown highlights and crushed shadows');
   if (!ctx.preserveLight && after.cast && after.cast.strength >= 0.03 && (!before.cast || after.cast.strength >= before.cast.strength * 0.7))
@@ -150,6 +171,7 @@ export const KNOB_FOR_ISSUE_FIX: Readonly<Partial<Record<IssueId, Partial<Record
   subjectDark: { subjectExposure: 0.4, exposure: 0.15 },
   tooBright: { exposure: -0.4, highlights: -0.2 },
   shadowsCrushed: { shadows: 0.3, exposure: 0.1 },
+  blotchy: { denoise: 0.4, exposure: -0.15, shadows: -0.15 },
   noisier: { denoise: 0.4, denoiseLuminance: 0.3, shadows: -0.2, sharpen: -0.1, subjectSharpen: -0.15, clarity: -0.1 },
   flat: { contrast: 0.2 },
   harsh: { contrast: -0.25, highlights: -0.2, shadows: 0.15 },
