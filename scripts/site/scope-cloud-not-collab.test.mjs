@@ -20,11 +20,25 @@ test('the home page and its English words make no collaboration claims', () => {
 
 test('cloud edits and cloud storage are described with their real numbers', () => {
   const g = strings()['en-GB'];
-  assert.match(g.promiseCollabBody, /500 a month on Basic, 5,000 on Pro, then 0\.3p each/);
+  assert.match(g.promiseCollabBody, /500 a month on Pro, 5,000 on Pro Plus, then 0\.3p each/);
   assert.match(g.promiseCollabBody, /deleted after each run/);
   assert.match(g.promiseCollabBody, /2\.5 GB/);
   assert.match(g.proStorage, /other devices/);
   assert.doesNotMatch(g.creditBody, /friends|collaborat/i);
+});
+
+test('Basic has no cloud; Pro has 500 a month and Pro Plus 5,000 (owner, 28 Nov 2026), on the page and in the terms', () => {
+  const g = strings()['en-GB'];
+  assert.match(g.proCloud, /500 photos a month/);
+  assert.match(g.plusCloud, /5,000 photos a month/);
+  assert.equal(g.matrixCloudBasic, g.matrixNo, 'Basic: cloud is not included');
+  assert.match(g.matrixCloudPro, /^500 /);
+  const home = visible(read('index.html'));
+  assert.doesNotMatch(home, /500 photos a month when signed in/);
+  assert.match(read('index.html'), /data-pro-price="plus\.monthly"/);
+  const terms = visible(read('terms.html'));
+  assert.match(terms, /Basic has no cloud\. A signed-in Pro account gets 500 cloud photos a month and Pro Plus gets 5,000/);
+  assert.match(terms, /Pro Plus\s+is a monthly subscription at £9\.99 a month/);
 });
 
 test('every language has the new wording, not the old collaboration promise', () => {
@@ -68,6 +82,6 @@ test('the legal pages say which sharing features are coming later', () => {
   for (const row of ['Coming later: you share a project with other people', 'Coming later: you publish a client gallery', 'Coming later: you see live cursors']) {
     assert.ok(privacy.includes(row), row);
   }
-  assert.match(read('terms.html'), /Pro includes 2\.5 GB of online storage for photos you keep in the cloud, to open and edit on your other devices\./);
+  assert.match(read('terms.html'), /Pro and Pro Plus include 2\.5 GB of online storage for photos you keep in the cloud, to open and edit on your other devices\./);
   assert.match(read('terms.html'), /client galleries are coming later; this section applies once they open/);
 });

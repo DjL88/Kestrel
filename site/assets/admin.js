@@ -711,8 +711,8 @@ async function loadMessages() {
 }
 
 // ---- Prices (the pricing matrix, src/core/pricingMatrix.ts) ----------------------------------------------------
-const PRICE_ITEMS = ['pro.monthly', 'pro.annual'];
-const ITEM_LABEL = { 'pro.monthly': 'monthly', 'pro.annual': 'yearly' };
+const PRICE_ITEMS = ['pro.monthly', 'pro.annual', 'plus.monthly'];
+const ITEM_LABEL = { 'pro.monthly': 'monthly', 'pro.annual': 'yearly', 'plus.monthly': 'Pro Plus monthly' };
 const PADDLE_CURRENCIES = ['USD', 'EUR', 'JPY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'ARS', 'BRL', 'CNY', 'COP', 'CZK', 'DKK', 'HUF', 'ILS', 'INR', 'KRW', 'MXN', 'NOK', 'NZD', 'PLN', 'RUB', 'THB', 'TRY', 'TWD', 'UAH', 'VND', 'ZAR'];
 const pricingForm = $('pricing-form');
 let pricing = null;
@@ -782,11 +782,11 @@ function renderPaddle(check) {
   $('pricing-push').hidden = false;
   $('pricing-paddle').textContent = check.inStep ? 'In step: Paddle charges exactly these prices.' : 'Not in step: Paddle would charge something different. Save, then set the Paddle prices.';
   for (const row of check.items) {
-    if (row.error) list.append(el('li', `Pro, ${ITEM_LABEL[row.item]}: ${row.error}`));
+    if (row.error) list.append(el('li', `${row.item.startsWith('plus') ? '' : 'Pro, '}${ITEM_LABEL[row.item]}: ${row.error}`));
     for (const d of row.differences) {
       const matrix = d.matrix === null ? 'not offered' : moneyText(d.matrix, d.currency);
       const paddle = d.paddle === null ? 'not set, or not for every country' : moneyText(d.paddle, d.currency);
-      list.append(el('li', `Pro, ${ITEM_LABEL[row.item]}, ${d.currency}: matrix ${matrix}, Paddle ${paddle}`));
+      list.append(el('li', `${row.item.startsWith('plus') ? '' : 'Pro, '}${ITEM_LABEL[row.item]}, ${d.currency}: matrix ${matrix}, Paddle ${paddle}`));
     }
   }
 }
@@ -806,7 +806,7 @@ function readPricingForm() {
     }
     currencies[currency] = { rounding, overrides };
   }
-  if (PRICE_ITEMS.some(item => !Number.isFinite(base[item]))) throw new Error('Type both UK prices as amounts, for example 2.99.');
+  if (PRICE_ITEMS.some(item => !Number.isFinite(base[item]))) throw new Error('Type all three UK prices as amounts, for example 2.99.');
   return { version: 1, base, rates: pricing.rates, currencies };
 }
 
