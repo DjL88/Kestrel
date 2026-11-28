@@ -12,7 +12,7 @@ interface MasksPanelProps {
   detecting?: boolean;
   activeMaskTool: WorkspaceStore['activeMaskTool'];
   onSetMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
-  onAddMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  onAddMaskLayer: (photoId: string, type: Exclude<MaskLayer['type'], 'tonal'>) => void;
   onToggleMaskLayer: (photoId: string, maskId: string) => void;
   onRemoveMaskLayer: (photoId: string, maskId: string) => void;
   onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
@@ -20,6 +20,8 @@ interface MasksPanelProps {
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   onSetMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
   onSetMaskInvert: (photoId: string, maskId: string, invert: boolean) => void;
+  onAddTonalMask: (photoId: string, band: NonNullable<MaskLayer['tonal']>['band']) => void;
+  onSetMaskTonalRange: (photoId: string, maskId: string, end: 'low' | 'high', value: number) => void;
   onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
   /** Tap to select (optional pack); absent where the engine does not offer it. */
   tapSelect?: TapSelectState;
@@ -39,6 +41,8 @@ export default function MasksPanel({
   onSetMaskGeometry,
   onSetMaskParts,
   onSetMaskInvert,
+  onAddTonalMask,
+  onSetMaskTonalRange,
   onPreviewMask,
   tapSelect,
   tapActions,
@@ -58,7 +62,7 @@ export default function MasksPanel({
   }, [photo?.id, photo?.masks]);
   const previewId = photo?.masks.find(layer => layer.id === openId && layer.visible)?.id;
   // The detection asked for last, so only its row says it is working (Dave, 27 Nov: the row looked done before it ran).
-  const [asked, setAsked] = React.useState<MaskLayer['type'] | null>(null);
+  const [asked, setAsked] = React.useState<Exclude<MaskLayer['type'], 'tonal'> | null>(null);
   React.useEffect(() => setAsked(null), [photo?.id]);
   React.useEffect(() => {
     onPreviewMask?.(photo && previewId ? { photoId: photo.id, maskId: previewId } : null);
@@ -68,7 +72,7 @@ export default function MasksPanel({
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToMask}</p>;
   }
 
-  const autoTools: Array<{ id: MaskLayer['type']; label: string; icon: BrandIconName }> = [
+  const autoTools: Array<{ id: Exclude<MaskLayer['type'], 'tonal'>; label: string; icon: BrandIconName }> = [
     { id: 'subject', label: STRINGS.masks.subject, icon: 'find-subject' },
     { id: 'background', label: STRINGS.masks.background, icon: 'masks' },
   ];
@@ -127,6 +131,20 @@ export default function MasksPanel({
           ))}
         </div>
         {tapSelect && <TapSelectSection photo={photo} state={tapSelect} actions={tapActions ?? {}} />}
+      </section>
+
+      {/* Brightness: picks pixels by how light or dark they are, measured from the photo itself. */}
+      <section aria-labelledby="masks-tonal-heading" data-testid="masks-group-tonal" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5">
+        <h3 id="masks-tonal-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.tonalHeading}</h3>
+        <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.panelWords.tonalNote}</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {([['shadows', STRINGS.panelWords.tonalShadows], ['highlights', STRINGS.panelWords.tonalHighlights], ['blacks', STRINGS.panelWords.tonalBlacks], ['whites', STRINGS.panelWords.tonalWhites], ['range', STRINGS.panelWords.tonalRange]] as const).map(([band, label]) => (
+            <button key={band} type="button" data-testid={`mask-tonal-${band}`} onClick={() => onAddTonalMask(photo.id, band)}
+              className="flex min-h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+              <span>{label}</span><BrandIcon name="plus" size={12} />
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Manual: drawn by hand (Brush paints where an adjustment applies, so it is a mask) */}
@@ -245,6 +263,24 @@ export default function MasksPanel({
                       <span>{STRINGS.panelWords.invertMask}</span>
                       <span className="text-[var(--text-muted)]">{layer.invert ? `· ${STRINGS.panelWords.invertOn}` : `· ${STRINGS.panelWords.invertOff}`}</span>
                     </label>
+                    {layer.tonal && (
+                      <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3" data-testid="v2-mask-tonal">
+                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.tonalRangeHeading}</legend>
+                        {(['low', 'high'] as const).map(end => (
+                          <label key={end} className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                            <span className="flex justify-between gap-2">
+                              <span>{end === 'low' ? STRINGS.panelWords.tonalDarkest : STRINGS.panelWords.tonalLightest}</span>
+                              <span className="font-mono tabular-nums">{`${Math.round(layer.tonal![end] * 100)}%`}</span>
+                            </span>
+                            <input type="range" className="inflight-slider" data-testid={`v2-mask-tonal-${end}`}
+                              aria-label={`${layer.name} ${end === 'low' ? STRINGS.panelWords.tonalDarkest : STRINGS.panelWords.tonalLightest}`}
+                              min={0} max={1} step={0.01} value={layer.tonal![end]}
+                              onChange={event => onSetMaskTonalRange(photo.id, layer.id, end, Number(event.target.value))} />
+                          </label>
+                        ))}
+                        <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.panelWords.tonalRangeNote}</p>
+                      </fieldset>
+                    )}
                     {photo.masks.some(other => other.id !== layer.id) && (() => {
                       const parts = layer.parts ?? [];
                       const others = photo.masks.filter(other => other.id !== layer.id);

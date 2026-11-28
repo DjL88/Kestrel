@@ -12,6 +12,30 @@ export interface MaskContext {
   view: { x: number; y: number; w: number; h: number };
   /** Where the original photo's centre (the lens's centre) sits on the framed photo, 0..1. Defaults to its middle. */
   lensCentre?: { x: number; y: number; r?: number };
+  /** Brightness (0 to 1, display-encoded) of each pixel of this canvas, for tonal masks. Without it a tonal mask selects nothing. */
+  luma?: Float32Array;
+}
+
+/** Brightness of each pixel of an RGBA 8-bit canvas (Rec. 709 weights on the encoded values), 0 to 1. */
+export function lumaFromRgba8(pixels: Uint8ClampedArray): Float32Array {
+  const out = new Float32Array(pixels.length >> 2);
+  for (let i = 0, j = 0; i < out.length; i += 1, j += 4) out[i] = (0.2126 * pixels[j] + 0.7152 * pixels[j + 1] + 0.0722 * pixels[j + 2]) / 255;
+  return out;
+}
+
+/** Brightness of `rows` rows from row `from` of interleaved RGB 16-bit data, 0 to 1. */
+export function lumaFromRgb16(data: Uint16Array, width: number, from: number, rows: number): Float32Array {
+  const out = new Float32Array(width * rows);
+  for (let i = 0, j = from * width * 3; i < out.length; i += 1, j += 3) out[i] = (0.2126 * data[j] + 0.7152 * data[j + 1] + 0.0722 * data[j + 2]) / 65535;
+  return out;
+}
+
+/** Strength of a tonal mask at one brightness: full inside low..high, easing off across the softness at each inner edge. */
+export function tonalStrength(mask: { low: number; high: number; feather: number }, luma: number): number {
+  const edge = 0.02 + 0.2 * mask.feather;
+  const rise = mask.low <= 0 ? 1 : smoothstep(mask.low - edge, mask.low + edge, luma);
+  const fall = mask.high >= 1 ? 1 : 1 - smoothstep(mask.high - edge, mask.high + edge, luma);
+  return rise * fall;
 }
 
 export const fullContext = (width: number, height: number): MaskContext => ({
@@ -154,6 +178,8 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
   const alpha = new Float32Array(width * height);
   // A collapsed gradient has no direction: never apply it to the entire image.
   if (invalidGradient(mask)) return alpha;
+  // Without measured pixels a tonal mask selects nothing, inverted or not: it must never widen an edit to the whole picture.
+  if (mask.kind === 'tonal' && (!context.luma || context.luma.length !== width * height)) return alpha;
   const { aspect, view } = context;
   const brush = (mask.kind === 'brush' || mask.kind === 'subject') && mask.strokes.length ? brushGrid(mask, aspect) : null;
   let dx = 0;
@@ -193,6 +219,8 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
         const localY = -offsetX * sine + offsetY * cosine;
         const d = Math.hypot(localX / mask.rx, localY / mask.ry);
         a = 1 - smoothstep(inner, 1, d);
+      } else if (mask.kind === 'tonal') {
+        a = tonalStrength(mask, context.luma![y * width + x]);
       } else if (mask.kind === 'subject') {
         const fine = mask.detail ? sampleDetail(mask.detail, nx, ny) : null;
         const value = refineBrush(brush, fine ?? sampleSubject(mask.grid, nx, ny), nx, ny);
@@ -301,7 +329,9 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
       continue;
     }
     if (!maskIsActive(mask)) continue;
-    const alpha = effectiveAlpha(mask, masks, width, height, context);
+    // Tonal masks measure the picture as it is when this mask is reached, so earlier local edits count, as on screen.
+    const reading = masks.some(other => other.kind === 'tonal') ? { ...context, luma: lumaFromRgba8(pixels) } : context;
+    const alpha = effectiveAlpha(mask, masks, width, height, reading);
     const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;
     if (consumed.has(mask.id)) { delete local.denoise; delete local.denoiseLuminance; }
     const adjusted = hasNoiseReduction(local) ? applyNoiseReduction(pixels, width, height, local) : new Uint8ClampedArray(pixels);
