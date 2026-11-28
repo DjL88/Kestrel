@@ -21,6 +21,13 @@ export const fr: AreaTranslation<typeof source> = {
     looksGood: 'C’est bon : les valeurs mesurées sont dans la plage, donc rien n’a été changé.',
     cannotImprove: 'Impossible d’améliorer cette photo sans risque, donc rien n’a été changé.',
     withheld: 'Une retouche suggérée a été retenue, car elle a échoué à un contrôle.',
+    alreadyEnhanced: 'Déjà amélioré : le dernier résultat d’Auto est toujours sur cette photo et le relancer ne changerait rien. Annulez-le, ou déplacez un curseur et relancez Auto.',
+    guard: {
+      held: 'Éclaircir cette photo brûlerait les hautes lumières, elle est donc laissée telle quelle.',
+      recovered: 'Les hautes lumières ont été un peu réduites pour que l’éclaircissement ne les brûle pas.',
+      zoned: 'L’éclaircissement vise les zones sombres plutôt que tout le cadre, pour que les zones claires gardent leurs détails.',
+      liftedLess: 'L’éclaircissement a été limité pour que les zones claires ne brûlent pas.',
+    },
     reasons: {
       clipWhite: 'Éclaircir ferait brûler des zones claires, comme les gouttelettes d’eau, jusqu’au blanc pur.',
       crushedBlack: 'La retouche écraserait les zones sombres jusqu’au noir pur.',

@@ -27,6 +27,13 @@ export const source = {
     looksGood: 'Looks good: the measured values are in range, so nothing was changed.',
     cannotImprove: 'Cannot improve this safely, so nothing was changed.',
     withheld: 'A suggested edit was held back because it failed a check.',
+    alreadyEnhanced: 'Already enhanced: Auto\'s last result is still on this photo, and running it again would change nothing. Undo it, or move a slider and run Auto again.',
+    guard: {
+      held: 'Lifting this photo would blow out its highlights, so it was left as it is.',
+      recovered: 'The highlights were pulled back a little so the lift does not blow them out.',
+      zoned: 'The lift is aimed at the dark areas rather than the whole frame, so the bright areas keep their detail.',
+      liftedLess: 'The lift was kept smaller than it could have been, so the bright areas do not blow out.',
+    },
     reasons: {
       clipWhite: 'Brightening would blow bright areas, such as water specks, out to pure white.',
       crushedBlack: 'The edit would crush dark areas to pure black.',
