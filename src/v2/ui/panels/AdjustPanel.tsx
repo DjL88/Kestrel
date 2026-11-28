@@ -194,8 +194,7 @@ export default function AdjustPanel({
       {onToggleCvdGuidance && (
         <div className="space-y-2">
           {cvdOfferPending && onAnswerCvdOffer && <ColourVisionOffer onAnswer={onAnswerCvdOffer} />}
-          {/* On a phone the offer takes the switch's place until answered, so the sheet keeps its height. */}
-          <div className={cvdOfferPending && onAnswerCvdOffer ? 'max-md:hidden' : undefined}><ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} /></div>
+          <ColourVisionToggle on={cvdGuidance} onToggle={onToggleCvdGuidance} />
           {cvdGuidance && (
             <ColourVerdictLine photoId={photo.id} verdict={photo.assistCritique.colourVerdict} words={photo.assistCritique.colourCheck} {...colourVerdict} />
           )}

@@ -118,8 +118,10 @@ async function openAdjustWithPhoto(page: import('@playwright/test').Page) {
     target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, pixels);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  await studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').first().click();
-  await studio.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  // Adjust may already be the open panel; clicking its rail button again would close it.
+  const panelSwitch = studio.getByRole('button', { name: 'Adjust', exact: true }).first();
+  if (!(await studio.getByTestId('cvd-toggle').isVisible())) await panelSwitch.click();
+  await expect(studio.getByTestId('cvd-toggle')).toBeVisible();
   return studio;
 }
 
