@@ -54,11 +54,11 @@ test('the result is plain data: recipes survive a JSON round trip (what a runner
   assert.ok(r.options.every((o) => typeof o.edit === 'object'));
 });
 
-test('the loop has no provider, key or network input (owner policy: Gemini and Vertex are owner-only)', () => {
-  const input: Record<string, true> = { pixels: true, width: true, height: true, base: true, iso: true, segmentation: true, framingKey: true, vision: true, maxRounds: true, keepRoundPixels: true, meta: true, intent: true, style: true };
+test('the loop has no provider, key or network input of its own (a second opinion is an injected, optional interface)', () => {
+  const input: Record<string, true> = { pixels: true, width: true, height: true, base: true, iso: true, segmentation: true, framingKey: true, vision: true, maxRounds: true, keepRoundPixels: true, meta: true, intent: true, style: true, secondOpinion: true };
   const probe: Parameters<typeof enhancePhoto>[0] = { pixels: new Uint8ClampedArray(4), width: 1, height: 1 };
   for (const key of Object.keys(probe)) assert.ok(input[key]);
-  // @ts-expect-error there is no apiKey / provider / cloud option on the loop
+  // @ts-expect-error there is no apiKey / provider / cloud option on the loop; (A) arrives only as the injected secondOpinion
   const bad: Parameters<typeof enhancePhoto>[0] = { ...probe, apiKey: 'x', cloud: {} };
   assert.ok(bad);
 });

@@ -37,11 +37,19 @@ the loop would not use it either. The existing editor features that ship these m
   the device runs, the Lanczos-3 resampler, and the cloud-recipe computation. No neural model runs there yet; any later "smarter" step
   would use openly licensed models only.
 - **Cloud storage is a separate feature** (backing up and sharing photos). It is not coupled to cloud processing in code or wording.
-- **Gemini and Vertex are OWNER-ONLY.** Used only for invited testers and contributors under a direct agreement, enabled by the owner
-  on the server side (allowlist). For the enhance loop there is **no bring-your-own key, no user-entered Gemini or Vertex key, no
-  in-app Gemini opt-in, no copy and no settings**, and none was added or is planned. The loop has no provider, key or network input at
-  all. Any future rules-base maintenance hook is server-side only and off by default; nothing is built here.
+- **Two different things, kept apart:**
+  - **(A) The person's own AI provider (bring your own key), optional second opinion.** Their key, their account and cost, set up in the
+    existing `AiProviderSetup` (Settings). When set up and agreed to, the loop may ask that provider about the three finished options.
+    Off unless set up; previews only (downsized, redrawn so no EXIF, paths or identifiers, never originals); the existing consent
+    notice names what is sent and where before first use; never required, never blocks, failure is silent; advisory only: it can flag a
+    concern or move the favourite between options that already passed every gate. It never applies an edit, never waives a gate, never
+    generates pixels, and its slider suggestions are ignored here. The loop only has an injected `SecondOpinion` interface; the adapter
+    `src/providers/enhanceSecondOpinion.ts` reuses the existing `askForReview` and consent code (no second path). The UI says "in the
+    cloud" (or the provider name from the person's own setup), never an internal model name. InFlight's own invited-tester provider
+    kind ('inflight') is excluded from this.
+  - **(B) The owner's private Gemini/Vertex access.** Server-side allowlist for invited testers and contributors and for maintaining
+    the rules base. Owner-only: no in-app switch, no user-facing copy. Nothing is built here.
+  The loop works fully without either.
 - **Existing, separate feature (not touched by this work):** the app already has a general "bring your own AI provider" setup
   (`src/v2/ui/dialogs/AiProviderSetup.tsx`, `src/providers/aiProviders.ts` with kinds gemini, anthropic, openai, inflight,
-  `src/core/gemini.ts`, `src/core/onlineHelper.ts`, the AI colour review in `src/core/aiReview.ts`). The owner decides separately
-  whether it stays; the enhance loop does not use it.
+  `src/core/gemini.ts`, `src/core/onlineHelper.ts`, the AI colour review in `src/core/aiReview.ts`). The owner confirmed it stays; the loop reuses it for (A) and adds no second path.

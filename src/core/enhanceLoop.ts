@@ -22,6 +22,7 @@ import { critiqueRender, KNOB_FOR_ISSUE_FIX, type Critique, type Issue, type Iss
  */
 
 export const MAX_ROUNDS = 5;
+const SECOND_OPINION_TIMEOUT_MS = 25_000;
 
 export interface PreviewFrame { rgba: Uint8ClampedArray; width: number; height: number }
 
@@ -38,6 +39,17 @@ export interface VisionAssistant {
   critique?(before: PreviewFrame, after: PreviewFrame, guidance: Guidance): Promise<VisionCritique | null>;
   /** Index of the candidate it likes best, or null when it has no clear favourite. */
   prefer?(before: PreviewFrame, candidates: PreviewFrame[]): Promise<number | null>;
+}
+
+/**
+ * (A) The person's OWN AI provider as an optional second opinion (their key, their account; set up in Settings, the existing
+ * AiProviderSetup). Advisory only: it can flag concerns about a candidate render or move the favourite between options that
+ * already passed every gate. It never applies an edit, never waives a gate and is never needed. It is handed downsized
+ * previews, never originals. `concerns[i]` belongs to `candidates[i]`. A failure is silent. This is NOT the owner's private
+ * Gemini/Vertex access (B), which is server-side only and has no in-app switch.
+ */
+export interface SecondOpinion {
+  ask(before: PreviewFrame, candidates: PreviewFrame[]): Promise<{ concerns: AiReviewIssue[][] } | null>;
 }
 
 export interface RoundRecord {
@@ -90,6 +102,8 @@ export interface EnhanceInput {
   intent?: UserIntent;
   /** The person's chosen look; resolves to the style rule. Default 'natural'. Null = none chosen. */
   style?: string | null;
+  /** Optional second opinion from the person's own AI provider (see SecondOpinion). Absent = the loop runs entirely on this device. */
+  secondOpinion?: SecondOpinion | null;
   maxRounds?: number;
   /** Keep each round's rendered preview in the result (for contact sheets and tests). */
   keepRoundPixels?: boolean;
@@ -101,7 +115,9 @@ export interface EnhanceResult {
   options: OptionResult[];
   favourite: number | null;
   /** 'device-ai' only when a real on-device model chose; 'stand-in' when the substitute did; otherwise measurements. */
-  favouriteBy: 'device-ai' | 'stand-in' | 'measurements' | null;
+  favouriteBy: 'device-ai' | 'stand-in' | 'measurements' | 'second-opinion' | null;
+  /** What the person's own provider said, when one was set up and answered. Absent otherwise. */
+  secondOpinion: { concerns: Record<number, AiReviewIssue[]>; movedFavourite: boolean } | null;
   visionKind: 'on-device' | 'stand-in' | 'none';
   visionObservations: VisionObservationInput[];
   chain: ChainTrail;
@@ -282,6 +298,28 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
     else { favourite = candidates.reduce((a, b) => (b.o.score > a.o.score ? b : a)).i; favouriteBy = 'measurements'; }
   }
 
+  // (A) Optional second opinion from the person's own provider. Advisory: only options that already passed every gate are shown to it.
+  let second: EnhanceResult['secondOpinion'] = null;
+  if (input.secondOpinion && candidates.length) {
+    try {
+      const answer = await Promise.race([
+        input.secondOpinion.ask(frame, candidates.map(({ o }) => ({ rgba: o.pixels, width, height }))),
+        new Promise<null>((resolve) => { setTimeout(() => resolve(null), SECOND_OPINION_TIMEOUT_MS).unref?.(); }),
+      ]);
+      if (answer && answer.concerns.length === candidates.length) {
+        const concerns: Record<number, AiReviewIssue[]> = {};
+        candidates.forEach(({ i }, k) => { const c = [...new Set(answer.concerns[k].filter((x) => x !== 'other'))]; if (c.length) concerns[i] = c; });
+        let moved = false;
+        if (favourite !== null) {
+          const count = (i: number) => concerns[i]?.length ?? 0;
+          const best = candidates.reduce((a, b) => (count(b.i) < count(a.i) ? b : a));
+          if (count(favourite) - count(best.i) >= 1) { favourite = best.i; favouriteBy = 'second-opinion'; moved = true; }
+        }
+        second = { concerns, movedFavourite: moved };
+      }
+    } catch { second = null; /* silent: the loop does not need it */ }
+  }
+
   // Verification chain: the device decides. No cloud in the per-photo loop.
   const chosen = favourite !== null ? options[favourite] : null;
   const device: ChainVerdict | undefined = !chosen ? undefined : vision?.critique && critiqueAnswered ? (chosen.remaining.some((i) => i.source === 'vision') ? 'disagree' : 'agree') : undefined;
@@ -292,7 +330,7 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
 
   const advice: string[] = [];
   if (stats.tilt && Math.abs(stats.tilt.degrees) >= 0.8 && stats.tilt.confidence >= 0.45) advice.push(`Strong straight edges lean about ${Math.abs(stats.tilt.degrees).toFixed(1)}°. Straightening changes the crop, so it is left to you.`);
-  return { stats, guidance, options, favourite, favouriteBy, visionKind: vision?.kind ?? 'none', visionObservations, chain, advice, rounds: totalRounds, exposure };
+  return { stats, guidance, options, favourite, favouriteBy, visionKind: vision?.kind ?? 'none', visionObservations, chain, advice, rounds: totalRounds, exposure, secondOpinion: second };
 }
 
 /** The proposal's steps, re-stated with the amounts the tweaks settled on (steps that were tweaked to zero are dropped). */
