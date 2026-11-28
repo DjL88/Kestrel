@@ -17,7 +17,8 @@ import { DEFAULT_EDIT } from '../../src/core/photoEdits';
 import { RULE_INTENTS } from '../../src/core/enhanceGuide';
 import { photographyKnowledge } from '../../src/core/photographyKnowledge';
 import { castDistance, downscale, jpegBase64, loadJpeg, meanAbsLightnessDiff, type Img } from './images';
-import { FLAWS, FLAW_WORDS, degrade, type Flaw } from './degrade';
+import { FLAWS, INTENT_FLAWS, FLAW_WORDS, degrade, type Flaw } from './degrade';
+import type { ExposureMeta } from '../../src/core/enhanceIntent';
 import { standInVision, aesthetic } from './standInVision';
 
 interface Cat { category: string; group: string }
@@ -41,7 +42,8 @@ const measures = (s: FrameStats): Measures => ({
 });
 
 interface Run {
-  photo: string; category: string; group: string; heldOut: boolean; variant: 'original' | Flaw;
+  photo: string; category: string; group: string; heldOut: boolean; variant: string;
+  metaKind: 'real' | 'synthetic' | 'none'; truthIntent: 'low-key' | 'underexposed' | null; reading: string; readingConfidence: number; editMagnitude: number; lightnessChange: number | null;
   rules: string[]; ruleViaVision: string[]; houseSteps: number; citedSteps: number;
   options: { style: string; outcome: string; rounds: number; stop: string; steps: number; remaining: string[] }[];
   favourite: string | null; favouriteBy: string | null; totalRounds: number;
@@ -60,9 +62,13 @@ function regressions(b: Measures, a: Measures): string[] {
   return out;
 }
 
-async function evaluate(name: string, cat: Cat, variant: 'original' | Flaw, img: Img, truth: Img | null, keepRounds: boolean) {
+interface Extra { meta: ExposureMeta | null; metaKind: Run['metaKind']; truthIntent: Run['truthIntent'] }
+const REAL_META: Record<string, { iso: number | null; shutterSeconds: number; aperture: number }> = JSON.parse(readFileSync(new URL('./metadata.json', import.meta.url), 'utf8'));
+const SYNTH_META: Record<string, ExposureMeta> = { under2: { evCompensation: -1, shutterSeconds: 1 / 1600, iso: 3200, aperture: 4 }, lowkey: { evCompensation: 0, shutterSeconds: 1 / 15, iso: 200, aperture: 2.8 } };
+
+async function evaluate(name: string, cat: Cat, variant: string, img: Img, truth: Img | null, keepRounds: boolean, extra: Extra) {
   const t0 = Date.now();
-  const result: EnhanceResult = await enhancePhoto({ pixels: img.rgba, width: img.width, height: img.height, vision: standInVision, keepRoundPixels: keepRounds });
+  const result: EnhanceResult = await enhancePhoto({ pixels: img.rgba, width: img.width, height: img.height, vision: standInVision, keepRoundPixels: keepRounds, meta: extra.meta });
   const before = measures(result.stats);
   const chosen: OptionResult | null = result.favourite !== null ? result.options[result.favourite] : null;
   const afterStats = chosen ? observeFrame(chosen.pixels, img.width, img.height) : null;
@@ -81,11 +87,14 @@ async function evaluate(name: string, cat: Cat, variant: 'original' | Flaw, img:
     photo: name, category: cat.category, group: cat.group, heldOut: heldOut(cat.group), variant,
     rules: result.guidance.rules.map((r) => r.id), ruleViaVision: result.guidance.rules.filter((r) => r.via !== 'measured').map((r) => r.id),
     houseSteps: steps.filter((s) => !s.ruleId || !s.sources.length).length, citedSteps: steps.filter((s) => s.ruleId && s.sources.length).length,
-    options: result.options.map((o) => ({ style: optionLabel(o.style), outcome: o.outcome, rounds: o.rounds.length, stop: o.stopReason, steps: o.steps.length, remaining: o.remaining.map((i) => i.id) })),
-    favourite: chosen ? optionLabel(chosen.style) : null, favouriteBy: result.favouriteBy, totalRounds: result.rounds,
+    metaKind: extra.metaKind, truthIntent: extra.truthIntent, reading: result.exposure.reading, readingConfidence: result.exposure.confidence,
+    editMagnitude: chosen ? Object.values(chosen.rounds[chosen.bestRound]?.knobs ?? {}).reduce((a, v) => a + Math.abs(v as number), 0) : 0, lightnessChange: null,
+    options: result.options.map((o) => ({ style: optionLabel(o.style, result.exposure.reading === 'ambiguous'), outcome: o.outcome, rounds: o.rounds.length, stop: o.stopReason, steps: o.steps.length, remaining: o.remaining.map((i) => i.id) })),
+    favourite: chosen ? optionLabel(chosen.style, result.exposure.reading === 'ambiguous') : null, favouriteBy: result.favouriteBy, totalRounds: result.rounds,
     before, after, auto, regression: after ? regressions(before, after) : [], autoRegression: auto ? regressions(before, auto.after) : [],
     standInAgrees: null, chain: result.chain.results.map((r) => r.outcome).join(','), advice: result.advice, ms: Date.now() - t0,
   };
+  run.lightnessChange = chosen ? meanAbsLightnessDiff(img, { rgba: chosen.pixels, width: img.width, height: img.height }) : 0;
   if (truth) {
     const loopPx: Img = { rgba: chosen ? chosen.pixels : img.rgba, width: img.width, height: img.height };
     const autoImg: Img = { rgba: autoPixels, width: img.width, height: img.height };
@@ -139,6 +148,8 @@ async function main() {
   const files = readdirSync(inDir).filter((f) => ['.jpg', '.jpeg'].includes(extname(f).toLowerCase())).sort();
   const runs: Run[] = [];
   const rows: string[] = [];
+  const blind: string[] = [];
+  const blindKey: Record<string, string[]> = {};
   const seenGroup = new Set<string>();
   let n = 0;
   for (const file of files) {
@@ -151,37 +162,90 @@ async function main() {
     const src = downscale(loadJpeg(join(inDir, file)), size);
     const first = !seenGroup.has(cat.group);
     seenGroup.add(cat.group);
-    const variants: ('original' | Flaw)[] = ['original', ...(flag('no-flaws') || !first || cat.category === 'chart' ? [] : FLAWS)];
-    for (const variant of variants) {
-      const img = variant === 'original' ? src : degrade(src, variant);
-      const { run, result } = await evaluate(name, cat, variant, img, variant === 'original' ? null : src, variant === 'original');
+    const m = REAL_META[name];
+    const realMeta: ExposureMeta | null = m ? { iso: m.iso, shutterSeconds: m.shutterSeconds, aperture: m.aperture } : null;
+    const cases: { variant: string; flaw: Flaw | null; extra: Extra }[] = [{ variant: 'original', flaw: null, extra: { meta: realMeta, metaKind: realMeta ? 'real' : 'none', truthIntent: null } }];
+    if (!flag('no-flaws') && first && cat.category !== 'chart') {
+      for (const f of FLAWS) cases.push({ variant: f, flaw: f, extra: { meta: null, metaKind: 'none', truthIntent: null } });
+      for (const f of INTENT_FLAWS) {
+        const truthIntent = f === 'lowkey' ? 'low-key' : 'underexposed';
+        cases.push({ variant: f, flaw: f, extra: { meta: SYNTH_META[f], metaKind: 'synthetic', truthIntent } });
+        cases.push({ variant: `${f} (no metadata)`, flaw: f, extra: { meta: null, metaKind: 'none', truthIntent } });
+      }
+    }
+    for (const c of cases) {
+      const img = c.flaw ? degrade(src, c.flaw) : src;
+      const { run, result } = await evaluate(name, cat, c.variant, img, c.flaw && (FLAWS as readonly string[]).includes(c.flaw) ? src : null, !c.flaw, c.extra);
       runs.push(run);
       n += 1;
-      console.log(`${String(n).padStart(3)} ${name.slice(0, 28).padEnd(28)} ${variant.padEnd(10)} fav=${(run.favourite ?? '—').padEnd(15)} rules=${run.rules.length} rounds=${run.totalRounds} ${run.regression.length ? 'REGRESSION: ' + run.regression.join('; ') : ''} (${run.ms} ms)`);
-      rows.push(contactRow(run, result, img, variant === 'original'));
+      console.log(`${String(n).padStart(3)} ${name.slice(0, 26).padEnd(26)} ${c.variant.padEnd(22)} read=${run.reading.padEnd(12)} fav=${(run.favourite ?? '—').padEnd(17)} rules=${run.rules.length} rounds=${run.totalRounds} ${run.regression.length ? 'REGRESSION: ' + run.regression.join('; ') : ''} (${run.ms} ms)`);
+      rows.push(contactRow(run, result, img, !c.flaw));
+      blind.push(blindRow(run, result, img, n, blindKey));
     }
   }
   writeFileSync(join(out, 'report.json'), JSON.stringify(runs, null, 1));
   writeFileSync(join(out, 'contact-sheet.html'), contactHtml(rows));
+  writeFileSync(join(out, 'blind-sheet.html'), blindHtml(blind));
+  writeFileSync(join(out, 'blind-key.json'), JSON.stringify(blindKey, null, 1));
   writeFileSync(join(out, 'report.md'), report(runs, size));
   console.log(`\nWrote ${join(out, 'report.md')}, report.json and contact-sheet.html (${runs.length} runs).`);
 }
 
 function contactRow(run: Run, result: EnhanceResult, img: Img, rounds: boolean): string {
   const thumb = (px: Uint8ClampedArray, label: string, cls = '') => `<figure class="${cls}"><img alt="${label}" src="data:image/jpeg;base64,${jpegBase64({ rgba: px, width: img.width, height: img.height }, 62)}" width="${Math.round(img.width / 3)}"><figcaption>${label}</figcaption></figure>`;
-  const cells = [thumb(img.rgba, `Before${run.variant === 'original' ? '' : ' (' + FLAW_WORDS[run.variant] + ')'}`)];
+  const cells = [thumb(img.rgba, `Before${run.variant === 'original' ? '' : ' (' + (FLAW_WORDS[run.variant as Flaw] ?? run.variant) + ')'}`)];
   result.options.forEach((o, i) => {
     const fav = result.favourite === i;
     const strip = rounds ? o.rounds.map((r) => thumb(r.pixels ?? o.pixels, `round ${r.round + 1}${r.round === o.bestRound ? ' (kept)' : ''}`, 'small')).join('') : '';
-    cells.push(`<div class="opt">${thumb(o.pixels, `${optionLabel(o.style)}${fav ? ' ★ favourite' : ''} — ${o.outcome}`, fav ? 'fav' : '')}<div class="strip">${strip}</div><p>${o.stopReason}; ${o.steps.length} steps${o.remaining.length ? '; still: ' + o.remaining.map((x) => x.id).join(', ') : ''}</p></div>`);
+    cells.push(`<div class="opt">${thumb(o.pixels, `${optionLabel(o.style, result.exposure.reading === 'ambiguous')}${fav ? ' ★ favourite' : ''} — ${o.outcome}`, fav ? 'fav' : '')}<div class="strip">${strip}</div><p>${o.stopReason}; ${o.steps.length} steps${o.remaining.length ? '; still: ' + o.remaining.map((x) => x.id).join(', ') : ''}</p></div>`);
   });
   return `<section><h3>${run.photo} · ${run.variant} · ${run.category}${run.heldOut ? ' · held-out' : ''}</h3><div class="row">${cells.join('')}</div></section>`;
+}
+
+/** Options shuffled by a fixed seed and labelled A, B, C; the favourite is NOT marked. The key file says which is which. */
+function blindRow(run: Run, result: EnhanceResult, img: Img, index: number, key: Record<string, string[]>): string {
+  const order = result.options.map((_, i) => i);
+  let seed = index * 2654435761 >>> 0;
+  for (let i = order.length - 1; i > 0; i -= 1) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; const j = seed % (i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+  const id = `#${index}`;
+  key[id] = order.map((o, k) => `${'ABC'[k]} = ${optionLabel(result.options[o].style, result.exposure.reading === 'ambiguous')}${result.favourite === o ? ' (stand-in favourite)' : ''} [${run.photo} / ${run.variant}]`);
+  const fig = (px: Uint8ClampedArray, label: string) => `<figure><img alt="${label}" src="data:image/jpeg;base64,${jpegBase64({ rgba: px, width: img.width, height: img.height }, 62)}" width="${Math.round(img.width / 3)}"><figcaption>${label}</figcaption></figure>`;
+  return `<section><h3>${id}</h3><div class="row">${fig(img.rgba, 'Original')}${order.map((o, k) => fig(result.options[o].pixels, `Option ${'ABC'[k]}`)).join('')}</div></section>`;
+}
+
+function blindHtml(rows: string[]): string {
+  return `<!doctype html><meta charset="utf-8"><title>Blind comparison</title><style>body{font:14px system-ui;margin:16px;background:#fff;color:#111}@media(prefers-color-scheme:dark){body{background:#111;color:#eee}}.row{display:flex;gap:12px;flex-wrap:wrap}figure{margin:0}figcaption{font-size:13px}</style><h1>Blind comparison</h1><p>Options are shuffled and unmarked. Pick the best of A, B and C for each photo; the key is in blind-key.json.</p>${rows.join('\n')}`;
 }
 
 function contactHtml(rows: string[]): string {
   return `<!doctype html><meta charset="utf-8"><title>Enhance loop contact sheet</title><style>body{font:14px system-ui;margin:16px;background:#fff;color:#111}@media(prefers-color-scheme:dark){body{background:#111;color:#eee}}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}figure{margin:0}figcaption{font-size:12px}.fav img{outline:4px solid #000;outline-offset:2px}.fav figcaption{font-weight:700}.small img{width:90px}.strip{display:flex;gap:4px;margin-top:4px}p{font-size:12px;margin:4px 0;max-width:260px}</style>
 <h1>Enhance loop: contact sheet</h1><p>STAND-IN critic and favourite (not the real on-device model). Favourite is marked with a thick outline AND the words "favourite". Previews are downsized working copies.</p>${rows.join('\n')}`;
+}
+
+function intentTable(runs: Run[]): string {
+  const rows = runs.filter((r) => r.truthIntent);
+  const lines = ['| Truth | Metadata | Runs | read low-key | read underexposed | ambiguous (options span both) | read not-dark | Correct | Wrong |', '|---|---|---|---|---|---|---|---|---|'];
+  for (const truth of ['low-key', 'underexposed'] as const) for (const meta of ['real', 'synthetic', 'none'] as const) {
+    const rs = rows.filter((r) => r.truthIntent === truth && r.metaKind === meta);
+    if (!rs.length) continue;
+    const c = (k: string) => rs.filter((r) => r.reading === k).length;
+    const right = truth === 'low-key' ? c('low-key') : c('underexposed');
+    const wrong = truth === 'low-key' ? c('underexposed') + c('not-dark') : c('low-key') + c('not-dark');
+    const metaLabel = meta === 'none' ? 'none (pixels only)' : meta === 'synthetic' ? 'invented to match the case' : 'real (from the files)';
+    lines.push(`| ${truth} | ${metaLabel} | ${rs.length} | ${c('low-key')} | ${c('underexposed')} | ${c('ambiguous')} | ${c('not-dark')} | ${right} | ${wrong} |`);
+  }
+  return lines.join('\n');
+}
+
+function controlsTable(originals: Run[]): string {
+  const rs = originals;
+  const applied = rs.filter((r) => r.favourite);
+  const quiet = rs.filter((r) => !r.rules.some((id) => id !== 'style.natural'));
+  const f = (xs: Run[]) => f2(mean(xs.map((r) => r.lightnessChange ?? 0)), 3);
+  return ['| Group | Photos | An edit was applied | Mean knob size when applied | Mean change in lightness |', '|---|---|---|---|---|',
+    `| All originals | ${rs.length} | ${pc(applied.length, rs.length)} | ${f2(mean(applied.map((r) => r.editMagnitude)), 2)} | ${f(rs)} |`,
+    `| Originals where no measured rule fired (well-exposed controls) | ${quiet.length} | ${pc(quiet.filter((r) => r.favourite).length, quiet.length)} | ${f2(mean(quiet.filter((r) => r.favourite).map((r) => r.editMagnitude)), 2)} | ${f(quiet)} |`].join('\n');
 }
 
 function report(runs: Run[], size: number): string {
@@ -204,7 +268,7 @@ function report(runs: Run[], size: number): string {
     `Held-out: scene groups chosen by a fixed hash of the group name (never tuned against); ${new Set(held(runs).map((r) => r.group)).size} groups. Development: ${new Set(dev(runs).map((r) => r.group)).size} groups.`, '',
     '## Real photographs, by subject category', '', '### Development set', '', table(dev(real), (r) => r.category, 'Development: by category'), '', '### Held-out set (reported separately)', '', table(held(real), (r) => r.category, 'Held-out: by category'), '',
     '## Flaw recovery (synthetic flaws on real photographs; truth is the undegraded original)', '', '### Development', '', recoveryTable(dev(runs)), '', '### Held-out', '', recoveryTable(held(runs)), '',
-    '## Per-flaw loop behaviour', '', table(runs.filter((r) => r.variant !== 'original'), (r) => FLAW_WORDS[r.variant as Flaw], 'All flaw variants'), '',
+    '## Per-flaw loop behaviour', '', table(runs.filter((r) => (FLAWS as readonly string[]).includes(r.variant)), (r) => FLAW_WORDS[r.variant as Flaw], 'All flaw variants'), '',
     '## Where it fails or is weak', '',
     `- Runs with at least one regression in the chosen result: ${runs.filter((r) => r.regression.length).length} of ${runs.length} (Natural Auto alone: ${runs.filter((r) => r.autoRegression.length).length}).`,
     ...runs.filter((r) => r.regression.length).slice(0, 25).map((r) => `  - ${r.photo} / ${r.variant}${r.heldOut ? ' (held-out)' : ''}: ${r.regression.join('; ')}`),
@@ -217,6 +281,8 @@ function report(runs: Run[], size: number): string {
     `- Rules that fired at least once (${fired.size}): ${[...fired.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} (${v})`).join(', ') || 'none'}.`,
     `- Rules with a recipe mapping that NEVER fired on this set (${never.length}): ${never.join(', ') || 'none'}.`,
     `- Rules in the knowledge base with no measurement trigger and no recipe mapping, so they cannot fire from pixels alone (${unreachable.length} of ${ruleIds.length}): these need the real on-device vision model or an explicit tag.`, '',
+    '## Low key or underexposed? (exposure intent classifier)', '', intentTable(runs), '',
+    '## Controls: is "nothing to fix" a near-no-op? (original photographs, no synthetic flaw)', '', controlsTable(real), '',
     '## Rounds', '', `Mean rounds per option: ${f2(mean(runs.map((r) => r.totalRounds / 3)), 2)} (limit 5). Mean time per photo: ${f2(mean(runs.map((r) => r.ms)) / 1000, 1)} s.`, '',
   ];
   return lines.join('\n');

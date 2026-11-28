@@ -3,6 +3,7 @@ import { DEFAULT_EDIT } from './photoEdits';
 import { createSubjectMask, type SubjectGrid } from './maskTypes';
 import { attributeStep, type Direction, type Guidance, type StepControl } from './enhanceGuide';
 import type { FrameStats } from './enhanceObserve';
+import type { ExposureReading } from './enhanceIntent';
 
 /**
  * Enhance loop, steps 3 and 6: PROPOSE and TWEAK. A recipe is a small set of "knobs" (the editor's own sliders, whole
@@ -11,7 +12,7 @@ import type { FrameStats } from './enhanceObserve';
  * are never touched (tilt is reported as advice only).
  */
 
-export type EnhanceStyle = 'natural' | 'subject' | 'bold' | 'light';
+export type EnhanceStyle = 'natural' | 'subject' | 'bold' | 'light' | 'mood' | 'full';
 
 export interface Knobs {
   exposure: number; warmth: number; tint: number; shadows: number; highlights: number; contrast: number; vibrance: number;
@@ -94,14 +95,15 @@ export interface Proposal {
   held: string[];
 }
 
-const STYLE_MULT: Record<EnhanceStyle, number> = { natural: 1, subject: 0.7, bold: 1.4, light: 0.5 };
+const STYLE_MULT: Record<EnhanceStyle, number> = { natural: 1, subject: 0.7, bold: 1.4, light: 0.5, mood: 0.7, full: 1.2 };
 
 /**
  * Starting recipe for one option, from the measurements and the rules that applied. `subjectOk` says a subject mask
  * with enough confidence exists. Every step is attributed through `attributeStep`; a step no rule asks for is house
  * practice and says so.
  */
-export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: EnhanceStyle, subjectOk: boolean, seed?: Partial<Knobs> | null): Proposal {
+export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: EnhanceStyle, subjectOk: boolean, seed?: Partial<Knobs> | null, context: { reading?: ExposureReading; iso?: number | null } = {}): Proposal {
+  const ambiguous = context.reading === 'ambiguous';
   const m = STYLE_MULT[style];
   const k: Knobs = { ...NEUTRAL_KNOBS };
   const held: string[] = [];
@@ -114,19 +116,20 @@ export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: Enhan
   const evidence: Partial<Record<keyof Knobs, string>> = {};
 
   // Exposure and shadows: bring the reference towards the healthy zone, only as far as the highlights allow.
-  if (has('lighting.underexposure') || has('lighting.underexposed-raw')) {
-    if (guidance.protect.dark) held.push('Dark on purpose, so the exposure is left alone.');
+  const liftWanted = has('lighting.underexposure') || has('lighting.underexposed-raw') || (ambiguous && (style === 'full' || style === 'light'));
+  if (liftWanted) {
+    if (guidance.protect.dark && !ambiguous) held.push('Dark on purpose, so the exposure is left alone.');
     else {
-      const target = style === 'bold' ? 0.5 : 0.44;
+      const target = style === 'bold' || style === 'full' ? 0.5 : 0.44;
       const headroom = stats.p99 > 0 ? unitsFor(stats.p99, 0.97) : 2.5;
       let units = unitsFor(ref, target);
       units = Math.min(units, Math.max(0, headroom + 0.4));
-      if (!sub || style !== 'subject') k.exposure = Math.max(0, units) * (style === 'subject' ? 0.6 : m > 1 ? 1.1 : 1);
+      if (!sub || style !== 'subject') k.exposure = Math.max(0, units) * (style === 'subject' ? 0.6 : ambiguous && style === 'light' ? 0.5 : m > 1 ? 1.1 : 1);
       evidence.exposure = `${refName} median lightness ${ref.toFixed(2)}, target ${target.toFixed(2)}, ${Math.max(0, headroom).toFixed(1)} units of highlight room`;
       k.shadows = Math.min(1.0, Math.max(0, (0.14 - stats.p05) * 6)) * m * (noisy ? 0.5 : 1);
       evidence.shadows = `darkest 5% of the picture sits at ${stats.p05.toFixed(2)}${noisy ? '; held back because the shadows are noisy' : ''}`;
     }
-  }
+  } else if (ambiguous && style === 'mood') held.push('Keeps the dark mood: blacks stay black and only the subject or mid-tones are lifted.');
   if (has('lighting.overexposure') && !guidance.protect.light) {
     k.exposure = Math.min(k.exposure, -Math.min(1.5, unitsFor(0.6, stats.p50) * 0.6) * m);
     evidence.exposure = `median lightness ${stats.p50.toFixed(2)} with no real shadows`;
@@ -149,6 +152,15 @@ export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: Enhan
     k.denoise = Math.min(2, Math.max(0.3, (s - 3) / 3)) * Math.min(1.2, m);
     k.denoiseLuminance = Math.min(1.5, Math.max(0.2, (s - 3.5) / 4)) * Math.min(1.2, m);
     evidence.denoise = evidence.denoiseLuminance = `noise about ${s.toFixed(1)} of 255 in the flattest areas`;
+  }
+  // Denoise budget: scales with how much light is being added and with ISO, so a big lift never ships its noise.
+  const liftUnits = Math.max(0, k.exposure) + Math.max(0, k.subjectExposure) * 0.5 + k.shadows * 0.5;
+  if (liftUnits > 0.4) {
+    const isoPart = context.iso && context.iso > 400 ? Math.min(0.6, Math.log2(context.iso / 400) * 0.15) : 0.1;
+    const budget = Math.min(2, 0.25 + 0.35 * liftUnits + isoPart);
+    if (budget > k.denoise) { k.denoise = budget; evidence.denoise = `a lift of ${liftUnits.toFixed(1)} units${context.iso ? ` at ISO ${context.iso}` : ''} needs noise reduction first`; }
+    const lum = Math.min(1.5, budget * 0.7);
+    if (lum > k.denoiseLuminance) { k.denoiseLuminance = lum; evidence.denoiseLuminance = evidence.denoise ?? 'a lift needs grain reduction first'; }
   }
   // Contrast for flat frames; never for fog, soft or low-key scenes.
   if (stats.spread < 0.5 && !guidance.protect.soft && !lowKeyScene && !has('scene.fog')) {
@@ -175,7 +187,7 @@ export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: Enhan
   }
   // Natural Auto's own measured recipe (src/core/naturalAuto.ts) is reused as a seed: where it asks for more of the same
   // move than the rules above, its (already gated) value wins; it never reverses a rule's direction.
-  if (seed && style !== 'subject') {
+  if (seed && style !== 'subject' && style !== 'mood') {
     for (const key of ['exposure', 'shadows', 'highlights', 'contrast', 'vibrance', 'warmth'] as const) {
       const v = (seed[key] ?? 0) * Math.min(m, 1.2);
       if (!v || (guidance.protect.dark && key === 'exposure' && v > 0)) continue;
@@ -187,9 +199,9 @@ export function proposeKnobs(stats: FrameStats, guidance: Guidance, style: Enhan
   }
   // Subject focus: lift and detail on the subject only, where a trustworthy mask exists.
   if (subjectOk && sub) {
-    if (style === 'subject' || has('lighting.bright-background')) {
-      if (!guidance.protect.dark && ref < 0.42) {
-        k.subjectExposure = Math.min(2.2, Math.max(0, unitsFor(ref, 0.46))) * (style === 'subject' ? 1 : 0.7);
+    if (style === 'subject' || style === 'mood' || has('lighting.bright-background')) {
+      if ((!guidance.protect.dark || style === 'mood') && ref < 0.42) {
+        k.subjectExposure = Math.min(2.2, Math.max(0, unitsFor(ref, 0.46))) * (style === 'subject' || style === 'mood' ? 1 : 0.7);
         evidence.subjectExposure = `subject median ${sub.median.toFixed(2)} against background ${sub.backgroundMedian.toFixed(2)}`;
       }
     }
