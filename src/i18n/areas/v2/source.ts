@@ -2328,9 +2328,9 @@ export const source = {
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
   cropSuggestion: {
-    label: 'Suggested crop: dashed outline on the photo. Nothing changes until you accept.',
-    accept: 'Accept crop',
-    dismiss: 'Dismiss',
+    label: 'Crop idea (dashed box)',
+    accept: 'Use this crop',
+    dismiss: 'Hide crop idea',
   },
   maskCanvas: {
     outline: (n: string) => `${n} · outline on the photo`,

@@ -32,6 +32,7 @@ import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
+import { addCropDismissal, readCropDismissals } from './cropDismissals';
 import { proposeCrop } from '../../../core/proposeCrop';
 import { createDoubleTapDetector, DOUBLE_TAP_GAP_MS } from '../../../core/touchGestures';
 import { readGesture } from '../../../core/gestureSettings';
@@ -645,7 +646,9 @@ export default function Canvas({
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
   // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
-  const [dismissedCropFor, setDismissedCropFor] = useState<string[]>([]);
+  // Remembered on this device so a hidden suggestion stays hidden when the photo is reopened.
+  const [dismissedCropFor, setDismissedCropForState] = useState<string[]>(() => { try { return readCropDismissals(window.localStorage); } catch { return []; } });
+  const hideCropIdea = (key: string) => setDismissedCropForState((keys) => { try { return addCropDismissal(window.localStorage, keys, key); } catch { return [...keys, key]; } });
 
   // Palm rejection for Apple Pencil and other pens. While the pen is on the glass, or for a moment after it lifts, a touch
   // is the hand holding it, so it never swipes to another photo, pinches or moves a crop. A palm that landed before the
@@ -2622,14 +2625,14 @@ export default function Canvas({
         )}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && renderMaskLabel()}
         {canvasLayoutMode === 'single' && !compareMode && !holdingOriginal && PhotoSurface && shownCropRect && cropPatch && (
-          <div data-testid="crop-suggestion" className="flex min-w-0 items-center gap-1.5 font-medium text-[var(--text-primary)]">
-            <span role="status" className="truncate">{STRINGS.cropSuggestion.label}</span>
+          <div data-testid="crop-suggestion" className="flex shrink-0 flex-wrap items-center gap-1.5 font-medium text-[var(--text-primary)]">
+            <span role="status" className="shrink-0">{STRINGS.cropSuggestion.label}</span>
             <button type="button" data-testid="crop-suggestion-accept" className={STATUS_BUTTON}
               onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onUpdateCrop(photo.id, activeSize.id, cropPatch); }}>
               {STRINGS.cropSuggestion.accept}
             </button>
             <button type="button" data-testid="crop-suggestion-dismiss" className={STATUS_BUTTON}
-              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setDismissedCropFor((keys) => [...keys, cropKey]); }}>
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); hideCropIdea(cropKey); }}>
               {STRINGS.cropSuggestion.dismiss}
             </button>
           </div>
