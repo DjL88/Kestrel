@@ -1302,11 +1302,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             )}
 
             {/* Centre column: Canvas (or GridView) + Bottom Filmstrip/Info Dock */}
-            <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {store.collage && collageEditingId && <button type="button" className="min-h-10 shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-left text-sm font-semibold text-[var(--brand-accent)]" onClick={() => setCollageEditingId(null)}>← Back to collage pages</button>}
-              {!store.collage && !store.gridViewOpen && !pairPhotos && !canvasOnlyShown && <AutoChangeBanner photo={activePhoto} status={store.autoStatus} comparing={store.compareMode}
-                dismissed={autoBannerDismissed} onDismiss={(key) => setAutoBannerDismissed((current) => new Set(current).add(key))} since={sessionStartedAt.current}
-                onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />}
               {store.collage && !collageEditingId ? (
                 <CollageEditor document={store.collage} photos={store.photos} projects={store.projects.filter((p) => p.id !== store.activeProjectId)}
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
@@ -1349,6 +1346,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  floating={!store.gridViewOpen && !pairPhotos && !canvasOnlyShown ? (
+                    <AutoChangeBanner photo={activePhoto} status={store.autoStatus} comparing={store.compareMode}
+                      dismissed={autoBannerDismissed} onDismiss={(key) => setAutoBannerDismissed((current) => new Set(current).add(key))} since={sessionStartedAt.current}
+                      onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />
+                  ) : undefined}
                   colourAreas={store.settings.cvdGuidance && showColourWhere ? activePhoto?.assistCritique.colourAreas : undefined}
                   onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
