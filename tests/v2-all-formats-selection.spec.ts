@@ -8,7 +8,7 @@ async function includeFormats(root: Locator, labels: string[]) {
     if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   }
-  const close = root.getByRole('button', { name: 'Close Formats panel' });
+  const close = root.getByRole('button', { name: /^Close (Formats panel|mobile drawer)$/ });
   if (await close.isVisible()) await close.click();
 }
 

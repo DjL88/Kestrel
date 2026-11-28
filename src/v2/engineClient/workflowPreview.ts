@@ -19,7 +19,11 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: previewKey('finishBest'),
+  /** Store the full original in the cloud with each chosen photo (lossless on another device), until proven with a real account. */
+  cloudOriginals: previewKey('cloudOriginals'),
   usbTether: previewKey('usbTether'),
+  /** The phone's two pages (photo grid, then one-photo editor, no filmstrip). Always on in the phone app shell; here for a browser. */
+  phoneTwoPages: previewKey('phoneTwoPages'),
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: previewKey('onImageAdvice'),
   /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */

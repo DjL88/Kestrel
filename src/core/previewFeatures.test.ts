@@ -28,6 +28,8 @@ const KEYS: Record<string, string> = {
   cullMaskSharpness: 'kestrel.preview.cullMaskSharpness.v1',
   cloudRecipe: 'kestrel.preview.cloudRecipe.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  cloudOriginals: 'kestrel.preview.cloud-originals.v1',
+  phoneTwoPages: 'kestrel.preview.phone-two-pages.v1',
   verificationChain: 'kestrel.preview.verification-chain.v1',
   ortWebgpu: 'kestrel.preview.ort-webgpu.v1',
   focusStack: 'kestrel.preview.focus-stack.v1',

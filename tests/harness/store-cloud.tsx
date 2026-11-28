@@ -15,27 +15,30 @@ import type { CloudUsage } from '../../src/core/cloudPlan';
 
 const params = new URLSearchParams(location.search);
 const fullAfter = params.has('full') ? Number(params.get('full')) : Infinity;
+const withOriginals = params.has('originals');
 const storedGb = Number(params.get('stored') ?? '1');
 
 const photos: StorablePhoto[] = Array.from({ length: 12 }, (_, i) => ({
   id: `p${i}`, sharedKey: `key-${i}`, filename: `IFL_${String(i).padStart(4, '0')}.NEF`,
   decision: i % 4 === 0 ? 'keep' : 'unreviewed', sharpnessScore: i + 1,
+  rating: i % 3 === 0 ? 5 : i % 3 === 1 ? 2 : 0, speciesName: i < 5 ? 'Puffin' : 'Gannet', exif: { fileSizeMb: 20 },
 }));
 
 function Harness() {
   const [open, setOpen] = useState(true);
   const [topUp, setTopUp] = useState(false);
-  const cloud = useMemo(() => ({ projects: new Map<string, Set<string>>(), calls: [] as string[], uploads: 0 }), []);
+  const cloud = useMemo(() => ({ projects: new Map<string, Set<string>>(), calls: [] as string[], uploads: 0, originals: new Set<string>() }), []);
   (window as unknown as { cloud: typeof cloud }).cloud = cloud;
   const client = useMemo(() => ({
     configured: true,
     create: async (name: string) => { cloud.calls.push(`create ${name}`); cloud.projects.set('shared-1', new Set()); return 'shared-1'; },
-    cloudPhotos: async (id: string) => [...(cloud.projects.get(id) ?? [])].map((photoKey) => ({ photoKey, name: photoKey, previewBytes: 1_000_000, thumbBytes: 20_000, originalBytes: null })),
+    cloudPhotos: async (id: string) => [...(cloud.projects.get(id) ?? [])].map((photoKey) => ({ photoKey, name: photoKey, previewBytes: 1_000_000, thumbBytes: 20_000, originalBytes: cloud.originals.has(photoKey) ? 20_000_000 : null })),
     cloudUpload: async (id: string, key: string, variant: string) => {
       cloud.calls.push(`upload ${variant} ${key}`);
       const held = cloud.projects.get(id)!;
       if (variant === 'thumb' && !held.has(key) && held.size >= fullAfter) throw new CollabError('refused', 'STORAGE_NEEDS_CREDIT', 'Cloud storage is full.');
       if (variant === 'preview') { held.add(key); cloud.uploads += 1; }
+      if (variant === 'original') cloud.originals.add(key);
     },
     cloudRemove: async (id: string, key: string) => { cloud.calls.push(`remove ${key}`); cloud.projects.get(id)?.delete(key); },
   }) as unknown as CollabClient, [cloud]);
@@ -50,7 +53,7 @@ function Harness() {
     <div className="inflight-v2">
       <button type="button" onClick={() => setOpen(true)}>Open</button>
       <StoreInCloudDialog open={open} client={client} localProjectId="local-1" projectName="Harness shoot" photos={photos}
-        selectedPhotoIds={['p1', 'p2', 'p3']} displayName={async () => 'Test Person'} renderPreview={preview} usage={usage}
+        selectedPhotoIds={params.has('none') ? [] : ['p1', 'p2', 'p3']} displayName={async () => 'Test Person'} renderPreview={preview} readOriginal={withOriginals ? async () => new Blob([new Uint8Array(1000)]) : undefined} usage={usage}
         onTopUp={() => setTopUp(true)} onClose={() => setOpen(false)} />
       <pre data-testid="top-up">{topUp ? 'top-up opened' : ''}</pre>
     </div>

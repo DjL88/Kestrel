@@ -20,6 +20,7 @@ import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
+import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { readCaptionTemplate } from '../../core/captionTemplate';
 import { usePresence } from './shell/usePresence';
@@ -79,6 +80,7 @@ const Canvas = lazyPart(() => import('./shell/Canvas'));
 const CollageEditor = lazyPart(() => import('./shell/CollageEditor'));
 const Filmstrip = lazyPart(() => import('./shell/Filmstrip'));
 const GridView = lazyPart(() => import('./shell/GridView'));
+const PhoneGridPage = lazyPart(() => import('./shell/PhoneGridPage'));
 const PairCompare = lazyPart(() => import('./shell/PairCompare'));
 const CoPilotPanel = lazyPart(() => import('./panels/CoPilotPanel'));
 const AdjustPanel = lazyPart(() => import('./panels/AdjustPanel'));
@@ -431,6 +433,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
 
+  // The phone's two pages (grid, then one photo). Always on in the phone app; in a browser it is this device's preview switch
+  // until the browser specs that assume the filmstrip move to it.
+  const phoneTwoPages = isMobile && (workflowPreviewOn('phoneTwoPages') || isMobileShell());
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 767px)');
@@ -440,6 +445,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+  // Opening a project on a phone lands on its photo grid (the first page); a tap on a photo opens it in the editor.
+  const gridEnteredFor = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!phoneTwoPages || store.screen !== 'editor' || store.collage) { gridEnteredFor.current = null; return; }
+    if (gridEnteredFor.current === store.activeProjectId) return;
+    gridEnteredFor.current = store.activeProjectId;
+    actions.setGridViewOpen(true);
+  }, [phoneTwoPages, store.screen, store.activeProjectId, store.collage]);
 
   // A phone (portrait, or a short landscape screen) and an upright tablet or unfolded foldable open with no panel, so the
   // photo has the screen until a tool is chosen (owner, 26 Nov). Exactly once, at start: turning the device keeps
@@ -1055,6 +1068,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // An upright touch tablet uses the phone's bottom tool bar and bottom sheet, with room for more buttons.
   const tabletPortrait = isTabletPortrait && !isMobile && !composingCollage;
   const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
+  // An upright phone has two pages: the grid of every photo in the project, and the editor for one photo. The filmstrip is not drawn.
+  const phoneGridPage = phoneTwoPages && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
@@ -1206,7 +1221,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               </button>
             </nav>
           )}
-          {!phoneLandscape && !canvasOnlyShown && <TopBar
+          {!phoneLandscape && !canvasOnlyShown && !phoneGridPage && <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
             keymap={keymap}
@@ -1221,7 +1236,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             compareMode={store.compareMode}
             gridViewOpen={store.gridViewOpen}
             filmstripCollapsed={store.filmstripCollapsed}
-            onBack={actions.backToProjects}
+            // On a phone, Back from one photo goes to the grid (the first page); from the grid it goes to the projects.
+            onBack={phoneTwoPages && !store.collage && !store.gridViewOpen ? () => actions.setGridViewOpen(true) : actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
@@ -1275,7 +1291,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
-            style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
+            style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : undefined /* an upright sheet overlays the photo, so the photo never re-fits */}>
             {(!store.collage || collageEditingId) && !phoneLandscape && !tabletPortrait && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
@@ -1327,6 +1343,31 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSwap={() => setPairSwapped((value) => !value)}
                   onEdit={(id) => { actions.setCompareMode(false); actions.selectPhoto(id); }}
                   onClose={() => actions.setCompareMode(false)} />
+              ) : phoneGridPage ? (
+                <PhoneGridPage
+                  projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
+                  photos={store.photos}
+                  activePhotoId={store.activePhotoId}
+                  filter={store.filmstripFilter}
+                  search={store.filmstripSearch}
+                  sort={store.filmstripSort}
+                  minRating={store.filmstripMinRating}
+                  pictureIds={pictureIds}
+                  cvdGuidance={store.settings.cvdGuidance}
+                  onToggleCvdGuidance={toggleCvd}
+                  onBack={actions.backToProjects}
+                  onOpenPhoto={(id) => { actions.selectPhoto(id); actions.setGridViewOpen(false); }}
+                  onToggleFlag={actions.toggleFlag}
+                  onSetFilter={actions.setFilmstripFilter}
+                  onSetSearch={actions.setFilmstripSearch}
+                  onSetSort={actions.setFilmstripSort}
+                  onSetMinRating={actions.setFilmstripMinRating}
+                  onImport={actions.importPhotos}
+                  onRunAutoCull={actions.runAutoCull}
+                  finishBest={finishBestEntry}
+                  onOpenRemoved={() => actions.setRemovedOpen(true)}
+                  onExport={() => actions.setExportOpen(true)}
+                />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -1428,7 +1469,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               )}
 
-              {!canvasOnlyShown && <Filmstrip
+              {!canvasOnlyShown && (!phoneTwoPages || composingCollage) && <Filmstrip
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}
@@ -1536,7 +1577,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Phone tool bar. Upright (<= 767px): four large targets along the bottom, like Lightroom; everything else lives
               in More. Sideways (V2-WORKSPACE 26.4): a column on the right, thumb side, with Export on top and Masks added,
               because a landscape phone has the height for one more. */}
-          {phoneLayout && !composingCollage && !canvasOnlyShown && (
+          {phoneLayout && !composingCollage && !canvasOnlyShown && !phoneGridPage && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
@@ -1555,8 +1596,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
                   ...(phoneLandscape || tabletPortrait ? [{ id: 'masks' as const, label: STRINGS.rail.masks, icon: 'masks' as const }] : []),
-                  // An upright tablet has the width for six; Export stays in its top bar.
-                  ...(tabletPortrait ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
+                  // Enhance is the fifth tab on an upright phone and tablet (Flight, Adjust, Enhance, Formats, More); Export stays in the top bar.
+                  ...(!phoneLandscape ? [{ id: 'enhance' as const, label: STRINGS.rail.enhance, icon: 'focus' as const }] : []),
                 ] as const
               ).map((item) => {
                 const active = store.activePanel === item.id && !moreOpen;
@@ -1612,10 +1653,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' as const },
                   { id: 'history', label: STRINGS.rail.history, icon: 'undo' as const },
                   { id: 'info', label: STRINGS.rail.info, icon: 'info' as const },
+                  ...(store.screen === 'editor' && !store.collage && activePhoto && !phoneLandscape ? [{ id: 'exportagain', label: STRINGS.exportDialog.quickExport, icon: 'refresh' as const }] : []),
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const
               )
-                .filter((item) => (item.id !== 'overlays' || hasOverlays) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
+                .filter((item) => (item.id !== 'overlays' || hasOverlays) && (item.id !== 'enhance' || phoneLandscape) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
                 .map((item) => (
                   <button
                     key={item.id}
@@ -1623,8 +1665,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                     onClick={() => {
                       setMoreOpen(false);
                       if (item.id === 'settings') actions.setSettingsOpen(true);
+                      else if (item.id === 'exportagain') quickExport();
                       else if (item.id === 'allphotos') { actions.setActivePanel(null); actions.setGridViewOpen(true); }
-                      else actions.setActivePanel(item.id);
+                      else actions.setActivePanel(item.id as PanelId);
                     }}
                     className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)]"
                   >
@@ -1636,11 +1679,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           )}
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
-          {phoneLayout && store.activePanel && !composingCollage && (
+          {phoneLayout && store.activePanel && !composingCollage && !phoneGridPage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
               : tabletPortrait
-                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex h-[50dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
+                ? "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[42dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"
                 : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
@@ -1718,6 +1761,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         displayName={signedInName}
         renderPreview={actions.renderGalleryPreview}
+        readOriginal={workflowPreviewOn('cloudOriginals') ? actions.readVerifiedOriginal : undefined}
         usage={accountCloud}
         onTopUp={() => { setStoreCloudOpen(false); actions.setSettingsOpen(true, 'account'); }}
         onChanged={() => setShareVersion((n) => n + 1)}

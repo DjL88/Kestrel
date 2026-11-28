@@ -26,9 +26,8 @@ test('phone Adjust sheet: slim title row, first slider whole in view, 44px slide
   // The photo keeps the rest of the screen: the sheet is at most 52% of the height.
   expect(sheet.height).toBeLessThanOrEqual(844 * 0.52 + 1);
 
-  // The colour-vision switch is a finger-sized control too.
-  const cvd = (await studio.getByTestId('cvd-toggle').boundingBox())!;
-  expect(cvd.height).toBeGreaterThanOrEqual(44);
+  // The colour-vision switch is a project setting on a phone: it lives in the grid menu, not on each photo.
+  await expect(studio.getByTestId('cvd-toggle')).toBeHidden();
 });
 
 test('phone Photo styles: the sheet stays at 44% and says nothing about hovering', async ({ page }, testInfo) => {
