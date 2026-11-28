@@ -24,6 +24,7 @@ export const es: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Ya mejorada: el último resultado de Auto sigue en esta foto y volver a ejecutarlo no cambiaría nada. Deshágalo, o mueva un control y ejecute Auto de nuevo.',
     guard: {
       held: 'Aclarar esta foto quemaría las altas luces, así que se dejó como está.',
+      liftDropped: 'Aclarar esta foto quemaría las altas luces, así que se omitió el aclarado y se conservaron los demás cambios.',
       recovered: 'Se bajaron un poco las altas luces para que el aclarado no las queme.',
       zoned: 'El aclarado se dirige a las zonas oscuras y no a todo el encuadre, para que las zonas claras conserven su detalle.',
       liftedLess: 'El aclarado se mantuvo menor de lo posible para que las zonas claras no se quemen.',

@@ -24,6 +24,7 @@ export const nb: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Allerede forbedret: Autos siste resultat ligger fortsatt på dette bildet, og en ny kjøring ville ikke endret noe. Angre det, eller flytt en glider og kjør Auto på nytt.',
     guard: {
       held: 'Å lysne dette bildet ville brent ut høylysene, så det ble latt være.',
+      liftDropped: 'Å lysne bildet ville brent ut høylysene: opplysningen ble utelatt, og de andre endringene ble beholdt.',
       recovered: 'Høylysene ble trukket litt ned slik at opplysningen ikke brenner dem ut.',
       zoned: 'Opplysningen rettes mot de mørke områdene i stedet for hele bildet, slik at lyse områder beholder detaljene.',
       liftedLess: 'Opplysningen ble holdt mindre enn den kunne vært, slik at lyse områder ikke brennes ut.',

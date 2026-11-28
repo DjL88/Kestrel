@@ -24,6 +24,7 @@ export const sv: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Redan förbättrad: Autos senaste resultat ligger kvar på det här fotot och en ny körning skulle inte ändra något. Ångra det, eller flytta ett reglage och kör Auto igen.',
     guard: {
       held: 'Att ljusa upp fotot skulle bränna ut högdagrarna, så det lämnades som det är.',
+      liftDropped: 'Att ljusa upp fotot skulle bränna ut högdagrarna: uppljusningen utelämnades och de andra ändringarna behölls.',
       recovered: 'Högdagrarna drogs ned något så att uppljusningen inte bränner ut dem.',
       zoned: 'Uppljusningen riktas mot de mörka partierna i stället för hela bilden, så att ljusa partier behåller sina detaljer.',
       liftedLess: 'Uppljusningen hölls mindre än den hade kunnat vara så att ljusa partier inte bränns ut.',

@@ -24,6 +24,7 @@ export const de: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Bereits optimiert: Das letzte Auto-Ergebnis liegt noch auf diesem Foto, ein erneuter Lauf würde nichts ändern. Machen Sie es rückgängig oder bewegen Sie einen Regler und starten Sie Auto erneut.',
     guard: {
       held: 'Das Aufhellen würde die Lichter ausbrennen, daher wurde das Foto unverändert gelassen.',
+      liftDropped: 'Das Aufhellen würde die Lichter ausbrennen, daher entfiel die Aufhellung und die übrigen Änderungen blieben.',
       recovered: 'Die Lichter wurden etwas zurückgenommen, damit die Aufhellung sie nicht ausbrennt.',
       zoned: 'Die Aufhellung gilt den dunklen Bereichen statt dem ganzen Bild, damit helle Bereiche ihre Zeichnung behalten.',
       liftedLess: 'Die Aufhellung blieb kleiner als möglich, damit helle Bereiche nicht ausbrennen.',

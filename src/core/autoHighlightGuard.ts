@@ -1,4 +1,3 @@
-import { clippingMap } from './clippingMap';
 import type { PhotoEdit } from './photoEdits';
 import { renderRecipePreview } from './naturalAuto';
 
@@ -18,6 +17,8 @@ import { renderRecipePreview } from './naturalAuto';
 export const CLIP_TOLERANCE = 0.005;
 export const NEAR_CLIP_TOLERANCE = 0.01;
 const NEAR_WHITE = 250;
+/** A pixel is clipped white only when ALL three channels are at the limit; one maxed channel is a saturated colour (an orange bird, a yellow bill), not blown light. */
+const PURE_WHITE = 254;
 
 export type GuardAction = 'none' | 'recovered' | 'zoned' | 'lifted-less' | 'unsatisfied';
 
@@ -35,10 +36,15 @@ export interface GuardResult {
 interface Shares { pure: number; near: number }
 
 function sharesOf(data: Uint8ClampedArray, width: number, height: number): Shares {
-  const map = clippingMap({ data, width, height });
-  let near = 0;
-  for (let i = 0; i < data.length; i += 4) if (data[i] >= NEAR_WHITE || data[i + 1] >= NEAR_WHITE || data[i + 2] >= NEAR_WHITE) near += 1;
-  return { pure: map?.highlightShare ?? 0, near: near / Math.max(1, width * height) };
+  let pure = 0, near = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (r >= PURE_WHITE && g >= PURE_WHITE && b >= PURE_WHITE) pure += 1;
+    // Near white is judged on luminance, so a saturated colour with one bright channel does not count.
+    if (0.2126 * r + 0.7152 * g + 0.0722 * b >= NEAR_WHITE) near += 1;
+  }
+  const n = Math.max(1, width * height);
+  return { pure: pure / n, near: near / n };
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -88,4 +94,24 @@ export function guardHighlights(input: {
     }
   }
   return result(best.edit, 'unsatisfied', best.shares, first);
+}
+
+/**
+ * What is left of a recipe when the guard cannot make the lift safe: ONLY the lift is taken out (exposure, shadows and the
+ * exposure or shadows of masks Auto added), so warmth, vibrance, highlight and contrast fixes that have nothing to do with
+ * the lift are kept.
+ */
+export function withoutLift(base: PhotoEdit, proposal: PhotoEdit): PhotoEdit {
+  const out: PhotoEdit = { ...proposal, exposure: base.exposure ?? 0 };
+  if (base.shadows === undefined) delete out.shadows; else out.shadows = base.shadows;
+  const baseIds = new Set((base.masks ?? []).map((mask) => mask.id));
+  if (proposal.masks) {
+    out.masks = proposal.masks.map((mask) => {
+      if (baseIds.has(mask.id)) return mask;
+      const { exposure: _exposure, shadows: _shadows, ...rest } = mask.edit;
+      return { ...mask, edit: rest };
+    }).filter((mask) => baseIds.has(mask.id) || Object.keys(mask.edit).length > 0);
+    if (!out.masks.length) delete out.masks;
+  }
+  return out;
 }

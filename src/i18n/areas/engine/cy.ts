@@ -24,6 +24,7 @@ export const cy: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Wedi’i wella eisoes: mae canlyniad diwethaf Auto yn dal ar y llun hwn, ac ni fyddai ei redeg eto yn newid dim. Dadwneud, neu symud llithrydd a rhedeg Auto eto.',
     guard: {
       held: 'Byddai ysgafnhau’r llun hwn yn llosgi’r goleuadau llachar, felly gadawyd ef fel y mae.',
+      liftDropped: 'Byddai ysgafnhau’r llun yn llosgi’r goleuadau llachar: gadawyd yr ysgafnhau allan a chadwyd y newidiadau eraill.',
       recovered: 'Tynnwyd y goleuadau llachar i lawr ychydig fel nad yw’r ysgafnhau yn eu llosgi.',
       zoned: 'Mae’r ysgafnhau’n targedu’r ardaloedd tywyll yn hytrach na’r ffrâm gyfan, fel bod yr ardaloedd golau’n cadw eu manylion.',
       liftedLess: 'Cadwyd yr ysgafnhau’n llai nag y gallai fod fel nad yw’r ardaloedd golau’n llosgi.',

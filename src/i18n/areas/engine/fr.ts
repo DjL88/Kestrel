@@ -24,6 +24,7 @@ export const fr: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Déjà amélioré : le dernier résultat d’Auto est toujours sur cette photo et le relancer ne changerait rien. Annulez-le, ou déplacez un curseur et relancez Auto.',
     guard: {
       held: 'Éclaircir cette photo brûlerait les hautes lumières, elle est donc laissée telle quelle.',
+      liftDropped: 'Éclaircir cette photo brûlerait les hautes lumières : l’éclaircissement a été omis et les autres changements conservés.',
       recovered: 'Les hautes lumières ont été un peu réduites pour que l’éclaircissement ne les brûle pas.',
       zoned: 'L’éclaircissement vise les zones sombres plutôt que tout le cadre, pour que les zones claires gardent leurs détails.',
       liftedLess: 'L’éclaircissement a été limité pour que les zones claires ne brûlent pas.',
