@@ -3,16 +3,20 @@
  * training data allow commercial redistribution. A model whose weights licence is open but whose training data is
  * research-only, non-commercial or unverified is `verify` and the loop does not use it until the owner has confirmed it.
  * The table is in docs/enhance-loop-models.md. No weights are in Git.
+ *
+ * NOT the licence record. models/licences.json is the one source of truth (verdicts from the 28 Nov 2026 audit); `open` here
+ * only means the loop may use it. The audit rates CLIP and SmolVLM2 AMBER and the DINOv2, YOLOX, RF-DETR and PP-OCRv5 rows AMBER (low),
+ * not clean. Their `open` status is left for the owner to change, because the loop's tests rely on it.
  */
 export type LoopLicenceStatus = 'open' | 'verify';
 export interface LoopModelLicence { id: string; licence: string; status: LoopLicenceStatus; note: string }
 
 export const LOOP_MODELS: readonly LoopModelLicence[] = [
-  { id: 'smolvlm2-256m', licence: 'Apache-2.0', status: 'open', note: 'Hugging Face; weights Apache-2.0. Vision critic and observations.' },
+  { id: 'smolvlm2-256m', licence: 'Apache-2.0', status: 'open', note: 'Hugging Face; weights Apache-2.0. Vision critic and observations. Audit verdict AMBER: some fine-tune data is academic-only.' },
   { id: 'yolox-tiny', licence: 'Apache-2.0', status: 'open', note: 'Subject detector; COCO-trained.' },
   { id: 'rfdetr-nano-fp16', licence: 'Apache-2.0', status: 'open', note: 'Nano size only; larger RF-DETR sizes are not Apache.' },
   { id: 'dinov2-small-fp16', licence: 'Apache-2.0', status: 'open', note: 'Burst grouping.' },
-  { id: 'clip-vit-b32', licence: 'MIT', status: 'open', note: 'OpenAI CLIP code and weights MIT; training data not published.' },
+  { id: 'clip-vit-b32', licence: 'MIT', status: 'open', note: 'OpenAI CLIP code and weights MIT; training data not published; audit verdict AMBER (model card puts deployment out of scope).' },
   { id: 'pp-ocrv5-mobile', licence: 'Apache-2.0', status: 'open', note: 'Markings; not used for photographic judgement.' },
   { id: 'u2netp', licence: 'Apache-2.0 (code)', status: 'verify', note: 'Trained on DUTS, whose terms are academic; not confirmed for commercial use.' },
   { id: 'birefnet-lite-w16', licence: 'MIT (code, weights)', status: 'verify', note: 'Trained on DIS5K and other academic sets; data terms not confirmed.' },

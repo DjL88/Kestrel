@@ -1,0 +1,150 @@
+{
+  "schema": 1,
+  "policy": "Owner policy, 28 Nov 2026: only openly licensed models may ship. A model passes only if its weights licence allows commercial redistribution AND is not undermined by non-commercial, research-only or unverified training-data terms. GREEN = clean. AMBER = explicit open licence but training data or weights terms not fully confirmed (listed in docs/notices/THIRD-PARTY-MODELS.md for the owner). RED = cannot show it is clean; must not ship by default (shipDefault false, out of the installer, off by default). Not legal advice. Source: licence audit of 28 Nov 2026 (nothing downloaded, no licence accepted).",
+  "fields": "id; name; ids (every id the code uses for it: catalogue, pack, slot, manifest); files (repo-relative paths, or bare file names, `*` allowed); feature; where (installer | download | tooling | data); shipDefault (true if a default installer or default-on feature carries it); codeLicence; weightsLicence; trainingData; verdict; reason; sources; reviewed (YYYY-MM-DD); notice (what must be shipped); noticeFile (optional, in docs/notices).",
+  "models": [
+    {
+      "id": "u2netp", "name": "U2-Netp (subject mask)", "ids": ["u2netp"], "files": ["src/assets/models/u2netp.onnx"],
+      "feature": "Subject mask for masks and crops", "where": "installer", "shipDefault": true,
+      "codeLicence": "Apache-2.0", "weightsLicence": "not stated",
+      "trainingData": "DUTS (ImageNet-derived images; annotations 'all rights reserved by the original authors'; no commercial grant)",
+      "verdict": "red", "reason": "Weights trained on DUTS, which carries no commercial grant; weights licence not stated.",
+      "sources": ["https://raw.githubusercontent.com/xuebinqin/U-2-Net/master/LICENSE", "http://saliencydetection.net/duts/"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text if kept"
+    },
+    {
+      "id": "birefnet-lite-w16", "name": "BiRefNet_lite (fine subject edges)", "ids": ["birefnet-lite-w16"], "files": ["birefnet-lite-w16.onnx"],
+      "feature": "Fine subject edges pack", "where": "installer", "shipDefault": true,
+      "codeLicence": "MIT", "weightsLicence": "MIT tag",
+      "trainingData": "DIS5K (non-commercial research and education only; commercial use prohibited without author permission), plus DUTS, HRSOD and others unconfirmed",
+      "verdict": "red", "reason": "Training set DIS5K terms (read first-hand) prohibit commercial use without permission; other sets unconfirmed.",
+      "sources": ["https://huggingface.co/ZhengPeng7/BiRefNet_lite", "https://github.com/ZhengPeng7/BiRefNet", "https://raw.githubusercontent.com/xuebinqin/DIS/main/DIS5K-Dataset-Terms-of-Use.pdf"],
+      "reviewed": "2026-11-28", "notice": "MIT text if kept"
+    },
+    {
+      "id": "efficientsam-ti-fp16", "name": "EfficientSAM-Ti (tap to select)", "ids": ["efficientsam-ti-fp16"],
+      "files": ["efficientsam-ti-encoder-fp16.onnx", "efficientsam-ti-decoder-fp16.onnx"],
+      "feature": "Tap to select pack", "where": "installer", "shipDefault": true,
+      "codeLicence": "Apache-2.0", "weightsLicence": "not stated",
+      "trainingData": "SA-1B (Meta: 'research purposes only'; licence text not readable) and ImageNet pretraining (from memory, not read)",
+      "verdict": "red", "reason": "Cannot show neither SA-1B nor ImageNet pretraining permits commercial use; no weights licence.",
+      "sources": ["https://github.com/yformer/EfficientSAM", "https://ai.meta.com/datasets/segment-anything/"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text if kept"
+    },
+    {
+      "id": "nafnet-sidd-w32-w16", "name": "NAFNet-SIDD-w32 (learned noise reduction)", "ids": ["nafnet-sidd-w32-w16"], "files": ["nafnet-sidd-w32-w16.onnx"],
+      "feature": "Learned noise reduction pack", "where": "installer", "shipDefault": true,
+      "codeLicence": "MIT (plus Apache-2.0 for BasicSR)", "weightsLicence": "not stated (Google Drive / Baidu only)",
+      "trainingData": "SIDD train; dataset authors state MIT, nothing on rights in the photographed scenes",
+      "verdict": "amber", "reason": "Dataset owners state MIT, but there is no weights licence and scene rights are unstated. Email Megvii and the SIDD authors to upgrade.",
+      "sources": ["https://github.com/megvii-research/NAFNet", "https://abdokamel.github.io/sidd/"],
+      "reviewed": "2026-11-28", "notice": "MIT notice for NAFNet and for BasicSR (Apache-2.0) must ship"
+    },
+    {
+      "id": "bioclip", "name": "BioCLIP v1 (species, 8-bit image encoder)", "ids": ["bioclip", "bioclip-image-int8"], "files": ["bioclip-image-int8.onnx", "public/models/bioclip.txt"],
+      "feature": "Species suggestions", "where": "installer", "shipDefault": true,
+      "codeLicence": "MIT", "weightsLicence": "MIT tag",
+      "trainingData": "TreeOfLife-10M: iNat21 (non-commercial research and education only), BIOSCAN-1M (CC BY-NC-SA), EOL (CC0 to CC BY-NC-SA); initialised from OpenAI CLIP",
+      "verdict": "red", "reason": "Training data includes non-commercial terms; no statement that weights may be used commercially.",
+      "sources": ["https://huggingface.co/imageomics/bioclip", "https://github.com/visipedia/inat_comp/tree/master/2021", "https://huggingface.co/datasets/imageomics/TreeOfLife-10M"],
+      "reviewed": "2026-11-28", "notice": "MIT text; docs/notices/bioclip.txt", "noticeFile": "docs/notices/bioclip.txt"
+    },
+    {
+      "id": "bioclip2-image-fp16", "name": "BioCLIP 2 (species second opinion)", "ids": ["bioclip2-image-fp16"], "files": ["bioclip2-image-fp16.onnx", "bioclip2-*.json"],
+      "feature": "Species second opinion pack", "where": "download", "shipDefault": false,
+      "codeLicence": "MIT", "weightsLicence": "MIT tag",
+      "trainingData": "TreeOfLife-200M (iNaturalist/GBIF, observation.org, EOL, BIOSCAN; licensing prose not readable) plus 26M LAION-2B replay samples",
+      "verdict": "red", "reason": "Strict policy: cleanliness of the training sources cannot be shown.",
+      "sources": ["https://huggingface.co/imageomics/bioclip-2"],
+      "reviewed": "2026-11-28", "notice": "MIT text if kept"
+    },
+    {
+      "id": "species-vectors-bioclip", "name": "Species vector files made with BioCLIP", "ids": ["species-vectors-bioclip"],
+      "files": ["src/assets/species/uk.json", "species-world.json", "species-mammals.json", "species-reptiles.json", "species-amphibians.json", "species-odonata.json", "species-lepidoptera.json"],
+      "feature": "Species suggestions (reference vectors)", "where": "installer", "shipDefault": true,
+      "codeLicence": "n/a (data)", "weightsLicence": "n/a",
+      "trainingData": "BioCLIP text embeddings of species names; the names themselves are CC BY 4.0 / CC0",
+      "verdict": "red", "reason": "Inherits BioCLIP's verdict (embeddings are BioCLIP output). The name lists are clean.",
+      "sources": ["https://huggingface.co/imageomics/bioclip"],
+      "reviewed": "2026-11-28", "notice": "IOC / GBIF / Wikidata attribution (NOTICE.md)"
+    },
+    {
+      "id": "clip-vit-b32", "name": "CLIP ViT-B/32 (image + text encoders, category gate, text search)",
+      "ids": ["clip-vit-b32", "clip-gate", "clip-vit-b32-vision-uint8", "clip-vit-b32-text-int8"],
+      "files": ["clip-vit-b32-vision-uint8.onnx", "clip-vit-b32-text-int8.onnx", "src/assets/subject/vectors.json", "src/assets/scene/vectors.json", "src/assets/vehicle/vectors.json"],
+      "feature": "Category gate before species; Search by description", "where": "installer", "shipDefault": true,
+      "codeLicence": "MIT", "weightsLicence": "MIT tag (Xenova ONNX copy)",
+      "trainingData": "Undisclosed web-crawled image-caption pairs",
+      "verdict": "amber", "reason": "MIT is explicit, but OpenAI's model card says any deployed use, commercial or not, is out of scope, and the data is undisclosed. Leaning RED; a policy call for the owner. Whether the three vectors.json files were built with CLIP text was not verified.",
+      "sources": ["https://github.com/openai/CLIP/blob/main/model-card.md", "https://huggingface.co/Xenova/clip-vit-base-patch32"],
+      "reviewed": "2026-11-28", "notice": "MIT text; docs/notices/clip.txt", "noticeFile": "docs/notices/clip.txt"
+    },
+    {
+      "id": "clip-tokenizer", "name": "CLIP tokenizer", "ids": ["clip-tokenizer"], "files": ["models/clip-tokenizer.json", "clip-tokenizer.json"],
+      "feature": "Tool only (category vector generation)", "where": "tooling", "shipDefault": false,
+      "codeLicence": "MIT", "weightsLicence": "n/a", "trainingData": "n/a",
+      "verdict": "green", "reason": "MIT (OpenAI CLIP repo).",
+      "sources": ["https://github.com/openai/CLIP"], "reviewed": "2026-11-28", "notice": "MIT text"
+    },
+    {
+      "id": "dinov2-small-fp16", "name": "DINOv2 ViT-S/14 (burst grouping; RF-DETR backbone)", "ids": ["dinov2-small-fp16"], "files": ["dinov2-small-fp16.onnx"],
+      "feature": "Burst and similar-frame grouping", "where": "installer", "shipDefault": true,
+      "codeLicence": "Apache-2.0", "weightsLicence": "Apache-2.0 (README and HF tag)",
+      "trainingData": "LVD-142M: described only as curated images; terms not confirmed",
+      "verdict": "amber", "reason": "Explicit Apache grant; training-data terms unconfirmed. Low risk.",
+      "sources": ["https://github.com/facebookresearch/dinov2", "https://huggingface.co/facebook/dinov2-small"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text; docs/notices/dinov2.txt", "noticeFile": "docs/notices/dinov2.txt"
+    },
+    {
+      "id": "yolox-tiny", "name": "YOLOX-Tiny (subject detector)", "ids": ["yolox-tiny"], "files": ["src/assets/models/yolox_tiny.onnx"],
+      "feature": "Culling subject detector", "where": "installer", "shipDefault": true,
+      "codeLicence": "Apache-2.0", "weightsLicence": "not stated (release downloads)",
+      "trainingData": "COCO (annotations CC BY 4.0 from memory; images mixed Flickr licences; terms page returned no text)",
+      "verdict": "amber", "reason": "Apache code, weights licence not stated, COCO terms not confirmed. Widely shipped commercially. Low risk.",
+      "sources": ["https://github.com/Megvii-BaseDetection/YOLOX", "https://cocodataset.org/#termsofuse"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text"
+    },
+    {
+      "id": "rfdetr-nano-fp16", "name": "RF-DETR Nano (second subject finder)", "ids": ["rfdetr-nano-fp16"], "files": ["rfdetr-nano-fp16.onnx"],
+      "feature": "Second subject finder pack", "where": "installer", "shipDefault": true,
+      "codeLicence": "Apache-2.0", "weightsLicence": "Apache-2.0 for Nano only (larger sizes are PML, not ours)",
+      "trainingData": "COCO; DINOv2 backbone inherits its caveats",
+      "verdict": "amber", "reason": "Apache confirmed for Nano; inherits DINOv2 and COCO caveats. Low risk.",
+      "sources": ["https://github.com/roboflow/rf-detr/blob/develop/LICENSE", "https://huggingface.co/Roboflow/rf-detr-nano"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text"
+    },
+    {
+      "id": "smolvlm2", "name": "SmolVLM2 256M / 500M (photo check, vision critic)",
+      "ids": ["smolvlm2", "smolvlm2-256m", "smolvlm2-500m", "smolvlm2-500m-desktop", "photo-check"],
+      "files": ["smolvlm2-*", "decoder_model_merged_*.onnx", "vision_encoder_*.onnx", "embed_tokens_*.onnx"],
+      "feature": "Photo check / vision critic", "where": "download", "shipDefault": false,
+      "codeLicence": "Apache-2.0", "weightsLicence": "Apache-2.0 tag",
+      "trainingData": "Ten fine-tune sets, at least one academic-research-only (LLaVA-Video-178K, to verify); FineVideo and M4-Instruct carry caveats; six sets unchecked; SigLIP encoder on WebLI (terms not stated)",
+      "verdict": "amber", "reason": "Apache licence, but at least one stated training source is academic-only. Biggest open question of the AMBER set. Email HuggingFaceTB.",
+      "sources": ["https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct", "https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text; docs/notices/smolvlm2.txt", "noticeFile": "docs/notices/smolvlm2.txt"
+    },
+    {
+      "id": "florence-2-base", "name": "Florence-2-base (tooling only)", "ids": ["florence-2-base"], "files": ["florence-2-*"],
+      "feature": "Vision lab and model scripts only; not in the app", "where": "tooling", "shipDefault": false,
+      "codeLicence": "MIT", "weightsLicence": "MIT tag", "trainingData": "FLD-5B; terms not confirmed",
+      "verdict": "amber", "reason": "Appears only in scripts/models/manifest.json and tools/vision-lab. Confirm before it ever ships.",
+      "sources": ["https://huggingface.co/microsoft/Florence-2-base"], "reviewed": "2026-11-28", "notice": "MIT text if it ever ships"
+    },
+    {
+      "id": "pp-ocrv5-mobile", "name": "PP-OCRv5 mobile detector + English recogniser", "ids": ["pp-ocrv5-mobile", "pp-ocrv5-mobile-en", "markings-reader"], "files": ["detect.onnx", "recognise.onnx"],
+      "feature": "Aircraft markings reader (opt-in download)", "where": "download", "shipDefault": false,
+      "codeLicence": "Apache-2.0", "weightsLicence": "Apache-2.0 (repo and HF tags)", "trainingData": "Not described anywhere read",
+      "verdict": "amber", "reason": "Explicit Apache grant; training data undescribed. Low risk.",
+      "sources": ["https://github.com/PaddlePaddle/PaddleOCR/blob/main/LICENSE", "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_det"],
+      "reviewed": "2026-11-28", "notice": "Apache-2.0 text; docs/notices/paddleocr.txt", "noticeFile": "docs/notices/paddleocr.txt"
+    },
+    {
+      "id": "species-names", "name": "Species names (IOC, Reptile Database, GBIF, Wikidata)", "ids": ["species-names"], "files": ["public/models/species-names/*"],
+      "feature": "Species label files", "where": "data", "shipDefault": true,
+      "codeLicence": "n/a (data)", "weightsLicence": "n/a", "trainingData": "n/a",
+      "verdict": "green", "reason": "CC BY 4.0 / CC0 per NOTICE.md; attribution already shipped. Not re-read upstream in the audit.",
+      "sources": ["NOTICE.md"], "reviewed": "2026-11-28", "notice": "Attribution in NOTICE.md"
+    }
+  ]
+}
