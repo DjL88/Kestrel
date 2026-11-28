@@ -1,3 +1,4 @@
+import { validDenoiseZones } from './denoiseZones';
 import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { parseSpeciesArea } from './speciesArea';
 import { readCollage } from './collage';
@@ -66,6 +67,7 @@ function recipeIsValid(value: unknown): boolean {
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
+    (edit.denoiseZones !== undefined && !validDenoiseZones(edit.denoiseZones)) ||
     (edit.trueDetailAi !== undefined && !validTrueDetailAi(edit.trueDetailAi)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||

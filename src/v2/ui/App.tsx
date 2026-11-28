@@ -873,6 +873,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdGuidance={store.settings.cvdGuidance}
             reviewing={store.reviewingPhotoIds.includes(activePhoto?.id ?? '')}
             onSetAssistMode={actions.setAssistMode}
+            colourVerdict={colourVerdictProps}
+            autoEdit={actions.autoEdit && !editLocked ? {
+              status: store.autoStatus, onAuto: actions.autoEdit, onUndo: actions.undo,
+              comparing: store.compareMode, onToggleCompare: () => actions.setCompareMode(!store.compareMode),
+            } : undefined}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onNudgeWarmth={editLocked ? undefined : nudgeWarmth}
@@ -913,10 +918,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             cvdOfferPending={!store.settings.cvdOfferAnswered && !store.settings.cvdGuidance}
             onAnswerCvdOffer={answerCvdOffer}
             colourVerdict={colourVerdictProps}
-            autoEdit={actions.autoEdit && !editLocked ? {
-              status: store.autoStatus, onAuto: actions.autoEdit, onUndo: actions.undo,
-              comparing: store.compareMode, onToggleCompare: () => actions.setCompareMode(!store.compareMode),
-            } : undefined}
             hideReadouts={store.settings.calmReadouts}
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}

@@ -55,7 +55,8 @@ test('?v2 panel dock left, dock right and float sit behind one … menu, never a
 
 test('?v2 dragging a split photo outside Crop moves the frames, not the picture inside them', async ({ page }) => {
   const root = await openWith(page, 'Split drag', 1500, 600);
-  await root.getByRole('button', { name: 'Split across 2 frames' }).click();
+  await root.getByTestId('split-menu-button').click();
+  await root.getByTestId('split-menu-split').click();
   const pane = root.getByTestId('split-frame-0');
   await expect(pane).toBeVisible();
   const picture = pane.locator('img, canvas').first();

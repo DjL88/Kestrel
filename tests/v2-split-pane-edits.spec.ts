@@ -74,7 +74,9 @@ for (const count of [2, 3] as const) {
     await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
     await root.getByRole('button', { name: 'Oval area', exact: true }).click();
 
-    await root.getByRole('button', { name: 'Split across 2 frames' }).click();
+    await root.getByTestId('split-menu-button').click();
+
+    await root.getByTestId('split-menu-split').click();
     if (count === 3) await root.getByRole('button', { name: 'Add a frame (3 frames)' }).click();
     const panes = root.locator('[data-testid^="split-frame-"][role="button"]');
     await expect(panes).toHaveCount(count);

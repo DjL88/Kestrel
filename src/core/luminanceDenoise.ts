@@ -1,12 +1,17 @@
+import { strengthAt, type DenoiseZones, zoneStrengths, hasDenoiseZones } from './denoiseZones';
+
 /** Conservative, non-generative display-luminance noise reduction.
  * A single normalized kernel serves both preview and RGB16 master. Strong
  * brightness and colour boundaries are excluded; chroma is preserved by
  * applying the same additive correction to every channel, bounded by gamut.
  * Read immutable row halos so a band never filters already modified pixels.
+ *
+ * `zones` (src/core/denoiseZones.ts) adds strength by tonal zone on top of `strength`: each pixel's strength is the global one
+ * plus the zones' strengths weighted smoothly by that pixel's local brightness. Without zones nothing changes.
  */
 export function denoiseLuminance(
   pixels: Uint8ClampedArray | Uint16Array, width: number, height: number,
-  strength: number, bandPixels = 220_000,
+  strength: number, bandPixels = 220_000, zones?: DenoiseZones,
 ): void {
   const stride = pixels instanceof Uint16Array ? 3 : 4;
   const max = stride === 3 ? 65535 : 255;
@@ -17,8 +22,12 @@ export function denoiseLuminance(
       !Number.isSafeInteger(bandPixels) || bandPixels < 1) {
     throw new RangeError('Invalid luminance denoise input.');
   }
-  if (!strength) return;
-  const radius = strength > 0.5 ? 2 : 1;
+  const zoned = hasDenoiseZones(zones);
+  const zoneRaw = zoned ? zoneStrengths(zones) : [];
+  const scratch = new Float32Array(5);
+  if (!strength && !zoned) return;
+  const widest = zoned ? Math.min(1, strength + Math.max(...zoneRaw) / 2) : strength;
+  const radius = widest > 0.5 ? 2 : 1;
   const rowStride = width * stride;
   const rows = Math.max(1, Math.floor(bandPixels / width));
   let retained: typeof pixels | undefined;
@@ -52,7 +61,9 @@ export function denoiseLuminance(
       }
       const low = Math.min(source[i], source[i + 1], source[i + 2]);
       const high = Math.max(source[i], source[i + 1], source[i + 2]);
-      const shift = Math.round(Math.max(-low, Math.min(max - high, (sum / weights - center) * strength * max)));
+      const smoothed = sum / weights;
+      const here = zoned ? strengthAt(strength * 2, zoneRaw, smoothed, scratch) / 2 : strength;
+      const shift = Math.round(Math.max(-low, Math.min(max - high, (smoothed - center) * here * max)));
       const out = (y * width + x) * stride;
       for (let c = 0; c < 3; c++) pixels[out + c] = source[i + c] + shift;
     }

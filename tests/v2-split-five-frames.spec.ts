@@ -22,7 +22,9 @@ test('a split format grows to five frames, a selected frame can be removed, and 
   await (await chooser).setFiles([{ name: 'panorama.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
 
-  await root.getByRole('button', { name: 'Split across 2 frames' }).click();
+  await root.getByTestId('split-menu-button').click();
+
+  await root.getByTestId('split-menu-split').click();
   await expect(root.locator('[data-testid^="split-frame-"][role="button"]')).toHaveCount(2);
   for (const next of [3, 4, 5]) await root.getByRole('button', { name: `Add a frame (${next} frames)` }).click();
   await expect(root.locator('[data-testid^="split-frame-"][role="button"]')).toHaveCount(5);
