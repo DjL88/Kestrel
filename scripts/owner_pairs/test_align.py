@@ -1,15 +1,23 @@
 import os, sys, unittest
 sys.path.insert(0, os.path.dirname(__file__))
-import numpy as np
-from PIL import Image, ImageFilter
-import align
+try:
+    import numpy as np
+    import scipy  # noqa: F401  (align.py needs scipy; CI installs only numpy and pillow)
+    from PIL import Image, ImageFilter
+    import align
+    HAVE = True
+except ImportError:
+    HAVE = False
 
 def scene():
+    import numpy as np
+    from PIL import Image, ImageFilter
     rng = np.random.default_rng(3)
     a = rng.random((60, 90)) * 255
     im = Image.fromarray(a.astype('uint8')).resize((900, 600), Image.BICUBIC).filter(ImageFilter.GaussianBlur(3))
     return im.convert('RGB')
 
+@unittest.skipUnless(HAVE, 'numpy, scipy and pillow are needed for crop alignment')
 class T(unittest.TestCase):
     def test_finds_crop_and_ignores_tone(self):
         raw = scene()
