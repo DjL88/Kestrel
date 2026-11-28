@@ -194,6 +194,31 @@ export default function EnhancePanel({
           />
         </div>
 
+        {/* Classical (non-AI) grain denoise added by tonal zone, on top of the slider above: smooth weights, no seams. */}
+        <details data-testid="denoise-zones" className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2.5 py-1.5">
+          <summary className="min-h-8 cursor-pointer text-xs font-medium text-[var(--text-primary)]">{STRINGS.enhance.denoiseZones.heading}</summary>
+          <p className="mb-2 mt-1 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{STRINGS.enhance.denoiseZones.hint}</p>
+          <div className="space-y-2">
+            {(['blacks', 'shadows', 'mids', 'highlights', 'whites'] as const).map((zone) => {
+              const value = recipe.denoiseZones?.[zone] ?? 0;
+              return (
+                <div key={zone} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor={`denoise-zone-${zone}`} className="text-xs text-[var(--text-primary)]">{STRINGS.enhance.denoiseZones[zone]}</label>
+                    {!hideReadouts && <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">{value}</span>}
+                  </div>
+                  <HeldRange
+                    id={`denoise-zone-${zone}`}
+                    testId={`v2-enhance-zone-${zone}`}
+                    value={value}
+                    onChange={(next) => onUpdateRecipe(photo.id, { denoiseZones: { ...recipe.denoiseZones, [zone]: next } })}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </details>
+
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-[var(--text-primary)]">

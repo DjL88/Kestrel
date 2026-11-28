@@ -157,7 +157,7 @@ const EARLY_STAGES: readonly EarlyStage[] = [
   { name: 'lens', inputs: (e) => hasFringeEdit(e) || hasLensCorrection(e.lens) ? [e.lens ?? null, e.lateralCa ?? null, e.defringe ?? null] : null,
     run: applyCanvasFringe },
   { name: 'heal', inputs: (e) => hasHeal(e.heal) ? e.heal : null, run: applyCanvasHeal },
-  { name: 'noise', inputs: (e) => hasNoiseReduction(e) ? [e.denoise ?? 0, e.denoiseLuminance ?? 0] : null,
+  { name: 'noise', inputs: (e) => hasNoiseReduction(e) ? [e.denoise ?? 0, e.denoiseLuminance ?? 0, e.denoiseZones ?? null] : null,
     run: (c, e) => applyCanvasNoiseReduction(c, e) },
   { name: 'dehaze', inputs: (e) => e.dehaze ? e.dehaze : null, run: (c, e, _m, edge) => applyCanvasDehaze(c, e, edge) },
   { name: 'capture', inputs: (e, edge) => deconvolutionParams(e, edge) ? [e.captureSharpen ?? null, e.deblur ?? 0] : null,

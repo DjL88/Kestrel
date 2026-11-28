@@ -219,6 +219,8 @@ export interface EditRecipe {
   /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
   aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
+  /** Classical grain denoise added per tonal zone, each 0 to 100, on top of denoiseLuminance. Absent or empty = none. */
+  denoiseZones?: Partial<Record<'blacks' | 'shadows' | 'mids' | 'highlights' | 'whites', number>>;
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;
   detailRecovery: number; // 0 to 100
