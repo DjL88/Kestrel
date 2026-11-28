@@ -11,17 +11,29 @@ import { shootTiers } from './shootTiers';
  */
 export const COLLABORATION_UI = false;
 
-export type StoreFilter = 'all' | 'best' | 'flagged' | 'top' | 'selected';
-export const STORE_FILTERS: readonly StoreFilter[] = ['all', 'best', 'flagged', 'top', 'selected'];
+export type StoreFilter = 'all' | 'best' | 'flagged' | 'rated' | 'tag' | 'top' | 'selected';
+export const STORE_FILTERS: readonly StoreFilter[] = ['all', 'best', 'flagged', 'rated', 'tag', 'top', 'selected'];
+export const STORE_RATED_DEFAULT = 4;
 export const STORE_TOP_DEFAULT = 50;
 
-interface Storable { id: string; cullScore?: number; decision?: string | null; removedAt?: number | null }
+interface Storable { id: string; cullScore?: number; decision?: string | null; removedAt?: number | null; rating?: number; tags?: readonly string[] }
+
+const fold = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 /** The photos a filter covers, best first where the filter ranks them. Removed photos are never included. */
-export function photosToStore(filter: StoreFilter, photos: readonly Storable[], options: { selectedIds?: readonly string[]; top?: number } = {}): string[] {
+export function photosToStore(filter: StoreFilter, photos: readonly Storable[], options: { selectedIds?: readonly string[]; top?: number; minRating?: number; tag?: string } = {}): string[] {
   const kept = photos.filter((photo) => photo.removedAt == null);
   if (filter === 'all') return kept.map((photo) => photo.id);
   if (filter === 'flagged') return kept.filter((photo) => photo.decision === 'keep').map((photo) => photo.id);
+  if (filter === 'rated') { const least = Math.max(1, Math.min(5, Math.floor(options.minRating ?? STORE_RATED_DEFAULT) || STORE_RATED_DEFAULT)); return kept.filter((photo) => (photo.rating ?? 0) >= least).map((photo) => photo.id); }
+  // A tag is matched as a whole word or phrase, never as part of another word, so "Tern" does not pull in "Pattern".
+  // An empty tag covers nothing: choosing "Tag" and typing nothing must never mean "everything".
+  if (filter === 'tag') {
+    const wanted = fold(options.tag ?? '');
+    if (!wanted) return [];
+    const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])${wanted.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u');
+    return kept.filter((photo) => (photo.tags ?? []).some((tag) => pattern.test(fold(tag)))).map((photo) => photo.id);
+  }
   if (filter === 'selected') { const chosen = new Set(options.selectedIds ?? []); return kept.filter((photo) => chosen.has(photo.id)).map((photo) => photo.id); }
   // Best and Top N follow Auto pick's own ranking; a photo it has not scored is never guessed in.
   const scored = kept.filter((photo) => typeof photo.cullScore === 'number' && Number.isFinite(photo.cullScore))
@@ -36,8 +48,8 @@ export function photosToStore(filter: StoreFilter, photos: readonly Storable[], 
  * (a typical preview is about 1 MB), said as one before anything is sent. `fits` is false when it would go past the
  * included storage, so the person is told before they confirm.
  */
-export function storeEstimate(count: number, usage: Pick<CloudUsage, 'plan' | 'storedBytes'>): { bytes: number; included: number; storedNow: number | null; fits: boolean } {
-  const bytes = Math.max(0, Math.floor(count)) * TYPICAL_PHOTO_BYTES.preview;
+export function storeEstimate(count: number, usage: Pick<CloudUsage, 'plan' | 'storedBytes'>, originalsBytes = 0): { bytes: number; included: number; storedNow: number | null; fits: boolean } {
+  const bytes = Math.max(0, Math.floor(count)) * TYPICAL_PHOTO_BYTES.preview + Math.max(0, originalsBytes);
   const included = freeStorageBytes(usage.plan);
   const storedNow = typeof usage.storedBytes === 'number' && Number.isFinite(usage.storedBytes) ? Math.max(0, usage.storedBytes) : null;
   return { bytes, included, storedNow, fits: (storedNow ?? 0) + bytes <= included };
@@ -72,4 +84,15 @@ export function cloudLimitNote(usage: CloudUsage | null | undefined): CloudLimit
   add('edits', usage.photosUsed, MONTHLY_PHOTO_ALLOWANCE[usage.plan] ?? 0);
   notes.sort((a, b) => Number(b.full) - Number(a.full) || b.used / b.included - a.used / a.included);
   return notes[0] ?? null;
+}
+
+/** The cloud store refuses a single original larger than this (services/control-plane/src/cloudPhotos.ts). */
+export const CLOUD_ORIGINAL_MAX_BYTES = 500_000_000;
+
+/**
+ * About how many bytes the full originals of these photos take: the size the file says it has, or, when that is not
+ * known, a typical 25 MP RAW (generous, so the figure errs high and the person is never surprised the other way).
+ */
+export function originalsBytes(photos: readonly { fileSizeMb?: number }[]): number {
+  return photos.reduce((sum, photo) => sum + (typeof photo.fileSizeMb === 'number' && Number.isFinite(photo.fileSizeMb) && photo.fileSizeMb > 0 ? Math.round(photo.fileSizeMb * 1_000_000) : TYPICAL_PHOTO_BYTES.raw25mp), 0);
 }
