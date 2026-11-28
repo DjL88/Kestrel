@@ -25,6 +25,8 @@ export const nl: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Meet bij het selecteren de scherpte alleen binnen de omtrek van het onderwerp in plaats van binnen het kader. Zonder bruikbare omtrek blijft de kadermeting.",
   enhanceLoopName: "Verbeteren met controles",
   enhanceLoopDesc: "Auto meet de foto, volgt de bronvermelde bewerkingsrichtlijnen, maakt een eigen bewerking, controleert het echte resultaat en past het hooguit vijf keer aan. Daarna biedt het drie opties met een favoriet. Alles blijft op dit apparaat en het origineel wordt nooit gewijzigd.",
+  ownSpeciesName: "Eigen soortenmodel (onderzoek)",
+  ownSpeciesDesc: "Stelt een vogelnaam voor met een klein model dat alleen op de foto's van één fotograaf is getraind. Het kent maar een paar soorten, zegt vaak niets en kan fout zitten. Alles blijft op dit apparaat.",
   cloudRecipeName: "Bewerkinstellingen uit de cloud",
   cloudRecipeDesc: "Stuurt een slim voorbeeld van 2.560 px van een foto naar de cloud en krijgt ongedaan te maken bewerkinstellingen terug. Het heeft een verbinding nodig en verstuurt fotogegevens, dus laat het uit om alles op dit apparaat te houden.",
   usbTetherName: "USB-tethering",

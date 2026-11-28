@@ -21,6 +21,13 @@ export const sv: AreaTranslation<typeof source> = {
     looksGood: 'Ser bra ut: de uppmätta värdena ligger inom intervallet, så inget ändrades.',
     cannotImprove: 'Det går inte att förbättra säkert, så inget ändrades.',
     withheld: 'Ett redigeringsförslag hölls tillbaka eftersom det inte klarade en kontroll.',
+    alreadyEnhanced: 'Redan förbättrad: Autos senaste resultat ligger kvar på det här fotot och en ny körning skulle inte ändra något. Ångra det, eller flytta ett reglage och kör Auto igen.',
+    guard: {
+      held: 'Att ljusa upp fotot skulle bränna ut högdagrarna, så det lämnades som det är.',
+      recovered: 'Högdagrarna drogs ned något så att uppljusningen inte bränner ut dem.',
+      zoned: 'Uppljusningen riktas mot de mörka partierna i stället för hela bilden, så att ljusa partier behåller sina detaljer.',
+      liftedLess: 'Uppljusningen hölls mindre än den hade kunnat vara så att ljusa partier inte bränns ut.',
+    },
     reasons: {
       clipWhite: 'Ljusare exponering skulle bränna ut ljusa partier, som vattenstänk, till rent vitt.',
       crushedBlack: 'Redigeringen skulle klämma ihop mörka partier till rent svart.',

@@ -21,6 +21,13 @@ export const de: AreaTranslation<typeof source> = {
     looksGood: 'Sieht gut aus: Die gemessenen Werte liegen im Bereich, daher wurde nichts geändert.',
     cannotImprove: 'Das lässt sich nicht sicher verbessern, daher wurde nichts geändert.',
     withheld: 'Ein Bearbeitungsvorschlag wurde zurückgehalten, weil er eine Prüfung nicht bestanden hat.',
+    alreadyEnhanced: 'Bereits optimiert: Das letzte Auto-Ergebnis liegt noch auf diesem Foto, ein erneuter Lauf würde nichts ändern. Machen Sie es rückgängig oder bewegen Sie einen Regler und starten Sie Auto erneut.',
+    guard: {
+      held: 'Das Aufhellen würde die Lichter ausbrennen, daher wurde das Foto unverändert gelassen.',
+      recovered: 'Die Lichter wurden etwas zurückgenommen, damit die Aufhellung sie nicht ausbrennt.',
+      zoned: 'Die Aufhellung gilt den dunklen Bereichen statt dem ganzen Bild, damit helle Bereiche ihre Zeichnung behalten.',
+      liftedLess: 'Die Aufhellung blieb kleiner als möglich, damit helle Bereiche nicht ausbrennen.',
+    },
     reasons: {
       clipWhite: 'Aufhellen würde helle Bereiche, etwa Wasserspritzer, bis zu reinem Weiß ausbrennen.',
       crushedBlack: 'Die Bearbeitung würde dunkle Bereiche zu reinem Schwarz zusammendrücken.',

@@ -25,6 +25,8 @@ export const sv: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Mäter vid urval skärpan bara inne i motivets kontur i stället för dess ruta. Utan en användbar kontur behålls rutans mått.",
   enhanceLoopName: "Förbättra med kontroller",
   enhanceLoopDesc: "Auto mäter fotot, följer de källhänvisade redigeringsråden, renderar sin egen redigering, kontrollerar det verkliga resultatet och justerar det högst fem gånger. Sedan erbjuder den tre alternativ med en favorit. Allt stannar på den här enheten och originalet ändras aldrig.",
+  ownSpeciesName: "Egen artmodell (forskning)",
+  ownSpeciesDesc: "Föreslår ett fågelnamn med en liten modell som bara tränats på en fotografs bilder. Den känner bara några få arter, säger ofta ingenting och kan ha fel. Allt stannar på den här enheten.",
   cloudRecipeName: "Redigeringsinställningar i molnet",
   cloudRecipeDesc: "Skickar en smart förhandsbild på 2 560 px av en bild till molnet och får tillbaka redigeringsinställningar som går att ångra. Det kräver en anslutning och skickar bilddata, så låt det vara av för att behålla allt på den här enheten.",
   usbTetherName: "USB-tethering",

@@ -25,6 +25,8 @@ export const nb: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Måler ved utvalg skarpheten bare inne i motivets omriss i stedet for rammen. Uten et brukbart omriss beholdes rammemålet.",
   enhanceLoopName: "Forbedre med kontroller",
   enhanceLoopDesc: "Auto måler bildet, følger de kildebelagte redigeringsrådene, lager sin egen redigering, sjekker det faktiske resultatet og justerer det høyst fem ganger. Deretter tilbyr den tre alternativer med en favoritt. Alt blir på denne enheten, og originalen endres aldri.",
+  ownSpeciesName: "Egen artsmodell (forskning)",
+  ownSpeciesDesc: "Foreslår et fuglenavn med en liten modell som bare er trent på én fotografs bilder. Den kjenner bare noen få arter, sier ofte ingenting og kan ta feil. Alt blir på denne enheten.",
   cloudRecipeName: "Redigeringsinnstillinger i skyen",
   cloudRecipeDesc: "Sender et smart forhåndsbilde på 2 560 px av et bilde til skyen og får redigeringsinnstillinger tilbake som kan angres. Det trenger en tilkobling og sender bildedata, så la det stå av for å beholde alt på denne enheten.",
   usbTetherName: "USB-tethering",

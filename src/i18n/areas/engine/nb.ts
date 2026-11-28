@@ -21,6 +21,13 @@ export const nb: AreaTranslation<typeof source> = {
     looksGood: 'Ser bra ut: de målte verdiene er innenfor området, så ingenting ble endret.',
     cannotImprove: 'Dette kan ikke forbedres trygt, så ingenting ble endret.',
     withheld: 'Et redigeringsforslag ble holdt tilbake fordi det strøk på en kontroll.',
+    alreadyEnhanced: 'Allerede forbedret: Autos siste resultat ligger fortsatt på dette bildet, og en ny kjøring ville ikke endret noe. Angre det, eller flytt en glider og kjør Auto på nytt.',
+    guard: {
+      held: 'Å lysne dette bildet ville brent ut høylysene, så det ble latt være.',
+      recovered: 'Høylysene ble trukket litt ned slik at opplysningen ikke brenner dem ut.',
+      zoned: 'Opplysningen rettes mot de mørke områdene i stedet for hele bildet, slik at lyse områder beholder detaljene.',
+      liftedLess: 'Opplysningen ble holdt mindre enn den kunne vært, slik at lyse områder ikke brennes ut.',
+    },
     reasons: {
       clipWhite: 'Lysere eksponering ville brenne ut lyse områder, som vannsprut, til rent hvitt.',
       crushedBlack: 'Redigeringen ville presse mørke områder ned til rent svart.',

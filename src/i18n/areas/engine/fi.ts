@@ -21,6 +21,13 @@ export const fi: AreaTranslation<typeof source> = {
     looksGood: 'Näyttää hyvältä: mitatut arvot ovat alueella, joten mitään ei muutettu.',
     cannotImprove: 'Tätä ei voi parantaa turvallisesti, joten mitään ei muutettu.',
     withheld: 'Muokkausehdotus jätettiin pois, koska se ei läpäissyt tarkistusta.',
+    alreadyEnhanced: 'Jo parannettu: Auton viimeisin tulos on yhä tässä kuvassa, eikä uusi ajo muuttaisi mitään. Kumoa se, tai siirrä liukusäädintä ja aja Auto uudelleen.',
+    guard: {
+      held: 'Tämän kuvan vaalentaminen polttaisi kirkkaat kohdat, joten se jätettiin ennalleen.',
+      recovered: 'Kirkkaita kohtia vedettiin hieman alas, jotta vaalennus ei polta niitä.',
+      zoned: 'Vaalennus kohdistetaan tummiin alueisiin koko kuvan sijaan, jotta vaaleat alueet säilyttävät yksityiskohtansa.',
+      liftedLess: 'Vaalennus pidettiin pienempänä kuin olisi voinut, jotta vaaleat alueet eivät pala puhki.',
+    },
     reasons: {
       clipWhite: 'Vaalennus polttaisi vaaleat alueet, kuten vesiroiskeet, puhtaan valkoisiksi.',
       crushedBlack: 'Muokkaus litistäisi tummat alueet puhtaan mustiksi.',

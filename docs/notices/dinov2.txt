@@ -14,3 +14,7 @@ Copyright (c) Meta Platforms, Inc. and affiliates.
 
 Release gate: confirm the LICENSE file in github.com/facebookresearch/dinov2 still states Apache-2.0 for the weights
 (some third-party mirrors label older copies CC-BY-NC; use Meta's own release only).
+
+Also used as the frozen base of InFlight's own species head (src/assets/species-own/head.json, research preview, off by
+default). The head is a small linear classifier trained on the owner's own photographs on top of unchanged DINOv2
+embeddings; DINOv2 is not modified or fine-tuned. The Apache-2.0 notice above applies to the base model in that use too.

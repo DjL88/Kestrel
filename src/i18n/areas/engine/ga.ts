@@ -21,6 +21,13 @@ export const ga: AreaTranslation<typeof source> = {
     looksGood: 'Tá cuma mhaith air: tá na luachanna tomhaiste sa raon, mar sin níor athraíodh aon rud.',
     cannotImprove: 'Ní féidir é seo a fheabhsú go sábháilte, mar sin níor athraíodh aon rud.',
     withheld: 'Coinníodh siar eagarthóireacht mholta mar gur theip uirthi i seiceáil.',
+    alreadyEnhanced: 'Feabhsaithe cheana: tá toradh deireanach Auto fós ar an ngrianghraf seo, agus ní athrófaí aon rud dá rithfí arís é. Cealaigh é, nó bog sleamhnán agus rith Auto arís.',
+    guard: {
+      held: 'Dhófadh sé na buaicsoilse dá soilsítí an grianghraf seo, mar sin fágadh mar atá sé.',
+      recovered: 'Tarraingíodh na buaicsoilse anuas beagán ionas nach ndófaidh an soilsiú iad.',
+      zoned: 'Díríonn an soilsiú ar na ceantair dhorcha seachas ar an bhfráma ar fad, ionas go gcoimeádfaidh na ceantair gheala a gcuid mionsonraí.',
+      liftedLess: 'Coinníodh an soilsiú níos lú ná mar a d’fhéadfadh sé a bheith ionas nach ndófar na ceantair gheala.',
+    },
     reasons: {
       clipWhite: 'Dhódh sé soilsiú na limistéir shoiléire, mar shprais uisce, amach go bán glan.',
       crushedBlack: 'Bhrúfadh an eagarthóireacht limistéir dhorcha síos go dubh glan.',

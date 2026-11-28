@@ -25,6 +25,8 @@ export const ga: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Agus tú ag roghnú, tomhaiseann sé an ghéire taobh istigh de imlíne an ábhair amháin in ionad a boise. Gan imlíne inúsáidte, coinnítear tomhas na boise.",
   enhanceLoopName: "Feabhsaigh le seiceálacha",
   enhanceLoopDesc: "Tomhaiseann Auto an grianghraf, leanann sé an treoir eagarthóireachta, déanann sé a eagarthóireacht féin, seiceálann sé an toradh iarbhír agus athraíonn sé é suas le cúig huaire. Ansin tairgeann sé trí rogha le ceann is fearr leat. Fanann gach rud ar an ngléas seo agus ní athraítear an bunchóip choíche.",
+  ownSpeciesName: "Múnla speiceas féin (taighde)",
+  ownSpeciesDesc: "Molann sé ainm éin le múnla beag a hoileadh ar ghrianghraif grianghrafadóra amháin. Níl aithne aige ach ar bheagán speiceas, ní deir sé aon rud go minic, agus d'fhéadfadh sé a bheith mícheart. Fanann gach rud ar an ngléas seo.",
   cloudRecipeName: "Socruithe eagarthóireachta sa scamall",
   cloudRecipeDesc: "Seolann sé réamhamharc cliste 2,560 px de ghrianghraf chuig an scamall agus faigheann sé socruithe eagarthóireachta ar ais is féidir a chealú. Teastaíonn nasc uaidh agus seolann sé sonraí an ghrianghraif, mar sin fág as é chun gach rud a choinneáil ar an ngléas seo.",
   usbTetherName: "Ceangal USB",

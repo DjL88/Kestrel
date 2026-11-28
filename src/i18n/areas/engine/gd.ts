@@ -21,6 +21,13 @@ export const gd: AreaTranslation<typeof source> = {
     looksGood: 'Tha e a’ coimhead math: tha na luachan a chaidh a thomhas taobh a-staigh na raoin, mar sin cha deach dad atharrachadh.',
     cannotImprove: 'Cha ghabh seo leasachadh gu sàbhailte, mar sin cha deach dad atharrachadh.',
     withheld: 'Chaidh deasachadh a chaidh a mholadh a chumail air ais oir dh’fhàillig e dearbhadh.',
+    alreadyEnhanced: 'Air a leasachadh mar-thà: tha toradh mu dheireadh Auto fhathast air an dealbh seo, agus cha atharraicheadh e dad ma ruitheadh e a-rithist. Neo-dhèan e, no gluais sleamhnachan agus ruith Auto a-rithist.',
+    guard: {
+      held: 'Loisgeadh e na solais àrda nan deigheadh an dealbh seo a shoilleireachadh, mar sin dh’fhàgadh e mar a tha e.',
+      recovered: 'Chaidh na solais àrda a tharraing sìos beagan gus nach loisg an soilleireachadh iad.',
+      zoned: 'Tha an soilleireachadh ag amas air na raointean dorcha seach am frèam gu lèir, gus an cùm na raointean soilleir am mion-fhiosrachadh.',
+      liftedLess: 'Chaidh an soilleireachadh a chumail nas lugha na b’ urrainn dha a bhith gus nach loisg na raointean soilleir.',
+    },
     reasons: {
       clipWhite: 'Bhiodh solais a’ losgadh raointean soilleir, mar spraoidh uisge, a-mach gu geal fìor.',
       crushedBlack: 'Bhiodh an deasachadh a’ fàsgadh raointean dorcha sìos gu dubh fìor.',

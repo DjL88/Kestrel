@@ -15,9 +15,10 @@ export function commitAutoEdit(
   proposal: PhotoEdit,
   at: number,
   why?: EditWhy,
-  options: { anyPhoto?: boolean } = {},
+  /** `replace`: the person pressed Auto on a photo that already has edits; the photo must be exactly as it was examined. */
+  options: { anyPhoto?: boolean; replace?: boolean } = {},
 ): CullingState {
-  if (state.shoot.id !== projectId || examined.edit || examined.editHistory?.steps.length) return state;
+  if (state.shoot.id !== projectId || (!options.replace && (examined.edit || examined.editHistory?.steps.length))) return state;
   const frameId = options.anyPhoto ? examined.id : state.selectedFrameId ?? state.frames.find((frame) => frame.removedAt == null)?.id;
   if (frameId !== examined.id) return state;
 
@@ -25,7 +26,7 @@ export function commitAutoEdit(
   const frame = state.frames[index];
   // The batch runs long after the import: a photo rejected since is a decision that is kept, never edited over.
   if (options.anyPhoto && (frame?.decision === 'reject' || frame?.exif?.rejectedByMetadata || (frame && autopilotSkipsEditedElsewhere(frame)))) return state;
-  if (!frame || frame.removedAt != null || frame.edit || frame.editHistory !== examined.editHistory ||
+  if (!frame || frame.removedAt != null || (options.replace ? frame.edit !== examined.edit : frame.edit) || frame.editHistory !== examined.editHistory ||
       frame.framing !== examined.framing || frame.stableKey !== examined.stableKey ||
       frame.originalSha256 !== examined.originalSha256 ||
       readEditGroups(frame).activeId !== readEditGroups(examined).activeId ||
