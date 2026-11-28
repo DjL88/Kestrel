@@ -34,7 +34,7 @@ def main():
 
 def per_raw_summary(idx, rows):
     """How many RAWs have: no JPEG, camera JPEG only, edited final found, multiple edited candidates."""
-    raws = {r['hash'] for r in P.dedupe_raws([r for r in idx if r.get('kind') == 'raw'])}
+    raws = {r['hash'] for r in P.dedupe_raws([r for r in idx if r.get('kind') == 'raw' and r.get('hash')])}
     by = {}
     for r in rows:
         by.setdefault(r['raw_hash'], []).append(r)
