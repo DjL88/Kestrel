@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 /** Quick setup after the first-launch welcome: six short steps, each skippable, tailored by two quick questions. */
 
@@ -44,7 +45,7 @@ test('first launch: quick setup walks language, about you, Pro, cloud, Flight mo
     .toMatchObject({ status: 'done', genres: ['wildlife'], experience: 'pro', cloud: 'local', flightMode: 'solo' });
 
   // The chosen Flight mode is the default for new projects, and setup can be run again from Settings.
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Assistance' }).click();
   await expect(settings.getByTestId('flight-mode-solo').getByRole('radio')).toBeChecked();

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openHubSettings } from './hubSettings';
 
 /** The launch welcome: what a first launch, a returning guest and a signed-in person each see, and how it keeps its promises. */
 
@@ -185,7 +186,7 @@ test('while the welcome shows, the workspace beneath is inert: out of reach of s
   await splash.getByRole('button', { name: 'Skip setup' }).click();
   await expect(splash).toHaveCount(0, { timeout: 5000 });
   for (const element of await beneath.all()) await expect(element).not.toHaveAttribute('inert');
-  await expect(page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
+  await expect(page.locator('.inflight-v2').getByTestId('hub-menu-button').or(page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true })).first()).toBeVisible();
 });
 
 test('a project moved to Recently deleted is not offered at the next launch, nor are its photos shown', async ({ page }) => {
@@ -228,7 +229,7 @@ test('a project moved to Recently deleted is not offered at the next launch, nor
 
 test('Settings offers a guest the welcome switch, and turning it off skips the welcome next time', async ({ page }) => {
   const welcomeSwitch = async () => {
-    await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+    await openHubSettings(page);
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await settings.getByRole('tab', { name: 'Account' }).click();
     return settings.getByRole('switch', { name: 'Show the welcome screen on launch' });
@@ -261,7 +262,7 @@ test('Settings offers a guest the welcome switch, and turning it off skips the w
 test('Settings does not offer the welcome switch to someone signed in', async ({ page }) => {
   await seed(page, { local: { 'inflight.launch.profile': PROFILE } });
   await page.goto('/?v2&stub=1');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Account' }).click();
   await expect(settings.getByRole('tab', { name: 'Account', selected: true })).toBeVisible();
@@ -397,7 +398,7 @@ test('a returning guest with no flagged photos remembered sees the plain welcome
 test('Settings offers everyone the slideshow switch, and it is remembered on this device', async ({ page }) => {
   await seed(page, { local: { 'inflight.launch.profile': PROFILE } });
   await page.goto('/?v2&stub=1');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Account' }).click();
   const choice = settings.getByRole('switch', { name: 'Show my photos on the welcome screen' });
