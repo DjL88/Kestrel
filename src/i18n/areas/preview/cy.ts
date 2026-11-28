@@ -32,7 +32,7 @@ export const cy: AreaTranslation<typeof source> = {
   usbTetherName: "Clymu USB",
   usbTetherDesc: "Yr ap bwrdd gwaith yn unig. Yn tynnu lluniau gyda chamera wedi'i blygio i mewn drwy USB ac yn cadw pob ffrâm mewn ffolder o'ch dewis. Dim ond gyda chamera efelychiedig y'i profwyd hyd yma.",
   collageExportName: "Dewisiadau allforio collage",
-  collageExportDesc: "Allforiwch collage ar ddwywaith ei faint neu faint a ddewiswch, dewiswch 240, 300 neu 360 DPI ar gyfer albwm, gwelwch bicseli go iawn pob ffenestr yn gyntaf, a defnyddiwch luniau RAW wedi'u datblygu gan InFlight. Ni chaiff dim ei chwyddo heb ddweud.",
+  collageExportDesc: "Allforiwch collage ar ddwywaith ei faint neu ar faint a ddewiswch. Dewiswch 240, 300 neu 360 DPI ar gyfer albwm. Gwelwch bicseli go iawn pob ffenestr yn gyntaf, a defnyddiwch luniau RAW wedi'u datblygu gan InFlight. Ni chaiff dim ei chwyddo heb ddweud.",
   tapForPhotoName: "Tapio'r llun i guddio'r bariau",
   tapForPhotoDesc: "Ar sgrin gyffwrdd, mae un tap ar y llun yn cuddio'r bariau a'r paneli fel bod y llun yn cael y sgrin gyfan. Mae tap arall yn eu dod yn ôl.",
   cloudOriginalsName: "Y lluniau gwreiddiol llawn yn y cwmwl",

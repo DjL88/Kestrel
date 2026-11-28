@@ -32,7 +32,7 @@ export const nb: AreaTranslation<typeof source> = {
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Bare i skrivebordsappen. Fotograferer med et kamera koblet til via USB og lagrer hvert bilde i en mappe du velger. Så langt bare prøvd med et simulert kamera.",
   collageExportName: "Eksportvalg for collager",
-  collageExportDesc: "Eksporter en collage i dobbel eller valgt størrelse, velg 240, 300 eller 360 DPI for et album, se først de virkelige pikslene i hvert vindu, og bruk RAW-bilder fremkalt av InFlight. Ingenting forstørres uten at det sies.",
+  collageExportDesc: "Eksporter en collage i dobbel størrelse eller en størrelse du velger. Velg 240, 300 eller 360 DPI for et album. Se først de virkelige pikslene i hvert vindu, og bruk RAW-bilder fremkalt av InFlight. Ingenting forstørres uten at det sies.",
   tapForPhotoName: "Trykk på bildet for å skjule linjene",
   tapForPhotoDesc: "På en berøringsskjerm skjuler ett trykk på bildet linjer og paneler, slik at bildet får hele skjermen. Et nytt trykk henter dem tilbake.",
   cloudOriginalsName: "Fulle originaler i skyen",

@@ -40,7 +40,7 @@ export const source = {
   usbTetherName: "USB tethering",
   usbTetherDesc: "Desktop app only. Shoots with a camera plugged in by USB and saves each frame to a folder you choose. Tried only with a simulated camera so far.",
   collageExportName: "Collage export choices",
-  collageExportDesc: "Export a collage at twice its size or a chosen size, choose 240, 300 or 360 DPI for an album, see the real pixels of every window first, and use RAW photos developed by InFlight. Nothing is enlarged without saying so.",
+  collageExportDesc: "Export a collage at twice its size or at a size you choose. Choose 240, 300 or 360 DPI for an album. See the real pixels of every window first, and use RAW photos developed by InFlight. Nothing is enlarged without saying so.",
   ortWebgpuName: "Graphics card for models",
   ortWebgpuDesc: "Desktop app only. Tries the graphics card for the on-device models, with the processor as the fallback. Its answers are not yet proven to match the processor's.",
   focusStackName: "Focus stacking",

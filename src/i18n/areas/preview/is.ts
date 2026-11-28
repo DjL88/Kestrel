@@ -32,7 +32,7 @@ export const is: AreaTranslation<typeof source> = {
   usbTetherName: "USB-tenging myndavélar",
   usbTetherDesc: "Aðeins í skjáborðsforritinu. Myndar með myndavél sem er tengd með USB og vistar hverja mynd í möppu að þínu vali. Aðeins reynt með hermdri myndavél til þessa.",
   collageExportName: "Útflutningsval klippimynda",
-  collageExportDesc: "Fluttu klippimynd út í tvöfaldri eða valinni stærð, veldu 240, 300 eða 360 DPI fyrir albúm, sjáðu fyrst raunverulega díla hvers glugga og notaðu RAW-myndir framkallaðar af InFlight. Ekkert er stækkað án þess að það sé sagt.",
+  collageExportDesc: "Fluttu klippimynd út í tvöfaldri stærð eða stærð sem þú velur. Veldu 240, 300 eða 360 DPI fyrir albúm. Sjáðu fyrst raunverulega díla hvers glugga og notaðu RAW-myndir framkallaðar af InFlight. Ekkert er stækkað án þess að það sé sagt.",
   tapForPhotoName: "Pikkaðu á myndina til að fela stikurnar",
   tapForPhotoDesc: "Á snertiskjá felur eitt pikk á myndina stikur og spjöld svo myndin fái allan skjáinn. Annað pikk kemur þeim aftur.",
   cloudOriginalsName: "Full frumrit í skýinu",

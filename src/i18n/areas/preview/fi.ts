@@ -32,7 +32,7 @@ export const fi: AreaTranslation<typeof source> = {
   usbTetherName: "USB-tethering",
   usbTetherDesc: "Vain työpöytäsovelluksessa. Kuvaa USB:llä kytketyllä kameralla ja tallentaa jokaisen kuvan valitsemaasi kansioon. Kokeiltu toistaiseksi vain simuloidulla kameralla.",
   collageExportName: "Kollaasin vientivalinnat",
-  collageExportDesc: "Vie kollaasi kaksinkertaisena tai valitun kokoisena, valitse albumille 240, 300 tai 360 DPI, näe ensin jokaisen ikkunan todelliset pikselit ja käytä InFlightin kehittämiä RAW-kuvia. Mitään ei suurenneta kertomatta.",
+  collageExportDesc: "Vie kollaasi kaksinkertaisena tai valitsemasi kokoisena. Valitse albumille 240, 300 tai 360 DPI. Näe ensin jokaisen ikkunan todelliset pikselit ja käytä InFlightin kehittämiä RAW-kuvia. Mitään ei suurenneta kertomatta.",
   tapForPhotoName: "Napauta kuvaa piilottaaksesi palkit",
   tapForPhotoDesc: "Kosketusnäytöllä yksi napautus kuvaan piilottaa palkit ja paneelit, jolloin kuva saa koko näytön. Toinen napautus tuo ne takaisin.",
   cloudOriginalsName: "Täydet alkuperäiset pilveen",

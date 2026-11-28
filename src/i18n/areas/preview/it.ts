@@ -32,7 +32,7 @@ export const it: AreaTranslation<typeof source> = {
   usbTetherName: "Tethering USB",
   usbTetherDesc: "Solo app desktop. Scatta con una fotocamera collegata via USB e salva ogni immagine in una cartella a sua scelta. Finora provato solo con una fotocamera simulata.",
   collageExportName: "Opzioni di esportazione del collage",
-  collageExportDesc: "Esporti un collage al doppio della dimensione o a una dimensione scelta, scelga 240, 300 o 360 DPI per un album, veda prima i pixel reali di ogni finestra e usi foto RAW sviluppate da InFlight. Nulla viene ingrandito senza dirlo.",
+  collageExportDesc: "Esporti un collage al doppio della dimensione o a una dimensione scelta. Scelga 240, 300 o 360 DPI per un album. Veda prima i pixel reali di ogni finestra e usi foto RAW sviluppate da InFlight. Nulla viene ingrandito senza dirlo.",
   tapForPhotoName: "Tocca la foto per nascondere le barre",
   tapForPhotoDesc: "Su uno schermo tattile, un tocco sulla foto nasconde barre e pannelli, così la foto occupa tutto lo schermo. Un altro tocco le riporta.",
   cloudOriginalsName: "Originali completi nel cloud",
