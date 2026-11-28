@@ -1,5 +1,6 @@
 import { COLLAGE_FORMATS, collageExportPages, readCollage } from '../../core/collage';
-import { renderCollagePage, encodeCollagePage } from '../../core/collagePageRender';
+import { renderCollagePage, encodeCollagePage, type CollageWindowDrawn } from '../../core/collagePageRender';
+import { collageSocialSize, type CollageOutput } from '../../core/collageOutput';
 import { collagePdf, type PdfRasterPage } from '../../core/collagePdf';
 import { planCollagePrint } from '../../core/collagePrint';
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
@@ -9,14 +10,28 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
 import type { CullingState } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { archiveExports, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
+import { archiveExports } from '../../providers/browserExport';
+import { loadCollagePicture } from './collageSource';
 
-export interface CollageExportRequest { format: 'jpeg' | 'png' | 'pdf'; allPages: boolean; range?: { first: number; last: number } }
-export async function exportCollage(state:CullingState, provider:BrowserPreviewProvider, request:CollageExportRequest, signal?:AbortSignal, progress?:(done:number,total:number)=>void):Promise<{blob:Blob;name:string}>{
+export interface CollageExportRequest {
+ format: 'jpeg' | 'png' | 'pdf'; allPages: boolean; range?: { first: number; last: number };
+ /**
+  * Collage export choices (a preview): the social scale or the print resolution. Present only with the preview on; it
+  * also lets RAW photos be developed for their windows. Absent keeps the format's own size, 300 DPI and JPEG/PNG only.
+  */
+ output?: CollageOutput;
+ /** The person saw which windows are enlarged or below the print resolution and chose to export anyway. */
+ acceptLowResolution?: boolean;
+}
+/** A window as drawn in the exported file, with its 1-based page number. */
+export type CollageExportedWindow = CollageWindowDrawn & { page: number };
+export async function exportCollage(state:CullingState, provider:BrowserPreviewProvider, request:CollageExportRequest, signal?:AbortSignal, progress?:(done:number,total:number)=>void):Promise<{blob:Blob;name:string;windows:CollageExportedWindow[]}>{
  const doc=readCollage(state.shoot.collage);
  if(!doc)throw new Error('No valid collage is open.');
  const print=request.format==='pdf';
- const plan=print?planCollagePrint(doc.format):null;
+ const output=request.output&&(request.output.kind==='print')===print?request.output:undefined;
+ const plan=print?planCollagePrint(doc.format,output?.kind==='print'?output.dpi:300):null;
+ const windows:CollageExportedWindow[]=[];
  // A social format is measured in pixels, not physical print dimensions.
  // A print PDF must have a real paper size for its trim/bleed geometry.
  const paper=COLLAGE_FORMATS[doc.format].unit==='mm';
@@ -32,15 +47,17 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
    signal?.throwIfAborted();
    const frame=state.frames.find(f=>f.id===id&&f.removedAt==null);
    if(!frame)throw new Error('Reconnect or replace the missing photograph on this page.');
-   // Deliberately refuse unverified RAW/HEIF previews until the full-resolution decoder contract is available.
-   const image=await loadVerifiedRasterOriginalForExport(frame,provider,signal);
+   // JPEG and PNG originals are verified against their fingerprint. With the collage export preview on, a RAW is developed
+   // from its sensor data exactly as a single-photo export does; an embedded camera preview is never used (collageSource.ts).
+   const image=await loadCollagePicture(frame,provider,signal,Boolean(output));
    const framing=frame.framing??DEFAULT_FRAMING;
    const size=framedSize(image.naturalWidth,image.naturalHeight,framing);
    // A 45 MP source is allowed on a device with a smaller canvas limit:
    // it is genuinely decoded, then downsampled for the required composition.
    // The print renderer subsequently checks the *actual* developed pixel count.
    const scaledForDevice=fitScale(size.width,size.height,limit);
-   const longestEdge=print?Infinity:Math.max(COLLAGE_FORMATS[doc.format].width,COLLAGE_FORMATS[doc.format].height);
+   const social=!print&&output?.kind==='social'?collageSocialSize(doc.format,output.scale):COLLAGE_FORMATS[doc.format];
+   const longestEdge=print?Infinity:Math.max(social.width,social.height);
    const scale=Math.min(scaledForDevice,print?1:Math.min(1,longestEdge*1.5/Math.max(size.width,size.height)));
    const picture=document.createElement('canvas');
    try{
@@ -50,7 +67,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
     await applyFrameLayers(picture,frame.overlay,true,frame.edit?.masks);
     return {image:picture,width:picture.width,height:picture.height,release:()=>{picture.width=0;picture.height=0;}};
    }catch(error){picture.width=0;picture.height=0;throw error;}
-  },print);
+  },print,output?{output,acceptLowResolution:request.acceptLowResolution,onWindow:drawn=>windows.push({...drawn,page:doc.pages.indexOf(page)+1})}:{});
   try{
    const blob=await encodeCollagePage(canvas,request.format==='png'?'png':'jpeg');
    signal?.throwIfAborted();
@@ -60,7 +77,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
   progress?.(print?rasters.length:files.length,pages.length);
  }
  const selectionName = request.range ? stem + '-pages-' + request.range.first + '-' + request.range.last : stem;
- if(plan)return {blob:collagePdf(rasters,plan),name:selectionName+'.pdf'};
- if(files.length===1)return {blob:files[0],name:files[0].name};
- return {blob:await archiveExports(files),name:request.range ? selectionName+'.zip' : stem+'-pages.zip'};
+ if(plan)return {blob:collagePdf(rasters,plan),name:selectionName+'.pdf',windows};
+ if(files.length===1)return {blob:files[0],name:files[0].name,windows};
+ return {blob:await archiveExports(files),name:request.range ? selectionName+'.zip' : stem+'-pages.zip',windows};
 }

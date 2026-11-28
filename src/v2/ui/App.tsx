@@ -58,6 +58,7 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import type { HealCandidate } from './shell/HealLayer';
+import { previewOn, previewsVersion, subscribePreviews } from '../../core/previewFeatures';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
@@ -548,6 +549,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     onMoveSource: (spotId: string, source: { sx: number; sy: number }) => actions.updateHealSpot?.(activePhoto.id, spotId, { source }),
     onStopPlacing: () => setHealUi((current) => (current ? { ...current, placing: false } : current)),
   } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot, coverCandidates]);
+  // Collage export choices (a preview): export size or print resolution, every window's pixels, and RAW photos.
+  React.useSyncExternalStore(subscribePreviews, previewsVersion, previewsVersion);
+  const collageChoicesOn = previewOn('collageExport') && Boolean(actions.checkCollageExport);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -1778,7 +1782,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       {printing && <React.Suspense fallback={null}><PrintDialog result={printing.result} onClose={closePrint} /></React.Suspense>}
       {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
         formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
-      {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
+      {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} onCheck={collageChoicesOn ? actions.checkCollageExport : undefined} /></React.Suspense>}
       <React.Suspense fallback={null}><ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}
         photo={activePhoto}

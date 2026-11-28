@@ -2,15 +2,27 @@ import { STRINGS } from '../strings';
 import React from 'react';
 import { COLLAGE_FORMATS, MAX_COLLAGE_EXPORT_PAGES, type CollageDocument } from '../../../core/collage';
 import type { CollageExportRequest } from '../../engineClient/exportCollage';
-interface Props { document: CollageDocument; onClose:()=>void; onExport?: (request:CollageExportRequest)=>Promise<void> }
-export default function CollageExportDialog({document:doc,onClose,onExport}:Props){
+import type { CollageOutput, CollageWindowCheck } from '../../../core/collageOutput';
+import { collageOutputText } from '../../../i18n/areas/collageOutput';
+import CollageOutputChoices from './CollageOutputChoices';
+interface Props {
+ document: CollageDocument; onClose:()=>void; onExport?: (request:CollageExportRequest)=>Promise<void>;
+ /** Collage export choices (a preview): present only with it on. Checks every window at the chosen size before export. */
+ onCheck?: (request:CollageExportRequest)=>CollageWindowCheck[];
+}
+export default function CollageExportDialog({document:doc,onClose,onExport,onCheck}:Props){
  const paper=COLLAGE_FORMATS[doc.format].unit==='mm';
+ const [output,setOutput]=React.useState<CollageOutput>(paper?{kind:'print',dpi:300}:{kind:'social',scale:{kind:'x1'}});
  const [format,setFormat]=React.useState<CollageExportRequest['format']>(paper?'pdf':'jpeg');
  const [mode,setMode]=React.useState<'current'|'all'|'range'>(doc.pages.length>MAX_COLLAGE_EXPORT_PAGES?'range':doc.pages.length>1?'all':'current');
  const [first,setFirst]=React.useState(1);
  const [last,setLast]=React.useState(Math.min(doc.pages.length,MAX_COLLAGE_EXPORT_PAGES));
  const invalidRange=mode==='range' && (!Number.isInteger(first)||!Number.isInteger(last)||first<1||last<first||last>doc.pages.length||last-first+1>MAX_COLLAGE_EXPORT_PAGES);
  const multiple=mode==='all'?doc.pages.length>1:mode==='range'&&last>first;
+ const base={format,allPages:mode==='all',...(mode==='range'?{range:{first,last}}:{})} satisfies CollageExportRequest;
+ const checks=React.useMemo(()=>onCheck&&!invalidRange?onCheck({...base,output}):[],
+  [onCheck,invalidRange,format,mode,first,last,output,doc]);
+ const soft=checks.filter(check=>check.low).length;
  const [busy,setBusy]=React.useState(false);
  const [error,setError]=React.useState('');
  const closeRef=React.useRef<HTMLButtonElement>(null);
@@ -30,10 +42,12 @@ export default function CollageExportDialog({document:doc,onClose,onExport}:Prop
     {(invalidRange||doc.pages.length>MAX_COLLAGE_EXPORT_PAGES)&&<p role="status">{STRINGS.collage.rangeHelp(MAX_COLLAGE_EXPORT_PAGES)}</p>}
    </fieldset>
    <label className="block font-medium">{STRINGS.collageExport.fileFormat}<select disabled={busy} className="block mt-2 w-full rounded border bg-[var(--bg-surface)] p-2" value={format} onChange={e=>setFormat(e.target.value as CollageExportRequest['format'])}>{paper?<option value="pdf">{STRINGS.collageExport.albumPdf}</option>:<><option value="jpeg">JPEG</option><option value="png">PNG</option></>}</select></label>
-   <p className="text-sm text-[var(--text-secondary)]">{format==='pdf'?STRINGS.collageExport.pdfNote:multiple?STRINGS.collageExport.zipNote:STRINGS.collageExport.singleNote} {STRINGS.collageExport.originalsNote}</p>
+   {onCheck&&<CollageOutputChoices format={doc.format} output={output} onChange={setOutput} checks={checks} disabled={busy}/>}
+   <p className="text-sm text-[var(--text-secondary)]">{format==='pdf'?(onCheck&&output.kind==='print'?collageOutputText.pdfNote(output.dpi):STRINGS.collageExport.pdfNote):multiple?STRINGS.collageExport.zipNote:STRINGS.collageExport.singleNote}{onCheck?'':` ${STRINGS.collageExport.originalsNote}`}</p>
+   {soft>0&&<p role="status" data-testid="collage-soft-summary" className="text-sm">{collageOutputText.lowSummary(soft)}</p>}
    {error&&<p role="alert" className="text-sm">{error}</p>}
    {!onExport&&<p role="status">{STRINGS.collageExport.unavailable}</p>}
-   <button type="button" className="w-full min-h-11 rounded bg-[var(--brand-accent)] font-semibold text-[var(--text-on-accent)] disabled:opacity-50" disabled={busy||!onExport||invalidRange||(format==='pdf'&&!paper)} onClick={async()=>{if(!onExport)return;setBusy(true);setError('');try{await onExport({format,allPages:mode==='all',...(mode==='range'?{range:{first,last}}:{})});onClose();}catch(reason){setError(reason instanceof Error?reason.message:STRINGS.collageExport.failed);}finally{setBusy(false);}}}>{busy?STRINGS.collageExport.preparing:STRINGS.collageExport.export}</button>
+   <button type="button" className="w-full min-h-11 rounded bg-[var(--brand-accent)] font-semibold text-[var(--text-on-accent)] disabled:opacity-50" disabled={busy||!onExport||invalidRange||(format==='pdf'&&!paper)} data-testid="collage-export-run" onClick={async()=>{if(!onExport)return;setBusy(true);setError('');try{await onExport(onCheck?{...base,output,...(soft?{acceptLowResolution:true}:{})}:base);onClose();}catch(reason){setError(reason instanceof Error?reason.message:STRINGS.collageExport.failed);}finally{setBusy(false);}}}>{busy?STRINGS.collageExport.preparing:soft?collageOutputText.exportAnyway(soft):STRINGS.collageExport.export}</button>
   </section>
  </div>;
 }
