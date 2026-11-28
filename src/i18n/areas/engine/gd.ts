@@ -24,6 +24,7 @@ export const gd: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Air a leasachadh mar-thà: tha toradh mu dheireadh Auto fhathast air an dealbh seo, agus cha atharraicheadh e dad ma ruitheadh e a-rithist. Neo-dhèan e, no gluais sleamhnachan agus ruith Auto a-rithist.',
     guard: {
       held: 'Loisgeadh e na solais àrda nan deigheadh an dealbh seo a shoilleireachadh, mar sin dh’fhàgadh e mar a tha e.',
+      liftDropped: 'Loisgeadh e na solais àrda nan deigheadh an dealbh a shoilleireachadh: chaidh an soilleireachadh fhàgail a-mach agus chaidh na h-atharrachaidhean eile a chumail.',
       recovered: 'Chaidh na solais àrda a tharraing sìos beagan gus nach loisg an soilleireachadh iad.',
       zoned: 'Tha an soilleireachadh ag amas air na raointean dorcha seach am frèam gu lèir, gus an cùm na raointean soilleir am mion-fhiosrachadh.',
       liftedLess: 'Chaidh an soilleireachadh a chumail nas lugha na b’ urrainn dha a bhith gus nach loisg na raointean soilleir.',

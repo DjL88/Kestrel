@@ -24,6 +24,7 @@ export const fi: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Jo parannettu: Auton viimeisin tulos on yhä tässä kuvassa, eikä uusi ajo muuttaisi mitään. Kumoa se, tai siirrä liukusäädintä ja aja Auto uudelleen.',
     guard: {
       held: 'Tämän kuvan vaalentaminen polttaisi kirkkaat kohdat, joten se jätettiin ennalleen.',
+      liftDropped: 'Vaalennus polttaisi kirkkaat kohdat: vaalennus jätettiin pois ja muut muutokset säilytettiin.',
       recovered: 'Kirkkaita kohtia vedettiin hieman alas, jotta vaalennus ei polta niitä.',
       zoned: 'Vaalennus kohdistetaan tummiin alueisiin koko kuvan sijaan, jotta vaaleat alueet säilyttävät yksityiskohtansa.',
       liftedLess: 'Vaalennus pidettiin pienempänä kuin olisi voinut, jotta vaaleat alueet eivät pala puhki.',

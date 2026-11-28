@@ -6,7 +6,7 @@ import { DEFAULT_EDIT, type PhotoEdit } from './photoEdits';
 import { mergeAutoSuggestion } from './autoEnhance';
 import { naturalAuto, sameRecipe } from './naturalAuto';
 import { planAuto } from './unifiedAuto';
-import { guardHighlights } from './autoHighlightGuard';
+import { guardHighlights, withoutLift } from './autoHighlightGuard';
 import type { PhotoFrame } from './types';
 
 const frameWith = (edit: PhotoEdit | undefined, ...steps: { edit: PhotoEdit; why?: boolean }[]): PhotoFrame => {
@@ -111,4 +111,25 @@ test('highlight guard: never reports satisfied when the frame is already blown a
   const pixels = scene(255, 250, 200);
   const result = guardHighlights({ pixels, width: W, height: H, base: DEFAULT_EDIT, proposal: { ...DEFAULT_EDIT, exposure: 2 } });
   assert.ok(result.clipAfter <= result.clipBefore + 0.01 || !result.satisfied);
+});
+
+test('highlight guard: a saturated orange subject on a dark ground is not treated as clipped', () => {
+  const data = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const bird = x > 40 && x < 100 && y > 30 && y < 90;
+    data.set(bird ? [255, 140, 20, 255] : [30, 32, 36, 255], (y * W + x) * 4);
+  }
+  const result = guardHighlights({ pixels: data, width: W, height: H, base: DEFAULT_EDIT, proposal: { ...DEFAULT_EDIT, warmth: 0.2, vibrance: 0.3 } });
+  assert.equal(result.action, 'none');
+  assert.equal(result.clipBefore, 0, 'one maxed channel is colour, not blown white');
+});
+
+test('when the guard fails only the lift is dropped: warmth, vibrance and highlight fixes are kept', () => {
+  const proposal: PhotoEdit = { ...DEFAULT_EDIT, exposure: 1.2, shadows: 0.6, warmth: 0.3, vibrance: 0.2, highlights: -0.4,
+    masks: [{ id: 's', kind: 'subject', edit: { exposure: 0.4, vibrance: 0.1 } } as never] };
+  const kept = withoutLift(DEFAULT_EDIT, proposal);
+  assert.equal(kept.exposure, 0);
+  assert.equal(kept.shadows, undefined);
+  assert.equal(kept.warmth, 0.3); assert.equal(kept.vibrance, 0.2); assert.equal(kept.highlights, -0.4);
+  assert.deepEqual(kept.masks?.[0].edit, { vibrance: 0.1 });
 });

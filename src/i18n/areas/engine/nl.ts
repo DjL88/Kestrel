@@ -24,6 +24,7 @@ export const nl: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Al verbeterd: het laatste resultaat van Auto staat nog op deze foto en opnieuw uitvoeren verandert niets. Maak het ongedaan, of verschuif een schuifregelaar en voer Auto opnieuw uit.',
     guard: {
       held: 'Deze foto opheffen zou de hoge lichten laten doorbranden, dus hij is ongewijzigd gelaten.',
+      liftDropped: 'Opheffen zou de hoge lichten laten doorbranden: het opheffen is weggelaten en de andere wijzigingen zijn behouden.',
       recovered: 'De hoge lichten zijn een beetje teruggenomen zodat het opheffen ze niet laat doorbranden.',
       zoned: 'Het opheffen richt zich op de donkere delen in plaats van het hele beeld, zodat lichte delen hun detail houden.',
       liftedLess: 'Het opheffen is kleiner gehouden dan mogelijk zodat lichte delen niet doorbranden.',

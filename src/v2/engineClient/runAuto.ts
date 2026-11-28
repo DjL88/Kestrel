@@ -9,7 +9,7 @@ import { observationsFromFrame, preservationPolicy } from '../../core/photograph
 import { sceneHintsFromPhotoTags } from '../../core/photoTagHints';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
 import { stripAutoLayer } from '../../core/autoLayer';
-import { guardHighlights } from '../../core/autoHighlightGuard';
+import { guardHighlights, withoutLift } from '../../core/autoHighlightGuard';
 import { leanProposal, type Leaning } from '../../core/editStyle';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
@@ -209,8 +209,15 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     const guard = guardHighlights({ pixels: analysis.data, width: analysis.width, height: analysis.height, base, proposal: planned.proposal });
     if (guard.action === 'none') return planned;
     if (!guard.satisfied) {
-      guardNotes.push(engineText.auto.guard.held);
-      return { ...planned, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'Lifting this photo would blow out its highlights, so it was left as it is' } };
+      // Only the lift is dropped; warmth, vibrance, highlight and contrast fixes unrelated to it are kept (and re-checked).
+      const kept = withoutLift(base, planned.proposal);
+      if (sameRecipe(kept, base)) {
+        guardNotes.push(engineText.auto.guard.held);
+        return { ...planned, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'Lifting this photo would blow out its highlights, so it was left as it is' } };
+      }
+      const recheck = guardHighlights({ pixels: analysis.data, width: analysis.width, height: analysis.height, base, proposal: kept });
+      guardNotes.push(engineText.auto.guard.liftDropped);
+      return { ...planned, proposal: recheck.satisfied ? recheck.edit : kept };
     }
     guardNotes.push(guard.action === 'recovered' ? engineText.auto.guard.recovered : guard.action === 'zoned' ? engineText.auto.guard.zoned : engineText.auto.guard.liftedLess);
     return { ...planned, proposal: guard.edit };

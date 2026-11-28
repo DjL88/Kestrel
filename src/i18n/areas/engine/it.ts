@@ -24,6 +24,7 @@ export const it: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Già migliorata: l’ultimo risultato di Auto è ancora su questa foto e rieseguirlo non cambierebbe nulla. Annulla, oppure sposta un cursore ed esegui di nuovo Auto.',
     guard: {
       held: 'Schiarire questa foto brucerebbe le alte luci, quindi è stata lasciata com’è.',
+      liftDropped: 'Schiarire questa foto brucerebbe le alte luci: la schiarita è stata omessa e le altre modifiche mantenute.',
       recovered: 'Le alte luci sono state ridotte un poco perché la schiarita non le bruci.',
       zoned: 'La schiarita agisce sulle zone scure e non su tutta l’inquadratura, così le zone chiare mantengono i dettagli.',
       liftedLess: 'La schiarita è stata mantenuta più contenuta del possibile per non bruciare le zone chiare.',

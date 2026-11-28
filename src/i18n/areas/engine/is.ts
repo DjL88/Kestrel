@@ -24,6 +24,7 @@ export const is: AreaTranslation<typeof source> = {
     alreadyEnhanced: 'Þegar bætt: síðasta niðurstaða Auto er enn á þessari mynd og ný keyrsla breytti engu. Afturkallaðu hana, eða færðu sleða og keyrðu Auto aftur.',
     guard: {
       held: 'Að lýsa þessa mynd myndi brenna út ljósu svæðin, svo henni var haldið óbreyttri.',
+      liftDropped: 'Að lýsa myndina myndi brenna út ljósu svæðin: lýsingin var sleppt og aðrar breytingar látnar halda sér.',
       recovered: 'Ljósu svæðin voru dregin lítillega niður svo lýsingin brenni þau ekki út.',
       zoned: 'Lýsingin beinist að dökku svæðunum frekar en allri myndinni svo björt svæði haldi smáatriðum.',
       liftedLess: 'Lýsingin var höfð minni en hún hefði getað verið svo björt svæði brenni ekki út.',
