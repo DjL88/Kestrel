@@ -66,6 +66,15 @@ class BoundaryTests(unittest.TestCase):
         full = np.ones((20, 20), bool)
         self.assertFalse(M.boundary(full).any())
 
+    def test_larger_tolerance_never_scores_lower_with_a_band(self):
+        gt = disc((200, 200), 100, 100, 60)
+        band = disc((200, 200), 100, 100, 64) & ~disc((200, 200), 100, 100, 56)
+        subject = gt & ~band
+        pred = disc((200, 200), 104, 99, 62)
+        f = [M.boundary_f(pred, subject, t, band)["f"] for t in (2, 4, 8)]
+        self.assertLessEqual(f[0], f[1] + 1e-9)
+        self.assertLessEqual(f[1], f[2] + 1e-9)
+
     def test_uncertain_band_waives_the_boundary_inside_it(self):
         gt = np.zeros((100, 100), bool)
         gt[:, :50] = True

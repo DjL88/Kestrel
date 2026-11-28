@@ -29,7 +29,7 @@ from .matte.pipeline import matte
 
 BLURS = (0, 3, 6, 12)
 GAPS = (0.35, 0.05)
-SEED_BASE = 100  # development used other seeds; these are only ever used here
+SEED_BASE = 200  # tuning used seeds 2-4, 11, 100 and 101; these are never used for tuning
 
 
 def write_json(path: str, value) -> None:
@@ -111,12 +111,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--seeds", type=int, default=4)
     ap.add_argument("--no-baseline", action="store_true")
+    ap.add_argument("--rescore", action="store_true", help="reuse the scenes and masks already in --out and only score them again")
     ap.add_argument("--repo", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     a = ap.parse_args(argv)
-    items = build(a.out, a.seeds)
-    refused = {"matte": run_matte(a.out, items)}
-    if not a.no_baseline:
-        refused["shipped"] = run_shipped(a.out, a.repo)
+    if a.rescore:
+        with open(os.path.join(a.out, "keys.json")) as f:
+            items = json.load(f)["photos"]
+        refused = {"matte": {it["key"]: "no mask" for it in items if not os.path.exists(os.path.join(a.out, "matte", it["key"] + ".png"))}}
+        if os.path.exists(os.path.join(a.out, "shipped")):
+            with open(os.path.join(a.out, "shipped", "refusals.json")) as f:
+                refused["shipped"] = json.load(f)
+    else:
+        items = build(a.out, a.seeds)
+        refused = {"matte": run_matte(a.out, items)}
+        if not a.no_baseline:
+            refused["shipped"] = run_shipped(a.out, a.repo)
     table = score_all(a.out, items, {n: None for n in refused})
     text = report(items, table, refused)
     print(text)

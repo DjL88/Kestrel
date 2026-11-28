@@ -23,6 +23,9 @@ from scipy import ndimage as ndi
 FG_MIN = 192
 BAND_MIN = 65  # BAND_MIN..FG_MIN-1 is the uncertain band
 DEFAULT_TOLERANCES = (2, 4, 8)
+#: Boundary pixels within this many px of the uncertain band are left out. Fixed, NOT the tolerance: if the waived zone grew
+#: with the tolerance, the larger tolerances would be scored on a handful of leftover pixels and could come out lower.
+BAND_MARGIN = 1.0
 #: An error region smaller than this (pixels) is edge wobble, not something a person would fix.
 MIN_ERROR_AREA = 12
 #: One brush stroke or lasso run is taken to cover about this much error boundary (pixels).
@@ -70,14 +73,15 @@ def boundary(mask: np.ndarray) -> np.ndarray:
 def boundary_f(pred: np.ndarray, subject: np.ndarray, tolerance: float, ignore: np.ndarray | None = None) -> dict:
     """Boundary precision, recall and F1: a boundary pixel is right when the other mask's boundary is within `tolerance` px.
 
-    Where the ground truth has an uncertain band, boundary pixels within `tolerance` of the band are left out on both
+    Where the ground truth has an uncertain band, boundary pixels in or right next to it (BAND_MARGIN) are left out on both
     sides (the owner said "can't tell here"). `waived` is the share of the ground-truth boundary left out that way, so a
-    reader can see how much of the boundary the score does not cover.
+    reader can see how much of the boundary the score does not cover. Where the band surrounds the whole subject nothing is
+    left to score except stray boundaries elsewhere, which then count against the source.
     """
     gb_all = boundary(subject)
     pb_all = boundary(pred)
     if ignore is not None and ignore.any():
-        near_band = ndi.distance_transform_edt(~ignore) <= tolerance
+        near_band = ndi.distance_transform_edt(~ignore) <= BAND_MARGIN
     else:
         near_band = np.zeros(pred.shape, bool)
     g_eval = gb_all & ~near_band

@@ -80,7 +80,7 @@ def colour_evidence(rgb: np.ndarray, fg_seed: np.ndarray, bg_seed: np.ndarray, b
     return ratio[cells].astype(np.float32)
 
 
-def build_trimap(rgb: np.ndarray, long_edge: float | None = None, *, inner: float = 10.0, outer: float = 8.0, grow: float = 0.06,
+def build_trimap(rgb: np.ndarray, long_edge: float | None = None, *, inner: float = 18.0, outer: float = 6.0, grow: float = 0.06,
                  min_seed: float = 0.002, max_seed: float = 0.65) -> Trimap:
     """`inner`/`outer` are band half-widths in px (inside/outside the grown region) at a 1024-px working size; `grow` is how
     far (as a share of the long edge) colour may carry the subject past the sharp seed."""
