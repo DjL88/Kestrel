@@ -8,6 +8,7 @@ const LABELS: Record<Mask['kind'], { kind: StoryStepKind; title: string }> = {
   linear: { kind: 'linear-mask', title: 'Linear gradient' },
   radial: { kind: 'radial-mask', title: 'Radial gradient' },
   brush: { kind: 'adjustments', title: 'Brush adjustment' },
+  tonal: { kind: 'adjustments', title: 'Brightness-range adjustment' },
 };
 const numeric = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const activeMask = (mask: Mask): boolean => Object.values(mask.edit).some((value) => numeric(value) && value !== 0);

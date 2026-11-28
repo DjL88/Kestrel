@@ -80,3 +80,38 @@ test('a mask can be inverted from its layer and the setting is a labelled checkb
   await invert.uncheck();
   await expect(root.getByText('normal: the selected area is adjusted')).toBeVisible();
 });
+
+test('brightness masks: Shadows and Highlights can be added, their range edited by keyboard, and inverted', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'The Masks panel is reached from the desktop rail here.');
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Mask tonal');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 600; c.height = 400;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createLinearGradient(0, 0, 600, 0); g.addColorStop(0, '#000'); g.addColorStop(1, '#fff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 600, 400);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'ramp.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByTestId('canvas-frame').locator('img').first()).toBeVisible({ timeout: 30000 });
+  await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
+  await root.getByTestId('mask-tonal-shadows').click();
+  await root.getByTestId('mask-tonal-highlights').click();
+  await expect(root.locator('button[aria-expanded]').filter({ hasText: 'Shadows' })).toHaveCount(1);
+  await expect(root.locator('button[aria-expanded]').filter({ hasText: 'Highlights' })).toHaveCount(1);
+  const highlights = root.locator('button[aria-expanded]').filter({ hasText: 'Highlights' });
+  if ((await highlights.getAttribute('aria-expanded')) !== 'true') await highlights.click();
+  const low = root.getByTestId('v2-mask-tonal-low');
+  await expect(low).toHaveValue('0.65');
+  await low.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(low).toHaveValue('0.64');
+  await expect(root.getByTestId('v2-mask-tonal').getByText('64%')).toBeVisible();
+  await root.getByTestId('v2-mask-invert').check();
+  await expect(root.getByTestId('v2-mask-invert')).toBeChecked();
+});

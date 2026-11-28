@@ -385,7 +385,9 @@ export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'interse
 export interface MaskLayer {
   id: string;
   name: string;
-  type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
+  type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient' | 'tonal';
+  /** Present only for tonal masks: which brightness preset it began as, and the brightness range it selects (0 black to 1 white). */
+  tonal?: { band: 'shadows' | 'highlights' | 'blacks' | 'whites' | 'range'; low: number; high: number };
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
   /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
@@ -1191,7 +1193,7 @@ export interface WorkspaceActions {
 
   // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
-  addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  addMaskLayer: (photoId: string, type: Exclude<MaskLayer['type'], 'tonal'>) => void;
   /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
   downloadTapSelect?: () => void;
   startTapSelect?: (photoId: string) => void;
@@ -1206,6 +1208,10 @@ export interface WorkspaceActions {
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   /** Combine other masks into this one, in order; an empty list removes every part. */
   setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
+  /** Add a mask that picks pixels by brightness (shadows, highlights, blacks, whites or a custom range). */
+  addTonalMask: (photoId: string, band: NonNullable<MaskLayer['tonal']>['band']) => void;
+  /** Set one end of a tonal mask's brightness range, 0 to 1; the two ends never cross. */
+  setMaskTonalRange: (photoId: string, maskId: string, end: 'low' | 'high', value: number) => void;
   /** Swap what a mask selects (invert the selection). Switching it again restores the original. */
   setMaskInvert: (photoId: string, maskId: string, invert: boolean) => void;
 

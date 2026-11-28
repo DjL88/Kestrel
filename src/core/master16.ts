@@ -14,7 +14,7 @@ import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeut
 import { cropRectangle, DEFAULT_FRAMING, lensCentre, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
 import { maskIsActive, validMasks, type Mask } from './maskTypes';
-import { effectiveAlpha } from './masks';
+import { effectiveAlpha, lumaFromRgb16 } from './masks';
 import { blendSrgb16 } from './linearRgb16';
 import { denoiseLuminance } from './luminanceDenoise';
 import { noiseStrength } from './noiseReduction';
@@ -299,6 +299,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
     const alpha = effectiveAlpha(mask, masks, width, bandHeight, {
       aspect: height / width,
       view: { x: 0, y: from / height, w: 1, h: bandHeight / height },
+      ...(masks.some(other => other.kind === 'tonal') ? { luma: lumaFromRgb16(data, width, from, bandHeight) } : {}),
     });
     for (let p = 0; p < alpha.length; p += 1) {
       const a = alpha[p];
@@ -358,6 +359,7 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
       const alpha = effectiveAlpha(mask, masks, width, bandHeight, {
         aspect: height / width,
         view: { x: 0, y: from / height, w: 1, h: bandHeight / height },
+        ...(masks.some(other => other.kind === 'tonal') ? { luma: lumaFromRgb16(data, width, from, bandHeight) } : {}),
       });
       if (!alpha.some((value) => value > 0)) continue;
       const count = width * bandHeight;

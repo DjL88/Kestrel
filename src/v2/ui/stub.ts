@@ -1948,6 +1948,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         brush: 'Brush Mask',
         area: 'Selected Area',
         gradient: 'Gradient',
+        tonal: 'Brightness range',
       };
       updatePhotoById(photoId, (photo) => ({
         ...photo,
@@ -2001,6 +2002,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    addTonalMask: (photoId, band) => {
+      const names = { shadows: 'Shadows', highlights: 'Highlights', blacks: 'Blacks', whites: 'Whites', range: 'Brightness range' };
+      const presets = { shadows: [0, 0.35], highlights: [0.65, 1], blacks: [0, 0.12], whites: [0.88, 1], range: [0.3, 0.7] } as const;
+      updatePhotoById(photoId, photo => ({ ...photo, masks: [...photo.masks, { id: `mask-${Date.now()}`, name: names[band], type: 'tonal' as const, visible: true, feather: 50, edit: {}, tonal: { band, low: presets[band][0], high: presets[band][1] } }] }));
+    },
+    setMaskTonalRange: (photoId, maskId, end, value) => {
+      updatePhotoById(photoId, photo => ({ ...photo, masks: photo.masks.map(m => m.id === maskId && m.tonal ? { ...m, tonal: { ...m.tonal, [end]: end === 'low' ? Math.min(value, m.tonal.high - 0.02) : Math.max(value, m.tonal.low + 0.02) } } : m) }));
+    },
     setMaskInvert: (photoId, maskId, invert) => {
       updatePhotoById(photoId, photo => ({ ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, invert } : m) }));
     },

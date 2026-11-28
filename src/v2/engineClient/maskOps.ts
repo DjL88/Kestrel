@@ -13,7 +13,7 @@ export const MASK_SLIDERS = [
   { key: 'denoiseLuminance', label: 'Grain denoise', min: 0, max: 2, step: 0.05 },
 ] as const satisfies readonly { key: MaskEditKey; label: string; min: number; max: number; step: number }[];
 
-const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
+const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'tonal' ? 'tonal' : mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
 const layerName = (mask: Mask): string => {
   if (mask.kind === 'subject' && mask.id.startsWith('auto-denoise-')) {
     const instance = /-instance-(\d+)-([a-zA-Z0-9]+)$/.exec(mask.id);
@@ -24,6 +24,7 @@ const layerName = (mask: Mask): string => {
     const eye = /-eye-(\d+)$/.exec(mask.id);
     if (eye) return `Eye ${eye[1]} · Gentle denoise`;
   }
+  if (mask.kind === 'tonal') return { shadows: 'Shadows', highlights: 'Highlights', blacks: 'Blacks', whites: 'Whites', range: 'Brightness range' }[mask.band];
   return mask.kind === 'subject' ? (mask.invert ? 'Background' : 'Subject') : mask.kind === 'brush' ? 'Brush mask' : mask.kind === 'linear' ? 'Gradient' : 'Round area';
 };
 
@@ -34,6 +35,7 @@ export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
     ...(isCombined(mask) ? { parts: maskParts(mask) } : {}),
     invert: mask.invert,
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
+    ...(mask.kind === 'tonal' ? { tonal: { band: mask.band, low: mask.low, high: mask.high } } : {}),
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
   }));
@@ -116,6 +118,16 @@ export function setMaskParts(masks: readonly Mask[] | undefined, id: string, par
   });
   if (!valid) return [...list];
   return change(list, id, (mask) => withParts(mask, parts));
+}
+
+/** Set one end of a tonal mask's brightness range. Ends are held in 0 to 1 and at least 0.02 apart, so the range never collapses. */
+export function setMaskTonalRange(masks: readonly Mask[] | undefined, id: string, end: 'low' | 'high', value: number): Mask[] {
+  if (!Number.isFinite(value)) return [...(masks ?? [])];
+  return change(masks, id, (mask) => {
+    if (mask.kind !== 'tonal') return mask;
+    const v = Math.round(Math.min(1, Math.max(0, value)) * 100) / 100;
+    return end === 'low' ? { ...mask, low: Math.min(v, mask.high - 0.02) } : { ...mask, high: Math.max(v, mask.low + 0.02) };
+  });
 }
 
 /** Invert the selection of a mask: what it selected is left alone and the rest is adjusted. Setting it twice restores it. */

@@ -35,14 +35,14 @@ export function guideEdgeFor(shownEdge: number, style: MaskGuideStyle): number {
   return Math.min(OUTLINE_EDGE_MAX, Math.ceil(shownEdge / 512) * 512);
 }
 
-export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number, style: MaskGuideStyle = 'fill', edge?: number) {
+export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number, style: MaskGuideStyle = 'fill', edge?: number, brightness?: (width: number, height: number) => Float32Array | undefined) {
   const mask = masks.find(item => item.id === maskId && !item.hidden);
   if (!mask || !Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) return null;
   const wanted = edge && Number.isFinite(edge) && edge > 0 ? Math.min(edge, OUTLINE_EDGE_MAX) : style === 'outline' ? OUTLINE_EDGE : FILL_EDGE;
   const scale = Math.min(1, wanted / Math.max(sourceWidth, sourceHeight));
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
-  const weights = effectiveAlpha(mask, masks, width, height, { aspect: sourceHeight / sourceWidth, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const weights = effectiveAlpha(mask, masks, width, height, { aspect: sourceHeight / sourceWidth, view: { x: 0, y: 0, w: 1, h: 1 }, luma: brightness?.(width, height) });
   const rgba = new Uint8ClampedArray(width * height * 4);
   if (style === 'outline') return { width, height, rgba: outlineRgba(weights, width, height, rgba) };
   for (let i = 0; i < weights.length; i++) {

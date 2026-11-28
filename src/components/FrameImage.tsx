@@ -7,7 +7,7 @@ import { applyFrameLayers } from '../core/layerAssetVault';
 import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../core/photoFraming';
-import { fullContext } from '../core/masks';
+import { fullContext, lumaFromRgba8 } from '../core/masks';
 import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
 import { storedEditSource } from '../providers/editSource';
@@ -789,7 +789,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           style={{ ...demoStyle, display: src && liveFor === identity ? undefined : 'none' }} className={`pointer-events-none absolute inset-0 w-full h-full select-none ${imgClassName}`} />
       )}
       {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
-        <MaskCoverageImage key={`${src}:${maskGuideId}:${maskGuideStyle}`} masks={frame.edit.masks} maskId={maskGuideId} guideStyle={maskGuideStyle} zoom={guideZoom}
+        <MaskCoverageImage key={`${src}:${maskGuideId}:${maskGuideStyle}`} src={src} masks={frame.edit.masks} maskId={maskGuideId} guideStyle={maskGuideStyle} zoom={guideZoom}
           width={imageSize.width} height={imageSize.height} className={imgClassName} style={demoStyle} />
       )}
       {/* Kept through an edit redraw (same picture size), so the outline does not blink while a slider moves. */}
@@ -806,8 +806,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
 /** Render the same effective mask weights as the editor. The overlay is a separate non-interactive image, so
  * it follows object-fit, crop, rotation and zoom and can never enter an export recipe. */
-function MaskCoverageImage({ masks, maskId, guideStyle, zoom, width, height, className, style }: {
-  masks: readonly Mask[]; maskId: string; guideStyle: MaskGuideStyle; zoom?: number; width: number; height: number; className: string; style: React.CSSProperties;
+function MaskCoverageImage({ src, masks, maskId, guideStyle, zoom, width, height, className, style }: {
+  src: string; masks: readonly Mask[]; maskId: string; guideStyle: MaskGuideStyle; zoom?: number; width: number; height: number; className: string; style: React.CSSProperties;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const guideImage = useRef<HTMLImageElement>(null);
@@ -823,8 +823,27 @@ function MaskCoverageImage({ masks, maskId, guideStyle, zoom, width, height, cla
     }, 150);
     return () => window.clearTimeout(timer);
   }, [zoom, guideStyle, url]);
+  // A brightness mask is measured from the picture shown, loaded once for the guide.
+  const [shown, setShown] = useState<HTMLImageElement | null>(null);
+  const needsPicture = masks.some(mask => mask.kind === 'tonal');
   useEffect(() => {
-    const guide = maskCoverageGuide(masks, maskId, width, height, guideStyle, edge);
+    if (!needsPicture) { setShown(null); return; }
+    let live = true;
+    const image = new Image();
+    image.onload = () => { if (live) setShown(image); };
+    image.src = src;
+    return () => { live = false; };
+  }, [src, needsPicture]);
+  useEffect(() => {
+    const brightness = shown ? (w: number, h: number) => {
+      const reader = document.createElement('canvas');
+      reader.width = w; reader.height = h;
+      const read = reader.getContext('2d', { willReadFrequently: true });
+      if (!read) return undefined;
+      read.drawImage(shown, 0, 0, w, h);
+      return lumaFromRgba8(read.getImageData(0, 0, w, h).data);
+    } : undefined;
+    const guide = maskCoverageGuide(masks, maskId, width, height, guideStyle, edge, brightness);
     if (!guide) { setUrl(null); return; }
     const canvas = document.createElement('canvas');
     canvas.width = guide.width; canvas.height = guide.height;
@@ -834,7 +853,7 @@ function MaskCoverageImage({ masks, maskId, guideStyle, zoom, width, height, cla
     pixels.data.set(guide.rgba);
     ctx.putImageData(pixels, 0, 0);
     setUrl(canvas.toDataURL('image/png'));
-  }, [masks, maskId, guideStyle, width, height, edge]);
+  }, [masks, maskId, guideStyle, width, height, edge, shown]);
   if (!url || !masks.some(mask => mask.id === maskId && !mask.hidden)) return null;
   return <img ref={guideImage} src={url} alt="" aria-hidden="true" draggable={false} data-testid="mask-coverage-guide" data-style={guideStyle}
     className={`pointer-events-none absolute inset-0 h-full w-full z-10 ${className}`} style={style} />;
