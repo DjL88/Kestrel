@@ -81,9 +81,16 @@ def colour_evidence(rgb: np.ndarray, fg_seed: np.ndarray, bg_seed: np.ndarray, b
 
 
 def build_trimap(rgb: np.ndarray, long_edge: float | None = None, *, inner: float = 18.0, outer: float = 6.0, grow: float = 0.06,
-                 min_seed: float = 0.002, max_seed: float = 0.65) -> Trimap:
+                 min_seed: float = 0.002, max_seed: float = 0.65, af_box: tuple[float, float, float, float] | None = None,
+                 zones: np.ndarray | None = None, zone_hi: float = 0.8, zone_lo: float = 0.2) -> Trimap:
     """`inner`/`outer` are band half-widths in px (inside/outside the grown region) at a 1024-px working size; `grow` is how
-    far (as a share of the long edge) colour may carry the subject past the sharp seed."""
+    far (as a share of the long edge) colour may carry the subject past the sharp seed.
+
+    `af_box` (x, y, w, h in px of `rgb`) is where the camera says it focused: the sharp piece it overlaps is the subject, even
+    when a larger or more central sharp piece (a branch in the same focal plane) would win by size. If no sharp piece is near
+    it the box is ignored and `stats["af"]` says "missed". `zones` (see regions.py) are candidate regions that follow
+    contours: a zone mostly inside the grown subject (`zone_hi`) or mostly outside it (`zone_lo`) becomes certain, which
+    narrows the uncertain band to the zones that straddle the edge."""
     h, w = rgb.shape[:2]
     scale = (long_edge or max(h, w)) / 1024.0
     focus = focus_map(rgb, window=3.0 * max(scale, 0.5))
@@ -108,6 +115,19 @@ def build_trimap(rgb: np.ndarray, long_edge: float | None = None, *, inner: floa
         keep = [i + 1 for i in range(count) if areas[i] >= 0.3 * areas.max() and areas[i] >= min_seed * h * w]
         # The best single piece always stays; others stay only when comparable in size (a second bird, a wing apart).
         keep = keep or [int(np.argmax(score)) + 1]
+        stats["af"] = "none" if af_box is None else "missed"
+        if af_box is not None:
+            bx, by, bw, bh = af_box
+            reach = max(bw, bh) * 0.75 + 0.01 * max(h, w)
+            x0, x1, y0, y1 = int(max(0, bx - reach)), int(min(w, bx + bw + reach)), int(max(0, by - reach)), int(min(h, by + bh + reach))
+            window = labels[y0:y1, x0:x1]
+            hits = np.bincount(window[window > 0].ravel(), minlength=count + 1)
+            if hits.sum() > 0:
+                # The piece with most pixels near the AF box; the box centre's own piece wins a tie.
+                best = int(np.argmax(hits))
+                centre = labels[int(min(h - 1, by + bh / 2)), int(min(w - 1, bx + bw / 2))]
+                keep = [int(centre) if centre > 0 else best]
+                stats["af"] = "on-seed"
         seed = np.isin(labels, keep)
     share = float(seed.sum() / (h * w))
     stats["seed_share"] = share
@@ -146,6 +166,16 @@ def build_trimap(rgb: np.ndarray, long_edge: float | None = None, *, inner: floa
     # Confident-sharp pixels are never background, and confident-blurred ones far from the subject never foreground.
     bg &= ~seed
     fg &= ~(blurred & ~ndi.binary_dilation(seed, disk(3.0)))
+    stats["band_share_before_zones"] = float(((~fg) & (~bg)).sum() / (h * w))
+    if zones is not None:
+        from .regions import zone_share
+        share_z = zone_share(zones, grown)
+        band = ~(fg | bg)
+        zone_fg = ndi.binary_erosion((share_z >= zone_hi)[zones], disk(1.0)) & band
+        zone_bg = ndi.binary_erosion((share_z <= zone_lo)[zones], disk(1.0)) & band & ~seed
+        zone_fg &= ~(blurred & ~ndi.binary_dilation(seed, disk(3.0)))
+        fg = fg | zone_fg
+        bg = (bg | zone_bg) & ~fg
     stats["grown_share"] = float(grown.sum() / (h * w))
     stats["band_share"] = float(((~fg) & (~bg)).sum() / (h * w))
     confidence = float(np.clip(separability, 0, 1)) * float(np.clip(stats["colour_gap"] / 4.0, 0.25, 1.0))

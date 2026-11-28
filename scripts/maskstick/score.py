@@ -118,11 +118,33 @@ def effort_check(rows: dict[str, dict]) -> dict:
     return {"n": len(pairs), "spearman": spearman([p[0] for p in pairs], [p[1] for p in pairs]) if pairs else float("nan")}
 
 
+def af_on_subject(truth: dict[str, dict], af: dict[str, dict]) -> dict:
+    """How often the camera's AF box lies on the owner's subject: its centre inside, and the average share of the box inside.
+    Only photos with a usable AF box (see afpoints.py) and a fixed mask count; the rest are listed by reason."""
+    from . import afpoints as AF
+    from . import metrics as MM
+    centre, share, reasons = [], [], {}
+    for key, item in truth.items():
+        record = af.get(key)
+        if record is None:
+            continue
+        subject, _ = MM.split_ground_truth(item["gt"])
+        area, why = AF.area_for_preview(record, subject.shape[1], subject.shape[0])
+        if area is None:
+            reasons[why] = reasons.get(why, 0) + 1
+            continue
+        stats = AF.box_stats(area, subject)
+        centre.append(stats["centre_inside"])
+        share.append(stats["share_inside"])
+    return {"n": len(centre), "centre_inside": float(np.mean(centre)) if centre else float("nan"),
+            "share_inside": float(np.mean(share)) if share else float("nan"), "unusable": reasons}
+
+
 def fmt(v: float, digits: int = 3) -> str:
     return "n/a" if v is None or (isinstance(v, float) and math.isnan(v)) else f"{v:.{digits}f}"
 
 
-def markdown(results: list[dict], compare: tuple[str, str] | None, skipped: list[str]) -> str:
+def markdown(results: list[dict], compare: tuple[str, str] | None, skipped: list[str], af_rate: dict | None = None) -> str:
     lines = ["# Mask measuring stick", ""]
     n = max((len(r["rows"]) for r in results), default=0)
     lines.append(f"Photos scored: {n}. Skipped by the owner: {len(skipped)}. Boundary F is at 2, 4 and 8 px of the ground truth's own size.")
@@ -150,6 +172,11 @@ def markdown(results: list[dict], compare: tuple[str, str] | None, skipped: list
         check = effort_check(r["rows"])
         if check["n"]:
             lines.append(f"\nEffort proxy against the owner's seconds, {r['name']}: Spearman {fmt(check['spearman'], 2)} over {check['n']} photos started from it.")
+    if af_rate is not None:
+        lines += ["", "## Does the camera's AF box lie on the subject?", "",
+                  f"Of {af_rate['n']} fixed photos with a usable AF box, the box centre is on the owner's subject for {fmt(af_rate['centre_inside'] * 100, 0)} % "
+                  f"and on average {fmt(af_rate['share_inside'] * 100, 0)} % of the box is on it. Unusable boxes: "
+                  + (", ".join(f"{k} {v}" for k, v in af_rate["unusable"].items()) or "none") + "."]
     lines += ["", "## Worst photos per source (lowest IoU)", ""]
     for r in results:
         worst = sorted(r["rows"].items(), key=lambda kv: kv[1]["iou"])[:5]
@@ -163,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--source", action="append", required=True, metavar="NAME=DIR", help="a mask source; repeat for several")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"), help="paired difference A minus B")
     ap.add_argument("--missing", choices=["error", "skip", "empty"], default="error")
+    ap.add_argument("--af", help="afpoints.json (afpoints.py): also report how often the AF box lies on the owner's subject")
     ap.add_argument("--out", help="folder for report.md and report.json")
     a = ap.parse_args(argv)
 
@@ -174,7 +202,11 @@ def main(argv: list[str] | None = None) -> int:
     for spec in a.source:
         name, _, folder = spec.partition("=")
         results.append(score_source(name, folder, truth, a.missing))
-    text = markdown(results, tuple(a.compare) if a.compare else None, skipped)
+    af_rate = None
+    if a.af:
+        with open(a.af) as f:
+            af_rate = af_on_subject(truth, json.load(f))
+    text = markdown(results, tuple(a.compare) if a.compare else None, skipped, af_rate)
     print(text)
     if a.out:
         os.makedirs(a.out, exist_ok=True)

@@ -8,6 +8,9 @@ heldout-keys.txt and a README there. Selection uses only metadata and measured n
 statistic computed from the pixels); nobody has to look at the photos. The photos stay where they are and are never
 copied, uploaded or committed.
 
+Previews whose shape disagrees with the RAW's EXIF Orientation (a portrait RAW whose embedded preview was stored sideways) are
+left out: the owner would be asked to fix a sideways photo, and the camera's AF box would land in the wrong place.
+
 Mix: roughly two thirds frames where the cues for a no-model matte may work (the focus statistic says a clearly
 defocused background), one third where they probably do not (sharp or busy backgrounds), so the failures are
 measured rather than hidden. Never more than 3 frames per trip folder, never two within two minutes (bursts of one
@@ -132,12 +135,15 @@ def main(argv: list[str] | None = None) -> int:
     with open(os.path.join(a.pairs_dir, "pairs.json")) as f:
         pairs = {p["raw_hash"] + "_" + p["img_hash"]: p for p in json.load(f) if p.get("status") == "confident"}
     when: dict[str, float | None] = {}
+    orientation: dict[str, int | None] = {}
     with open(os.path.join(a.pairs_dir, "index.jsonl")) as f:
         for line in f:
             row = json.loads(line)
             if row.get("kind") == "raw" and row.get("hash"):
                 when[row["hash"]] = parse_time(row.get("DateTimeOriginal"))
+                orientation[row["hash"]] = row.get("Orientation")
     candidates = []
+    sideways = 0
     started = time.time()
     for name in sorted(os.listdir(previews)):
         if not name.endswith(a.suffix + ".jpg"):
@@ -147,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
         if pair is None:
             continue
         stats = focus_stats(os.path.join(previews, name))
+        portrait_file = orientation.get(pair["raw_hash"]) in (5, 6, 7, 8)
+        if portrait_file != (stats["height"] > stats["width"]):
+            sideways += 1
+            continue
         trip = os.path.basename(os.path.dirname(pair["raw"]))
         candidates.append({
             "key": key, "raw_hash": pair["raw_hash"], "trip": trip, "time": when.get(pair["raw_hash"]),
@@ -161,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest = {
         "version": 1, "frozen": True, "keys_sha256": digest, "created": datetime.now().strftime("%Y-%m-%d"),
         "note": "Held-out for the mask measuring stick. Never train on, tune against, or fine-tune from these photos or their masks.",
-        "previews": previews, "suffix": a.suffix, "candidates_considered": len(candidates),
+        "previews": previews, "suffix": a.suffix, "candidates_considered": len(candidates), "excluded_sideways_previews": sideways,
         "photos": [{k: v for k, v in c.items() if k != "time"} for c in chosen],
     }
     with open(os.path.join(a.out, "heldout.json"), "w") as f:
@@ -176,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
         f"keys sha256: `{digest}`\n\nFix masks with `python3 -m maskstick.fixer` (see scripts/maskstick/README.md).\n")
     with open(os.path.join(a.out, "README.md"), "w") as f:
         f.write(readme)
-    print(f"{len(chosen)} photos ({easy} easy-looking, {len(chosen) - easy} hard-looking) from {len(candidates)} candidates in {time.time() - started:.0f}s -> {a.out}")
+    print(f"{len(chosen)} photos ({easy} easy-looking, {len(chosen) - easy} hard-looking) from {len(candidates)} candidates ({sideways} sideways previews left out) in {time.time() - started:.0f}s -> {a.out}")
     return 0
 
 
