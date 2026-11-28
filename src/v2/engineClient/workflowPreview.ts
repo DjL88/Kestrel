@@ -19,6 +19,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   usbTether: 'kestrel.preview.usb-tether.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',
+  /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */
+  verificationChain: 'kestrel.preview.verification-chain.v1',
 } as const;
 
 export type WorkflowPreview = keyof typeof WORKFLOW_PREVIEW_KEYS;
