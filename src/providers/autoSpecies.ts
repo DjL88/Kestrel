@@ -4,6 +4,8 @@ import { gateOutcome } from '../core/categoryGate';
 import { rankSpecies } from '../core/speciesMatch';
 import type { SpeciesGuess } from '../core/speciesPalette';
 import { gateAvailable, routePicture } from './categoryGate';
+import { previewOn } from '../core/previewFeatures';
+import { identifyOwnSubject } from './ownSpecies';
 import { SPECIES_DOWNLOAD_BYTES, downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, speciesSubjectCrop } from './speciesModel';
 
 /**
@@ -52,6 +54,8 @@ export const speciesModelConfigured = () => Boolean(SPECIES_MODEL.url) || SPECIE
  * this is an animal, and the answer is not the model forcing its nearest bird onto something else.
  */
 export async function identifySubject(picture: HTMLCanvasElement): Promise<SpeciesGuess | null> {
+  // The own-model preview (off by default) answers on its own: it never mixes with the BioCLIP path, which may be switched off.
+  if (previewOn('ownSpecies')) return identifyOwnSubject(picture);
   try {
     if ((await speciesStatus()) !== 'ready' || !(await gateAvailable())) return null;
     const { crop } = await speciesSubjectCrop(picture);

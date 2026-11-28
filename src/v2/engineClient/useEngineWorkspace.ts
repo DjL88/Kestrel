@@ -2320,7 +2320,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           // The sentence names Auto-pilot, so only Auto-pilot says it; Co-pilot's suggestions are in its panel anyway.
           if (skipEdited) { if (assistMode === 'autopilot') ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited(), modeTag)); }
           // Never silently nothing: when the checks leave the photo alone, the one-line reason is said.
-          else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.plan.verdict.kind === 'looks-good' ? v2Text.flight.leftAlone : run.headline, modeTag));
+          else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.plan.verdict.kind === 'looks-good' && !run.alreadyEnhanced ? v2Text.flight.leftAlone : run.headline, modeTag));
           const safe = !applyNow && applies === 'safe' ? safeSubset(run.plan.base, run.plan.proposal) : null;
           const toApply = safe ? safe.edit : run.plan.proposal;
           // Only an unedited photo is changed by itself; the Auto button is the person's own decision and always applies.
@@ -2340,7 +2340,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) sayAuto(frame.id, 'applied', what || run.headline, { ...modeTag, appliedAt: at }); });
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
-                ? commitAutoEdit(current, assistProjectId, frame, toApply, at, { by: 'auto', notes }) : current));
+                ? commitAutoEdit(current, assistProjectId, frame, toApply, at, { by: 'auto', notes }, applyNow ? { replace: true } : undefined) : current));
             if (safe) ctx.commitIfCurrent(() => setAssists(current => current[frame.id]?.run === run ? { ...current, [frame.id]: { ...current[frame.id], safeApplied: toApply } } : current));
             ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) noteAutoApplied(frame.id, run, toApply); });
           };

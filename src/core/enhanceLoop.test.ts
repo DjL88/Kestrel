@@ -25,6 +25,7 @@ function scene(width: number, height: number, gain = 1, cast: [number, number, n
 }
 
 const W = 240, H = 160;
+const UNDER = { evCompensation: -1, shutterSeconds: 1 / 2000, iso: 3200, aperture: 4 };
 
 test('observe measures the actual pixels and leaves unknown as null', () => {
   const s = observeFrame(scene(W, H), W, H);
@@ -90,7 +91,7 @@ test('tweaks respond to what was found and stay in bounds', () => {
 
 test('a dark photo gets three options within five rounds, with a favourite and a measured reason', async () => {
   const px = scene(W, H, 0.45);
-  const r = await enhancePhoto({ pixels: px, width: W, height: H });
+  const r = await enhancePhoto({ pixels: px, width: W, height: H, meta: UNDER });
   assert.equal(r.options.length, 3);
   for (const o of r.options) assert.ok(o.rounds.length <= MAX_ROUNDS);
   const improved = r.options.filter((o) => o.outcome === 'improved');
@@ -121,7 +122,7 @@ test('a vision assistant that throws or says nothing never blocks and is never r
     critique: async () => { throw new Error('model failed'); },
     prefer: async () => { throw new Error('model failed'); },
   };
-  const r = await enhancePhoto({ pixels: scene(W, H, 0.45), width: W, height: H, vision: broken, maxRounds: 2 });
+  const r = await enhancePhoto({ pixels: scene(W, H, 0.45), width: W, height: H, vision: broken, maxRounds: 2, meta: UNDER });
   assert.equal(r.options.length, 3);
   assert.equal(r.favouriteBy, 'measurements', 'a failed model never counts as the model\'s favourite');
   assert.equal(r.chain.results[0].outcome, 'unchecked');
@@ -130,9 +131,9 @@ test('a vision assistant that throws or says nothing never blocks and is never r
 test('the on-device favourite is used and labelled; a stand-in is labelled as a stand-in', async () => {
   const pick = (kind: 'on-device' | 'stand-in'): VisionAssistant => ({ kind, prefer: async (_b, c) => c.length - 1 });
   const px = scene(W, H, 0.45);
-  const real = await enhancePhoto({ pixels: px, width: W, height: H, vision: pick('on-device'), maxRounds: 2 });
+  const real = await enhancePhoto({ pixels: px, width: W, height: H, vision: pick('on-device'), maxRounds: 2, meta: UNDER });
   assert.equal(real.favouriteBy, 'device-ai');
-  const fake = await enhancePhoto({ pixels: px, width: W, height: H, vision: pick('stand-in'), maxRounds: 2 });
+  const fake = await enhancePhoto({ pixels: px, width: W, height: H, vision: pick('stand-in'), maxRounds: 2, meta: UNDER });
   assert.equal(fake.favouriteBy, 'stand-in');
 });
 
@@ -149,4 +150,9 @@ test('the loop only uses clearly open models; unknown or unconfirmed ones are re
   assert.equal(loopMayUse('nafnet-sidd-w32-w16'), false);
   assert.equal(loopMayUse('some-new-model'), false);
   assert.ok(LOOP_MODELS.every((m) => m.note.length > 0));
+});
+
+test('a failing gate backs off rather than shipping: a hard lift is never kept if the gates fail', async () => {
+  const r = await enhancePhoto({ pixels: scene(W, H, 0.12), width: W, height: H, maxRounds: 4 });
+  for (const o of r.options) if (o.outcome === 'improved') assert.ok(o.rounds[o.bestRound].gateSafe);
 });

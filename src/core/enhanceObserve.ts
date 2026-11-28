@@ -266,11 +266,10 @@ export function statObservations(s: FrameStats): { observation: PhotographyObser
     out.push({ observation: { dimension, label, confidence: Math.min(0.98, Math.max(0, confidence)) }, evidence });
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   const ref = s.subject && s.subject.confidence !== 'low' ? s.subject.median : s.p50;
-  const lowKeyScene = s.p50 < 0.2 && s.p99 < 0.9 && s.clipHigh < 0.001;
   if (s.clipHigh >= 0.004 && s.p99 >= 0.97) add('lighting', 'clipped highlights', 0.8 + Math.min(0.15, s.clipHigh * 5), `${pct(s.clipHigh)} of pixels are at or near white`);
-  if (ref < 0.3 && !lowKeyScene) add('lighting', 'underexposure', 0.8 + Math.min(0.15, (0.3 - ref) * 1.5), `${s.subject && s.subject.confidence !== 'low' ? 'subject' : 'frame'} median lightness ${ref.toFixed(2)}`);
+  // Underexposure and low key are decided by enhanceIntent.ts (metadata, histogram shape and scene together), never by the histogram alone.
+  void ref;
   if (s.p50 > 0.72 && s.p05 > 0.25) add('lighting', 'overexposure', 0.82, `median lightness ${s.p50.toFixed(2)} and no real shadows`);
-  if (lowKeyScene) add('lighting', 'low key', 0.82, `median lightness ${s.p50.toFixed(2)} with the highlights held back`);
   if (s.noiseSigma !== null && s.noiseSigma >= 4.5 && s.p05 < 0.2) add('lighting', 'high iso shadows', 0.8 + Math.min(0.15, (s.noiseSigma - 4.5) / 20), `noise about ${s.noiseSigma.toFixed(1)} of 255 with dark areas`);
   if (s.clipHigh >= 0.004 && s.clipLow >= 0.01 && s.spread > 0.7) add('lighting', 'high dynamic range', 0.82, `both clipped highlights (${pct(s.clipHigh)}) and crushed shadows (${pct(s.clipLow)})`);
   if (s.subject && s.subject.confidence !== 'low' && s.subject.backgroundMedian - s.subject.median > 0.2 && s.subject.coverage < 0.35)

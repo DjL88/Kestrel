@@ -21,6 +21,13 @@ export const pt: AreaTranslation<typeof source> = {
     looksGood: 'Está bem: os valores medidos estão dentro do intervalo, por isso nada foi alterado.',
     cannotImprove: 'Não é possível melhorar com segurança, por isso nada foi alterado.',
     withheld: 'Uma edição sugerida foi retida porque falhou uma verificação.',
+    alreadyEnhanced: 'Já melhorada: o último resultado do Auto continua nesta foto e executá-lo de novo não mudaria nada. Anule-o, ou mova um controlo e execute o Auto outra vez.',
+    guard: {
+      held: 'Clarear esta foto queimaria as altas luzes, por isso foi deixada como está.',
+      recovered: 'As altas luzes foram reduzidas um pouco para que o clareamento não as queime.',
+      zoned: 'O clareamento incide nas zonas escuras e não em todo o enquadramento, para que as zonas claras mantenham o detalhe.',
+      liftedLess: 'O clareamento foi mantido menor do que seria possível para não queimar as zonas claras.',
+    },
     reasons: {
       clipWhite: 'Clarear queimaria zonas claras, como os salpicos de água, até ao branco puro.',
       crushedBlack: 'O ajuste esmagaria as zonas escuras até ao preto puro.',

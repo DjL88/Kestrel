@@ -98,6 +98,8 @@ export interface PlanInput {
   segmentation?: NaturalAutoInput['segmentation'];
   species?: SpeciesGuess | null;
   photographyObservations?: NaturalAutoInput['photographyObservations'];
+  /** Controls the person set by hand after Auto's last run: Auto's dark lift never moves exposure when it is one of them. */
+  protectedKeys?: readonly string[];
 }
 
 /** Build, check and judge the one recipe. Pure: nothing is applied here. */
@@ -117,7 +119,7 @@ export function planAuto(input: PlanInput): AutoPlan {
   let proposal: PhotoEdit = { ...input.proposal };
   // A dark photo must get a real lift, not a token one. The gate below still decides whether it is safe.
   const wasUnits = Number(proposal.exposure ?? 0) - Number(base.exposure ?? 0);
-  const lifted = policy.preserveDark ? wasUnits : darkLift(measured, wasUnits);
+  const lifted = policy.preserveDark || input.protectedKeys?.includes('exposure') ? wasUnits : darkLift(measured, wasUnits);
   if (lifted > wasUnits) {
     proposal.exposure = Math.round((Number(base.exposure ?? 0) + lifted) * 10) / 10;
     notes.push('The subject is dark, so exposure goes up.');

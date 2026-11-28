@@ -150,6 +150,8 @@ published models (`crates/kestrel-raw/src/lensfun.rs`).
 
 - **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,
   shipped with every build. fp16 conversion of `facebook/dinov2-small`; notice in `docs/notices/dinov2.txt`; ship it alongside.
+  The same embedding is the frozen base of InFlight's own species head (`src/assets/species-own/head.json`, a research preview
+  off by default; `docs/species-own-model.md`). The head is a few kilobytes of numbers learned from the owner's own photographs.
 - **Aircraft markings reader (PP-OCRv5 mobile, PaddleOCR, Apache-2.0)**: opt-in download from the authors' Hugging Face
   releases, pinned by revision and SHA-256 (`src/providers/markingReader.ts`), not in git. Notice in `docs/notices/paddleocr.txt`.
 - **FAA aircraft register copy (public domain, US Government)**: `src/assets/registers/faa.json`; see `docs/notices/paddleocr.txt`.
