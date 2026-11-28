@@ -1,4 +1,5 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
+import { readGesture } from '../../../core/gestureSettings';
 import EdgeProgress from './EdgeProgress';
 import FinishBestButton from './FinishBestButton';
 import { minutesLeft } from '../utils/edgeActivity';
@@ -232,12 +233,22 @@ export default function Filmstrip({
     if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !event.isPrimary || event.button !== 0) return;
     cancelLongPress();
     suppressTouchClick.current = false;
+    // Settings > Gestures: the menu (the default), Select mode, or nothing.
+    const action = readGesture('photoList.longPress');
+    if (action === 'off') return;
     const { pointerId, clientX: x, clientY: y } = event;
     touchPress.current = { pointerId, x, y, photoId };
     longPressTimer.current = window.setTimeout(() => {
       const press = touchPress.current;
       if (!press || press.pointerId !== pointerId) return;
       suppressTouchClick.current = true;
+      if (action === 'select') {
+        // As the Select button does: Select mode on, and this photo is the first one picked (or put back if it already was).
+        setTouchSelectionMode(true);
+        onSelectPhoto(photoId, { ctrl: true });
+        cancelLongPress();
+        return;
+      }
       if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
       setTileMenu({ x: press.x, y: press.y, photoId });
       cancelLongPress();

@@ -1,4 +1,5 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
+import { openV2Settings } from './helpers';
 
 // Phone and tablet gestures, set by what Photos, Lightroom and Snapseed do (see the PR for sources): double-tap zooms (Crop on
 // double-tap is a choice); a single tap never opens Crop or zooms; pinch in Crop zooms the picture inside the crop window while the window stays put; a long press on a photo in
@@ -52,13 +53,14 @@ async function pinch(cdp: CDPSession, centre: { x: number; y: number }, from: nu
   await touch(cdp, 'touchEnd', []);
 }
 
-const DOUBLE_TAP_KEY = 'inflight.v2.gesture.double-tap';
+const GESTURES_KEY = 'inflight.v2.gestures';
 const doubleTap = async (page: Page, cdp: CDPSession, x: number, y: number) => {
   await tap(cdp, x, y);
   await page.waitForTimeout(90);
   await tap(cdp, x, y);
 };
-const useDoubleTapFor = (page: Page, action: string) => page.addInitScript(([key, value]) => localStorage.setItem(key, value), [DOUBLE_TAP_KEY, action]);
+const useGestures = (page: Page, choices: Record<string, string>) => page.addInitScript(([key, value]) => localStorage.setItem(key, value), [GESTURES_KEY, JSON.stringify(choices)]);
+const useDoubleTapFor = (page: Page, action: string) => useGestures(page, { 'canvas.doubleTap': action });
 
 test.describe('phone: canvas and Crop', () => {
   test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'phone', 'Requires the touch-enabled phone project.'); });
@@ -159,7 +161,7 @@ test.describe('phone: canvas and Crop', () => {
     expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
   });
 
-  test('in Crop with the default double-tap, a double-tap puts the picture back in the crop window', async ({ page }) => {
+  test('in Crop, the default double-tap puts the picture back in the crop window', async ({ page }) => {
     await useDoubleTapFor(page, 'crop');
     await openPhotos(page);
     const cdp = await page.context().newCDPSession(page);
@@ -170,8 +172,6 @@ test.describe('phone: canvas and Crop', () => {
     const start = await ghostWidth();
     await pinch(cdp, { x, y }, 20, 90);
     await expect.poll(ghostWidth).toBeGreaterThan(start * 1.2);
-    // The preference is read at each double-tap, so switching it to zoom makes the double-tap reset the crop zoom.
-    await page.evaluate((key) => localStorage.setItem(key, 'zoom'), DOUBLE_TAP_KEY);
     await page.waitForTimeout(400);
     await doubleTap(page, cdp, x, y);
     await expect.poll(ghostWidth).toBeLessThanOrEqual(start + 1);
@@ -240,6 +240,49 @@ test.describe('phone: long press opens the photo menu', () => {
   });
 });
 
+test.describe('phone: long press can be changed in Settings > Gestures', () => {
+  test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'phone', 'Requires the touch-enabled phone project.'); });
+
+  test('set to Select, a long press on a filmstrip photo starts Select mode instead of the menu', async ({ page }) => {
+    await useGestures(page, { 'photoList.longPress': 'select' });
+    const studio = await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const tile = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').nth(1);
+    const box = (await tile.boundingBox())!;
+    await touch(cdp, 'touchStart', [{ x: box.x + 30, y: box.y + box.height - 10 }]);
+    await expect(studio.getByRole('button', { name: 'Finish selecting photographs' })).toBeVisible();
+    await touch(cdp, 'touchEnd', []);
+    await expect(page.getByRole('menu', { name: 'Photo actions' })).toHaveCount(0);
+    await expect(tile).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('set to Do nothing, a long press opens nothing in the filmstrip or the gallery', async ({ page }) => {
+    await useGestures(page, { 'photoList.longPress': 'off' });
+    const studio = await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const tile = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option').nth(1);
+    const box = (await tile.boundingBox())!;
+    await touch(cdp, 'touchStart', [{ x: box.x + 30, y: box.y + box.height - 10 }]);
+    await page.waitForTimeout(700);
+    await touch(cdp, 'touchEnd', []);
+    await expect(page.getByRole('menu', { name: 'Photo actions' })).toHaveCount(0);
+    // The ⋯ button still gets there, so the menu is never gesture-only.
+    await tile.getByRole('button', { name: /More actions for gesture-2\.png/ }).tap();
+    await expect(page.getByRole('menu', { name: 'Photo actions' })).toBeVisible();
+  });
+
+  test('set to Do nothing, holding the photo no longer shows the original', async ({ page }) => {
+    await useGestures(page, { 'canvas.longPress': 'off' });
+    const studio = await openPhotos(page);
+    const cdp = await page.context().newCDPSession(page);
+    const { x, y } = await centreOf(page, 'canvas-frame');
+    await touch(cdp, 'touchStart', [{ x, y }]);
+    await page.waitForTimeout(700);
+    await expect(studio.getByRole('status').filter({ hasText: 'Showing the original' })).toHaveCount(0);
+    await touch(cdp, 'touchEnd', []);
+  });
+});
+
 test.describe('keyboard parity', () => {
   test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'The keyboard route runs in the desktop project.'); });
 
@@ -276,5 +319,37 @@ test.describe('keyboard parity', () => {
     await page.keyboard.press('Enter');
     await expect(menu).toHaveCount(0);
     await expect(card.getByRole('button', { name: 'Unflag gesture-1.png' })).toBeVisible();
+  });
+});
+
+test.describe('Settings > Gestures', () => {
+  test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'The settings pane runs in the desktop project.'); });
+
+  test('lists each gesture in words with only the actions that make sense, remembers a change and resets', async ({ page }) => {
+    await page.goto('/?v2&stub=1&autostart=1');
+    const root = page.locator('.inflight-v2');
+    await openV2Settings(page);
+    await root.getByRole('tab', { name: 'Gestures' }).or(root.getByRole('button', { name: 'Gestures' })).first().click();
+    const pane = page.getByTestId('gestures-settings');
+    await expect(pane.getByRole('heading', { name: 'On the photo' })).toBeVisible();
+    await expect(pane.getByRole('heading', { name: 'In Crop' })).toBeVisible();
+    const doubleTap = pane.getByLabel('What this does: Double-tap the photo');
+    await expect(doubleTap).toHaveValue('zoom');
+    // Only actions that can happen there are on offer.
+    expect(await doubleTap.locator('option').allInnerTexts()).toEqual(['Zoom in to 100%, and back to Fit', 'Open Crop', 'Do nothing']);
+    await expect(pane.getByText('No two gestures do the same thing.')).toBeVisible();
+
+    await doubleTap.selectOption('openCrop');
+    expect(await page.evaluate((key) => localStorage.getItem(key), GESTURES_KEY)).toBe('{"canvas.doubleTap":"openCrop"}');
+    await expect(pane.getByText('Double-tap the photo (changed)')).toBeVisible();
+
+    // Two gestures doing the same thing on a thumbnail are said in words and not blocked.
+    await pane.getByLabel('What this does: Double-tap a thumbnail').selectOption('menu');
+    await expect(pane.getByRole('alert')).toContainText('Press and hold a thumbnail, Double-tap a thumbnail do the same thing here');
+
+    await pane.getByRole('button', { name: 'Reset all to defaults' }).click();
+    await expect(doubleTap).toHaveValue('zoom');
+    expect(await page.evaluate((key) => localStorage.getItem(key), GESTURES_KEY)).toBeNull();
+    await expect(pane.getByRole('alert')).toHaveCount(0);
   });
 });

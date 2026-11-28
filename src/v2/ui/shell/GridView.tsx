@@ -11,6 +11,8 @@ import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 import { SearchNote } from './SearchNote';
 import PhotoQuickMenu from './PhotoQuickMenu';
 import { useLongPress } from '../../../components/useLongPress';
+import { readGesture } from '../../../core/gestureSettings';
+import { createDoubleTapDetector } from '../../../core/touchGestures';
 import { openPhotoMenuFromKeyboard } from '../../../components/PhotoContextMenu';
 
 interface GridViewProps {
@@ -48,10 +50,35 @@ interface GridViewProps {
  * One photo's card. A long press on touch or pen, a right-click, the Menu key or Shift+F10 opens the photo menu; moving
  * the finger more than a few pixels (a scroll) cancels the press, so scrolling the gallery never opens a menu or a photo.
  */
-function GalleryCard({ onMenu, children, ...rest }: React.ComponentProps<'article'> & { onMenu: (x: number, y: number) => void }) {
-  const press = useLongPress((point) => onMenu(point.x, point.y));
+function GalleryCard({ onMenu, onLongPressSelect, onDoubleTap, children, ...rest }: React.ComponentProps<'article'> & {
+  onMenu: (x: number, y: number) => void;
+  /** The person set a long press to Select (Settings > Gestures) instead of the menu. */
+  onLongPressSelect: () => void;
+  /** A double-tap, recognised from the touches so it works where `dblclick` is not sent for a touch (iOS, Android WebViews). */
+  onDoubleTap: () => void;
+}) {
+  const press = useLongPress((point) => {
+    const action = readGesture('photoList.longPress');
+    if (action === 'menu') onMenu(point.x, point.y);
+    else if (action === 'select') onLongPressSelect();
+  }, true);
+  const detector = React.useRef(createDoubleTapDetector());
+  const down = React.useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastTouchDouble = React.useRef(Number.NEGATIVE_INFINITY);
   return (
     <article {...rest} {...press}
+      onPointerDown={(event) => { if (event.pointerType === 'touch') down.current = { x: event.clientX, y: event.clientY, t: event.timeStamp }; press.onPointerDown?.(event); }}
+      onPointerUp={(event) => {
+        const start = down.current;
+        down.current = null;
+        if (event.pointerType === 'touch' && start && detector.current.lift(start, { x: event.clientX, y: event.clientY, t: event.timeStamp })) {
+          lastTouchDouble.current = event.timeStamp;
+          onDoubleTap();
+        }
+        press.onPointerUp?.();
+      }}
+      onPointerCancel={(event) => { down.current = null; detector.current.reset(); press.onPointerCancel?.(); }}
+      onDoubleClickCapture={(event) => { if (event.timeStamp - lastTouchDouble.current < 800) { event.preventDefault(); event.stopPropagation(); } }}
       onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onMenu(event.clientX, event.clientY); }}>
       {children}
     </article>
@@ -170,6 +197,12 @@ export default function GridView({
                   key={photo.id}
                   data-thumb-id={photo.id}
                   onMenu={(x, y) => openMenu(photo.id, x, y)}
+                  onLongPressSelect={() => onSelectPhoto(photo.id, { ctrl: true })}
+                  onDoubleTap={() => {
+                    const action = readGesture('photoList.doubleTap');
+                    if (action === 'open') onOpenInEditor(photo.id);
+                    else if (action === 'menu') { const box = document.querySelector(`[data-thumb-id="${photo.id}"]`)?.getBoundingClientRect(); openMenu(photo.id, box ? box.left + box.width / 2 : 0, box ? box.top + box.height / 2 : 0); }
+                  }}
                   className={`group flex flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
                     selected
                       ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)]'
@@ -184,7 +217,11 @@ export default function GridView({
                         shift: e.shiftKey,
                       })
                     }
-                    onDoubleClick={() => onOpenInEditor(photo.id)}
+                    onDoubleClick={(event) => {
+                      const action = readGesture('photoList.doubleTap');
+                      if (action === 'open') onOpenInEditor(photo.id);
+                      else if (action === 'menu') openMenu(photo.id, event.clientX, event.clientY);
+                    }}
                     onKeyDown={(event) => { openPhotoMenuFromKeyboard(event, (x, y) => openMenu(photo.id, x, y)); }}
                     className="relative aspect-[3/2] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                   >

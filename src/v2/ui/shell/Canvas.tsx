@@ -34,7 +34,7 @@ import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
 import { createDoubleTapDetector } from '../../../core/touchGestures';
-import { readDoubleTapAction } from '../../../core/gestureSettings';
+import { readGesture } from '../../../core/gestureSettings';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
 import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
@@ -1159,6 +1159,7 @@ export default function Canvas({
       swipeRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, pinched: false };
       endHold();
       holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
+      if (readGesture('canvas.longPress') === 'off') return true;
       holdRef.current.timer = window.setTimeout(() => {
         holdRef.current.timer = null;
         if (touchPoints.current.size !== 1) return;
@@ -1735,15 +1736,20 @@ export default function Canvas({
   /**
    * A double-tap (touch). By convention (Apple Photos, Google Photos, Lightroom mobile) it zooms in on the spot tapped to
    * 100%, and again goes back to Fit; in Crop it puts the picture back in the crop window (Lightroom resets the crop the
-   * same way). A person can choose Crop-on-double-tap or nothing instead (gestureSettings). Never the only way: Fit, 100%
+   * same way). Each is a choice in Settings > Gestures (gestureSettings). Never the only way: Fit, 100%
    * and Crop all have visible buttons and keys.
    */
   const onTouchDoubleTap = (clientX: number, clientY: number) => {
-    const action = readDoubleTapAction();
-    if (action === 'off') return;
     const cropping = revealSizeId === activeSize.id;
-    if (action === 'crop') { setRevealSizeId(cropping ? null : activeSize.id); return; }
-    if (cropping) { onUpdateCrop(photo.id, activeSize.id, { zoom: 1, panX: 0, panY: 0 }); return; }
+    if (cropping) {
+      const inCrop = readGesture('crop.doubleTap');
+      if (inCrop === 'resetCrop') onUpdateCrop(photo.id, activeSize.id, { zoom: 1, panX: 0, panY: 0 });
+      else if (inCrop === 'exitCrop') setRevealSizeId(null);
+      return;
+    }
+    const action = readGesture('canvas.doubleTap');
+    if (action === 'off') return;
+    if (action === 'openCrop') { setRevealSizeId(activeSize.id); return; }
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
     if (canvasZoom > 1.05 || !stage || !frame || !fitScale) { zoomAroundCentre(canvasZoom > 1.05 ? 1 : Math.min(maxZoom, 2)); return; }
