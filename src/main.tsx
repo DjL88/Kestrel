@@ -15,6 +15,7 @@ import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 import { isDesktopApp } from './providers/desktopShell.ts';
 import { keepsNativeMenu } from './core/appChrome.ts';
 import { manageOfflineWorker } from './providers/offlineWorker.ts';
+import { installOverlayBack } from './providers/overlayBack.ts';
 
 // The InFlight workspace (V2). The previous Library and Editor were retired on 26 Nov 2026.
 const V2Root = lazy(() => import('./v2/V2Root.tsx'));
@@ -23,6 +24,7 @@ const V2Root = lazy(() => import('./v2/V2Root.tsx'));
 document.addEventListener('contextmenu', (event) => { if (!keepsNativeMenu(event.target as HTMLElement | null)) event.preventDefault(); });
 
 applyDisplay(loadDisplay());
+installOverlayBack();
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(

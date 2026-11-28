@@ -13,27 +13,24 @@ export interface RawSourceCache {
 }
 
 export function createRawSourceCache(budgetBytes: number): RawSourceCache {
-  let entry: { key: string; image: Promise<Rgb16Image> } | null = null;
+  let entry: { key: string; image: Rgb16Image } | null = null;
+  let generation = 0;
   return {
     async get(key, open) {
-      if (entry?.key === key) {
-        try {
-          return { image: await entry.image, shared: true };
-        } catch {
-          entry = null; // A failed decode is not remembered; open again.
-        }
-      }
+      if (entry?.key === key) return { image: entry.image, shared: true };
+      const owner = ++generation;
       entry = null;
-      const pending = open();
-      const image = await pending;
-      // The decode stays while a framed copy of the same size can sit beside it.
-      if (image.data.byteLength * 2 <= budgetBytes) {
-        entry = { key, image: pending };
+      const image = await open();
+      // A watchdog/cancel can let another render begin before this decode returns.
+      // Only the newest request may retain its image. A superseded result belongs
+      // solely to its original caller and cannot resurrect a cleared cache.
+      if (owner === generation && image.data.byteLength * 2 <= budgetBytes) {
+        entry = { key, image };
         return { image, shared: true };
       }
       return { image, shared: false };
     },
-    clear() { entry = null; },
+    clear() { generation++; entry = null; },
   };
 }
 

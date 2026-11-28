@@ -1,11 +1,11 @@
-import { authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, explainSignInError, isConfigured, makeVerifier, needsRefresh, parseCallbackQuery, parseTokens, refreshBody, type CloudDriveKind, type Tokens } from '../core/cloudDrive';
+import { authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, explainSignInError, isConfigured, makeVerifier, parseCallbackQuery, parseTokens, refreshBody, type CloudDriveKind, type Tokens } from '../core/cloudDrive';
 import { isDesktopApp, isMobileShell } from './desktopShell';
+import { createOAuthTokenStore } from './oauthTokenStore';
 
 /**
  * Signing in to Dropbox, Google Drive or OneDrive from the web build: a small pop-up, the provider's own sign-in page, and a
  * one-time code that InFlight swaps for a token itself. The password never passes through InFlight. Tokens stay on this device.
  */
-const TOKENS = 'kestrel.cloud-tokens.v1.';
 // The page sits under the build's base path (the V2 preview is served from /V2Proto/), so the redirect must too.
 const REDIRECT = () => `${location.origin}${(import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/')}oauth-callback.html`;
 const env = import.meta.env as Record<string, string | undefined>;
@@ -94,28 +94,22 @@ export async function signInToCloudDrive(kind: CloudDriveKind, now = Date.now())
   return tokenRequest(kind, exchangeBody(config, { clientId, clientSecret: secretFor(kind), code: answer.code, verifier, redirectUri }), now);
 }
 
-export function saveTokens(connectionId: string, tokens: Tokens): void { try { localStorage.setItem(TOKENS + connectionId, JSON.stringify(tokens)); } catch { /* this session only */ } }
-const memory = new Map<string, Tokens>();
-export function rememberTokens(connectionId: string, tokens: Tokens): void { memory.set(connectionId, tokens); saveTokens(connectionId, tokens); }
-export function forgetTokens(connectionId: string): void { memory.delete(connectionId); try { localStorage.removeItem(TOKENS + connectionId); } catch { /* nothing */ } }
-export function hasTokens(connectionId: string): boolean { return readTokens(connectionId) !== null; }
-function readTokens(connectionId: string): Tokens | null {
-  const held = memory.get(connectionId);
-  if (held) return held;
-  try { const stored = JSON.parse(localStorage.getItem(TOKENS + connectionId) ?? 'null') as Tokens | null; if (stored?.accessToken) { memory.set(connectionId, stored); return stored; } } catch { /* none */ }
-  return null;
-}
+const tokenStore = createOAuthTokenStore({
+  getItem: key => localStorage.getItem(key),
+  setItem: (key, value) => localStorage.setItem(key, value),
+  removeItem: key => localStorage.removeItem(key),
+});
+
+export function saveTokens(connectionId: string, tokens: Tokens): void { tokenStore.remember(connectionId, tokens); }
+export function rememberTokens(connectionId: string, tokens: Tokens): void { tokenStore.remember(connectionId, tokens); }
+export function forgetTokens(connectionId: string): void { tokenStore.forget(connectionId); }
+export function hasTokens(connectionId: string): boolean { return tokenStore.has(connectionId); }
 
 /** A current access token for one connection, refreshed quietly when it is about to expire. */
 export async function accessTokenFor(connectionId: string, kind: CloudDriveKind, now = Date.now()): Promise<string> {
-  const tokens = readTokens(connectionId);
-  if (!tokens) throw new Error(`Sign in to ${CLOUD_DRIVES[kind].name} again.`);
-  if (!needsRefresh(tokens, now)) return tokens.accessToken;
-  if (!tokens.refreshToken) throw new Error(`Sign in to ${CLOUD_DRIVES[kind].name} again.`);
   try {
-    const fresh = await tokenRequest(kind, refreshBody({ clientId: clientIdFor(kind) ?? '', clientSecret: secretFor(kind), refreshToken: tokens.refreshToken }), now, tokens.refreshToken);
-    rememberTokens(connectionId, fresh);
-    return fresh.accessToken;
+    return await tokenStore.access(connectionId, now, tokens =>
+      tokenRequest(kind, refreshBody({ clientId: clientIdFor(kind) ?? '', clientSecret: secretFor(kind), refreshToken: tokens.refreshToken! }), now, tokens.refreshToken));
   } catch (error) {
     // A network failure keeps the sign-in; only a refused refresh asks the person to sign in again.
     if (error instanceof Error && /Could not reach/.test(error.message)) throw error;
