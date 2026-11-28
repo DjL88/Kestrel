@@ -37,7 +37,7 @@ GROUPS = {'bird': ['bird'], 'bird-of-prey': ['bird'], 'waterbird': ['bird'], 'ma
 world = json.load(open(ROOT / 'public/models/species-world.json', encoding='utf-8'))['labels']
 family_of = {l['scientific'].lower(): l.get('family') for l in world}
 labels, seen = [], set()
-for path in ['src/assets/species/uk.json', 'public/models/species-world.json', 'public/models/species-mammals.json', 'public/models/species-reptiles.json',
+for path in ['tools/species/uk.json', 'public/models/species-world.json', 'public/models/species-mammals.json', 'public/models/species-reptiles.json',
              'public/models/species-amphibians.json', 'public/models/species-odonata.json', 'public/models/species-lepidoptera.json']:
     for l in json.load(open(ROOT / path, encoding='utf-8'))['labels']:
         key = l['scientific'].lower()

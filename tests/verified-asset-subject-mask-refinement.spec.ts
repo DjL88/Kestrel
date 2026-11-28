@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test('local segmentation keeps a fine outline when box detection is unavailable', async ({ page, context }) => {
+// skipped: asserts the red U2-Netp outline model, default off for beta; re-enable against the own mask model (audit item ML-3).
+test.skip('local segmentation keeps a fine outline when box detection is unavailable', async ({ page, context }) => {
   await page.route('**/*yolox_tiny.onnx*', route =>
     route.request().resourceType() === 'fetch' ? route.abort() : route.continue());
   const photoUploads: string[] = [];

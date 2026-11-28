@@ -32,12 +32,14 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_SHOW_ONLINE_HELPER: 'true',
+      // The subject mask network is RED and not in the repository: tests use a deterministic stand-in (src/core/subjectStandIn.ts).
+      VITE_SUBJECT_MASK_STAND_IN: 'true',
       VITE_SPECIES_MODEL_URL: '/stand-in-species.onnx',
       // The category gate's stand-in always "sees" a bird (tools/subject-router/make_stand_in_gate.py).
       VITE_GATE_MODEL_URL: '/stand-in-gate.onnx',
       VITE_GATE_MODEL_SHA256: '82f2f91400444fcc7889edcbd359d5d39aed0eb0698b643a679c2b74a9e5ae73',
       VITE_GATE_MODEL_BYTES: '2303',
-      VITE_SPECIES_MODEL_SHA256: '8e4dc3df3e5bfffc2f137f720775b6416b24325902f54929cd2e85f41c87f121',
+      VITE_SPECIES_MODEL_SHA256: '891885c192315b5925054678799193f1ef03bce4f5c0de520cc6c8b7a1637a7e',
       VITE_SPECIES_MODEL_BYTES: '2278',
     },
     url: 'http://127.0.0.1:4173',

@@ -4,7 +4,7 @@ Turn a species list into the small file the app uses to name what a photo shows.
 The app runs only the image half of BioCLIP. Species names are turned into number vectors here, once, using the text
 half, so no text model ever ships. Run it with a Python that has torch and open_clip_torch:
 
-    python tools/species/make_labels.py path/to/open_clip_pytorch_model.bin tools/species/species-uk.csv src/assets/species/uk.json
+    python tools/species/make_labels.py path/to/open_clip_pytorch_model.bin tools/species/species-uk.csv tools/species/uk.json
 
 Each vector is stored as int8 with one scale, which keeps a few hundred names under 0.1 MB with no visible loss.
 """

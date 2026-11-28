@@ -9,7 +9,7 @@ import { decodeVector, rankSpecies, type SpeciesLabel } from './speciesMatch';
 import { parseSettings } from './projectSettings';
 
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as { labels: SpeciesLabel[] };
-const shipped = read('../assets/species/uk.json').labels;
+const shipped = read('../../tools/species/uk.json').labels;
 const world = read('../../public/models/species-world.json').labels;
 const HOME = ['palearctic'];
 

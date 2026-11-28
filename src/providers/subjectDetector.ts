@@ -4,11 +4,12 @@ import { assertSubjectActive, boundedSubjectGuide } from '../core/subjectCancell
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
 import { installedModel } from './modelUpdater';
-import { SUBJECT_MODEL, assessSubject, detailSizeFor, encodeValues, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
+import { SUBJECT_MODEL, assessSubject, normaliseMap, detailSizeFor, encodeValues, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import { guidedFilter, resampleMap } from '../core/guidedFilter';
 import { lumaOf } from '../core/eyeFinder';
 import type { SubjectDetail, SubjectGrid } from '../core/maskTypes';
 import { guideRegion, guidedGridSize, maskAgreesWithDetection } from '../core/subjectGuide';
+import { SUBJECT_MASK_STAND_IN, standInSubjectMap } from '../core/subjectStandIn';
 import { placeInRegion, sampledRegion } from '../core/subjectRegion';
 
 let loading: Promise<OffThreadSession> | null = null;
@@ -55,7 +56,6 @@ export async function detectSubject(preview: HTMLCanvasElement, options: { maxCo
 
 /** The model's subject map (inputSize × inputSize, 0 to 1) for a picture. */
 async function subjectMap(preview: HTMLCanvasElement): Promise<Float32Array> {
-  const session = await load();
   const size = SUBJECT_MODEL.inputSize;
   const small = document.createElement('canvas');
   small.width = size;
@@ -64,6 +64,9 @@ async function subjectMap(preview: HTMLCanvasElement): Promise<Float32Array> {
   if (!context) throw new Error('Canvas unavailable');
   context.imageSmoothingQuality = 'high';
   context.drawImage(preview, 0, 0, size, size);
+  // TEST DOUBLE: browser tests only (VITE_SUBJECT_MASK_STAND_IN, set by playwright.config.ts, refused by release builds).
+  if (SUBJECT_MASK_STAND_IN) return normaliseMap(standInSubjectMap(context.getImageData(0, 0, size, size).data, size));
+  const session = await load();
   const input = preprocess(context.getImageData(0, 0, size, size).data, size);
   const results = await session.run({ [session.inputNames[0]]: { data: input, dims: [1, 3, size, size] } });
   return readSubjectMap(results[session.outputNames[0]]?.data, size);
@@ -136,7 +139,7 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
   };
 
   // The outline model is the one that must work; if it can't load, say so now rather than after the detector runs.
-  await load();
+  if (!SUBJECT_MASK_STAND_IN) await load(); // the test double needs no network
   assertSubjectActive(options.signal);
   let found: Awaited<ReturnType<typeof import('./objectDetector').findSubject>> = null;
   try {

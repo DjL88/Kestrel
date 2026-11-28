@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 interface ShippedLabel { common: string; scientific: string; group: string; scale: number; vector: string }
 
-const shipped = JSON.parse(readFileSync(new URL('../assets/species/uk.json', import.meta.url), 'utf8')) as {
+const shipped = JSON.parse(readFileSync(new URL('../../tools/species/uk.json', import.meta.url), 'utf8')) as {
   dimensions: number; labels: ShippedLabel[];
 };
 const rows = readFileSync(new URL('../../tools/species/species-uk.csv', import.meta.url), 'utf8')
@@ -17,7 +17,7 @@ test('the shipped species vectors are generated from the current species list, r
   assert.deepEqual(
     shipped.labels.map(({ group, common, scientific }) => ({ group, common, scientific })),
     rows,
-    'regenerate src/assets/species/uk.json with tools/species/make_labels.py after editing species-uk.csv',
+    'regenerate tools/species/uk.json with tools/species/make_labels.py after editing species-uk.csv',
   );
 });
 

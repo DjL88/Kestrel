@@ -6,6 +6,7 @@ import { SPECIES_MODEL, centreSquare } from '../core/speciesModel';
 import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
 import { BIOCLIP2, BIREFNET_LITE, CLIP_TEXT, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
+import { SUBJECT_MASK_STAND_IN } from '../core/subjectStandIn';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp, isMobileShell } from './desktopShell';
 import { hasModel } from './modelStore';
@@ -93,7 +94,7 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     id: 'u2netp', name: SUBJECT_MODEL.name, role: 'mask', version: null, licence: SUBJECT_MODEL.licence,
     files: [{ statId: 'u2netp', file: SUBJECT_MODEL.file, sha256: SUBJECT_MODEL.sha256, bytes: SUBJECT_MODEL.bytes }],
     peakMemory: null,
-    place: async () => (bundledModelUrl('u2netp.onnx') ? 'built-in' : 'not-offered'),
+    place: async () => (bundledModelUrl('u2netp.onnx') || SUBJECT_MASK_STAND_IN ? 'built-in' : 'not-offered'),
     measure: async (picture) => { const { detectSubject } = await import('./subjectDetector'); await detectSubject(picture); },
   },
   {

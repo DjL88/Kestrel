@@ -4,6 +4,7 @@ import { unlockPro } from './helpers';
 
 // The stand-in species model always "sees" a red kite, and the stand-in subject checker always "sees" a bird.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
+const standInLabels = readFileSync('tests/fixtures/stand-in-species-labels.json');
 const standInGate = readFileSync('tests/fixtures/stand-in-gate.onnx');
 // Synthetic drawn photos with GPS in their EXIF (tests/fixtures/make_gps_fixtures.py): London and Caracas.
 const london = readFileSync('tests/fixtures/gps-london.jpg');
@@ -15,6 +16,7 @@ test.beforeEach(({}, testInfo) => {
 
 test('?v2 where were these taken: no question for home photos, one small question for photos from elsewhere, and the list used beside the name', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-species-labels.json', (route) => route.fulfill({ body: standInLabels, contentType: 'application/json' }));
   await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await unlockPro(page);
   await page.goto('/?v2');
