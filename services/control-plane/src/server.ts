@@ -14,6 +14,7 @@ import { paddleTopUps, TOP_UP_AMOUNTS_PENCE, type TopUpOrder, type TopUpPence } 
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
 import { buildOptionalServices } from './wiring.ts';
+import { assertNoSandboxPricesInProduction } from './commerce/sandboxPriceIds.ts';
 import { localPricing, readPricePreview } from './localPricing.ts';
 import { dbipCountryLookup, type CountryLookup } from './networkCountry.ts';
 
@@ -30,6 +31,7 @@ const paddlePrice = (name: string) => { const v = process.env[name]?.trim(); ret
 const paddlePriceIds = { monthly: paddlePrice('KCP_PADDLE_MONTHLY_PRICE_ID'), annual: paddlePrice('KCP_PADDLE_ANNUAL_PRICE_ID'),
   // Pro Plus (£9.99 a month, 28 Nov 2026): its own recurring Paddle price. Not on sale until it is set.
   plus: paddlePrice('KCP_PADDLE_PLUS_PRICE_ID'), plusAnnual: paddlePrice('KCP_PADDLE_PLUS_ANNUAL_PRICE_ID') };
+assertNoSandboxPricesInProduction(paddleEnvironment, paddlePriceIds);
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
 // Optional offer (for example Black Friday): a Paddle discount ID. Paddle's own status, expiry and usage limit decide
