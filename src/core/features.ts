@@ -55,9 +55,16 @@ export const FEATURES = {
   // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   // Stays off until it is checked on a real shoot that it proposes keepers, not only rejects.
   cullRules: 'flagged',
+  // Auto-pilot edits the photos of a new import in the background, best first, one undo step each (a preview): off for
+  // everyone until an admin flag (or this device's preview switch, kestrel.preview.flight-batch.v1 = 1) turns it on.
+  flightBatch: 'flagged',
   // Brand kits (K080): a saved logo, colours and text style put on an export in one step, kept on this device. On for
   // everyone since 26 Nov 2026; an admin flag can switch it off. Not a paywall.
   brandKits: 'free',
+  // On-image advice:hatched clipped highlights and shadows, the camera's focus point and a Colour Sense badge
+  // drawn on the canvas, read-only. A preview, off for everyone until an admin flag (or this device's preview switch,
+  // `localStorage['kestrel.preview.on-image-advice.v1'] = '1'`) turns it on. Not a paywall.
+  onImageAdvice: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

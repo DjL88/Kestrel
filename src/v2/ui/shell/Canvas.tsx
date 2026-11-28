@@ -12,6 +12,7 @@ import { STACK_GAP_PX, alignForAnchor, anchorFlexStyle, freeTransform, stacked }
 import type {
   CropTransform,
   EditGroup,
+  AssistMode,
   FeatureKey,
   FontOption,
   LookPreset,
@@ -33,6 +34,10 @@ import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
+import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
+import { getAdvice, subscribeAdvice } from '../../engineClient/adviceStore';
+import { adviceGate, readAdviceChoice, writeAdviceChoice, type AdviceChoice } from '../../../core/adviceSetting';
+import { adviceFocus } from '../utils/adviceFocus';
 import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
@@ -60,6 +65,8 @@ import {
 import { SHORT_LANDSCAPE_QUERY } from '../utils/layoutQueries';
 
 interface CanvasProps {
+  /** Floats over the bottom-left of the stage (the Auto banner): never in the layout, so the canvas keeps its size and nothing in the toolbar above is covered. */
+  floating?: React.ReactNode;
   /** Engine-supplied renderer; falls back to a plain image. */
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
   maskGuideId?: string;
@@ -73,6 +80,10 @@ interface CanvasProps {
   onToggleMaskOverlay?: () => void;
   /** Colour-vision support: red and green areas that look alike, outlined and numbered on the photo. */
   colourAreas?: Array<{ label: string; area: { x: number; y: number; width: number; height: number } }>;
+  /** On-image advice (a preview, off by default): shown by default in Solo, off elsewhere; the person's choice is kept on this device. */
+  assistMode?: AssistMode;
+  /** Colour-vision support: the Colour Sense badge also says what moved, in words. */
+  cvdGuidance?: boolean;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
   tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
@@ -173,8 +184,11 @@ const anchorRect = (frame: Element): DOMRect => (pictureIn(frame) ?? frame).getB
 const FRAME_BORDER = 1;
 
 export default function Canvas({
+  floating,
   PhotoSurface,
   colourAreas,
+  assistMode = 'copilot',
+  cvdGuidance = false,
   maskGuideId,
   maskOverlayVisible: overlayChosen = true,
   maskOverlayStyle = 'outline',
@@ -266,6 +280,9 @@ export default function Canvas({
   const [eyeTarget, setEyeTarget] = useState(0);
   // Where the camera says it focused (src/core/cameraFocus.ts), drawn on the picture when the person asks.
   const [showCameraFocus, setShowCameraFocus] = useState(false);
+  // On-image advice: this device's own choice (null until the person chooses), and the engine's latest measurement for this photo.
+  const [adviceChoice, setAdviceChoice] = useState<AdviceChoice | null>(() => readAdviceChoice());
+  const advice = React.useSyncExternalStore(subscribeAdvice, () => getAdvice(photo?.id), () => null);
   /** Hold the picture point under this screen position in place through the next zoom. False when there is no frame. */
   const holdPointAt = (clientX: number, clientY: number, toZoom?: number): boolean => {
     const stage = stageRef.current;
@@ -1533,13 +1550,26 @@ export default function Canvas({
   // The camera's AF box is in the shown picture's fractions, so like the mask outline it follows crop, rotation and zoom.
   const cameraFocusArea = showCameraFocus ? photo.cameraFocus?.area : undefined;
   const shownColourAreas = colourAreas?.length ? colourAreas : undefined;
+  // On-image advice: read-only, never while comparing or holding the original. The marks are drawn in the shown picture's
+  // own pixels (the same SVG and transform as the mask outline), so they follow crop, turn, zoom and format. The clip
+  // percentage is for the whole framed picture, not only the part a cropped format shows. The eye and subject rings are
+  // found on the whole preview, so they are left out while a crop, turn, straighten or size is set (adviceFocus.ts).
+  const { shown: adviceOn, drawn: adviceShowing } = adviceGate({
+    flag: features.onImageAdvice === true, choice: adviceChoice, mode: assistMode, hasAdvice: !!advice,
+    comparing: compareMode || holdingOriginal, singleLayout: canvasLayoutMode === 'single',
+  });
+  const adviceFound = zoomFocus && zoomFocus.photoId === photo.id ? zoomFocus.focus : null;
   const renderCanvasMarks = (picture: { width: number; height: number }) => {
     const marks = (renderPickLayer ?? renderMaskOutline)?.(picture);
-    if (!cameraFocusArea && !shownColourAreas && !shownCropRect) return marks;
-    return <>{marks}{shownCropRect && !renderPickLayer && <CropSuggestionLayer picture={picture} rect={shownCropRect} />}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
+    const adviceMarks = adviceShowing && advice && activeSize.kind === 'photo'
+      ? <AdviceLayer picture={picture} advice={advice}
+        focus={(() => { const focus = adviceFocus(photo.cameraFocus?.area, picture, adviceFound, advice.framingWhole !== false); return focus?.kind === 'camera' && cameraFocusArea ? null : focus; })()} />
+      : null;
+    if (!cameraFocusArea && !shownColourAreas && !shownCropRect && !adviceMarks) return marks;
+    return <>{adviceMarks}{marks}{shownCropRect && !renderPickLayer && <CropSuggestionLayer picture={picture} rect={shownCropRect} />}{cameraFocusArea && <CameraFocusBox picture={picture} area={cameraFocusArea} />}
       {shownColourAreas && <ColourAreaMarks picture={picture} areas={shownColourAreas} />}</>;
   };
-  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas || !!shownCropRect;
+  const hasCanvasMarks = !!(renderPickLayer ?? renderMaskOutline) || !!cameraFocusArea || !!shownColourAreas || !!shownCropRect || (adviceShowing && activeSize.kind === 'photo');
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
@@ -2373,6 +2403,7 @@ export default function Canvas({
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
       </div>
+        {floating && <div data-capture-ignore className="absolute bottom-16 left-3 right-3 z-20 sm:bottom-3 sm:right-auto sm:max-w-lg">{floating}</div>}
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label={STRINGS.canvas.viewportControls}
@@ -2488,6 +2519,14 @@ export default function Canvas({
             {gridMode !== 'off' && <span className="text-[0.625rem] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
           </button>
 
+          {features.onImageAdvice === true && canvasLayoutMode === 'single' && PhotoSurface && (
+            <AdviceToggle shown={adviceOn} onToggle={() => {
+              const next: AdviceChoice = adviceOn ? 'off' : 'on';
+              setAdviceChoice(next);
+              writeAdviceChoice(next);
+            }} />
+          )}
+
           <button
             type="button"
             title={STRINGS.canvas.screenshotTitle}
@@ -2556,6 +2595,7 @@ export default function Canvas({
             <span aria-hidden="true">{showCameraFocus ? '⊡ ' : '□ '}</span>{showCameraFocus ? STRINGS.canvas.cameraFocusHide : STRINGS.canvas.cameraFocusShow}
           </button>
         )}
+        {adviceShowing && advice && <AdviceReadout advice={advice} cvdGuidance={cvdGuidance} />}
         {eyeNote && (
           <div role="status" data-testid="eye-note" onPointerEnter={() => setEyeNoteHeld(true)} onPointerLeave={() => setEyeNoteHeld(false)}
             onFocus={() => setEyeNoteHeld(true)} onBlur={() => setEyeNoteHeld(false)}

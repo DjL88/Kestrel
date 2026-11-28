@@ -19,6 +19,10 @@ import { measureStep, timedStep } from '../../providers/previewTiming';
 import { useTaskList } from './taskListFeed';
 import { histogramOffThread } from '../../providers/pixelAnalysis';
 import { editGestureActive, onEditGestureEnd } from '../../providers/editGesture';
+import { setAdvice } from './adviceStore';
+import { measureAdviceFor } from './adviceMeasure';
+import { startAdviceRun } from './adviceRun';
+import { lookForZoomFocus } from './eyeZoom';
 import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { stitchPanoramaOffThread } from '../../providers/panoramaOffThread';
 import { panoramaRecipe, type PanoramaRecipe } from '../../core/panoramaRecipe';
@@ -120,6 +124,7 @@ import { learnedLeanings, recordOutcome, type StyleKey } from '../../core/editSt
 import { loadEditStyle, resetEditStyle, saveEditStyle } from './editStyleStore';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, autopilotSkippedEdited, autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
+import { batchAllowedIn, batchMayEdit, flightPolicy, planAutoBatch, reasonsForSafeChange, safeSubset, type FlightMode } from '../../core/flightModes';
 import { guardResult } from '../../core/visionGuardian';
 import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian, askOnDeviceGuardianAbout, onDeviceGuardianReady } from '../../providers/visionGuardian';
@@ -440,7 +445,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
   // What Auto last did, per photo, so the Auto button and Auto-pilot never end in silence (Dave, 27 Nov: on his own
   // RAW, Auto-pilot applied nothing and said nothing). The last dozen photos are kept.
-  const [autoStatus, setAutoStatus] = useState<Record<string, { state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string }>>({});
+  type AutoSaid = { state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string; mode?: 'copilot' | 'autopilot'; at?: number; appliedAt?: number };
+  const [autoStatus, setAutoStatus] = useState<Record<string, AutoSaid>>({});
   // Why the last Denoise changed nothing, per photo: the panel offers "Denoise anyway" or says to wait for the develop.
   const [denoiseStatus, setDenoiseStatus] = useState<Record<string, { state: 'no-visible-noise' | 'waiting-develop'; text: string }>>({});
   const sayDenoise = useCallback((photoId: string, status: { state: 'no-visible-noise' | 'waiting-develop'; text: string } | null) => {
@@ -449,8 +455,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       return status ? { ...rest, [photoId]: status } : rest;
     });
   }, []);
-  const sayAuto = useCallback((photoId: string, state: 'working' | 'applied' | 'unchanged' | 'unavailable', text: string) => {
-    setAutoStatus((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([id]) => id !== photoId).slice(-11)), [photoId]: { state, text } }));
+  const sayAuto = useCallback((photoId: string, state: AutoSaid['state'], text: string, extra: Pick<AutoSaid, 'mode' | 'appliedAt'> = {}) => {
+    setAutoStatus((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([id]) => id !== photoId).slice(-11)), [photoId]: { state, text, at: Date.now(), ...extra } }));
   }, []);
   /** Photos whose Auto button was pressed: the checked edit is applied when the check finishes. */
   const autoApplyWanted = useRef(new Set<string>());
@@ -1476,6 +1482,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 
+  // On-image advice (a preview, off by default): where the highlights and shadows clip and whether the edit kept the
+  // subject's colour, measured from the same small preview as the histogram, once the edit settles (never while a slider
+  // is held), and cleared the moment the edit changes. The clipping is published first; the colour follows once the subject
+  // is found (adviceRun.ts). The key includes the preview's address, so a preview that was not ready, or is replaced by a
+  // better one, is measured when it arrives. Read-only: the canvas layer only draws it (adviceStore.ts).
+  const advicePreview = activeFrame ? urls[activeFrame.id]?.preview ?? '' : '';
+  const adviceKey = (can('onImageAdvice') || workflowPreviewOn('onImageAdvice')) && histogramKey ? `${histogramKey}|${advicePreview}` : null;
+  useEffect(() => {
+    const frame = activeFrame;
+    if (!adviceKey || !frame) return;
+    return startAdviceRun<HTMLImageElement>({
+      photoId: frame.id,
+      getUrl: () => provider.current!.getFullPreviewUrl(frame, 'selected'),
+      loadPicture: async (url) => (histogramSource.current?.url === url ? (await histogramSource.current.picture).element : loadImage(url)),
+      findSubject: async (url) => { const found = await lookForZoomFocus(frame.id, url); return found.kind === 'ready' ? found.subject : null; },
+      measure: (image, subject) => measureAdviceFor(image, frame.edit ?? EMPTY_EDIT, frame.framing, subject),
+      publish: (advice) => setAdvice(frame.id, advice),
+      gestureActive: editGestureActive,
+      onGestureEnd: onEditGestureEnd,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adviceKey]);
+
   // A stored AI denoise result lives on the device that made it. Say plainly when this device does not have it: the view
   // is drawn without it, and export refuses rather than quietly leave it out.
   const aiAsset = activeFrame?.edit?.trueDetailAi?.asset ?? null;
@@ -1995,7 +2024,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!assist || !frame) return;
     const candidate = candidateId ? assist.run.candidates.find((item) => item.id === candidateId) : assist.run.candidates[0];
     if (!candidate || assist.dismissed.includes(candidate.id)) return;
-    const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
+    // Co-pilot's own small change leaves the rest of the suggestion appliable: it contains that change.
+    const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) &&
+      (sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base) || (assist.safeApplied !== undefined && latest.edit === assist.safeApplied));
     if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
     editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit, { by: 'auto', notes: assist.run.detail });
     noteAutoApplied(frameId, assist.run, candidate.edit);
@@ -2021,12 +2052,121 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => window.clearTimeout(timer);
   }, [quickStart]);
 
+  // Auto-pilot after an import (preview: `flightBatch`): the new photos are checked and edited in the background, best first,
+  // whether or not they are open, as one low-priority job in Tasks that can be cancelled. Each photo's edit is one undo step;
+  // a photo that has an edit, was edited in another app, is rejected or removed is left as it is, and no decision is changed.
+  const flightBatchOn = can('flightBatch') || workflowPreviewOn('flightBatch');
+  const autoBatchController = useRef<AbortController | null>(null);
+  /** How many the running batch has edited so far, for the line said if it is stopped. */
+  const autoBatchEdited = useRef(0);
+  /** Photos from a later import, waiting for the running batch to finish: they are queued, never cancelling it. */
+  const autoBatchQueued = useRef<{ projectKey: string; ids: Set<string> } | null>(null);
+  /** The project's Flight mode as it is now, re-read by the batch before every photo (the top-bar chip can change it mid-run). */
+  const flightModeNow = useRef<FlightMode>('copilot');
+  const runAutoBatch = useCallback((projectKey: string, imported: ReadonlySet<string>) => {
+    const now = stateRef.current;
+    if (!now || now.shoot.id !== projectKey || !provider.current || !batchAllowedIn(flightModeNow.current)) return;
+    // A second import while a batch runs (or a tethered frame arriving) joins the queue; the running batch is never cancelled.
+    if (autoBatchController.current && !autoBatchController.current.signal.aborted) {
+      const queued = autoBatchQueued.current?.projectKey === projectKey ? autoBatchQueued.current : { projectKey, ids: new Set<string>() };
+      imported.forEach((id) => queued.ids.add(id));
+      autoBatchQueued.current = queued;
+      return;
+    }
+    const plan = planAutoBatch(now.frames, imported, (frame) => pairsRef.current.rawOf.has(frame.id));
+    const flight = v2Text.flight;
+    if (!plan.todo.length) { if (plan.editedElsewhere) setNotice(flight.batchDone(0, 0, plan.editedElsewhere, 0)); return; }
+    const controller = new AbortController();
+    autoBatchController.current = controller;
+    autoBatchEdited.current = 0;
+    const count = { edited: 0, left: 0, held: 0 };
+    void engineScheduler.submit({
+      title: flight.batchTitle, kind: 'auto-edit', resource: 'cpu', priority: 3, pauseable: true,
+      items: plan.todo.map((frame) => ({ id: frame.id, name: frame.filename })),
+      snapshot: { projectId: projectKey },
+      itemId: (item) => item.id, itemLabel: (item) => item.name,
+      runItem: async (item, _, ctx) => {
+        ctx.stage(flight.batchStage);
+        const live = () => (stateRef.current?.shoot.id === projectKey ? stateRef.current.frames.find((candidate) => candidate.id === item.id) : undefined);
+        // Re-read on the live photo each time: still Auto-pilot, and the photo not rejected, edited, hidden or removed since.
+        const untouched = (frame: PhotoFrame | undefined): frame is PhotoFrame =>
+          batchAllowedIn(flightModeNow.current) && batchMayEdit(frame, (candidate) => pairsRef.current.rawOf.has(candidate.id)) &&
+          !autopilotSkipsEditedElsewhere(frame!);
+        const frame = live();
+        if (!untouched(frame)) { count.left += 1; return; }
+        const run = await runAuto(frame, provider.current!, ctx.signal, editStyleOn ? learnedLeanings(loadEditStyle()) : []);
+        ctx.checkCancelled();
+        if (!run) { count.left += 1; return; }
+        // Said in the task as this photo's failure, with the reason, so Retry is offered; never a silent skip.
+        if (isAutoUnavailable(run)) throw new Error(autoUnavailableSentence(run.unavailable, frame.filename));
+        const candidate = run.improved ? run.candidates.find((entry) => entry.edit === run.plan.proposal) : undefined;
+        if (!candidate) {
+          count.left += 1;
+          ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.plan.verdict.kind === 'looks-good' ? flight.leftAlone : run.headline, { mode: 'autopilot' }));
+          return;
+        }
+        if (hasLocalVision()) {
+          ctx.stage(engineText.workspace.secondOpinionStage);
+          const opinion = await askOnDeviceGuardian(candidate.after, 'editNatural');
+          ctx.checkCancelled();
+          if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
+            count.held += 1;
+            ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotHeldForReview(), { mode: 'autopilot' }));
+            return;
+          }
+        }
+        // The person may have edited, removed or moved on from it while it was checked: then it is left alone.
+        if (!untouched(live())) { count.left += 1; return; }
+        const at = Date.now();
+        ctx.commitIfCurrent(() => {
+          if (controller.signal.aborted || !untouched(live())) { count.left += 1; return; }
+          count.edited += 1;
+          autoBatchEdited.current = count.edited;
+          mutate((current) => commitAutoEdit(current, projectKey, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }, { anyPhoto: true }));
+          sayAuto(frame.id, 'applied', candidate.summary || run.headline, { mode: 'autopilot', appliedAt: at });
+          noteAutoApplied(frame.id, run, run.plan.proposal);
+        });
+      },
+    }).then((ticket) => {
+      controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+      if (controller.signal.aborted) ticket.cancel();
+      return ticket.finished;
+    }).then((outcome) => {
+      if (stateRef.current?.shoot.id !== projectKey || controller.signal.aborted) return;
+      setNotice(outcome === 'cancelled' ? flight.batchStopped(count.edited) : flight.batchDone(count.edited, count.left, plan.editedElsewhere, count.held));
+    }).catch(() => { if (!controller.signal.aborted) setNotice(engineText.workspace.checkFailed); })
+      .finally(() => {
+        if (autoBatchController.current !== controller) return;
+        autoBatchController.current = null;
+        // Photos that arrived while it ran are checked next, as their own batch.
+        const queued = autoBatchQueued.current;
+        autoBatchQueued.current = null;
+        if (queued && !controller.signal.aborted) runAutoBatchRef.current?.(queued.projectKey, queued.ids);
+      });
+  }, [editStyleOn, mutate, sayAuto, noteAutoApplied]);
+  const runAutoBatchRef = useRef<typeof runAutoBatch | null>(null);
+  runAutoBatchRef.current = runAutoBatch;
+  const openProjectId = state?.shoot.id;
+  useEffect(() => () => { autoBatchQueued.current = null; autoBatchController.current?.abort(); autoBatchController.current = null; }, [openProjectId]);
+
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   // Each project keeps its own Flight mode; an older project without one follows Settings' default.
   const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
+  flightModeNow.current = assistMode;
+  // Switching to Solo or Co-pilot (the top-bar chip is one click) stops the background batch at once and says so:
+  // "Solo never changes the photo" must hold even for a job that began under Auto-pilot.
+  useEffect(() => {
+    if (batchAllowedIn(assistMode)) return;
+    autoBatchQueued.current = null;
+    const running = autoBatchController.current;
+    if (!running) return;
+    autoBatchController.current = null;
+    running.abort();
+    setNotice(v2Text.flight.batchStopped(autoBatchEdited.current));
+  }, [assistMode]);
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
-  const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
-  afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
+  const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull, edit: flightBatchOn ? runAutoBatch : null as null | typeof runAutoBatch });
+  afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull, edit: flightBatchOn ? runAutoBatch : null };
   // Auto-pilot means automatic: with the project's choice made and the one-time yes given, the run starts by itself once
   // importing and Auto pick are quiet (Best and Top 50 follow Auto pick's ranking, so it waits for that). A run that
   // stopped (allowance used up, offline) is not started again by itself in this session; the button still works.
@@ -2071,7 +2211,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!manual && assistMode === 'solo') return;
     const previous = assists[frame.id];
     if (!manual && previous && matchesAutoSource(previous.run, frame) &&
-        (sameRecipe(previous.run.plan.base, frame.edit ?? DEFAULT_EDIT) ||
+        (sameRecipe(previous.run.plan.base, frame.edit ?? DEFAULT_EDIT) || previous.safeApplied === frame.edit ||
          previous.run.candidates.some((candidate) => candidate.edit === frame.edit))) return;
     if (!manual && previous && !ongoingLocalReview) return;
     const request = openRequest.current;
@@ -2118,28 +2258,42 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
             return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          const skipEdited = !manual && assistMode === 'autopilot' && run.improved && autopilotSkipsEditedElsewhere(frame);
-          if (skipEdited && !editedElsewhereNoticed.current.has(frame.id)) {
+          // Auto-pilot applies the whole checked edit; Co-pilot only its small, safe part (flightModes.ts); Solo nothing.
+          const applies = manual ? 'all' : flightPolicy(assistMode).applies;
+          const modeTag = !manual && assistMode !== 'solo' ? { mode: assistMode } : {};
+          const skipEdited = !manual && applies !== 'none' && run.improved && autopilotSkipsEditedElsewhere(frame);
+          if (skipEdited && assistMode === 'autopilot' && !editedElsewhereNoticed.current.has(frame.id)) {
             editedElsewhereNoticed.current.add(frame.id);
             ctx.commitIfCurrent(() => setNotice(autopilotSkippedEdited()));
           }
-          // Applying is wanted by the Auto button, or by Auto-pilot for a photo opened unedited.
-          const wantsApply = applyNow || (!manual && assistMode === 'autopilot');
-          if (skipEdited) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited()));
+          // Applying is wanted by the Auto button, or by Auto-pilot and Co-pilot for a photo opened unedited.
+          const wantsApply = applyNow || (!manual && applies !== 'none');
+          // The sentence names Auto-pilot, so only Auto-pilot says it; Co-pilot's suggestions are in its panel anyway.
+          if (skipEdited) { if (assistMode === 'autopilot') ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', autopilotSkippedEdited(), modeTag)); }
           // Never silently nothing: when the checks leave the photo alone, the one-line reason is said.
-          else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.headline));
-          const autopilot = wantsApply && run.improved && !skipEdited;
+          else if (wantsApply && !run.improved) ctx.commitIfCurrent(() => sayAuto(frame.id, 'unchanged', run.plan.verdict.kind === 'looks-good' ? v2Text.flight.leftAlone : run.headline, modeTag));
+          const safe = !applyNow && applies === 'safe' ? safeSubset(run.plan.base, run.plan.proposal) : null;
+          const toApply = safe ? safe.edit : run.plan.proposal;
+          // Only an unedited photo is changed by itself; the Auto button is the person's own decision and always applies.
+          const untouched = applyNow || !(frame.edit || frame.editHistory?.steps.length);
+          const autopilot = wantsApply && run.improved && !skipEdited && untouched && (applies !== 'safe' || applyNow || Boolean(safe));
           let piloted = false;
           const pilot = (held: boolean) => {
             piloted = true;
-            if (held) { ctx.commitIfCurrent(() => { setNotice(autopilotHeldForReview()); sayAuto(frame.id, 'unchanged', autopilotHeldForReview()); }); return; }
+            if (held) {
+              // Only a held Auto-pilot or button edit is announced; Co-pilot's suggestions are in its panel anyway.
+              if (!safe) ctx.commitIfCurrent(() => { setNotice(autopilotHeldForReview()); sayAuto(frame.id, 'unchanged', autopilotHeldForReview(), modeTag); });
+              return;
+            }
             const at = Date.now();
-            const what = run.candidates.find((candidate) => candidate.edit === run.plan.proposal)?.summary;
-            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) sayAuto(frame.id, 'applied', what || run.headline); });
+            const what = safe ? v2Text.flight.copilotRest : run.candidates.find((candidate) => candidate.edit === run.plan.proposal)?.summary;
+            const notes = safe ? reasonsForSafeChange(run.detail, safe.kinds) : run.detail;
+            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) sayAuto(frame.id, 'applied', what || run.headline, { ...modeTag, appliedAt: at }); });
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
-                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
-            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) noteAutoApplied(frame.id, run, run.plan.proposal); });
+                ? commitAutoEdit(current, assistProjectId, frame, toApply, at, { by: 'auto', notes }) : current));
+            if (safe) ctx.commitIfCurrent(() => setAssists(current => current[frame.id]?.run === run ? { ...current, [frame.id]: { ...current[frame.id], safeApplied: toApply } } : current));
+            ctx.commitIfCurrent(() => { if (isCurrent() && !ctx.signal.aborted) noteAutoApplied(frame.id, run, toApply); });
           };
           // The Auto button is the person's own decision: it applies at once, without waiting for the second opinion.
           if (applyNow && autopilot) pilot(false);
@@ -2481,6 +2635,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (stateRef.current?.shoot.id === projectKey) {
         const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome, live);
         if (next === 'run') void afterImport.current.run();
+        // Auto-pilot also edits the new photos in the background (a preview, off unless `flightBatch` is on).
+        if (afterImport.current.mode === 'autopilot' && importedFrames.length) afterImport.current.edit?.(projectKey, new Set(importedFrames.map((frame) => frame.id)));
+        if (next === 'run') { /* started above */ }
         else if (!live && outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
         else if (!live && outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
         // Live shoot: show the frame that just landed, so the photographer sees each shot as it arrives.
@@ -4263,7 +4420,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => { const shown = shownLogoId({ ...readOverlay(undefined), watermarkPresetId }, watermarkLibrary.map((preset) => preset.id)); const logo = watermarkLibrary.find((preset) => preset.id === shown); return { id, name, logoLabel: logo?.label ?? 'Logo not on this device', logoMissing: !logo }; }) } : {}),
-    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
+    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn(), onImageAdvice: can('onImageAdvice') || workflowPreviewOn('onImageAdvice') },
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,

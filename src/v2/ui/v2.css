@@ -65,7 +65,11 @@
 @media (pointer: coarse) and (max-width: 767px) {
   .inflight-v2 header button, .inflight-v2 nav button, .inflight-v2 [role="dialog"] button, .inflight-v2 [role="tab"] { min-height: var(--touch-min); }
   .inflight-v2 header button[aria-label], .inflight-v2 [role="dialog"] button[aria-label] { min-width: var(--touch-min); }
-  .inflight-v2 input[type="range"].inflight-slider { height: 6px; }
+  /* The element is 44px tall so a finger finds it; the visible track is still 6px, drawn as a background. */
+  .inflight-v2 input[type="range"].inflight-slider {
+    height: var(--touch-min); border-radius: 0;
+    background: linear-gradient(var(--border-default), var(--border-default)) center / 100% 6px no-repeat;
+  }
   .inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
   .inflight-v2 input[type="range"].inflight-slider::-moz-range-thumb { width: 26px; height: 26px; }
 }
@@ -304,3 +308,30 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
    moved (Dave: "zoom out moves the picture"). Wheel, trackpad, touch and keyboard focus still scroll it. */
 .inflight-v2 .v2-filmstrip-tools { scrollbar-width: none; }
 .inflight-v2 .v2-filmstrip-tools::-webkit-scrollbar { display: none; }
+
+/* Phone tool sheet (upright phones and upright tablets), made the way Lightroom, Snapseed and Darkroom do it: the
+   photo keeps its height and the first control is under the thumb at once. The title row is one 44px line with a grip
+   (the title, the grip and Close were a 64px row with a 60px heading above the first control), the sheet's padding is
+   tighter, and the first-launch tip that says "double-click" and "Ctrl+scroll" is left out on a touch screen. */
+@media (pointer: coarse) and (max-width: 767px) {
+  .inflight-v2 [data-testid="mobile-sheet-handle"] { position: relative; padding-top: 0; padding-bottom: 0; min-height: var(--touch-min); }
+  .inflight-v2 [data-testid="mobile-sheet-handle"]::before {
+    content: ''; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px;
+    border-radius: 2px; background: var(--border-default); pointer-events: none;
+  }
+  .inflight-v2 [data-testid="mobile-sheet-handle"] h2 { padding-top: 6px; }
+  .inflight-v2 [data-testid="mobile-sheet-handle"] + div { padding: 12px 16px; }
+  /* Sliders need room to work: with Advanced Edits showing, the sheet is a little taller so the first slider is whole and
+     under the thumb. Every other tool keeps the 44% sheet and the photo keeps the rest. */
+  .inflight-v2 div:has(> [data-testid="mobile-sheet-handle"]):has(#adjust-advanced-panel:not([hidden])) { max-height: 52dvh; }
+}
+@media (pointer: coarse) {
+  .inflight-v2 [data-testid="canvas-tip"][data-tip="view"] { display: none; }
+  /* Small controls inside a dense row (the (i) button, a slider's value) keep their look and the row's height, but a
+     finger can press anywhere in a 44px square around them. */
+  .inflight-v2 .v2-hit { position: relative; }
+  .inflight-v2 .v2-hit::after {
+    content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: max(100%, var(--touch-min)); height: max(100%, var(--touch-min));
+  }
+}

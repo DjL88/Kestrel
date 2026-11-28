@@ -96,7 +96,7 @@ function SliderRow({
             type="button"
             title={`Double-click or click to reset ${label} to 0`}
             onClick={() => onChange(0)}
-            className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]"
+            className="v2-hit font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]"
           >
             {formatted}
           </button>
@@ -183,7 +183,7 @@ export default function AdjustPanel({
   const builtInLooks = looks.filter((look) => !look.mine);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       {autoEdit && <AutoEditButton photoId={photo.id} {...autoEdit} />}
       {onToggleCvdGuidance && (
         <div className="space-y-2">
@@ -224,7 +224,7 @@ export default function AdjustPanel({
           </h3>
           <span className="text-[0.625rem] text-[var(--text-muted)]">{builtInLooks.filter((look) => look.id !== 'none').length} styles</span>
         </div>
-        <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
+        <p className="v2-mouse-hint text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
 
         <div
           className="grid grid-cols-2 gap-2"
@@ -277,7 +277,7 @@ export default function AdjustPanel({
       </div>
       <div role="tabpanel" id="adjust-advanced-panel" aria-labelledby="adjust-advanced-tab" hidden={activeTab !== 'advanced'}>
       {/* Phone: one group of sliders at a time, chosen by pill tabs. Hidden from 768px wide. */}
-      <div role="tablist" aria-label={STRINGS.panelWords.adjustmentGroups} className="mb-3 flex items-center gap-1.5 md:hidden">
+      <div role="tablist" aria-label={STRINGS.panelWords.adjustmentGroups} className="sticky -top-4 z-10 -mx-4 mb-3 flex items-center gap-1.5 bg-[var(--bg-surface)] px-4 py-1.5 md:hidden">
         {ADVANCED_GROUPS.map((entry) => (
           <button key={entry.id} type="button" role="tab" aria-selected={advancedGroup === entry.id} onClick={() => setAdvancedGroup(entry.id)}
             className={`min-h-11 flex-1 rounded-full border px-3 text-xs font-medium ${advancedGroup === entry.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}>
@@ -291,7 +291,7 @@ export default function AdjustPanel({
       {/* Advanced Edits in groups (Dave, 27 Nov: "group the edit sliders more distinctly"): each a labelled card that
           opens and closes (remembered on this device), says "Changed" when any of its values is off its default, and
           resets on its own. The whole-photo reset stays here, above them. Slider maths unchanged. */}
-      <div className="flex justify-end">
+      <div className="flex justify-end max-md:hidden">
         <button type="button" onClick={() => onResetPhoto(photo.id)}
           className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
           <BrandIcon name="restore" size={12} />

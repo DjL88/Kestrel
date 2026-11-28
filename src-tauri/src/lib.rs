@@ -1,5 +1,10 @@
 #[cfg(target_os = "ios")]
 mod ios_orientation;
+// Tested on desktop too: it is only arithmetic.
+#[cfg(any(target_os = "ios", all(test, desktop)))]
+mod resize_guard;
+#[cfg(target_os = "ios")]
+static FILL_GUARD: resize_guard::ResizeGuard = resize_guard::ResizeGuard::new();
 #[cfg(desktop)]
 use kestrel_raw::nikon_he;
 #[cfg(desktop)]
@@ -625,6 +630,33 @@ pub fn run() {
 
     #[cfg(mobile)]
     let builder = builder.invoke_handler(tauri::generate_handler![set_landscape_allowed]);
+
+    // iOS: make the web view cover the whole window once the page has loaded and again when the window changes size
+    // (turning the phone). Nothing in the page calls this any more (the old orientation provider went with the previous
+    // interface), and without it the page measures itself two safe areas short and leaves a grey band under the footer.
+    #[cfg(target_os = "ios")]
+    let builder = builder
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                let _ = webview.with_webview(|platform| {
+                    // SAFETY: `with_webview` runs this on the main thread with the live WKWebView.
+                    unsafe { ios_orientation::fill_window(platform.inner().cast()) }
+                });
+            }
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                if !FILL_GUARD.changed(size.width, size.height) {
+                    return;
+                }
+                if let Some(webview_window) = tauri::Manager::get_webview_window(window, window.label()) {
+                    let _ = webview_window.with_webview(|platform| {
+                        // SAFETY: as above.
+                        unsafe { ios_orientation::fill_window(platform.inner().cast()) }
+                    });
+                }
+            }
+        });
 
     // Menus, restart and the updater exist on desktop only.
     #[cfg(desktop)]
