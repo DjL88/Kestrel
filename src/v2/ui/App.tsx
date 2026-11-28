@@ -932,6 +932,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskParts={actions.setMaskParts}
+            onSetMaskInvert={actions.setMaskInvert}
             onPreviewMask={setMaskGuide}
             tapSelect={store.tapSelect}
             tapActions={actions}

@@ -19,6 +19,7 @@ interface MasksPanelProps {
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   onSetMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
+  onSetMaskInvert: (photoId: string, maskId: string, invert: boolean) => void;
   onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
   /** Tap to select (optional pack); absent where the engine does not offer it. */
   tapSelect?: TapSelectState;
@@ -37,6 +38,7 @@ export default function MasksPanel({
   onSetMaskFeather,
   onSetMaskGeometry,
   onSetMaskParts,
+  onSetMaskInvert,
   onPreviewMask,
   tapSelect,
   tapActions,
@@ -68,7 +70,6 @@ export default function MasksPanel({
 
   const autoTools: Array<{ id: MaskLayer['type']; label: string; icon: BrandIconName }> = [
     { id: 'subject', label: STRINGS.masks.subject, icon: 'find-subject' },
-    { id: 'sky', label: STRINGS.masks.sky, icon: 'mountain' },
     { id: 'background', label: STRINGS.masks.background, icon: 'masks' },
   ];
 
@@ -102,9 +103,8 @@ export default function MasksPanel({
               type="button"
               data-testid={`mask-detect-${tool.id}`}
               aria-label={tool.label}
-              disabled={tool.id === 'sky' || (detecting && asked === tool.id)}
+              disabled={detecting && asked === tool.id}
               aria-busy={(detecting && asked === tool.id) || undefined}
-              title={tool.id === 'sky' ? STRINGS.panelWords.skyUnavailable : undefined}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 setAsked(tool.id);
@@ -238,6 +238,13 @@ export default function MasksPanel({
                         ))}
                       </fieldset>;
                     })()}
+                    <label className="flex min-h-9 items-center gap-2 text-[0.6875rem] text-[var(--text-primary)]">
+                      <input type="checkbox" data-testid="v2-mask-invert" checked={!!layer.invert}
+                        aria-label={`${layer.name}: ${STRINGS.panelWords.invertMask}`}
+                        onChange={event => onSetMaskInvert(photo.id, layer.id, event.target.checked)} />
+                      <span>{STRINGS.panelWords.invertMask}</span>
+                      <span className="text-[var(--text-muted)]">{layer.invert ? `· ${STRINGS.panelWords.invertOn}` : `· ${STRINGS.panelWords.invertOff}`}</span>
+                    </label>
                     {photo.masks.some(other => other.id !== layer.id) && (() => {
                       const parts = layer.parts ?? [];
                       const others = photo.masks.filter(other => other.id !== layer.id);

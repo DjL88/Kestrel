@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, setMaskParts, toggleMask } from './maskOps.ts';
+import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskLimit, setMaskParts, toggleMask } from './maskOps.ts';
 import { applyMasks, effectiveAlpha, fullContext, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
@@ -240,4 +240,28 @@ test('mask parts are validated, capped at four, and removing a part mask hides t
   assert.deepEqual(after[0].parts, [{ id: 'right', mode: 'add' }]);
   assert.equal(after[0].hidden, true);
   assert.equal(after[0].limit, undefined);
+});
+
+test('invert swaps what a mask selects, applies to real pixels, and setting it twice restores the original', () => {
+  const base = setMaskEdit([createMask('radial', 'area')], 'area', 'exposure', 1);
+  const flipped = setMaskInvert(base, 'area', true);
+  assert.equal(masksToLayers(flipped)[0].invert, true);
+  assert.ok(validMasks(flipped));
+  const a = maskAlpha(base[0], 32, 32, fullContext(32, 32));
+  const b = maskAlpha(flipped[0], 32, 32, fullContext(32, 32));
+  for (const i of [0, 500, 16 * 32 + 16, 1023]) assert.ok(Math.abs(a[i] + b[i] - 1) < 1e-6, 'alpha is complementary');
+  const pixels = new Uint8ClampedArray(32 * 32 * 4);
+  for (let i = 0; i < pixels.length; i += 4) { pixels[i] = pixels[i + 1] = pixels[i + 2] = 70; pixels[i + 3] = 255; }
+  applyMasks(pixels, 32, 32, flipped, fullContext(32, 32));
+  assert.equal(pixels[(16 * 32 + 16) * 4], 70, 'centre of the oval is now left alone');
+  assert.ok(pixels[(31 * 32 + 31) * 4] > 70, 'the outside is adjusted');
+  assert.deepEqual(setMaskInvert(flipped, 'area', false), base, 'inverting twice restores it');
+});
+
+test('inverting a subject mask reads as Background, and a combined mask can be inverted and intersected', () => {
+  const masks: Mask[] = [createMask('radial', 'a'), createMask('radial', 'b')];
+  const both = setMaskInvert(setMaskParts(masks, 'a', [{ id: 'b', mode: 'intersect' }]), 'a', true);
+  assert.ok(validMasks(both));
+  assert.equal(masksToLayers(both)[0].invert, true);
+  assert.equal(masksToLayers(both)[0].parts?.[0].mode, 'intersect');
 });
