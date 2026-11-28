@@ -27,6 +27,8 @@ export const gd: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Cuiridh e ro-shealladh sgoinneil 2,560 px de dhealbh dhan neul agus gheibh e roghainnean deasachaidh air ais a ghabhas neo-dhèanamh. Feumaidh e ceangal agus cuiridh e dàta an deilbh, mar sin fàg dheth e gus a h-uile càil a chumail air an inneal seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Dìreach san app deasg. Togaidh e dealbhan le camara ceangailte tro USB agus sàbhailidh e gach frèam ann am pasgan a thaghas tu. Chan eil e air a dhearbhadh ach le camara aithriseach gu ruige seo.",
+  tapForPhotoName: "Thoir gnogadh air an dealbh gus na bàraichean fhalach",
+  tapForPhotoDesc: "Air sgrìon-suathaidh, falaichidh aon ghnogadh air an dealbh na bàraichean is na pannailean gus an tèid an sgrìon gu lèir a thoirt don dealbh. Bheir gnogadh eile air ais iad.",
   cloudOriginalsName: "Tùsan slàna sa chrann-sgòth",
   cloudOriginalsDesc: "Stòraidh e an tùs slàn le gach dealbh a chuireas tu dhan chrann-sgòth, gus an urrainn uidheam eile a thoirt à sin gun chall. Cha deach a dhearbhadh ach le cunntasan deuchainn gu ruige seo.",
   phoneTwoPagesName: "Fòn: dà dhuilleag",

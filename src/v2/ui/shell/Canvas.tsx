@@ -1,4 +1,4 @@
-import { stepFrom, swipeIntent } from '../utils/swipe';
+import { isTap, stepFrom, swipeIntent } from '../utils/swipe';
 import EdgeProgress from './EdgeProgress';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
@@ -33,7 +33,7 @@ import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import CropSuggestionLayer from './CropSuggestionLayer';
 import { proposeCrop } from '../../../core/proposeCrop';
-import { createDoubleTapDetector } from '../../../core/touchGestures';
+import { createDoubleTapDetector, DOUBLE_TAP_GAP_MS } from '../../../core/touchGestures';
 import { readGesture } from '../../../core/gestureSettings';
 import { cropPatchForRect, isUntouchedCrop } from '../../engineClient/cropOps';
 import AdviceLayer, { AdviceReadout, AdviceToggle } from './AdviceLayer';
@@ -140,6 +140,11 @@ interface CanvasProps {
   /** Canvas only is on: the header, rail, panels and filmstrip are hidden, so the canvas offers the way back. */
   canvasOnly?: boolean;
   onToggleCanvasOnly?: () => void;
+  /** Touch: one clean tap on the photo turns Canvas only on or off (preview `tapForPhoto`). A tool that reads taps keeps them. */
+  tapTogglesCanvasOnly?: boolean;
+  /** Canvas only, for culling with the bars hidden: where this photo is in the project ("3 of 20") and its flag. */
+  canvasOnlyPosition?: string;
+  onToggleFlag?: () => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
   onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
@@ -235,6 +240,9 @@ export default function Canvas({
   onToggleFullScreen,
   neighbourPhotos,
   canvasOnly = false,
+  tapTogglesCanvasOnly = false,
+  canvasOnlyPosition,
+  onToggleFlag,
   onToggleCanvasOnly,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -628,6 +636,12 @@ export default function Canvas({
   }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
+  // Tap for photo: the toggle waits out the double-tap window, so the second tap of a double tap (which zooms, or what
+  // Settings > Gestures says) cancels it and the bars do not blink. The newest callback is read when the wait ends.
+  const tapToggleTimer = useRef<number | null>(null);
+  const toggleCanvasOnlyRef = useRef(onToggleCanvasOnly);
+  toggleCanvasOnlyRef.current = onToggleCanvasOnly;
+  useEffect(() => () => { if (tapToggleTimer.current !== null) window.clearTimeout(tapToggleTimer.current); }, []);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
   // Crop suggestions the person dismissed, by photo and format. Kept with the other state: it must run on every render.
@@ -1254,6 +1268,17 @@ export default function Canvas({
       } else doubleTap.current.reset();
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
+        // One clean tap gives the photo the whole screen, or brings the bars back. Tools that use a tap on the picture
+        // (tap to select, heal, the neutral picker) keep it; so does anything the tap landed on that is a control.
+        const onControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"], [role="slider"]');
+        if (tapTogglesCanvasOnly && !onControl && !neutralPick && !heal?.placing && tapSession?.photoId !== photo.id
+          && isTap(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t)) {
+          if (tapToggleTimer.current !== null) {
+            window.clearTimeout(tapToggleTimer.current); tapToggleTimer.current = null; // second tap: a double tap, not ours
+          } else {
+            tapToggleTimer.current = window.setTimeout(() => { tapToggleTimer.current = null; toggleCanvasOnlyRef.current?.(); }, DOUBLE_TAP_GAP_MS + 20);
+          }
+        }
         if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
         else if (intent === 'previous-photo') { if (swipeBetweenPhotos) onStepPhoto?.(-1); }
         else if (intent === 'next-format' || intent === 'previous-format') {
@@ -2668,12 +2693,23 @@ export default function Canvas({
           </div>
         )}
         {canvasOnly && onToggleCanvasOnly && (
-          <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
-            onClick={onToggleCanvasOnly}
-            className="ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            <BrandIcon name="panel" size={14} />
-            {STRINGS.canvas.canvasOnlyBack}
-          </button>
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {/* With the bars hidden the photo can still be culled: its place, and its flag as a word and an icon. */}
+            {canvasOnlyPosition && <span data-testid="canvas-only-position" className="text-[var(--text-secondary)]">{canvasOnlyPosition}</span>}
+            {onToggleFlag && (
+              <button type="button" data-testid="canvas-only-flag" aria-pressed={photo.decision === 'keep'} onClick={onToggleFlag}
+                className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name={photo.decision === 'keep' ? 'flag' : 'flag-off'} size={14} />
+                {photo.decision === 'keep' ? STRINGS.filmstrip.unflagAction : STRINGS.filmstrip.flagAction}
+              </button>
+            )}
+            <button type="button" data-testid="canvas-only-exit" title={STRINGS.canvas.canvasOnlyExit} aria-label={STRINGS.canvas.canvasOnlyExit}
+              onClick={onToggleCanvasOnly}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="panel" size={14} />
+              {STRINGS.canvas.canvasOnlyBack}
+            </button>
+          </span>
         )}
       </div>
     </main>

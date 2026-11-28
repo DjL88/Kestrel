@@ -22,6 +22,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Store the full original in the cloud with each chosen photo (lossless on another device), until proven with a real account. */
   cloudOriginals: previewKey('cloudOriginals'),
   usbTether: previewKey('usbTether'),
+  /** Touch screens: one tap on the photo hides the bars and panels so the photo has the screen; a tap brings them back. */
+  tapForPhoto: previewKey('tapForPhoto'),
   /** The phone's two pages (photo grid, then one-photo editor, no filmstrip). Always on in the phone app shell; here for a browser. */
   phoneTwoPages: previewKey('phoneTwoPages'),
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */

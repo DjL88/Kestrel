@@ -27,6 +27,8 @@ export const fr: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envoie un aperçu intelligent de 2 560 px d'une photo vers le cloud et reçoit en retour des réglages de retouche annulables. Cela demande une connexion et envoie des données de photo : laissez-le désactivé pour tout garder sur cet appareil.",
   usbTetherName: "Connexion USB à l'appareil photo",
   usbTetherDesc: "Application de bureau uniquement. Photographie avec un appareil branché en USB et enregistre chaque image dans un dossier de votre choix. Essayé jusqu'ici seulement avec un appareil simulé.",
+  tapForPhotoName: "Touchez la photo pour masquer les barres",
+  tapForPhotoDesc: "Sur un écran tactile, un seul toucher sur la photo masque les barres et les panneaux pour que la photo occupe tout l'écran. Un autre toucher les ramène.",
   cloudOriginalsName: "Originaux complets dans le cloud",
   cloudOriginalsDesc: "Enregistre l'original complet avec chaque photo envoyée dans le cloud, pour qu'un autre appareil puisse le récupérer sans perte. Essayé seulement avec des comptes de test pour l'instant.",
   phoneTwoPagesName: "Téléphone : deux pages",

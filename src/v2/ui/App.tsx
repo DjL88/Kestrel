@@ -1,5 +1,5 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
-import { MONTHLY_PHOTO_ALLOWANCE, usageFromServer, type CloudUsage } from '../../core/cloudPlan';
+import { MONTHLY_PHOTO_ALLOWANCE, planHasCloud, usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { CloudStatus, type CloudStatusState } from './shell/CloudStatus';
 import { projectsText } from '../../i18n/areas/projects';
@@ -1072,6 +1072,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const phoneGridPage = phoneTwoPages && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
+  // Preview, off unless switched on for this device: a tap on the photo hides the bars and panels (touch screens).
+  const [tapForPhoto] = useState(() => workflowPreviewOn('tapForPhoto'));
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
   useEffect(() => {
     const sheet = sheetEl;
@@ -1131,6 +1133,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen !== 'editor' || canvasOnlyShown ? undefined : phoneLandscape ? 'phone-landscape' : tabletPortrait ? 'tablet-portrait' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
+      data-v2-photo-only={tapForPhoto && canvasOnlyShown ? '' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
@@ -1248,7 +1251,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             // nothing is lost; its invite form is gone (ShareDialog). The offline portfolio moved to File.
             onShare={!store.collage && (COLLABORATION_UI || alreadyShared) ? () => { setSharePortfolioOnly(false); setShareOpen(true); } : undefined}
             onPortfolio={!store.collage && !COLLABORATION_UI ? () => { setSharePortfolioOnly(true); setShareOpen(true); } : undefined}
-            storeInCloud={!store.collage && accountCloud?.plan === 'pro' ? {
+            storeInCloud={!store.collage && accountCloud && planHasCloud(accountCloud.plan) ? {
               onOpen: () => setStoreCloudOpen(true),
               onTopUp: () => actions.setSettingsOpen(true, 'account'),
               limit: cloudLimitNote(accountCloud),
@@ -1466,6 +1469,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   neighbourPhotos={neighbourPhotos}
                   canvasOnly={canvasOnlyShown}
                   onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
+                  tapTogglesCanvasOnly={tapForPhoto}
+                  canvasOnlyPosition={tapForPhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
+                  onToggleFlag={tapForPhoto ? () => { actions.toggleFlag([activePhoto.id]); advanceAfterDecision([activePhoto.id]); } : undefined}
                 />
               )}
 
@@ -1734,6 +1740,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
+        previewOnlyCount={(store.selectedPhotoIds.length ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : []).filter((id) => store.photos.find((p) => p.id === id)?.cloudPreview).length}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
         brandKits={store.brandKits}

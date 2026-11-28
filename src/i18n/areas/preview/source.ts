@@ -31,6 +31,8 @@ export const source = {
   cloudOriginalsDesc: "Stores the full original with each photo you send to the cloud, so another device can fetch it without loss. Tried only with test accounts so far.",
   phoneTwoPagesName: "Phone: two pages",
   phoneTwoPagesDesc: "On a phone, shows a photo grid first, then one photo to edit, with no filmstrip. Always on in the phone app. This switch is for a phone browser.",
+  tapForPhotoName: "Tap the photo to hide the bars",
+  tapForPhotoDesc: "On a touch screen, one tap on the photo hides the bars and panels so the photo has the whole screen. Another tap brings them back.",
   usbTetherName: "USB tethering",
   usbTetherDesc: "Desktop app only. Shoots with a camera plugged in by USB and saves each frame to a folder you choose. Tried only with a simulated camera so far.",
   ortWebgpuName: "Graphics card for models",

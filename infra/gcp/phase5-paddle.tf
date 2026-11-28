@@ -51,6 +51,24 @@ variable "phase5_paddle_annual_price_id" {
     error_message = "phase5_paddle_annual_price_id is empty or a Paddle price ID (pri_...)."
   }
 }
+# Pro Plus (£9.99 a month, 5,000 cloud photos a month). Not on sale until this is set.
+variable "phase5_paddle_plus_price_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = var.phase5_paddle_plus_price_id == "" || can(regex("^pri_[a-z0-9]{10,60}$", var.phase5_paddle_plus_price_id))
+    error_message = "phase5_paddle_plus_price_id is empty or a Paddle price ID (pri_...)."
+  }
+}
+# Pro Plus yearly (£99.99, 5,000 cloud photos a month). Not on sale until this is set.
+variable "phase5_paddle_plus_annual_price_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = var.phase5_paddle_plus_annual_price_id == "" || can(regex("^pri_[a-z0-9]{10,60}$", var.phase5_paddle_plus_annual_price_id))
+    error_message = "phase5_paddle_plus_annual_price_id is empty or a Paddle price ID (pri_...)."
+  }
+}
 # Test payments: while phase5_paddle_environment is "sandbox", anyone could pay with Paddle's public test card, so only
 # testers may start a checkout: the /admin admins (kcp-admin-emails) plus these sign-in emails. Set them only in the
 # private tfvars (switch-features.sh), never in Git. Ignored in production.

@@ -120,7 +120,7 @@ export default function EnhancePanel({
             {/* The allowance the server gives (services/control-plane wiring.ts; src/core/cloudPlan.ts), only where cloud is offered. */}
             {cloudEnabled && (
               <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="denoise-cloud-allowance">
-                {STRINGS.enhance.denoiseCloudAllowance(count(MONTHLY_PHOTO_ALLOWANCE.basic), count(MONTHLY_PHOTO_ALLOWANCE.pro))}
+                {STRINGS.enhance.denoiseCloudAllowance(count(MONTHLY_PHOTO_ALLOWANCE.pro), count(MONTHLY_PHOTO_ALLOWANCE.plus))}
               </p>
             )}
           </div>

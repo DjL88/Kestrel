@@ -27,6 +27,8 @@ export const cy: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Yn anfon rhagolwg clyfar 2,560 px o lun i'r cwmwl ac yn cael gosodiadau golygu y gellir eu dadwneud yn ôl. Mae angen cysylltiad ac mae'n anfon data'r llun, felly gadewch ef i ffwrdd i gadw popeth ar y ddyfais hon.",
   usbTetherName: "Clymu USB",
   usbTetherDesc: "Yr ap bwrdd gwaith yn unig. Yn tynnu lluniau gyda chamera wedi'i blygio i mewn drwy USB ac yn cadw pob ffrâm mewn ffolder o'ch dewis. Dim ond gyda chamera efelychiedig y'i profwyd hyd yma.",
+  tapForPhotoName: "Tapio'r llun i guddio'r bariau",
+  tapForPhotoDesc: "Ar sgrin gyffwrdd, mae un tap ar y llun yn cuddio'r bariau a'r paneli fel bod y llun yn cael y sgrin gyfan. Mae tap arall yn eu dod yn ôl.",
   cloudOriginalsName: "Y lluniau gwreiddiol llawn yn y cwmwl",
   cloudOriginalsDesc: "Yn storio'r gwreiddiol llawn gyda phob llun a anfonwch i'r cwmwl, fel y gall dyfais arall ei nnôl heb golled. Dim ond gyda chyfrifon prawf y mae wedi'i brofi hyd yma.",
   phoneTwoPagesName: "Ffôn: dwy dudalen",
