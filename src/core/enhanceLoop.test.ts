@@ -136,16 +136,17 @@ test('the on-device favourite is used and labelled; a stand-in is labelled as a 
   assert.equal(fake.favouriteBy, 'stand-in');
 });
 
-test('the cloud is a quiet third opinion: never asked without permission, silent on failure', async () => {
-  let asked = 0;
-  const cloud = (permitted: boolean, fail: boolean) => ({
-    policy: { flag: true, cloudPermitted: permitted, previewOnly: true },
-    ask: async () => { asked += 1; if (fail) throw new Error('offline'); return 'disagree' as const; },
-  });
-  const vision: VisionAssistant = { kind: 'on-device', critique: async () => ({ issues: [], summary: '' }) };
-  const px = scene(W, H, 0.45);
-  await enhancePhoto({ pixels: px, width: W, height: H, vision, cloud: cloud(false, false), maxRounds: 2 });
-  assert.equal(asked, 0, 'not permitted, so never asked');
-  const r = await enhancePhoto({ pixels: px, width: W, height: H, vision, cloud: cloud(true, true), maxRounds: 2 });
-  assert.ok(r.options.length === 3, 'a failing cloud changes nothing');
+test('the per-photo loop never calls the cloud and works fully without it', async () => {
+  const r = await enhancePhoto({ pixels: scene(W, H, 0.45), width: W, height: H, maxRounds: 2 });
+  assert.equal(r.options.length, 3);
+  assert.ok(r.chain.results.every((c) => c.where !== 'cloud'));
+  assert.ok(!('cloud' in ({} as Parameters<typeof enhancePhoto>[0])), 'there is no cloud input to pass');
+});
+
+test('the loop only uses clearly open models; unknown or unconfirmed ones are refused', async () => {
+  const { loopMayUse, LOOP_MODELS } = await import('./enhanceModels');
+  assert.equal(loopMayUse('smolvlm2-256m'), true);
+  assert.equal(loopMayUse('nafnet-sidd-w32-w16'), false);
+  assert.equal(loopMayUse('some-new-model'), false);
+  assert.ok(LOOP_MODELS.every((m) => m.note.length > 0));
 });

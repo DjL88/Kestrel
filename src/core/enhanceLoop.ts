@@ -2,7 +2,7 @@ import type { PhotoEdit } from './photoEdits';
 import { DEFAULT_EDIT } from './photoEdits';
 import { naturalAuto, renderRecipePreview } from './naturalAuto';
 import type { AiReviewIssue } from './aiReview';
-import { settleTrail, shouldAskCloud, quietCloudOpinion, type ChainPolicy, type ChainTrail, type ChainVerdict } from './verificationTrail';
+import { settleTrail, type ChainPolicy, type ChainTrail, type ChainVerdict } from './verificationTrail';
 import { observeFrame, type FrameStats } from './enhanceObserve';
 import { resolveGuidance, type Guidance, type VisionObservationInput } from './enhanceGuide';
 import {
@@ -83,8 +83,6 @@ export interface EnhanceInput {
   segmentation?: { weights: Float32Array; confidence: 'high' | 'medium' | 'low' } | null;
   framingKey?: string;
   vision?: VisionAssistant | null;
-  /** Quiet third opinion: only asked when permitted, on previews, for disputed or high-impact steps; failure is silent. */
-  cloud?: { policy: ChainPolicy; ask: () => Promise<ChainVerdict | undefined> } | null;
   /** The person's chosen look; resolves to the style rule. Default 'natural'. Null = none chosen. */
   style?: string | null;
   maxRounds?: number;
@@ -269,14 +267,13 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
     else { favourite = candidates.reduce((a, b) => (b.o.score > a.o.score ? b : a)).i; favouriteBy = 'measurements'; }
   }
 
-  // Verification chain: the device decides; the cloud may only add caution, and its failure is silent.
+  // Verification chain: the device decides. No cloud in the per-photo loop.
   const chosen = favourite !== null ? options[favourite] : null;
   const device: ChainVerdict | undefined = !chosen ? undefined : vision?.critique ? (chosen.remaining.some((i) => i.source === 'vision') ? 'disagree' : 'agree') : undefined;
-  const policy: ChainPolicy = input.cloud?.policy ?? { flag: false, cloudPermitted: false, previewOnly: true };
+  // The per-photo loop never asks the cloud (owner policy, 28 Nov 2026): everything runs on this device, offline.
+  const policy: ChainPolicy = { flag: true, cloudPermitted: false, previewOnly: true };
   const impact = chosen && chosen.steps.some((s) => Math.abs(s.amount) >= 1) ? 'high' : 'normal';
-  let cloud: ChainVerdict | undefined;
-  if (input.cloud && shouldAskCloud({ impact, device }, policy)) cloud = await quietCloudOpinion(input.cloud.ask);
-  const chain = settleTrail([{ step: 'edit', impact, device, cloud }], policy);
+  const chain = settleTrail([{ step: 'edit', impact, device }], policy);
 
   const advice: string[] = [];
   if (stats.tilt && Math.abs(stats.tilt.degrees) >= 0.8 && stats.tilt.confidence >= 0.45) advice.push(`Strong straight edges lean about ${Math.abs(stats.tilt.degrees).toFixed(1)}°. Straightening changes the crop, so it is left to you.`);
