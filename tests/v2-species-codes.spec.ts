@@ -24,7 +24,8 @@ test('?v2 species name box: a four-letter banding code finds the bird, and picki
   await options.first().click();
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
 
-  await root.getByRole('button', { name: 'Correct species name' }).click();
+  await root.getByRole('button', { name: 'More actions for the subject' }).click();
+  await root.getByRole('menuitem', { name: 'Edit manually' }).click();
   const box = root.getByRole('combobox', { name: 'Correct species name' });
   await box.fill('amro');
   const suggestions = root.getByRole('listbox', { name: 'Correct species name' });
@@ -40,7 +41,8 @@ test('?v2 species name box: a four-letter banding code finds the bird, and picki
   await expect(root.getByText('American Robin', { exact: true }).first()).toBeVisible();
 
   // Any name is still accepted, with or without a suggestion.
-  await root.getByRole('button', { name: 'Correct species name' }).click();
+  await root.getByRole('button', { name: 'More actions for the subject' }).click();
+  await root.getByRole('menuitem', { name: 'Edit manually' }).click();
   await box.fill('Garden bird');
   await root.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(root.getByText('Garden bird', { exact: true }).first()).toBeVisible();
