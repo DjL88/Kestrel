@@ -1353,6 +1353,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   sort={store.filmstripSort}
                   minRating={store.filmstripMinRating}
                   pictureIds={pictureIds}
+                  cvdGuidance={store.settings.cvdGuidance}
+                  onToggleCvdGuidance={toggleCvd}
                   onBack={actions.backToProjects}
                   onOpenPhoto={(id) => { actions.selectPhoto(id); actions.setGridViewOpen(false); }}
                   onToggleFlag={actions.toggleFlag}
@@ -1648,6 +1650,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' as const },
                   { id: 'history', label: STRINGS.rail.history, icon: 'undo' as const },
                   { id: 'info', label: STRINGS.rail.info, icon: 'info' as const },
+                  ...(store.screen === 'editor' && !store.collage && activePhoto && !phoneLandscape ? [{ id: 'exportagain', label: STRINGS.exportDialog.quickExport, icon: 'refresh' as const }] : []),
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const
               )
@@ -1659,8 +1662,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                     onClick={() => {
                       setMoreOpen(false);
                       if (item.id === 'settings') actions.setSettingsOpen(true);
+                      else if (item.id === 'exportagain') quickExport();
                       else if (item.id === 'allphotos') { actions.setActivePanel(null); actions.setGridViewOpen(true); }
-                      else actions.setActivePanel(item.id);
+                      else actions.setActivePanel(item.id as PanelId);
                     }}
                     className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)]"
                   >

@@ -17,7 +17,7 @@ const SORTS: PhotoSort[] = ['shoot', 'captured-oldest', 'captured-newest', 'file
 export default function PhoneGridPage({
   projectName, photos, activePhotoId, filter, search, sort, minRating, pictureIds = null,
   onBack, onOpenPhoto, onToggleFlag, onSetFilter, onSetSearch, onSetSort, onSetMinRating,
-  onImport, onRunAutoCull, finishBest, onOpenRemoved, onExport,
+  onImport, onRunAutoCull, finishBest, onOpenRemoved, onExport, cvdGuidance, onToggleCvdGuidance,
 }: {
   projectName: string;
   photos: Photo[];
@@ -39,6 +39,9 @@ export default function PhoneGridPage({
   finishBest?: FinishBestEntry;
   onOpenRemoved: () => void;
   onExport: () => void;
+  /** Colour-vision support is a setting for the whole project, so on a phone it is here, not on each photo. */
+  cvdGuidance?: boolean;
+  onToggleCvdGuidance?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searching, setSearching] = useState(Boolean(search));
@@ -137,6 +140,14 @@ export default function PhoneGridPage({
                     </select>
                   </label>
                 </div>
+                {onToggleCvdGuidance && (
+                  <div className="mt-1 border-t border-[var(--border-subtle)] pt-1">
+                    <button type="button" role="menuitemcheckbox" aria-checked={Boolean(cvdGuidance)} className={item} data-testid="phone-grid-cvd" onClick={onToggleCvdGuidance}>
+                      <span className="flex-1 text-left">{STRINGS.settings.assistance.cvdLabel}</span>
+                      <span className="text-xs font-semibold">{cvdGuidance ? STRINGS.adjust.cvdOn : STRINGS.adjust.cvdOff}</span>
+                    </button>
+                  </div>
+                )}
                 <div className="mt-1 border-t border-[var(--border-subtle)] pt-1">
                   <button type="button" role="menuitem" className={item} onClick={run(onExport)}>
                     <BrandIcon name="save" size={18} />{STRINGS.topBar.fileActions.exportSelected}
