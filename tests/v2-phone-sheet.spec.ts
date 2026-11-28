@@ -6,8 +6,6 @@ import { expect, test } from '@playwright/test';
 test('phone Adjust sheet: slim title row, first slider whole in view, 44px sliders', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'Phone layout only.');
   await page.setViewportSize({ width: 390, height: 844 });
-  // The one-time colour-words offer is answered already, so this measures the settled sheet.
-  await page.addInitScript(() => localStorage.setItem('inflight.v2.ui', JSON.stringify({ settings: { cvdOfferAnswered: true } })));
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');
   await studio.getByRole('button', { name: 'Cairngorms Pinewood Stags', exact: true }).click();
@@ -20,6 +18,8 @@ test('phone Adjust sheet: slim title row, first slider whole in view, 44px slide
   expect(handleBox.height).toBeLessThanOrEqual(48);
 
   await studio.getByRole('tab', { name: 'Advanced Edits' }).tap();
+  // The one-time colour-words offer is answered first, so this measures the settled sheet.
+  await studio.getByTestId('cvd-offer-no').tap();
   const sheet = (await handle.locator('xpath=..').boundingBox())!;
   const slider = studio.locator('input[type="range"]').first();
   const sliderBox = (await slider.boundingBox())!;
