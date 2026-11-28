@@ -58,7 +58,6 @@ import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
 import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
-import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { useCloudTopUp } from './useCloudTopUp';
 import { applyAccountSetup, onSetupBridge, takeSetupAgain, takeSetupResult } from '../setupBridge';
 import { readSetup, syncSetupWithAccount } from '../../providers/quickSetupMemory';
