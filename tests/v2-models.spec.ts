@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 /** Settings → Models (#703): every model is listed with its checksum and size, and nothing unmeasured shows a number. */
 test('?v2 Settings lists every model with its checksum, and says what has not been measured', async ({ page }) => {
   await page.goto('/?v2');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Privacy' }).click();
   const section = settings.getByTestId('v2-models');

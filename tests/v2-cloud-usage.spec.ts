@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 /** Plans and cloud allowances (owner, 25 Nov 2026): Settings → Account shows the three meters, the reset date and the balance. */
 test('?v2 sample account shows cloud photos, storage and downloads against the free allowances', async ({ page }) => {
   await page.goto('/?v2&stub=1');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Account' }).click();
   await expect(settings.getByTestId('v2-cloud-usage')).toHaveCount(0);

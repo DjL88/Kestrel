@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Project } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -91,14 +91,22 @@ function StorageStatus({ project, compact }: { project: Project; compact?: boole
 
 function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onDelete, onDuplicate, opensUp }: Pick<ProjectCardProps, 'project' | 'menuOpen' | 'onToggleMenu' | 'onRename' | 'onArchive' | 'onDelete' | 'onDuplicate'> & { opensUp?: boolean }) {
   const item = 'flex min-h-10 w-full items-center px-3 text-left text-xs hover:bg-[var(--bg-surface-hover)]';
+  // The menu opens up when there is no room below it (a project near the bottom of a phone, above the New project bar).
+  const anchor = useRef<HTMLDivElement>(null);
+  const [flipUp, setFlipUp] = useState(false);
+  useLayoutEffect(() => {
+    if (!menuOpen || !anchor.current) return;
+    const rect = anchor.current.getBoundingClientRect();
+    setFlipUp(rect.bottom + 200 > window.innerHeight - 8 && rect.top > 200);
+  }, [menuOpen]);
   return (
-    <div className="relative shrink-0">
+    <div ref={anchor} className="relative shrink-0">
       <button type="button" aria-label={STRINGS.hubMore.actionsFor(project.name)} aria-haspopup="menu" aria-expanded={menuOpen} onClick={onToggleMenu}
         className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
       </button>
       {menuOpen && (
-        <div role="menu" aria-label={STRINGS.hubMore.actionsMenu} className={`absolute right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)] ${opensUp ? 'bottom-11' : 'top-11'}`}>
+        <div role="menu" aria-label={STRINGS.hubMore.actionsMenu} className={`absolute right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)] ${opensUp || flipUp ? 'bottom-11' : 'top-11'}`}>
           {!project.trashed && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>}
           {!project.trashed && onDuplicate && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onDuplicate(); }}>{STRINGS.hubMore.duplicate}</button>}
           <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
@@ -130,7 +138,7 @@ export function ProjectRow(props: ProjectCardProps) {
   const samples = (project.sampleUrls ?? []).slice(0, 3);
   const swipeButton = 'flex w-[72px] flex-col items-center justify-center gap-1 text-[11px] font-medium text-white focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white';
   return (
-    <li className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]" data-testid="project-row">
+    <li className={`relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] ${props.menuOpen ? 'z-40 overflow-visible' : 'overflow-hidden'}`} data-testid="project-row">
       <div className="absolute inset-y-0 right-0 flex" inert={!open} aria-hidden={!open}>
         <button type="button" tabIndex={open ? 0 : -1} onClick={() => { close(); onRename(); }} className={`${swipeButton} bg-[#3f4a5a]`}>
           <BrandIcon name="pencil" size={18} />{STRINGS.hubMore.rename}
@@ -204,7 +212,7 @@ export function ProjectRow(props: ProjectCardProps) {
 export function ProjectTile(props: ProjectCardProps) {
   const { project, onOpen } = props;
   return (
-    <li className="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--brand-accent-border)]" data-testid="project-tile">
+    <li className={`group relative flex flex-col rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--brand-accent-border)] ${props.menuOpen ? 'z-40 overflow-visible' : 'overflow-hidden'}`} data-testid="project-tile">
       <div onClick={onOpen} className="relative aspect-[3/2] w-full cursor-pointer overflow-hidden bg-[var(--bg-canvas)]">
         <Cover project={project} coverFailed={props.coverFailed} onCoverError={props.onCoverError} iconSize={24} />
       </div>

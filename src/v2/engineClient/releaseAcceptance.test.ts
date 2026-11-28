@@ -253,11 +253,18 @@ test('relink: an older photo without a fingerprint is never guessed, and a proje
   assert.equal(plan.replacements.has(legacy[0].stableKey), false);
   assert.equal(plan.replacements.size, SHOTS * 2 - 1);
 
-  let live = true;
+  let live = true, opened = 0, closed = 0;
   const stopped = await planDesktopRelink(framesNeedingRelink(project.frames, connectedNone), [], drive.root, {
-    ...nodeFs, async openRange(path, size) { live = false; return nodeFs.openRange(path, size); },
+    ...nodeFs, async openRange(path, size) {
+      opened++;
+      live = false;
+      const range = await nodeFs.openRange(path, size);
+      return { blob: range.blob, close: async () => { closed++; await range.close(); } };
+    },
   }, () => live);
   assert.equal(stopped.replacements.size, 0, 'nothing is applied after the person switches project');
+  assert.equal(opened, 1, 'no later original is opened');
+  assert.equal(closed, 1, 'the opened range is always closed');
 });
 
 test('relink: a path another connected photo already uses is never handed to a second photo', async (t) => {

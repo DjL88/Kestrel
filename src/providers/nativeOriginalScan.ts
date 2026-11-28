@@ -15,19 +15,23 @@ export async function scanOriginalFolder(
   readDir: (path: string) => Promise<NativeDirectoryEntry[]>,
   stat: (path: string) => Promise<NativeFileStat>,
   wantedNames: ReadonlySet<string>,
-  limits: { maxEntries?: number; maxDepth?: number } = {},
+  limits: { maxEntries?: number; maxDepth?: number; stillCurrent?: () => boolean } = {},
 ): Promise<ScanResult> {
+  const stillCurrent = limits.stillCurrent ?? (() => true);
+  const cancelled = (): ScanResult => ({ files: [], truncated: false, skippedDirectories: 0 });
   const maxEntries = Math.max(1, limits.maxEntries ?? 20000);
   const maxDepth = Math.max(0, limits.maxDepth ?? 8);
   const queue: Array<{ path: string; depth: number }> = [{ path: root, depth: 0 }];
   const files: ScannedOriginal[] = [];
   let scanned = 0, skippedDirectories = 0, truncated = false;
   while (queue.length) {
+    if (!stillCurrent()) return cancelled();
     const current = queue.shift()!;
     let entries: NativeDirectoryEntry[];
     try { entries = await readDir(current.path); }
     catch { skippedDirectories++; continue; }
     for (const entry of entries) {
+      if (!stillCurrent()) return cancelled();
       if (scanned >= maxEntries) { truncated = true; break; }
       scanned++;
       // Directory APIs must not be allowed to escape the selected root via malformed names.
@@ -41,13 +45,14 @@ export async function scanOriginalFolder(
       } else if (entry.isFile && wantedNames.has(entry.name.toLowerCase())) {
         try {
           const info = await stat(path);
+          if (!stillCurrent()) return cancelled();
           files.push({ path, name: entry.name, size: info.size, lastModified: info.mtime?.getTime() ?? 0 });
         } catch { /* Missing files and disconnected shares are recoverable. */ }
       }
     }
     if (truncated) break;
   }
-  return { files, truncated, skippedDirectories };
+  return stillCurrent() ? { files, truncated, skippedDirectories } : cancelled();
 }
 
 /** Legacy catalogues have no content hash. Use all the recorded metadata and
@@ -162,7 +167,10 @@ export async function matchScannedOriginalsBySha(
   candidates: readonly ScannedOriginal[],
   connectedPaths: readonly string[],
   open: (path: string) => Promise<ScannedOriginalRead>,
+  stillCurrent: () => boolean = () => true,
 ): Promise<{ matches: Map<string, string>; ambiguous: string[]; rejected: string[] }> {
+  const cancelled = () => ({ matches: new Map<string, string>(), ambiguous: [], rejected: [] });
+  if (!stillCurrent()) return cancelled();
   const pathKey = (path: string) => path.replace(/\\/g, '/').toLowerCase();
   const reserved = new Set(connectedPaths.map(pathKey));
   // Windows paths (a drive letter or a UNC share) name the same file whatever their case, so fold them; elsewhere a
@@ -180,9 +188,25 @@ export async function matchScannedOriginalsBySha(
     let opened: ScannedOriginalRead | undefined;
     let digest: string | null = null;
     try {
+      if (!stillCurrent()) return null;
       opened = await open(candidate.path);
-      const actual = await hashOriginalBytes(opened.bytes);
-      if (await opened.unchanged()) digest = actual;
+      if (!stillCurrent()) return null;
+      const source = opened.bytes;
+      // A native read already in flight cannot always be interrupted, but never issue another
+      // range read after the owner leaves this project. The finally block still closes the handle.
+      const bytes: OriginalByteSource = {
+        get size() { return source.size; },
+        slice(start, end) {
+          return { async arrayBuffer() {
+            if (!stillCurrent()) throw new Error('Reconnect cancelled.');
+            const buffer = await source.slice(start, end).arrayBuffer();
+            if (!stillCurrent()) throw new Error('Reconnect cancelled.');
+            return buffer;
+          } };
+        },
+      };
+      const actual = await hashOriginalBytes(bytes);
+      if (stillCurrent() && await opened.unchanged() && stillCurrent()) digest = actual;
     } catch {
       // A disappearing file or corrupt range cannot serve as a replacement.
     } finally {
@@ -202,8 +226,20 @@ export async function matchScannedOriginalsBySha(
     }
     identities.set(frame.stableKey, identity);
   }
+  // Index once instead of filtering every scanned file for each photograph.
+  const byNameAndSize = new Map<string, ScannedOriginal[]>();
+  const candidateKey = (name: string, size: number) => JSON.stringify([name.toLowerCase(), size]);
+  for (const file of candidates) {
+    if (!stillCurrent()) return cancelled();
+    if (reserved.has(pathKey(file.path))) continue;
+    const key = candidateKey(file.name, file.size);
+    const group = byNameAndSize.get(key) ?? [];
+    group.push(file);
+    byNameAndSize.set(key, group);
+  }
   const seen = new Set<string>();
   for (const frame of expected) {
+    if (!stillCurrent()) return cancelled();
     if (seen.has(frame.stableKey)) continue;
     seen.add(frame.stableKey);
     if (conflicting.has(frame.stableKey) ||
@@ -212,12 +248,13 @@ export async function matchScannedOriginalsBySha(
       rejected.push(frame.stableKey);
       continue;
     }
-    const possible = candidates.filter(file =>
-      file.name.toLowerCase() === frame.filename.toLowerCase() &&
-      file.size === frame.size && !reserved.has(pathKey(file.path)));
+    const possible = byNameAndSize.get(candidateKey(frame.filename, frame.size)) ?? [];
     const valid = new Map<string, string>();
     for (const candidate of possible) {
-      if (await digestFor(candidate) === frame.originalSha256) valid.set(fileKey(candidate.path), candidate.path);
+      if (!stillCurrent()) return cancelled();
+      const digest = await digestFor(candidate);
+      if (!stillCurrent()) return cancelled();
+      if (digest === frame.originalSha256) valid.set(fileKey(candidate.path), candidate.path);
     }
     if (valid.size !== 1) {
       (valid.size > 1 ? ambiguous : rejected).push(frame.stableKey);
@@ -233,7 +270,7 @@ export async function matchScannedOriginalsBySha(
       byPath.set(pathKey(chosen), frame.stableKey);
     }
   }
-  return { matches, ambiguous, rejected };
+  return stillCurrent() ? { matches, ambiguous, rejected } : cancelled();
 }
 
 /** An existing path is not proof of identity. Only an explicit reconnect
