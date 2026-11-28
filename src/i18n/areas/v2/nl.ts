@@ -1659,6 +1659,7 @@ export const nl: AreaTranslation<typeof source> = {
     startExport: 'Bundel exporteren',
     captionsHeading: 'Bijschriften en credits',
     photosHeading: "Foto’s",
+    previewOnlyExport: (n) => `Foto’s die hier alleen als cloudvoorvertoning bestaan (tot 2048 px) worden geëxporteerd op voorvertoningsformaat of kleiner: ${n}.`,
     advancedHeading: "Geavanceerd",
     captionsMetadataOnly: "Dit werkt alleen de metadata van het bestand bij (gegevens zoals bijschrift en credit). Er wordt niets op de foto zelf gezet.",
     captionsOn: 'Bijschriften en credits aan elk bestand toevoegen',

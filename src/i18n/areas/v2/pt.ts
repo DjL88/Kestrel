@@ -1659,6 +1659,7 @@ export const pt: AreaTranslation<typeof source> = {
     startExport: 'Exportar pacote',
     captionsHeading: 'Legendas e créditos',
     photosHeading: "Fotografias",
+    previewOnlyExport: (n) => `As fotografias que aqui existem apenas como pré-visualizações na nuvem (até 2048 px) são exportadas no tamanho da pré-visualização ou menor: ${n}.`,
     advancedHeading: "Avançado",
     captionsMetadataOnly: "Isto só atualiza os metadados do ficheiro (os seus dados, como legenda e créditos). Nada é escrito sobre a imagem.",
     captionsOn: 'Adicionar legendas e créditos a cada ficheiro',

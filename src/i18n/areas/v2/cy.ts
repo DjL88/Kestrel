@@ -1659,6 +1659,7 @@ export const cy: AreaTranslation<typeof source> = {
     startExport: 'Allforio’r bwndel',
     captionsHeading: 'Capsiynau a chydnabyddiaeth',
     photosHeading: "Lluniau",
+    previewOnlyExport: (n) => `Mae lluniau sydd yma fel rhagolygon cwmwl yn unig (hyd at 2048 px) yn cael eu hallforio ar faint rhagolwg neu lai: ${n}.`,
     advancedHeading: "Uwch",
     captionsMetadataOnly: "Dim ond metadata’r ffeil (ei manylion, fel capsiwn a chydnabyddiaeth) y mae hyn yn eu diweddaru. Does dim yn cael ei ysgrifennu ar y llun.",
     captionsOn: 'Ychwanegu capsiynau a chydnabyddiaeth at bob ffeil',

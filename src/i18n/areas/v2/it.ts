@@ -1659,6 +1659,7 @@ export const it: AreaTranslation<typeof source> = {
     startExport: 'Esporta pacchetto',
     captionsHeading: 'Didascalie e crediti',
     photosHeading: "Foto",
+    previewOnlyExport: (n) => `Le foto che qui esistono solo come anteprime cloud (fino a 2048 px) vengono esportate alla dimensione dell’anteprima o inferiore: ${n}.`,
     advancedHeading: "Avanzate",
     captionsMetadataOnly: "Aggiorna solo i metadati del file (i suoi dati, come didascalia e crediti). Sull’immagine non viene scritto nulla.",
     captionsOn: 'Aggiungi didascalie e crediti a ogni file',

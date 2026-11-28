@@ -1659,6 +1659,7 @@ export const is: AreaTranslation<typeof source> = {
     startExport: 'Flytja út pakka',
     captionsHeading: 'Myndatextar og höfundarupplýsingar',
     photosHeading: "Myndir",
+    previewOnlyExport: (n) => `Myndir sem eru hér aðeins sem skýjaforskoðanir (allt að 2048 px) eru fluttar út í stærð forskoðunar eða minni: ${n}.`,
     advancedHeading: "Ítarlegt",
     captionsMetadataOnly: "Þetta uppfærir aðeins lýsigögn skrárinnar (upplýsingar eins og myndatexta og höfund). Ekkert er skrifað á myndina sjálfa.",
     captionsOn: 'Bæta myndatextum og höfundarupplýsingum í hverja skrá',

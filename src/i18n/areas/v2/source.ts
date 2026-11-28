@@ -1712,6 +1712,7 @@ export const source = {
     startExport: 'Export bundle',
     captionsHeading: 'Captions and credits',
     photosHeading: "Photos",
+    previewOnlyExport: (n: number) => `Photos that exist here only as cloud previews (up to 2048 px) export at preview size or smaller: ${n}.`,
     advancedHeading: "Advanced",
     captionsMetadataOnly: "This only updates the file’s metadata (its details, such as caption and credit). Nothing is written on the picture.",
     captionsOn: 'Add captions and credits to each file',

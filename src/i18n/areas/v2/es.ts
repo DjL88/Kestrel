@@ -1659,6 +1659,7 @@ export const es: AreaTranslation<typeof source> = {
     startExport: 'Exportar paquete',
     captionsHeading: 'Pies de foto y créditos',
     photosHeading: "Fotos",
+    previewOnlyExport: (n) => `Las fotos que aquí solo existen como vistas previas en la nube (hasta 2048 px) se exportan al tamaño de la vista previa o menor: ${n}.`,
     advancedHeading: "Avanzado",
     captionsMetadataOnly: "Solo actualiza los metadatos del archivo (sus datos, como el pie de foto y el crédito). No se escribe nada sobre la imagen.",
     captionsOn: 'Añadir pies de foto y créditos a cada archivo',

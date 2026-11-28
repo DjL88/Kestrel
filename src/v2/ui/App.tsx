@@ -1688,6 +1688,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
+        previewOnlyCount={(store.selectedPhotoIds.length ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : []).filter((id) => store.photos.find((p) => p.id === id)?.cloudPreview).length}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
         brandKits={store.brandKits}

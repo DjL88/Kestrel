@@ -1659,6 +1659,7 @@ export const fr: AreaTranslation<typeof source> = {
     startExport: 'Exporter le lot',
     captionsHeading: 'Légendes et crédits',
     photosHeading: "Photos",
+    previewOnlyExport: (n) => `Les photos qui n’existent ici que sous forme d’aperçus cloud (jusqu’à 2048 px) sont exportées à la taille de l’aperçu ou moins : ${n}.`,
     advancedHeading: "Avancé",
     captionsMetadataOnly: "Cela met à jour uniquement les métadonnées du fichier (ses informations, comme la légende et le crédit). Rien n’est écrit sur l’image.",
     captionsOn: 'Ajouter légendes et crédits à chaque fichier',

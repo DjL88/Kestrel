@@ -1660,6 +1660,7 @@ export const fi: AreaTranslation<typeof source> = {
     startExport: 'Vie paketti',
     captionsHeading: 'Kuvatekstit ja tekijätiedot',
     photosHeading: "Kuvat",
+    previewOnlyExport: (n) => `Kuvat, jotka ovat täällä vain pilviesikatseluina (enintään 2048 px), viedään esikatselun kokoisina tai pienempinä: ${n}.`,
     advancedHeading: "Lisäasetukset",
     captionsMetadataOnly: "Tämä päivittää vain tiedoston metatiedot (kuten kuvatekstin ja tekijätiedon). Itse kuvaan ei kirjoiteta mitään.",
     captionsOn: 'Lisää kuvatekstit ja tekijätiedot jokaiseen tiedostoon',

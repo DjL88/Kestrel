@@ -1662,6 +1662,7 @@ export const ga: AreaTranslation<typeof source> = {
     startExport: 'Easpórtáil an beart',
     captionsHeading: 'Fotheidil agus creidiúintí',
     photosHeading: "Grianghraif",
+    previewOnlyExport: (n) => `Easpórtálfar grianghraif nach bhfuil anseo ach mar réamhamharcanna scamaill (suas le 2048 px) ar mhéid réamhamhairc nó níos lú: ${n}.`,
     advancedHeading: "Ardleibhéal",
     captionsMetadataOnly: "Ní nuashonraíonn sé seo ach meiteashonraí an chomhaid (a shonraí, mar fhotheideal agus creidiúint). Ní scríobhtar aon rud ar an bpictiúr.",
     captionsOn: 'Cuir fotheidil agus creidiúintí le gach comhad',

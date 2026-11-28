@@ -1660,6 +1660,7 @@ export const gd: AreaTranslation<typeof source> = {
     startExport: 'Às-phortaich am pasgan',
     captionsHeading: 'Fo-thiotalan agus creideas',
     photosHeading: "Dealbhan",
+    previewOnlyExport: (n) => `Thèid dealbhan nach eil an seo ach mar ro-sheallaidhean neòil (suas gu 2048 px) a thoirt a-mach aig meud ro-sheallaidh no nas lugha: ${n}.`,
     advancedHeading: "Adhartach",
     captionsMetadataOnly: "Cha dèan seo ach meata-dàta an fhaidhle ùrachadh (am fiosrachadh aige, mar fho-thiotal is creideas). Cha tèid dad a sgrìobhadh air an dealbh.",
     captionsOn: 'Cuir fo-thiotalan agus creideas ris gach faidhle',

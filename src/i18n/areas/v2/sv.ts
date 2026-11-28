@@ -1659,6 +1659,7 @@ export const sv: AreaTranslation<typeof source> = {
     startExport: 'Exportera paket',
     captionsHeading: 'Bildtexter och kredit',
     photosHeading: "Bilder",
+    previewOnlyExport: (n) => `Bilder som här bara finns som molnförhandsvisningar (upp till 2048 px) exporteras i förhandsvisningens storlek eller mindre: ${n}.`,
     advancedHeading: "Avancerat",
     captionsMetadataOnly: "Det här uppdaterar bara filens metadata (uppgifter som bildtext och fotograf). Inget skrivs på själva bilden.",
     captionsOn: 'Lägg till bildtexter och kredit i varje fil',

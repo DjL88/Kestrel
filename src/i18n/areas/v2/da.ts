@@ -1659,6 +1659,7 @@ export const da: AreaTranslation<typeof source> = {
     startExport: 'Eksportér pakke',
     captionsHeading: 'Billedtekster og kreditering',
     photosHeading: "Billeder",
+    previewOnlyExport: (n) => `Billeder, der kun findes her som skyforhåndsvisninger (op til 2048 px), eksporteres i forhåndsvisningens størrelse eller mindre: ${n}.`,
     advancedHeading: "Avanceret",
     captionsMetadataOnly: "Det opdaterer kun filens metadata (dens oplysninger, som billedtekst og kreditering). Der skrives intet på selve billedet.",
     captionsOn: 'Føj billedtekster og kreditering til hver fil',

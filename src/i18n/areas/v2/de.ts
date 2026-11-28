@@ -1659,6 +1659,7 @@ export const de: AreaTranslation<typeof source> = {
     startExport: 'Paket exportieren',
     captionsHeading: 'Bildunterschriften und Urheberangaben',
     photosHeading: "Fotos",
+    previewOnlyExport: (n) => `Fotos, die hier nur als Cloud-Vorschau vorliegen (bis 2048 px), werden in Vorschaugröße oder kleiner exportiert: ${n}.`,
     advancedHeading: "Erweitert",
     captionsMetadataOnly: "Das ändert nur die Metadaten der Datei (Angaben wie Bildunterschrift und Urheber). Auf das Bild selbst wird nichts geschrieben.",
     captionsOn: 'Bildunterschriften und Urheberangaben in jede Datei schreiben',
