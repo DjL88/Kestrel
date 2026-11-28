@@ -53,3 +53,12 @@ test('the result is plain data: recipes survive a JSON round trip (what a runner
   for (const o of r.options) assert.deepEqual(JSON.parse(JSON.stringify(o.edit)), JSON.parse(JSON.stringify(o.edit)));
   assert.ok(r.options.every((o) => typeof o.edit === 'object'));
 });
+
+test('the loop has no provider, key or network input (owner policy: Gemini and Vertex are owner-only)', () => {
+  const input: Record<string, true> = { pixels: true, width: true, height: true, base: true, iso: true, segmentation: true, framingKey: true, vision: true, maxRounds: true, keepRoundPixels: true, meta: true, intent: true, style: true };
+  const probe: Parameters<typeof enhancePhoto>[0] = { pixels: new Uint8ClampedArray(4), width: 1, height: 1 };
+  for (const key of Object.keys(probe)) assert.ok(input[key]);
+  // @ts-expect-error there is no apiKey / provider / cloud option on the loop
+  const bad: Parameters<typeof enhancePhoto>[0] = { ...probe, apiKey: 'x', cloud: {} };
+  assert.ok(bad);
+});

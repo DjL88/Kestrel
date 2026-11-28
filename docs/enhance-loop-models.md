@@ -37,6 +37,11 @@ the loop would not use it either. The existing editor features that ship these m
   the device runs, the Lanczos-3 resampler, and the cloud-recipe computation. No neural model runs there yet; any later "smarter" step
   would use openly licensed models only.
 - **Cloud storage is a separate feature** (backing up and sharing photos). It is not coupled to cloud processing in code or wording.
-- **Gemini and Vertex are private to the owner:** used only for invited beta testers and contributors under a direct agreement, enabled
-  server-side by the owner (allowlist). There is no in-app opt-in, no user-facing copy and no per-photo use. Any future rules-base
-  maintenance hook is server-side only and off by default; nothing is built here.
+- **Gemini and Vertex are OWNER-ONLY.** Used only for invited testers and contributors under a direct agreement, enabled by the owner
+  on the server side (allowlist). For the enhance loop there is **no bring-your-own key, no user-entered Gemini or Vertex key, no
+  in-app Gemini opt-in, no copy and no settings**, and none was added or is planned. The loop has no provider, key or network input at
+  all. Any future rules-base maintenance hook is server-side only and off by default; nothing is built here.
+- **Existing, separate feature (not touched by this work):** the app already has a general "bring your own AI provider" setup
+  (`src/v2/ui/dialogs/AiProviderSetup.tsx`, `src/providers/aiProviders.ts` with kinds gemini, anthropic, openai, inflight,
+  `src/core/gemini.ts`, `src/core/onlineHelper.ts`, the AI colour review in `src/core/aiReview.ts`). The owner decides separately
+  whether it stays; the enhance loop does not use it.
