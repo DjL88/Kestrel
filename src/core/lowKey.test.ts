@@ -14,6 +14,10 @@ test('a lit subject on a dark scene is low-key', () => {
 test('a dark picture with nothing lit is just underexposed, not low-key', () => {
   assert.equal(isLowKeyPixels(picture((x) => [8 + x / 4, 8 + x / 4, 8 + x / 4])), false);
 });
+test('a dim bird on a dark scene is underexposed, not low-key: no label unless the lit part is really lit', () => {
+  // Lit area about 0.3 of full scale (a kingfisher the owner lifted by 2 EV by hand): wildlife is usually just underexposed.
+  assert.equal(isLowKeyPixels(picture((x, y) => (x > 46 && y > 46 ? [80, 78, 70] : [8, 10, 9]))), false);
+});
 test('ordinary, bright and tiny pictures are not low-key', () => {
   assert.equal(isLowKeyPixels(picture((x) => [60 + x * 2, 60 + x * 2, 60 + x * 2])), false);
   assert.equal(isLowKeyPixels(picture(() => [230, 230, 230])), false);

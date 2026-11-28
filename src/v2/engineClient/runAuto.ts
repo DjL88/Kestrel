@@ -173,9 +173,9 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Marked (inflight:auto:*), so a trace or the stress test shows how long Auto's steps hold the page.
   const natural = timedStep('auto:natural', () => naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints }));
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
-  // A scene tag InFlight measured itself (style.low-key) is not the person's intent: where the frame also measures as
-  // low-key it does not stop the subject being lifted, as in naturalAuto. The person's own tag, night and astro still do.
-  const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || (sceneHints.preserveDark === true && !(sceneHints.darkMeasuredOnly === true && natural.lowKey)) };
+  // A scene tag InFlight measured itself (style.low-key) is not the person's intent: it never stops a dark subject being
+  // lifted (wildlife is usually just underexposed), as in naturalAuto. The person's own tag, night and astro still do.
+  const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || (sceneHints.preserveDark === true && sceneHints.darkMeasuredOnly !== true) };
   const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
   const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
