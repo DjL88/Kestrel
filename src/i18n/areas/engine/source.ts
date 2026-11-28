@@ -15,7 +15,6 @@ export const source = {
   notMeasured: 'Not measured',
   notRecorded: 'Not recorded',
   /** A subject name the app suggested itself, not one the person chose. */
-  suggestedName: (name: string) => `${name} (suggested)`,
   /** What kind of subject a photo shows, when no species is named. */
   subjectKinds: { wildlife: 'Wildlife', people: 'People', landscape: 'Landscape', other: 'Other subject' },
 

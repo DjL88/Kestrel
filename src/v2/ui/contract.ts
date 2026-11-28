@@ -446,13 +446,13 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
-  /** The species name shown is InFlight's own suggestion, so 'Not right? Look again' is offered. */
+  /** The species name shown is InFlight's own suggestion, so 'Detect subject' is offered. */
   speciesAuto?: boolean;
   /** The place an automatic species name was matched against, in the person's words ("Species list used: Worldwide"). */
   speciesAreaLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
+  /** The subject name alone, as stored, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
   vehicleKind?: string;

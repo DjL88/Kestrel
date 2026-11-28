@@ -12,7 +12,6 @@ export const fi: AreaTranslation<typeof source> = {
   },
   notMeasured: 'Ei mitattu',
   notRecorded: 'Ei tallennettu',
-  suggestedName: (name) => `${name} (ehdotus)`,
   subjectKinds: { wildlife: 'Villieläimet', people: 'Ihmiset', landscape: 'Maisema', other: 'Muu kohde' },
   auto: {
     ready: 'Tarkistetut muokkausehdotukset ovat valmiina esikatseluun.',

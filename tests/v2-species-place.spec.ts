@@ -45,6 +45,23 @@ test('?v2 where were these taken: no question for home photos, one small questio
   const used = root.getByTestId('species-area-used');
   await expect(used).toHaveText('Species list used: Europe, North Africa and northern Asia', { timeout: 60000 });
   await expect(root.getByRole('combobox', { name: 'Where were these taken?' })).toBeVisible();
+
+  // The finding reads as a plain name (no "(suggested)"); its actions sit behind one menu that Escape closes.
+  await expect(root.getByText('(suggested)')).toHaveCount(0);
+  const actions = root.getByRole('button', { name: 'More actions for the subject' });
+  await actions.focus();
+  await page.keyboard.press('Enter');
+  await expect(root.getByRole('menuitem', { name: 'Edit manually' })).toBeVisible();
+  await expect(root.getByRole('menuitem', { name: 'Detect subject' })).toBeVisible();
+  await expect(root.getByRole('menuitem', { name: 'Edit manually' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(root.getByRole('menu')).toHaveCount(0);
+  await expect(actions).toBeFocused();
+  await actions.click();
+  await root.getByRole('menuitem', { name: 'Edit manually' }).click();
+  await expect(root.getByRole('combobox', { name: 'Correct species name' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await root.getByRole('button', { name: 'Cancel' }).first().click();
   const prompt = root.getByTestId('species-place-prompt');
   await expect(prompt).toHaveCount(0);
 
