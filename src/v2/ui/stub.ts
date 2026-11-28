@@ -638,6 +638,7 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   savedViews: 'basic',
   nextToReview: 'basic',
   hdrMerge: 'basic',
+  onImageAdvice: 'basic',
 };
 
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
@@ -655,6 +656,7 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   savedViews: false,
   nextToReview: false,
   hdrMerge: false,
+  onImageAdvice: false,
 };
 
 function logAction(name: string, payload?: unknown) {

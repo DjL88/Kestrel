@@ -1352,6 +1352,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                       onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />
                   ) : undefined}
                   colourAreas={store.settings.cvdGuidance && showColourWhere ? activePhoto?.assistCritique.colourAreas : undefined}
+                  assistMode={store.assistMode}
+                  cvdGuidance={store.settings.cvdGuidance}
                   onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
