@@ -9,7 +9,7 @@ import { STRINGS } from '../strings';
 export default function ColourVisionOffer({ onAnswer }: { onAnswer: (yes: boolean) => void }) {
   const button = 'rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)] max-md:min-h-11 max-md:min-w-11';
   return (
-    <div role="group" aria-label={STRINGS.adjust.cvdOfferQuestion} data-testid="cvd-offer" className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
+    <div role="group" aria-label={STRINGS.adjust.cvdOfferQuestion} data-testid="cvd-offer" className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 max-md:border-0 max-md:bg-transparent max-md:px-1 max-md:py-0">
       <p className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.cvdOfferQuestion}</p>
       <div className="flex gap-2">
         <button type="button" data-testid="cvd-offer-yes" aria-label={STRINGS.adjust.cvdOfferYesLabel} onClick={() => onAnswer(true)} className={button}>{STRINGS.adjust.cvdOfferYes}</button>
