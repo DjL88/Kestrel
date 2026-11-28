@@ -29,6 +29,7 @@ import { AccountButton } from './shell/AccountButton';
 import { TaskAlerts } from './shell/TaskAlerts';
 import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
+import AutoChangeBanner from './shell/AutoChangeBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { colourText } from '../../i18n/areas/colour';
@@ -141,6 +142,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   useThumbnailsOnScreen(actions.thumbnailsOnScreen);
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  // Auto banners the person dismissed, and when this session began: kept here, not in the banner, which unmounts for the grid and canvas only.
+  const [autoBannerDismissed, setAutoBannerDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const sessionStartedAt = useRef(Date.now());
   const [storeCloudOpen, setStoreCloudOpen] = useState(false);
   const [sharePortfolioOnly, setSharePortfolioOnly] = useState(false);
   /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
@@ -1342,7 +1346,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  floating={!store.gridViewOpen && !pairPhotos && !canvasOnlyShown ? (
+                    <AutoChangeBanner photo={activePhoto} status={store.autoStatus} comparing={store.compareMode}
+                      dismissed={autoBannerDismissed} onDismiss={(key) => setAutoBannerDismissed((current) => new Set(current).add(key))} since={sessionStartedAt.current}
+                      onUndo={actions.undo} onToggleCompare={() => actions.setCompareMode(!store.compareMode)} />
+                  ) : undefined}
                   colourAreas={store.settings.cvdGuidance && showColourWhere ? activePhoto?.assistCritique.colourAreas : undefined}
+                  assistMode={store.assistMode}
+                  cvdGuidance={store.settings.cvdGuidance}
                   onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}

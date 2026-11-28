@@ -296,7 +296,7 @@ test('?v2 leaves Basic features, the on-device checks included, without the Pro 
   await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(0);
 });
 
-test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
+test('?v2 chrome: icons load, File/Edit/View menus and a three-way Flight mode chip in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
   const missing: string[] = [];
   page.on('response', (response) => { if (response.url().includes('/v2-icons/') && response.status() >= 400) missing.push(response.url()); });
   await page.goto('/?v2&stub=1');
@@ -305,18 +305,27 @@ test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the hea
   const header = root.getByRole('banner');
   // Owner decision 24 Nov 2026: keep File/Edit/View (wide screens) so V2-only actions such as Removed photos have a way in.
   await expect(header.getByRole('navigation', { name: 'Application menus' })).toBeVisible();
-  await expect(header.getByRole('radiogroup', { name: /assist mode/i })).toHaveCount(0);
+  // One click away, in the owner's three words, keyboard operable (native radios), and it sets the project's mode.
+  const chip = header.getByRole('group', { name: 'Flight mode', exact: true });
+  await expect(chip.getByRole('radio')).toHaveCount(3);
+  await expect(chip.getByRole('radio', { name: 'Co-pilot' })).toBeChecked();
   await expect(header.getByRole('button', { name: 'Back to projects' })).toBeVisible();
   // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
   await expect(rail.getByRole('button', { name: /^Assist/ })).toHaveCount(0);
   // The first rail tool is named after the mode that is on (#1301 removed the separate mode flag); Settings changes it.
   await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toBeVisible();
+  // The chip changes this project's mode in one click, and the rail follows.
+  await chip.getByTestId('flight-chip-solo').click();
+  await expect(rail.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
+  await expect(chip.getByRole('radio', { name: 'Solo' })).toBeChecked();
+  await chip.getByTestId('flight-chip-copilot').click();
+  await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toBeVisible();
   // Settings sets the default for new projects, with each mode's icon and one plain line on what it does.
   await openV2Settings(page);
   await root.getByRole('tab', { name: 'Assistance' }).click();
   const defaults = root.getByRole('group', { name: 'Default Flight mode for new projects' });
-  await expect(defaults.getByText('InFlight does nothing until you ask.', { exact: false })).toBeVisible();
+  await expect(defaults.getByText('InFlight never changes your photo and gives advice when you ask.', { exact: false })).toBeVisible();
   await defaults.getByTestId('flight-mode-autopilot').click();
   await expect(defaults.getByRole('radio', { name: 'Auto-pilot' })).toBeChecked();
   await root.getByRole('button', { name: 'Close settings' }).click().catch(() => page.keyboard.press('Escape'));

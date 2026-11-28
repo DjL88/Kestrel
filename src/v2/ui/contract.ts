@@ -80,7 +80,9 @@ export type FeatureKey =
   /** Preview: keys that jump to the next or previous photo still to review (off by default). */
   | 'nextToReview'
   /** Preview: HDR merge of a bracketed burst (off by default). */
-  | 'hdrMerge';
+  | 'hdrMerge'
+  /** Preview: read-only advice drawn on the canvas (clipped areas, focus point, Colour Sense badge). Off by default. */
+  | 'onImageAdvice';
 
 /** What a cloud edit-settings job did, shown on its card (Dave, 27 Nov: make the cloud's work visible). */
 export interface CloudRecipeResultView {
@@ -799,7 +801,15 @@ export interface WorkspaceStore {
    * What Auto last did for the open photo (the Auto button or Auto-pilot), so a press is always answered: working,
    * applied, left unchanged with the reason, or not possible with the reason. Absent until Auto has looked.
    */
-  autoStatus?: { photoId: string; state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string };
+  autoStatus?: {
+    photoId: string; state: 'working' | 'applied' | 'unchanged' | 'unavailable'; text: string;
+    /** Set when Co-pilot or Auto-pilot looked by itself (not a press of the Auto button). */
+    mode?: 'copilot' | 'autopilot';
+    /** When this was said, in ms since the epoch. */
+    at?: number;
+    /** The time of the edit step Co-pilot or Auto-pilot recorded, so the banner can tell its step from a later one. */
+    appliedAt?: number;
+  };
   /**
    * Why the last Denoise left the open photo as it was, in the person's words: no visible noise found (the panel then offers
    * "Denoise anyway") or a RAW not developed yet (the panel says to wait for the develop). Absent otherwise.

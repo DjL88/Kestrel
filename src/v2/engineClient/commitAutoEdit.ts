@@ -4,7 +4,10 @@ import type { PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { v2Text } from '../../i18n/areas/v2';
 
-/** Compare against the catalogue at write time, after any intervening manual edits. */
+/**
+ * Compare against the catalogue at write time, after any intervening manual edits. Normally the photo must still be the
+ * one on the canvas; the background batch after an import (`anyPhoto`) works on photos that are not open.
+ */
 export function commitAutoEdit(
   state: CullingState,
   projectId: string,
@@ -12,13 +15,16 @@ export function commitAutoEdit(
   proposal: PhotoEdit,
   at: number,
   why?: EditWhy,
+  options: { anyPhoto?: boolean } = {},
 ): CullingState {
   if (state.shoot.id !== projectId || examined.edit || examined.editHistory?.steps.length) return state;
-  const frameId = state.selectedFrameId ?? state.frames.find((frame) => frame.removedAt == null)?.id;
+  const frameId = options.anyPhoto ? examined.id : state.selectedFrameId ?? state.frames.find((frame) => frame.removedAt == null)?.id;
   if (frameId !== examined.id) return state;
 
   const index = state.frames.findIndex((frame) => frame.id === frameId);
   const frame = state.frames[index];
+  // The batch runs long after the import: a photo rejected since is a decision that is kept, never edited over.
+  if (options.anyPhoto && (frame?.decision === 'reject' || frame?.exif?.rejectedByMetadata)) return state;
   if (!frame || frame.removedAt != null || frame.edit || frame.editHistory !== examined.editHistory ||
       frame.framing !== examined.framing || frame.stableKey !== examined.stableKey ||
       frame.originalSha256 !== examined.originalSha256 ||
