@@ -69,6 +69,9 @@ export const FEATURES = {
   // drawn on the canvas, read-only. A preview, off for everyone until an admin flag (or this device's preview switch,
   // `localStorage['kestrel.preview.on-image-advice.v1'] = '1'`) turns it on. Not a paywall.
   onImageAdvice: 'flagged',
+  // Verification chain: a specialist proposes, the on-device vision AI confirms, and the cloud is a quiet third opinion on
+  // previews only. A preview, off for everyone until an admin flag (or kestrel.preview.verification-chain.v1 = 1). Not a paywall.
+  verificationChain: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;
