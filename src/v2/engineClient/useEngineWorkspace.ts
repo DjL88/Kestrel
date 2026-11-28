@@ -177,11 +177,11 @@ import { useTapSelect } from './useTapSelect';
 import { addHealSpot as addSpot, canAddHealSpot, nextHealSource, removeHealSpot as removeSpot, sizeToRadius, updateHealSpot as changeSpot } from './healOps';
 import { applyHeal, findHealSources } from '../../core/heal';
 import { findSpotCandidates } from '../../core/healCandidates';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskParts, toggleMask } from './maskOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps';
 import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
-import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
+import { createMask, createSubjectMask, createTonalMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
 import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
 import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
@@ -3855,6 +3855,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
     setMaskParts: (photoId, maskId, parts) => editMasks(photoId, masks => setMaskParts(masks, maskId, parts)),
+    addTonalMask: (photoId, band) => {
+      const shape = createTonalMask(band, newId());
+      editFrames([photoId], (latest) => canAddMask(latest.edit?.masks)
+        ? ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), shape] }) : latest.edit);
+    },
+    setMaskTonalRange: (photoId, maskId, end, value) => editMasks(photoId, masks => setMaskTonalRange(masks, maskId, end, value)),
     setMaskInvert: (photoId, maskId, invert) => editMasks(photoId, masks => setMaskInvert(masks, maskId, invert)),
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
     runExport: (request) => {

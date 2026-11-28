@@ -13,7 +13,7 @@ const KIND_NAMES = t.mask.kinds;
 
 export function maskName(masks: Mask[], mask: Mask): string {
   const same = masks.filter((candidate) => candidate.kind === mask.kind && (candidate.kind !== 'subject' || candidate.invert === mask.invert));
-  const base = mask.kind === 'subject' && mask.invert ? t.mask.background : KIND_NAMES[mask.kind];
+  const base = mask.kind === 'subject' && mask.invert ? t.mask.background : mask.kind === 'tonal' ? 'Brightness range' : KIND_NAMES[mask.kind];
   return t.mask.name(base, same.indexOf(mask) + 1);
 }
 
@@ -48,7 +48,7 @@ export function MaskPanel(props: Props) {
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
   const blendAdvice = selected ? reviewMaskBlend(selected, props.guidanceMode ?? 'glide', props.boundaryEvidence) : null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
-  const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
+  const add = (kind: Exclude<Mask['kind'], 'subject' | 'tonal'>) => {
     const mask = createMask(kind, newId());
     props.onChange([...masks, mask]);
     props.onSelect(mask.id);

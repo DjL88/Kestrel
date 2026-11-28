@@ -32,6 +32,12 @@ export type MaskShape =
   | { kind: 'radial'; cx: number; cy: number; rx: number; ry: number; /** Clockwise in image coordinates; absent in older recipes means zero. */ angle?: number }
   | { kind: 'brush'; strokes: BrushStroke[] }
   /**
+   * Picks pixels by brightness (0 black to 1 white, as shown on screen): shadows, highlights, blacks, whites or a custom range.
+   * Strength is full between `low` and `high` and eases off over the mask's softness. Computed from the picture itself, so it
+   * follows later edits to it. Needs pixels to be measured: with none, it selects nothing.
+   */
+  | { kind: 'tonal'; band: TonalBand; low: number; high: number }
+  /**
    * Found by the on-device model for the framing named by framingKey. Strokes refine it: paint adds, erase removes.
    * Invert gives the background.
    */
@@ -42,6 +48,13 @@ export type MaskShape =
        * fallback, so older versions of InFlight still read the mask.
        */
       detail?: SubjectDetail };
+
+export type TonalBand = 'shadows' | 'highlights' | 'blacks' | 'whites' | 'range';
+export const TONAL_BANDS: readonly TonalBand[] = ['shadows', 'highlights', 'blacks', 'whites', 'range'];
+/** The brightness range each preset picks. 'range' starts as the midtones and is then set by hand. */
+export const TONAL_PRESETS: Record<TonalBand, { low: number; high: number }> = {
+  shadows: { low: 0, high: 0.35 }, highlights: { low: 0.65, high: 1 }, blacks: { low: 0, high: 0.12 }, whites: { low: 0.88, high: 1 }, range: { low: 0.3, high: 0.7 },
+};
 
 /** A subject outline at finer resolution for one rectangle of the framed photo. */
 export interface SubjectDetail { region: { x: number; y: number; w: number; h: number }; grid: SubjectGrid }
@@ -98,7 +111,11 @@ export function hasActiveMasks(masks: Mask[] | undefined): boolean {
   return !!masks?.some(maskIsActive);
 }
 
-export function createMask(kind: Exclude<Mask['kind'], 'subject'>, id: string): Mask {
+export function createTonalMask(band: TonalBand, id: string): Mask {
+  return { id, kind: 'tonal', band, ...TONAL_PRESETS[band], invert: false, feather: 0.5, edit: {} };
+}
+
+export function createMask(kind: Exclude<Mask['kind'], 'subject' | 'tonal'>, id: string): Mask {
   const common = { id, invert: false, feather: 0.5, edit: {} as LocalEdit };
   if (kind === 'linear') return { ...common, kind, x1: 0.5, y1: 0.12, x2: 0.5, y2: 0.55 };
   if (kind === 'radial') return { ...common, kind, cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.18, angle: 0 };
@@ -180,6 +197,7 @@ export function validMasks(value: unknown): value is Mask[] {
       return finite(radius, 0.001, 0.5) && typeof erase === 'boolean' && Array.isArray(points) && points.length % 2 === 0 &&
         points.length <= 6000 && points.every((point) => finite(point, -1, 2));
     });
+    if (mask.kind === 'tonal') return TONAL_BANDS.includes(mask.band as TonalBand) && finite(mask.low, 0, 1) && finite(mask.high, 0, 1) && (mask.low as number) < (mask.high as number);
     if (mask.kind === 'brush') return strokesValid(mask.strokes);
     if (mask.kind === 'subject') {
       if (!validGrid(mask.grid) || !validDetail(mask.detail)) return false;

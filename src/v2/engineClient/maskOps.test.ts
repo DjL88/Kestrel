@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskLimit, setMaskParts, toggleMask } from './maskOps.ts';
-import { applyMasks, effectiveAlpha, fullContext, maskAlpha } from '../../core/masks.ts';
+import { createMask, createTonalMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
+import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskInvert, setMaskLimit, setMaskParts, setMaskTonalRange, toggleMask } from './maskOps.ts';
+import { applyMasks, effectiveAlpha, fullContext, lumaFromRgba8, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
 
@@ -264,4 +264,51 @@ test('inverting a subject mask reads as Background, and a combined mask can be i
   assert.ok(validMasks(both));
   assert.equal(masksToLayers(both)[0].invert, true);
   assert.equal(masksToLayers(both)[0].parts?.[0].mode, 'intersect');
+});
+
+function ramp(): Uint8ClampedArray {
+  // 16 x 1 grey ramp, black to white.
+  const pixels = new Uint8ClampedArray(16 * 4);
+  for (let x = 0; x < 16; x += 1) { const v = Math.round((x / 15) * 255); pixels.set([v, v, v, 255], x * 4); }
+  return pixels;
+}
+
+test('tonal masks pick shadows or highlights by brightness, and select nothing when brightness is not measured', () => {
+  const context = { ...fullContext(16, 1), luma: lumaFromRgba8(ramp()) };
+  const shadows = createTonalMask('shadows', 's');
+  const highlights = createTonalMask('highlights', 'h');
+  const a = maskAlpha(shadows, 16, 1, context);
+  const b = maskAlpha(highlights, 16, 1, context);
+  assert.equal(a[0], 1); assert.equal(a[15], 0);
+  assert.equal(b[0], 0); assert.equal(b[15], 1);
+  assert.ok(a[7] < 1 && b[7] < 1, 'midtones are mostly outside both');
+  // No luma: nothing selected, even inverted, so an edit is never widened to the whole picture.
+  assert.ok(maskAlpha(shadows, 16, 1, fullContext(16, 1)).every(v => v === 0));
+  assert.ok(maskAlpha({ ...shadows, invert: true }, 16, 1, fullContext(16, 1)).every(v => v === 0));
+  // Inverting a measured tonal mask is the complement.
+  const flipped = maskAlpha({ ...shadows, invert: true }, 16, 1, context);
+  for (let i = 0; i < 16; i += 1) assert.ok(Math.abs(a[i] + flipped[i] - 1) < 1e-6);
+});
+
+test('a tonal mask adjusts only the chosen brightnesses in real pixels, can be ranged, intersected and saved', () => {
+  let masks: Mask[] = [setMaskEdit([createTonalMask('shadows', 't')], 't', 'exposure', 1)[0]];
+  assert.ok(validMasks(masks));
+  const pixels = ramp();
+  const before = new Uint8ClampedArray(pixels);
+  applyMasks(pixels, 16, 1, masks, fullContext(16, 1));
+  assert.ok(pixels[4] > before[4], 'a dark pixel is lifted');
+  assert.equal(pixels[15 * 4], before[15 * 4], 'a white pixel is untouched');
+  assert.equal(masksToLayers(masks)[0].type, 'tonal');
+  masks = setMaskTonalRange(masks, 't', 'low', 0.9);
+  const range = masksToLayers(masks)[0].tonal!;
+  assert.ok(range.low < range.high, 'the ends never cross');
+  masks = setMaskTonalRange(masks, 't', 'high', 0.1);
+  assert.ok(masksToLayers(masks)[0].tonal!.high > masksToLayers(masks)[0].tonal!.low);
+  assert.deepEqual(setMaskTonalRange(masks, 't', 'low', NaN), masks);
+  assert.ok(validMasks(JSON.parse(JSON.stringify(masks))));
+  assert.equal(validMasks([{ ...masks[0], low: 0.8, high: 0.2 }]), false, 'a collapsed range is refused');
+  // Combine: highlights intersected with an oval keeps only their overlap.
+  const both = setMaskParts([createTonalMask('highlights', 'h'), createMask('radial', 'o')], 'h', [{ id: 'o', mode: 'intersect' }]);
+  const alpha = effectiveAlpha(both[0], both, 16, 1, { ...fullContext(16, 1), luma: lumaFromRgba8(ramp()) });
+  assert.equal(alpha[0], 0);
 });
