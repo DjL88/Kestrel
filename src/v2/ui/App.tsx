@@ -79,6 +79,7 @@ const Canvas = lazyPart(() => import('./shell/Canvas'));
 const CollageEditor = lazyPart(() => import('./shell/CollageEditor'));
 const Filmstrip = lazyPart(() => import('./shell/Filmstrip'));
 const GridView = lazyPart(() => import('./shell/GridView'));
+const PhoneGridPage = lazyPart(() => import('./shell/PhoneGridPage'));
 const PairCompare = lazyPart(() => import('./shell/PairCompare'));
 const CoPilotPanel = lazyPart(() => import('./panels/CoPilotPanel'));
 const AdjustPanel = lazyPart(() => import('./panels/AdjustPanel'));
@@ -440,6 +441,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+  // Opening a project on a phone lands on its photo grid (the first page); a tap on a photo opens it in the editor.
+  const gridEnteredFor = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!isMobile || store.screen !== 'editor' || store.collage) { gridEnteredFor.current = null; return; }
+    if (gridEnteredFor.current === store.activeProjectId) return;
+    gridEnteredFor.current = store.activeProjectId;
+    actions.setGridViewOpen(true);
+  }, [isMobile, store.screen, store.activeProjectId, store.collage]);
 
   // A phone (portrait, or a short landscape screen) and an upright tablet or unfolded foldable open with no panel, so the
   // photo has the screen until a tool is chosen (owner, 26 Nov). Exactly once, at start: turning the device keeps
@@ -1055,6 +1064,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // An upright touch tablet uses the phone's bottom tool bar and bottom sheet, with room for more buttons.
   const tabletPortrait = isTabletPortrait && !isMobile && !composingCollage;
   const phoneLayout = isMobile || phoneLandscape || tabletPortrait;
+  // An upright phone has two pages: the grid of every photo in the project, and the editor for one photo. The filmstrip is not drawn.
+  const phoneGridPage = isMobile && !composingCollage && store.screen === 'editor' && store.gridViewOpen && !pairPhotos;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
@@ -1206,7 +1217,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               </button>
             </nav>
           )}
-          {!phoneLandscape && !canvasOnlyShown && <TopBar
+          {!phoneLandscape && !canvasOnlyShown && !phoneGridPage && <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
             keymap={keymap}
@@ -1221,7 +1232,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             compareMode={store.compareMode}
             gridViewOpen={store.gridViewOpen}
             filmstripCollapsed={store.filmstripCollapsed}
-            onBack={actions.backToProjects}
+            // On a phone, Back from one photo goes to the grid (the first page); from the grid it goes to the projects.
+            onBack={isMobile && !store.collage && !store.gridViewOpen ? () => actions.setGridViewOpen(true) : actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
@@ -1327,6 +1339,29 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSwap={() => setPairSwapped((value) => !value)}
                   onEdit={(id) => { actions.setCompareMode(false); actions.selectPhoto(id); }}
                   onClose={() => actions.setCompareMode(false)} />
+              ) : phoneGridPage ? (
+                <PhoneGridPage
+                  projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
+                  photos={store.photos}
+                  activePhotoId={store.activePhotoId}
+                  filter={store.filmstripFilter}
+                  search={store.filmstripSearch}
+                  sort={store.filmstripSort}
+                  minRating={store.filmstripMinRating}
+                  pictureIds={pictureIds}
+                  onBack={actions.backToProjects}
+                  onOpenPhoto={(id) => { actions.selectPhoto(id); actions.setGridViewOpen(false); }}
+                  onToggleFlag={actions.toggleFlag}
+                  onSetFilter={actions.setFilmstripFilter}
+                  onSetSearch={actions.setFilmstripSearch}
+                  onSetSort={actions.setFilmstripSort}
+                  onSetMinRating={actions.setFilmstripMinRating}
+                  onImport={actions.importPhotos}
+                  onRunAutoCull={actions.runAutoCull}
+                  finishBest={finishBestEntry}
+                  onOpenRemoved={() => actions.setRemovedOpen(true)}
+                  onExport={() => actions.setExportOpen(true)}
+                />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -1426,7 +1461,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               )}
 
-              {!canvasOnlyShown && <Filmstrip
+              {!canvasOnlyShown && (!isMobile || composingCollage) && <Filmstrip
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}
@@ -1533,7 +1568,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Phone tool bar. Upright (<= 767px): four large targets along the bottom, like Lightroom; everything else lives
               in More. Sideways (V2-WORKSPACE 26.4): a column on the right, thumb side, with Export on top and Masks added,
               because a landscape phone has the height for one more. */}
-          {phoneLayout && !composingCollage && !canvasOnlyShown && (
+          {phoneLayout && !composingCollage && !canvasOnlyShown && !phoneGridPage && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
@@ -1633,7 +1668,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           )}
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
-          {phoneLayout && store.activePanel && !composingCollage && (
+          {phoneLayout && store.activePanel && !composingCollage && !phoneGridPage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
               : tabletPortrait
