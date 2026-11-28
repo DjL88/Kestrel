@@ -2092,8 +2092,8 @@ export default function Canvas({
           </div>
 
           {/* Split: one labelled menu (Split this frame, Duplicate this frame, Resize this frame) beside the frame */}
+          {/* The same 40 px footprint the old round button had, so the frame is centred exactly as before; the labelled button overflows it. */}
           {features.splitFrames && (
-            {/* The same 40 px footprint the old round button had, so the frame is centred exactly as before; the labelled button overflows it. */}
             <div className="relative hidden h-10 w-10 shrink-0 sm:block">
               <div className="absolute left-0 top-1/2 -translate-y-1/2">
               <SplitMenu
