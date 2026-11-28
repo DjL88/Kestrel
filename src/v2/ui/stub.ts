@@ -2228,7 +2228,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
             email: email?.trim() || (provider === 'google' ? 'duncan@gmail.com' : 'duncan@icloud.com'),
             displayName: 'Duncan Lawson',
             // Sample figures for the demo workspace: a Pro account part-way through November.
-            cloud: { plan: 'plus', photosUsed: 1840, storedBytes: 4_100_000_000, downloadedBytes: 420_000_000, balancePence: 500, nowMs: Date.now() },
+            cloud: { plan: 'plus', photosUsed: 1840, storedBytes: 12_100_000_000, downloadedBytes: 420_000_000, balancePence: 500, nowMs: Date.now() },
           },
         },
         lastActionNotice: `Signed in with ${provider}`,

@@ -51,7 +51,7 @@ export default function CloudUsagePanel({ usage, onTopUp, topUpBusy = false, top
             {m.included > 0
               ? <progress aria-label={`${label[m.id]}: ${amount(m)}`} max={100} value={m.percent} className="block h-2 w-full" />
               : <p className="text-xs text-[var(--text-secondary)]">{words.storageNoneIncluded}</p>}
-            {m.id === 'storage' && m.included > 0 && <p data-testid="cloud-storage-holds" className="text-xs text-[var(--text-muted)]">{holds(m.included)}</p>}
+            {m.id === 'storage' && m.included > 0 && <><p data-testid="cloud-storage-holds" className="text-xs text-[var(--text-muted)]">{holds(m.included)}</p><p data-testid="cloud-storage-preview-only" className="text-xs text-[var(--text-muted)]">{words.previewOnly}</p></>}
             {m.chargePence > 0 && <p className="text-xs text-[var(--text-secondary)]">{words.extra(formatPence(Math.ceil(m.chargePence)))}</p>}
             {m.id === 'storage' && storageFull(usage) && <p role="status" data-testid="cloud-storage-full" className="text-xs font-medium text-[var(--text-primary)]">{words.storageFull}</p>}
           </li>

@@ -82,6 +82,6 @@ test('the legal pages say which sharing features are coming later', () => {
   for (const row of ['Coming later: you share a project with other people', 'Coming later: you publish a client gallery', 'Coming later: you see live cursors']) {
     assert.ok(privacy.includes(row), row);
   }
-  assert.match(read('terms.html'), /Pro and Pro Plus include 2\.5 GB of online storage for photos you keep in the cloud, to open and edit on your other devices\./);
+  assert.match(read('terms.html'), /Pro includes 2\.5 GB and Pro Plus 10 GB of online storage for photos you keep in the cloud, to open and edit on your other devices\./);
   assert.match(read('terms.html'), /client galleries are coming later; this section applies once they open/);
 });

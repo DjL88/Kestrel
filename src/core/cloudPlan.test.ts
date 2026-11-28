@@ -22,11 +22,11 @@ test('every fixed storage plan keeps at least 60% margin even when completely fu
   }
 });
 
-test('allowances: Free no cloud, Pro 500 photos, Pro Plus 5,000, both with 2.5 GB; 1 GB downloads free for everyone', () => {
+test('allowances: Free no cloud, Pro 500 photos, Pro Plus 5,000, with 2.5 GB and 10 GB; 1 GB downloads free for everyone', () => {
   assert.equal(MONTHLY_PHOTO_ALLOWANCE.basic, 0);
   assert.equal(MONTHLY_PHOTO_ALLOWANCE.pro, 500);
   assert.equal(MONTHLY_PHOTO_ALLOWANCE.plus, 5000);
-  assert.deepEqual(FREE_STORAGE_BYTES_BY_PLAN, { basic: 0, pro: 2.5e9, plus: 2.5e9 });
+  assert.deepEqual(FREE_STORAGE_BYTES_BY_PLAN, { basic: 0, pro: 2.5e9, plus: 10e9 });
   assert.deepEqual([planHasCloud('basic'), planHasCloud('pro'), planHasCloud('plus')], [false, true, true]);
   assert.equal(FREE_DOWNLOAD_BYTES_PER_MONTH, 1e9);
 });

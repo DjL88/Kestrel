@@ -12,7 +12,7 @@
  * the cloud at all. Cloud is used only when the device is at capacity AND online AND signed in AND credits remain.
  * Unused photos and downloads carry over for one month (owner 26 Nov 2026):
  *  - cloud processing: a monthly photo allowance (Free 0, Pro 500, Pro Plus 5,000), then paid from the cloud balance;
- *  - storage: Pro and Pro Plus include 2.5 GB, Free none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
+ *  - storage: Pro includes 2.5 GB and Pro Plus 10 GB (owner, 28 Nov 2026), Free none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
  *    later a fixed storage plan by Direct Debit (STORAGE_PLANS);
  *  - downloads (other devices, collaborators, galleries, restores): 1 GB a month free, then pay per GB.
  * Prices include VAT and are set so each line keeps at least 60% margin after VAT, Paddle fees and Google's London list
@@ -39,7 +39,7 @@ export const MONTHLY_PHOTO_ALLOWANCE: Record<SoftwarePlan, number> = { basic: 0,
 
 const GB = 1_000_000_000;
 /** Cloud storage included with each plan. Basic has none: every stored GB is paid from the balance. */
-export const FREE_STORAGE_BYTES_BY_PLAN: Record<SoftwarePlan, number> = { basic: 0, pro: 2.5 * GB, plus: 2.5 * GB };
+export const FREE_STORAGE_BYTES_BY_PLAN: Record<SoftwarePlan, number> = { basic: 0, pro: 2.5 * GB, plus: 10 * GB };
 export const freeStorageBytes = (plan: SoftwarePlan) => FREE_STORAGE_BYTES_BY_PLAN[plan] ?? 0;
 export const FREE_DOWNLOAD_BYTES_PER_MONTH = 1 * GB;
 

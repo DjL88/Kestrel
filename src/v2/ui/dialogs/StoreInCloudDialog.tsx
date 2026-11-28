@@ -167,6 +167,7 @@ export default function StoreInCloudDialog({ open, client, localProjectId, proje
           <button ref={closeButton} type="button" disabled={busy} onClick={onClose} className={button}>{t.close}</button>
         </div>
         <p className="text-sm text-[var(--text-secondary)]">{t.intro}</p>
+        <p className="text-sm text-[var(--text-secondary)]" data-testid="store-cloud-preview-only">{t.previewOnly}</p>
 
         <fieldset data-testid="store-cloud-filter" className="space-y-1.5" disabled={busy}>
           <legend className="text-xs font-semibold">{t.which}</legend>
