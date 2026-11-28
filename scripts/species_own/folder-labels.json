@@ -1,0 +1,47 @@
+{
+  "_comment": "WEAK, UNCONFIRMED labels from the owner's own folder names. Nothing is trained for shipping until the owner confirms each row (confirmed: true). 'tier' says how sure the folder name is: name = the species is in the folder name; nickname = owner shorthand (Dipdips = dippers, KF = kingfishers, Kites = red kites at Gigrin); mixed = name only suggests the main subject. Folders not listed are unlabelled and never trained on.",
+  "root": "Photos",
+  "species": {
+    "Kingfisher": {"scientific": "Alcedo atthis", "folders": [
+      {"folder": "0107 Kingfishers", "tier": "name"},
+      {"folder": "Kingfishers0204", "tier": "name"},
+      {"folder": "02042026 KF", "tier": "nickname"}
+    ]},
+    "Dipper": {"scientific": "Cinclus cinclus", "folders": [
+      {"folder": "0205 Dipdips", "tier": "nickname"}, {"folder": "0205DipDips", "tier": "nickname"},
+      {"folder": "0405 Dipdips", "tier": "nickname"}, {"folder": "1205 DipDipWalk", "tier": "nickname"},
+      {"folder": "1205 Dipper Walk", "tier": "mixed"}, {"folder": "1308 Dipps", "tier": "nickname"},
+      {"folder": "1905 Dipdips", "tier": "nickname"}, {"folder": "1905Dipdips", "tier": "nickname"},
+      {"folder": "2105Dipdips", "tier": "nickname"}, {"folder": "2605 Dipdips", "tier": "nickname"},
+      {"folder": "2605 Dips", "tier": "nickname"}, {"folder": "MonoDipper", "tier": "name"}
+    ]},
+    "Osprey": {"scientific": "Pandion haliaetus", "folders": [
+      {"folder": "Ospreys", "tier": "name"}, {"folder": "Osp2504", "tier": "nickname"},
+      {"folder": "Osp2504b", "tier": "nickname"}, {"folder": "Ospreys0904", "tier": "name"},
+      {"folder": "Ospreys0904-2", "tier": "name"}
+    ]},
+    "Atlantic Puffin": {"scientific": "Fratercula arctica", "folders": [
+      {"folder": "Puffins", "tier": "name"}, {"folder": "Puffins2", "tier": "name"}
+    ]},
+    "Red Kite": {"scientific": "Milvus milvus", "folders": [
+      {"folder": "1005 Kite Workshop", "tier": "mixed"}, {"folder": "2707 kITES", "tier": "nickname"},
+      {"folder": "2707 Kites Edit", "tier": "nickname"}, {"folder": "2508 Kites and more", "tier": "nickname"},
+      {"folder": "2508 Kites and more2", "tier": "nickname"}, {"folder": "2026CalendarKites", "tier": "nickname"},
+      {"folder": "KiteWrapup", "tier": "nickname"}
+    ]}
+  },
+  "not_labelled_on_purpose": {
+    "1206 BackBrook Heron etc": "Heron plus other subjects: ambiguous",
+    "2026-07-11 Skomer Puffin Trip": "Whole trip: puffins plus razorbills, guillemots, gulls. Ask the owner which frames are puffins.",
+    "09042026 Ospreys and Hol": "Ospreys plus a holiday: mixed",
+    "2509 Trains Kites": "Trains as well as kites",
+    "3105 wrens": "83 frames, one day: too few to hold out; mixed birds likely",
+    "0806 Nuthatch": "12 frames: too few",
+    "Buzzard Jan10": "23 frames, one day: too few"
+  },
+  "out_of_set": {
+    "_comment": "Not the species above: used only to measure how often the model wrongly names a bird. 'scenes' contain no birds expected; 'otherbirds' are unconfirmed and may contain target species, so they are an upper bound on false names.",
+    "scenes": ["DogShow", "re-enactor", "CroftCastle", "Croome", "Southwold", "2209 Beach", "Mar Photos 2026"],
+    "otherbirds": ["2405 birdies", "2605 Birdies", "2805 birdies", "1904 Birdy Snaps", "3105 wrens", "0806 Nuthatch", "1206 BackBrook Heron etc"]
+  }
+}

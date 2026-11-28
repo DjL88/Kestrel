@@ -25,6 +25,8 @@ export const is: AreaTranslation<typeof source> = {
   cullMaskSharpnessDesc: "Mælir við val skerpuna aðeins innan útlínu myndefnisins í stað rammans. Án nothæfrar útlínu helst mæling rammans.",
   enhanceLoopName: "Bæta með athugunum",
   enhanceLoopDesc: "Auto mælir myndina, fylgir heimildatilvitnuðum klippileiðbeiningum, býr til eigin breytingu, athugar raunverulega niðurstöðu og lagar hana í mesta lagi fimm sinnum. Síðan býður það þrjá valkosti með uppáhaldi. Allt helst á þessu tæki og upprunalega myndin breytist aldrei.",
+  ownSpeciesName: "Eigið tegundalíkan (rannsókn)",
+  ownSpeciesDesc: "Stingur upp á fuglsheiti með litlu líkani sem er aðeins þjálfað á myndum eins ljósmyndara. Það þekkir fáar tegundir, segir oft ekkert og getur skjátlast. Allt helst á þessu tæki.",
   cloudRecipeName: "Vinnslustillingar í skýinu",
   cloudRecipeDesc: "Sendir 2.560 px snjallforskoðun af mynd í skýið og fær til baka vinnslustillingar sem hægt er að afturkalla. Hún þarf tengingu og sendir myndgögn, svo hafðu hana slökkta til að halda öllu á þessu tæki.",
   usbTetherName: "USB-tenging myndavélar",
