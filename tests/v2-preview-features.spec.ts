@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(({}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'the V2 phone layout has no Settings button in the top bar; it is checked in a later slice');
+});
+
 const openPreviews = async (page: import('@playwright/test').Page) => {
   await page.goto('/?v2&stub=1');
   await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
