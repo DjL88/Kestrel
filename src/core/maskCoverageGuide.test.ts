@@ -90,3 +90,13 @@ test('the outline is drawn finely (up to 1,024 px) and follows a curve smoothly,
   // A 64-cell grid shown at 1,024 px is 16 px a cell: a staircase would stray by several pixels.
   assert.ok(worst < 3, `the line strays ${worst.toFixed(2)} px from the curve`);
 });
+
+test('guideEdgeFor: the outline is drawn as finely as it is shown, in steps, up to 2K; the fill stays small', async () => {
+  const { guideEdgeFor, OUTLINE_EDGE, FILL_EDGE, OUTLINE_EDGE_MAX } = await import('./maskCoverageGuide.ts');
+  assert.equal(guideEdgeFor(800, 'outline'), OUTLINE_EDGE);
+  assert.equal(guideEdgeFor(1100, 'outline'), 1536);
+  assert.equal(guideEdgeFor(1536, 'outline'), 1536);
+  assert.equal(guideEdgeFor(8280, 'outline'), OUTLINE_EDGE_MAX);
+  assert.equal(guideEdgeFor(Number.NaN, 'outline'), OUTLINE_EDGE);
+  assert.equal(guideEdgeFor(5000, 'fill'), FILL_EDGE);
+});
