@@ -31,6 +31,8 @@ export const ga: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Seolann sé réamhamharc cliste 2,560 px de ghrianghraf chuig an scamall agus faigheann sé socruithe eagarthóireachta ar ais is féidir a chealú. Teastaíonn nasc uaidh agus seolann sé sonraí an ghrianghraif, mar sin fág as é chun gach rud a choinneáil ar an ngléas seo.",
   usbTetherName: "Ceangal USB",
   usbTetherDesc: "Aip deisce amháin. Glacann sé grianghraif le ceamara atá plugáilte isteach trí USB agus sábhálann sé gach fráma i bhfillteán a roghnaíonn tú. Níor triaileadh ach le ceamara insamhlaithe go dtí seo.",
+  maskBrushName: "Scuaibín maisc",
+  maskBrushDesc: "Péinteáil masc de láimh ar an ngrianghraf, nó beachtaigh masc ábhair nó cúlra, leis an scuaibín agus an scriosán i Maisc. Is cuid den eagarthóireacht inaisiompaithe iad na stríoca; ní athraítear an bunchomhad riamh.",
   tapForPhotoName: "Tapáil an grianghraf chun na barraí a cheilt",
   tapForPhotoDesc: "Ar scáileán tadhaill, ceilt aon tapáil amháin ar an ngrianghraf na barraí agus na painéil ionas go bhfuil an scáileán ar fad ag an ngrianghraf. Tugann tapáil eile ar ais iad.",
   cloudOriginalsName: "Bunchóipeanna iomlána sa scamall",

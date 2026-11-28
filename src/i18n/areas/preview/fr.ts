@@ -31,6 +31,8 @@ export const fr: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Envoie un aperçu intelligent de 2 560 px d'une photo vers le cloud et reçoit en retour des réglages de retouche annulables. Cela demande une connexion et envoie des données de photo : laissez-le désactivé pour tout garder sur cet appareil.",
   usbTetherName: "Connexion USB à l'appareil photo",
   usbTetherDesc: "Application de bureau uniquement. Photographie avec un appareil branché en USB et enregistre chaque image dans un dossier de votre choix. Essayé jusqu'ici seulement avec un appareil simulé.",
+  maskBrushName: "Pinceau de masque",
+  maskBrushDesc: "Peignez un masque à la main sur la photo, ou affinez un masque de sujet ou d'arrière-plan, avec le pinceau et la gomme dans Masques. Les coups de pinceau font partie de la retouche réversible ; le fichier original n'est jamais modifié.",
   tapForPhotoName: "Touchez la photo pour masquer les barres",
   tapForPhotoDesc: "Sur un écran tactile, un seul toucher sur la photo masque les barres et les panneaux pour que la photo occupe tout l'écran. Un autre toucher les ramène.",
   cloudOriginalsName: "Originaux complets dans le cloud",

@@ -31,6 +31,8 @@ export const cy: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Yn anfon rhagolwg clyfar 2,560 px o lun i'r cwmwl ac yn cael gosodiadau golygu y gellir eu dadwneud yn ôl. Mae angen cysylltiad ac mae'n anfon data'r llun, felly gadewch ef i ffwrdd i gadw popeth ar y ddyfais hon.",
   usbTetherName: "Clymu USB",
   usbTetherDesc: "Yr ap bwrdd gwaith yn unig. Yn tynnu lluniau gyda chamera wedi'i blygio i mewn drwy USB ac yn cadw pob ffrâm mewn ffolder o'ch dewis. Dim ond gyda chamera efelychiedig y'i profwyd hyd yma.",
+  maskBrushName: "Brwsh masg",
+  maskBrushDesc: "Peintiwch fasg â llaw ar y llun, neu mireiniwch fasg gwrthrych neu gefndir, gyda'r brwsh a'r rhwbiwr yn Masgiau. Mae'r strociau'n rhan o'r golygiad y gellir ei ddadwneud; nid yw'r ffeil wreiddiol byth yn cael ei newid.",
   tapForPhotoName: "Tapio'r llun i guddio'r bariau",
   tapForPhotoDesc: "Ar sgrin gyffwrdd, mae un tap ar y llun yn cuddio'r bariau a'r paneli fel bod y llun yn cael y sgrin gyfan. Mae tap arall yn eu dod yn ôl.",
   cloudOriginalsName: "Y lluniau gwreiddiol llawn yn y cwmwl",
