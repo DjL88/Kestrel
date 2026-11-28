@@ -69,6 +69,7 @@ import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { canWatchFolder, chooseHotFolder, desktopHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
 import { canReceiveFromCamera, startFtpInbox, stopFtpInbox, type FtpInbox } from '../../providers/ftpInbox';
+import { ftpCredentials } from '../../core/liveShootSettings';
 import { canOpenShootRoom } from '../../providers/shootRoom';
 import { useShootRoom } from './useShootRoom';
 import { canTetherUsb, startUsbTether, type UsbTether } from '../../providers/usbTether';
@@ -493,6 +494,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
+  // Live shoot panel (preview): the look added to each frame that arrives, and its name for the panel.
+  const liveLook = useRef<LookPreset | null>(null);
+  const [liveLookName, setLiveLookName] = useState<string | null>(null);
   const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean; ftp?: FtpInbox; tether?: { camera: string; fetching: string | null } } | null>(null);
   // The USB tether feeding the watched folder, while one is running (desktop app, preview).
   const usbTether = useRef<UsbTether | null>(null);
@@ -2730,6 +2734,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     usbTether.current?.stop();
     usbTether.current = null;
     setLiveFolder((current) => { if (current?.ftp) void stopFtpInbox(); return null; });
+    liveLook.current = null;
+    setLiveLookName(null);
   }, []);
 
   const startLiveFolder = useCallback((source: HotFolderSource, ftp?: FtpInbox) => {
@@ -2743,10 +2749,42 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     watchHotFolder(source, {
       signal: controller.signal,
       // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
-      onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
+      // With a next-capture look chosen in the Live shoot panel, each new frame arrives with that look as its own edit
+      // (Looks › None or Reset takes it off; the original file is never changed).
+      onReady: (photos) => {
+        if (stateRef.current?.shoot.id !== projectId) return Promise.resolve(false);
+        const look = liveLook.current;
+        const lookEdit = look ? applyRecipePatch(undefined, look.recipeDelta).edit : undefined;
+        return importPhotos(photos, look && lookEdit ? () => ({ edit: lookEdit, appliedLookId: look.id }) : undefined, true);
+      },
       onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder((current) => ({ projectId, name: source.name, ...status, ...(ftp ? { ftp } : {}), ...(current?.tether ? { tether: current.tether } : {}) })); },
     });
   }, [importPhotos]);
+
+  // USB tether (desktop app, preview): the camera's own PTP link saves each new frame into a chosen folder, which is
+  // then watched like any hot folder. True when the tether started.
+  const startUsbLive = async (): Promise<boolean> => {
+    try {
+      const tether = await startUsbTether((status) => {
+        setLiveFolder((current) => (current ? { ...current, tether: { camera: status.camera, fetching: status.fetching?.name ?? null } } : current));
+      });
+      if (tether === 'noCamera') { setNotice(V2_STRINGS.liveShoot.usbNoCamera); return false; }
+      if (!tether) return false;
+      startLiveFolder(desktopHotFolder(tether.folder));
+      usbTether.current = tether;
+      setLiveFolder((current) => (current ? { ...current, tether: { camera: tether.camera, fetching: null } } : current));
+      void tether.ended.then((reason) => {
+        if (usbTether.current !== tether) return;
+        usbTether.current = null;
+        setLiveFolder((current) => { if (!current) return current; const { tether: _ended, ...rest } = current; return rest; });
+        if (reason) setNotice(V2_STRINGS.liveShoot.usbEnded(tether.camera, reason));
+      });
+      return true;
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  };
 
   // Leaving the project (or closing InFlight's editor) ends the watch: a live shoot belongs to the project it started in.
   useEffect(() => {
@@ -3388,7 +3426,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const withMode = mode ? { ...withCloud, shoot: { ...withCloud.shoot, assistMode: mode } } : withCloud;
       const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } }
         : kind === 'tethered' ? { ...withMode, shoot: { ...withMode.shoot, projectType: 'tethered' as const } } : withMode;
-      void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
+      // The project list is read again too: the studio takes the open project's kind (a Tethered shoot's live buttons)
+      // from it, so a new Tethered shoot showed none of them until it was reopened.
+      void catalogue.current!.saveProject(created).then(() => { enterProject(created); void loadHub(); }, () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
       const source = stateRef.current;
@@ -3695,23 +3735,37 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // USB tether (desktop app, preview): the camera's own PTP link saves each new frame into a chosen folder, which is
     // then watched like any hot folder, so USB frames join the same live pipeline as Wi-Fi and tether-app frames.
     ...(canTetherUsb() && workflowPreviewOn('usbTether') ? {
-      tetherCamera: () => {
-        void startUsbTether((status) => {
-          setLiveFolder((current) => (current ? { ...current, tether: { camera: status.camera, fetching: status.fetching?.name ?? null } } : current));
-        }).then((tether) => {
-          if (tether === 'noCamera') { setNotice(V2_STRINGS.liveShoot.usbNoCamera); return; }
-          if (!tether) return;
-          startLiveFolder(desktopHotFolder(tether.folder));
-          usbTether.current = tether;
-          setLiveFolder((current) => (current ? { ...current, tether: { camera: tether.camera, fetching: null } } : current));
-          void tether.ended.then((reason) => {
-            if (usbTether.current !== tether) return;
-            usbTether.current = null;
-            setLiveFolder((current) => { if (!current) return current; const { tether: _ended, ...rest } = current; return rest; });
-            if (reason) setNotice(V2_STRINGS.liveShoot.usbEnded(tether.camera, reason));
-          });
-        }).catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)));
+      tetherCamera: () => { void startUsbLive(); },
+    } : {}),
+    // Live shoot panel (desktop app, preview): one start for camera Wi-Fi, a folder or USB, with a next-capture look and
+    // the client room; one stop that ends the watch and switches the FTP inbox and the room off.
+    ...(isDesktopApp() && canWatchFolder() ? {
+      startLiveShoot: async (choice) => {
+        const title = stateRef.current?.shoot.title;
+        if (title === undefined) return false;
+        const look = choice.lookId ? looks.find((entry) => entry.id === choice.lookId) ?? null : null;
+        let started = false;
+        try {
+          if (choice.source === 'ftp' && canReceiveFromCamera()) {
+            const inbox = await startFtpInbox(ftpCredentials((() => { try { return window.localStorage; } catch { return null; } })()));
+            if (inbox) { startLiveFolder(desktopHotFolder(inbox.folder), inbox); started = true; }
+          } else if (choice.source === 'usb' && canTetherUsb() && workflowPreviewOn('usbTether')) {
+            started = await startUsbLive();
+          } else if (choice.source === 'folder') {
+            const source = await chooseHotFolder();
+            if (source) { startLiveFolder(source); started = true; }
+          }
+        } catch (error) {
+          setNotice(error instanceof Error ? error.message : String(error));
+          return false;
+        }
+        if (!started) return false;
+        liveLook.current = look;
+        setLiveLookName(look?.name ?? null);
+        if (choice.room && canOpenShootRoom()) void shootRoom.open(title);
+        return true;
       },
+      stopLiveShoot: () => { stopLiveFolder(); shootRoom.close(); },
     } : {}),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
@@ -4516,12 +4570,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
     shootRoom: shootRoom.room,
-    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password } } : {}), ...(liveFolder.tether ? { tether: { camera: liveFolder.tether.camera, fetching: liveFolder.tether.fetching } } : {}) } : null,
+    liveShootLook: liveFolder && liveFolder.projectId === state?.shoot.id ? liveLookName : null,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password, ...(liveFolder.ftp.portChanged ? { portChanged: true } : {}) } } : {}), ...(liveFolder.tether ? { tether: { camera: liveFolder.tether.camera, fetching: liveFolder.tether.fetching } } : {}) } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, autoStatus, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, denoiseStatus, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
+  }), [liveFolder, liveLookName, shootRoom.room, looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, autoStatus, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, denoiseStatus, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion, proposalView]);
 
   return { store, actions };
 }

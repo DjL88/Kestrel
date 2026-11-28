@@ -9,6 +9,7 @@ import { exportArea } from './export';
 import { hdrArea } from './hdr';
 import { healArea } from './heal';
 import { libraryArea } from './library';
+import { livePanelArea } from './livePanel';
 import { looksArea } from './looks';
 import { panoArea } from './pano';
 import { workflowArea } from './workflow';
@@ -28,4 +29,4 @@ import { welcomeArea } from './welcome';
  * folder: `source.ts` (British English), one file per language, and `index.ts`, which exports the area's words for
  * the session's language and an `AreaEntry`.
  */
-export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, emailArea, engineArea, exportArea, hdrArea, healArea, libraryArea, looksArea, panoArea, photoTagsArea, previewArea, projectsArea, speciesAreaArea, stackArea, v2Area, vehiclesArea, verificationArea, viewerArea, welcomeArea, workflowArea];
+export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, emailArea, engineArea, exportArea, hdrArea, healArea, libraryArea, livePanelArea, looksArea, panoArea, photoTagsArea, previewArea, projectsArea, speciesAreaArea, stackArea, v2Area, vehiclesArea, verificationArea, viewerArea, welcomeArea, workflowArea];

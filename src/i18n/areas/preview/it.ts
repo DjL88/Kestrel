@@ -31,6 +31,8 @@ export const it: AreaTranslation<typeof source> = {
   cloudRecipeDesc: "Invia al cloud un'anteprima intelligente da 2.560 px di una foto e riceve impostazioni di modifica annullabili. Richiede una connessione e invia dati della foto: lo lasci disattivato per tenere tutto su questo dispositivo.",
   usbTetherName: "Tethering USB",
   usbTetherDesc: "Solo app desktop. Scatta con una fotocamera collegata via USB e salva ogni immagine in una cartella a sua scelta. Finora provato solo con una fotocamera simulata.",
+  liveShootName: "Pannello scatto in diretta",
+  liveShootDesc: "Solo app desktop. Un solo pannello avvia uno scatto in diretta dal Wi-Fi della fotocamera, da una cartella o via USB. Può dare uno stile a ogni nuova foto e mostrare lo scatto su altri schermi. Non ancora provato con una fotocamera reale.",
   tapForPhotoName: "Tocca la foto per nascondere le barre",
   tapForPhotoDesc: "Su uno schermo tattile, un tocco sulla foto nasconde barre e pannelli, così la foto occupa tutto lo schermo. Un altro tocco le riporta.",
   cloudOriginalsName: "Originali completi nel cloud",
