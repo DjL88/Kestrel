@@ -8,6 +8,9 @@ import pairing as P
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--out', required=True); a = ap.parse_args()
     idx = [json.loads(l) for l in open(os.path.join(a.out, 'index.jsonl'))]
+    bad = sum(1 for r in idx if not r.get('hash'))
+    idx = [r for r in idx if r.get('hash')]
+    print('rows without hash (unreadable, skipped):', bad)
     pairs, st = P.pair(idx)
     # One final image per RAW+hash; keep every variant but mark it.
     rows = []
