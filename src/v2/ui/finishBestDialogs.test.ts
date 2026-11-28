@@ -35,12 +35,12 @@ test('the chooser says what a request means in one line, and what it leaves alon
 });
 
 test('the review groups edited, held and left-alone photos, each with a word and a reason, and Keep or Undo by name', () => {
-  finishBatchStore.begin('p', 4);
-  finishBatchStore.add(result('a', 'applied', { applied: 'Exposure up.' }));
-  finishBatchStore.add(result('b', 'held', { heldReason: 'Held for you to look at.' }));
-  finishBatchStore.add(result('c', 'unchanged'));
-  finishBatchStore.add(result('d', 'applied', { review: 'kept' }));
-  finishBatchStore.finish(false);
+  const run = finishBatchStore.begin('p', 4);
+  finishBatchStore.add(run, result('a', 'applied', { applied: 'Exposure up.' }));
+  finishBatchStore.add(run, result('b', 'held', { heldReason: 'Held for you to look at.' }));
+  finishBatchStore.add(run, result('c', 'unchanged'));
+  finishBatchStore.add(run, result('d', 'applied', { review: 'kept' }));
+  finishBatchStore.finish(run, false);
   const html = renderToStaticMarkup(createElement(FinishReviewDialog, { open: true, control, onOpenPhoto: () => undefined, onClose: () => undefined }));
   assert.match(html, /Finished photos \(2\)/);
   assert.match(html, /Held for your review \(1\)/);
@@ -61,8 +61,8 @@ test('the entry button is busy in words while a batch runs, and offers the revie
   const idle = renderToStaticMarkup(createElement(FinishBestButton, { entry }));
   assert.match(idle, /Finish best…/);
   assert.doesNotMatch(idle, /Review \d+ finished/);
-  finishBatchStore.begin('p', 2);
-  finishBatchStore.add(result('a', 'applied'));
+  const run = finishBatchStore.begin('p', 2);
+  finishBatchStore.add(run, result('a', 'applied'));
   const busy = renderToStaticMarkup(createElement(FinishBestButton, { entry }));
   assert.match(busy, /Finishing…/);
   assert.match(busy, /disabled/);
@@ -77,10 +77,10 @@ test('the chooser warns that RAW photos take longer, only when the batch include
 });
 
 test('the review says Before or After in words, marks the chosen button with a tick, and never leans on colour alone', () => {
-  finishBatchStore.begin('p', 2);
-  finishBatchStore.add(result('a', 'applied'));
-  finishBatchStore.add(result('b', 'held'));
-  finishBatchStore.finish(false);
+  const run = finishBatchStore.begin('p', 2);
+  finishBatchStore.add(run, result('a', 'applied'));
+  finishBatchStore.add(run, result('b', 'held'));
+  finishBatchStore.finish(run, false);
   const html = renderToStaticMarkup(createElement(FinishReviewDialog, { open: true, control, onOpenPhoto: () => undefined, onClose: () => undefined }));
   assert.match(html, /data-testid="finish-show-after"[^>]*>[^]*?✓[^]*?After<\/button>/);
   assert.doesNotMatch(html, /data-testid="finish-show-before"[^>]*>[^]*?✓[^]*?Before<\/button>/);
