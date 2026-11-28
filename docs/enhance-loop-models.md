@@ -5,31 +5,51 @@ are in Git. Machine-readable copy: `src/core/enhanceModels.ts` (`loopMayUse`). L
 (`models/README.md`, `docs/notices/`, `src/core/optionalModels.ts`) plus the author's knowledge of the training sets; I could not
 re-read upstream licence texts offline, so "verify" means the owner (or a licence check) must confirm before use.
 
-| Model | Version / source | Code and weights licence | Training data | Status in the loop |
-|---|---|---|---|---|
-| SmolVLM2-256M-Video-Instruct (vision AI) | HuggingFaceTB, rev 9cda5c16… | Apache-2.0 | mixed open sets, per model card | **open** |
-| YOLOX-Tiny (detector) | Megvii | Apache-2.0 | COCO | **open** |
-| RF-DETR Nano (second detector) | Roboflow, rev 9f201577… | Apache-2.0 (Nano only) | COCO | **open** |
-| DINOv2 ViT-S/14 (bursts) | facebook/dinov2-small | Apache-2.0 | LVD-142M | **open** |
-| CLIP ViT-B/32 (category gate, text search) | OpenAI; ONNX by Xenova | MIT | not published | **open** |
-| PP-OCRv5 mobile (markings) | PaddlePaddle | Apache-2.0 | n/a | **open**, not used for photo judgement |
-| U2-Netp (subject mask) | xuebinqin/U-2-Net | Apache-2.0 | DUTS (academic terms) | **verify** |
-| BiRefNet_lite (fine edges) | ZhengPeng7, rev aa62cd87… | MIT | DIS5K and others (academic) | **verify** |
-| EfficientSAM-Ti (tap to select) | yformer/EfficientSAM | Apache-2.0 | SA-1B (research licence) | **verify** |
-| NAFNet-SIDD-w32 (learned denoise) | megvii-research/NAFNet | MIT (code) | SIDD (terms not confirmed) | **verify** |
-| BioCLIP / BioCLIP 2 (species) | imageomics | MIT (weights) | TreeOfLife (includes non-commercial images) | **verify** |
-| Species names | IOC World Bird List | CC BY 4.0 | n/a | open |
+| Model | Version / revision | Code licence | Weights licence | Training data | Source URL | Loop status |
+|---|---|---|---|---|---|---|
+| SmolVLM2-256M-Video-Instruct (vision AI) | rev 9cda5c16… | Apache-2.0 | Apache-2.0 | mixed open sets (model card) | huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct | **open** |
+| YOLOX-Tiny (detector) | as in `models/README.md` | Apache-2.0 | Apache-2.0 | COCO | github.com/Megvii-BaseDetection/YOLOX | **open** |
+| RF-DETR Nano (second detector) | rev 9f201577… | Apache-2.0 | Apache-2.0 (Nano only) | COCO | huggingface.co/Roboflow/rf-detr-nano | **open** |
+| DINOv2 ViT-S/14 (bursts) | facebook/dinov2-small | Apache-2.0 | Apache-2.0 | LVD-142M | huggingface.co/facebook/dinov2-small | **open** |
+| CLIP ViT-B/32 (category gate, text search) | OpenAI; ONNX by Xenova | MIT | MIT | not published | huggingface.co/Xenova/clip-vit-base-patch32 | **open** |
+| PP-OCRv5 mobile (markings) | pinned in `markingReader.ts` | Apache-2.0 | Apache-2.0 | n/a | github.com/PaddlePaddle/PaddleOCR | **open**, not used for photo judgement |
+| U2-Netp (subject mask) | `src/assets/models/u2netp.onnx` | Apache-2.0 | Apache-2.0 as recorded | DUTS (academic terms) | github.com/xuebinqin/U-2-Net | **verify: off in the loop** |
+| BiRefNet_lite (fine edges) | rev aa62cd87… | MIT | MIT | DIS5K and other academic sets | huggingface.co/ZhengPeng7/BiRefNet_lite | **verify: off** |
+| EfficientSAM-Ti (tap to select) | commit d525f622… | Apache-2.0 | Apache-2.0 as recorded | SA-1B (research licence) | github.com/yformer/EfficientSAM | **verify: off** |
+| NAFNet-SIDD-w32 (learned denoise) | commit 2b4af71e… | MIT | MIT as recorded | SIDD (terms not confirmed) | github.com/megvii-research/NAFNet | **verify: off** |
+| BioCLIP (species) | imageomics/bioclip | MIT | MIT | TreeOfLife-10M (includes non-commercial images) | huggingface.co/imageomics/bioclip | **verify: off** |
+| BioCLIP 2 (species second opinion) | rev 2957b322… | MIT | MIT | TreeOfLife-200M (includes non-commercial images) | huggingface.co/imageomics/bioclip-2 | **verify: off** |
+| Species names | IOC World Bird List | CC BY 4.0 | n/a | n/a | worldbirdnames.org | open |
+| Enlarger | none: upscaling is the deterministic resampler, no model | n/a | n/a | n/a | n/a | not part of the loop |
 
 **Verify = not used by the enhance loop** until confirmed. Today the loop itself loads no model: the vision critic is an injected
 interface (the harness uses a labelled stand-in), and the Subject-focused option falls back to measured in-focus detail when
 no subject mask is allowed. Consequence to decide: U2-Netp is what the editor's subject mask uses today, so with the strict rule
 the loop would not use it either. The existing editor features that ship these models are unchanged by this work.
 
-## Cloud
-The per-photo loop never calls the cloud and has no cloud input. Cloud use belongs to bulk processing for paid Pro users (separate
-work). Gemini is not in the per-photo critique path.
-
-## Opt-in rules-maintenance channel (design only, nothing built)
-Separate explicit consent, off by default. Shares only recipes, measured features and ratings (accepted, rejected, undone): no EXIF,
-paths or identifiers; images only if the person opts in again per batch. A hosted model may review whether a rule's advice held up
-across opted-in results, to help maintain `photographyKnowledge.ts`. Failure is silent and never blocks editing.
+## Cloud (owner clarifications, 28 Nov 2026)
+- **Cloud processing exists for speed on bulk work** (for example 1,000 imported photos). It must do what the device does: same loop,
+  same rules, same recipes, equivalent results, faster and in parallel. The loop core (`src/core/enhance*.ts`) is therefore pure and
+  deterministic with no DOM or network use, and `src/core/enhanceParity.test.ts` guards that the device path and a runner path give
+  identical recipes and pixels. The cloud returns recipes and previews, never replaces originals. Routing is not built here, and it
+  stays behind the owner's gates (device at capacity, online, signed in, credits remain, best photos first, paid Pro plans only).
+- **What the existing runner can run today** (`services/cloud-runner`): deterministic maths only: the same noise-reduction and mask code
+  the device runs, the Lanczos-3 resampler, and the cloud-recipe computation. No neural model runs there yet; any later "smarter" step
+  would use openly licensed models only.
+- **Cloud storage is a separate feature** (backing up and sharing photos). It is not coupled to cloud processing in code or wording.
+- **Two different things, kept apart:**
+  - **(A) The person's own AI provider (bring your own key), optional second opinion.** Their key, their account and cost, set up in the
+    existing `AiProviderSetup` (Settings). When set up and agreed to, the loop may ask that provider about the three finished options.
+    Off unless set up; previews only (downsized, redrawn so no EXIF, paths or identifiers, never originals); the existing consent
+    notice names what is sent and where before first use; never required, never blocks, failure is silent; advisory only: it can flag a
+    concern or move the favourite between options that already passed every gate. It never applies an edit, never waives a gate, never
+    generates pixels, and its slider suggestions are ignored here. The loop only has an injected `SecondOpinion` interface; the adapter
+    `src/providers/enhanceSecondOpinion.ts` reuses the existing `askForReview` and consent code (no second path). The UI says "in the
+    cloud" (or the provider name from the person's own setup), never an internal model name. InFlight's own invited-tester provider
+    kind ('inflight') is excluded from this.
+  - **(B) The owner's private Gemini/Vertex access.** Server-side allowlist for invited testers and contributors and for maintaining
+    the rules base. Owner-only: no in-app switch, no user-facing copy. Nothing is built here.
+  The loop works fully without either.
+- **Existing, separate feature (not touched by this work):** the app already has a general "bring your own AI provider" setup
+  (`src/v2/ui/dialogs/AiProviderSetup.tsx`, `src/providers/aiProviders.ts` with kinds gemini, anthropic, openai, inflight,
+  `src/core/gemini.ts`, `src/core/onlineHelper.ts`, the AI colour review in `src/core/aiReview.ts`). The owner confirmed it stays; the loop reuses it for (A) and adds no second path.

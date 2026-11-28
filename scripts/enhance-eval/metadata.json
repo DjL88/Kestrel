@@ -1,0 +1,123 @@
+{
+ "_note": "ISO, shutter and aperture from MANIFEST.md (Spotlight metadata). EXIF exposure compensation, program and metering were not available, so they are absent (null). Photos not listed have no metadata.",
+ "20071013-10273016-NIKON_D200": {
+  "iso": 100,
+  "shutterSeconds": 0.005,
+  "aperture": 8
+ },
+ "AZ1I2272": {
+  "iso": 500,
+  "shutterSeconds": 0.0005,
+  "aperture": 8
+ },
+ "B13A0732": {
+  "iso": 100,
+  "shutterSeconds": 0.00031,
+  "aperture": 2.8
+ },
+ "B13A0733": {
+  "iso": 100,
+  "shutterSeconds": 0.00025,
+  "aperture": 2.8
+ },
+ "B13A0734": {
+  "iso": 100,
+  "shutterSeconds": 0.00031,
+  "aperture": 2.8
+ },
+ "C1291096": {
+  "iso": 200,
+  "shutterSeconds": 0.07692,
+  "aperture": 8
+ },
+ "DSC04880": {
+  "iso": 100,
+  "shutterSeconds": 0.00625,
+  "aperture": 8
+ },
+ "DSCF0621_-_lossless": {
+  "iso": 640,
+  "shutterSeconds": 0.00625,
+  "aperture": 8
+ },
+ "DSCF0622_-_compressed": {
+  "iso": 640,
+  "shutterSeconds": 0.00625,
+  "aperture": 8
+ },
+ "DSCN0173": {
+  "iso": 100,
+  "shutterSeconds": 0.004,
+  "aperture": 4
+ },
+ "DSC_0034": {
+  "iso": 100,
+  "shutterSeconds": 0.05,
+  "aperture": 1.8
+ },
+ "DSC_0089-14bit-uncompressed": {
+  "iso": 320,
+  "shutterSeconds": 0.0025,
+  "aperture": 8
+ },
+ "IMG_4276": {
+  "iso": null,
+  "shutterSeconds": 0.01,
+  "aperture": 1.8
+ },
+ "IMG_4361": {
+  "iso": null,
+  "shutterSeconds": 0.001,
+  "aperture": 1.8
+ },
+ "IMG_5398": {
+  "iso": 400,
+  "shutterSeconds": 0.00625,
+  "aperture": 9
+ },
+ "Image_5_-_Lossless_Compression_(S)_-_Shade": {
+  "iso": 100,
+  "shutterSeconds": 0.004,
+  "aperture": 4
+ },
+ "KTB00899": {
+  "iso": 100,
+  "shutterSeconds": 0.0125,
+  "aperture": 13
+ },
+ "Nikon_Z_fc_12bit": {
+  "iso": 100,
+  "shutterSeconds": 1,
+  "aperture": 9
+ },
+ "Nikon_Z_fc_14bit": {
+  "iso": 100,
+  "shutterSeconds": 1,
+  "aperture": 9
+ },
+ "OM_Systems_OM1_RAW_Image_20mpx_P1010025": {
+  "iso": 200,
+  "shutterSeconds": 0.00313,
+  "aperture": 2.8
+ },
+ "P1000346": {
+  "iso": 200,
+  "shutterSeconds": 0.0025,
+  "aperture": 9
+ },
+ "P1000348": {
+  "iso": 200,
+  "shutterSeconds": 0.002,
+  "aperture": 9
+ },
+ "P1020809": {
+  "iso": 200,
+  "shutterSeconds": 0.625,
+  "aperture": 5.6
+ },
+ "_K5R7350": {
+  "iso": 1000,
+  "shutterSeconds": 0.005,
+  "aperture": 2.8
+ }
+}

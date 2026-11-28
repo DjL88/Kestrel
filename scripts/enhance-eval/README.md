@@ -25,3 +25,9 @@ fired), `report.json`, `contact-sheet.html` (before / round-by-round / three opt
 
 Subject categories in `categories.json` were assigned by eye. `group` keeps near-identical frames together; the held-out
 split is a fixed hash of the group name and `--dev-only` never loads those groups.
+
+## Also written
+- `blind-sheet.html` + `blind-key.json`: options shuffled as A, B, C with the favourite unmarked, so the best of three can be picked without bias. The key says which is which.
+- Report sections: exposure-intent classifier (low key vs underexposed, with real, invented and no metadata shown separately) and a controls table (is "nothing to fix" a near-no-op?).
+- `metadata.json`: ISO, shutter and aperture from MANIFEST.md. Metadata for the synthetic `under2` and `lowkey` cases is invented to match the case and labelled so.
+- The frozen regression set that runs in CI is `src/core/enhanceRegression.test.ts` (20 synthetic scenes with expected bounds).

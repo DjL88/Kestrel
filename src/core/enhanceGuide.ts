@@ -73,8 +73,8 @@ export interface Guidance {
 
 export const GUIDE_CONFIDENCE = 0.8;
 
-export function resolveGuidance(stats: FrameStats, vision: readonly VisionObservationInput[] = [], chosenStyle: string | null = 'natural'): Guidance {
-  const measured = statObservations(stats);
+export function resolveGuidance(stats: FrameStats, vision: readonly VisionObservationInput[] = [], chosenStyle: string | null = 'natural', extra: { observation: PhotographyObservation; evidence: string }[] = []): Guidance {
+  const measured = [...statObservations(stats), ...extra];
   // The person's chosen style (Natural by default) is an explicit choice, so it resolves with full confidence.
   const chosen: PhotographyObservation[] = chosenStyle ? [{ dimension: 'style', label: chosenStyle, confidence: 1 }] : [];
   const all: PhotographyObservation[] = [...measured.map((m) => m.observation), ...chosen, ...vision.filter((v) => Number.isFinite(v.confidence))];

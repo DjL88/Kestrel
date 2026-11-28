@@ -4,6 +4,7 @@ import { naturalAuto, renderRecipePreview } from './naturalAuto';
 import type { AiReviewIssue } from './aiReview';
 import { settleTrail, type ChainPolicy, type ChainTrail, type ChainVerdict } from './verificationTrail';
 import { observeFrame, type FrameStats } from './enhanceObserve';
+import { classifyExposureIntent, type ExposureMeta, type IntentResult, type UserIntent } from './enhanceIntent';
 import { resolveGuidance, type Guidance, type VisionObservationInput } from './enhanceGuide';
 import {
   clampKnobs, knobsToEdit, proposeKnobs, type EnhanceStyle, type Knobs, type RecipeStep, type SubjectMaskInput,
@@ -21,6 +22,7 @@ import { critiqueRender, KNOB_FOR_ISSUE_FIX, type Critique, type Issue, type Iss
  */
 
 export const MAX_ROUNDS = 5;
+const SECOND_OPINION_TIMEOUT_MS = 25_000;
 
 export interface PreviewFrame { rgba: Uint8ClampedArray; width: number; height: number }
 
@@ -37,6 +39,17 @@ export interface VisionAssistant {
   critique?(before: PreviewFrame, after: PreviewFrame, guidance: Guidance): Promise<VisionCritique | null>;
   /** Index of the candidate it likes best, or null when it has no clear favourite. */
   prefer?(before: PreviewFrame, candidates: PreviewFrame[]): Promise<number | null>;
+}
+
+/**
+ * (A) The person's OWN AI provider as an optional second opinion (their key, their account; set up in Settings, the existing
+ * AiProviderSetup). Advisory only: it can flag concerns about a candidate render or move the favourite between options that
+ * already passed every gate. It never applies an edit, never waives a gate and is never needed. It is handed downsized
+ * previews, never originals. `concerns[i]` belongs to `candidates[i]`. A failure is silent. This is NOT the owner's private
+ * Gemini/Vertex access (B), which is server-side only and has no in-app switch.
+ */
+export interface SecondOpinion {
+  ask(before: PreviewFrame, candidates: PreviewFrame[]): Promise<{ concerns: AiReviewIssue[][] } | null>;
 }
 
 export interface RoundRecord {
@@ -83,8 +96,14 @@ export interface EnhanceInput {
   segmentation?: { weights: Float32Array; confidence: 'high' | 'medium' | 'low' } | null;
   framingKey?: string;
   vision?: VisionAssistant | null;
+  /** Exposure metadata (EXIF), when known. Metadata-less photos are classified from the pixels and scene only, with lower confidence. */
+  meta?: ExposureMeta | null;
+  /** The person's own statement of intent. It always overrides the classifier. */
+  intent?: UserIntent;
   /** The person's chosen look; resolves to the style rule. Default 'natural'. Null = none chosen. */
   style?: string | null;
+  /** Optional second opinion from the person's own AI provider (see SecondOpinion). Absent = the loop runs entirely on this device. */
+  secondOpinion?: SecondOpinion | null;
   maxRounds?: number;
   /** Keep each round's rendered preview in the result (for contact sheets and tests). */
   keepRoundPixels?: boolean;
@@ -96,13 +115,17 @@ export interface EnhanceResult {
   options: OptionResult[];
   favourite: number | null;
   /** 'device-ai' only when a real on-device model chose; 'stand-in' when the substitute did; otherwise measurements. */
-  favouriteBy: 'device-ai' | 'stand-in' | 'measurements' | null;
+  favouriteBy: 'device-ai' | 'stand-in' | 'measurements' | 'second-opinion' | null;
+  /** What the person's own provider said, when one was set up and answered. Absent otherwise. */
+  secondOpinion: { concerns: Record<number, AiReviewIssue[]>; movedFavourite: boolean } | null;
   visionKind: 'on-device' | 'stand-in' | 'none';
   visionObservations: VisionObservationInput[];
   chain: ChainTrail;
   /** Advice that is never applied automatically (crop and rotation are the person's). */
   advice: string[];
   rounds: number;
+  /** Low key or underexposed, with the reasons. 'ambiguous' makes the three options span both readings. */
+  exposure: IntentResult;
 }
 
 const LABEL_FOR_VISION: Partial<Record<AiReviewIssue, IssueId>> = {
@@ -152,8 +175,8 @@ export function tweakKnobs(knobs: Knobs, issues: readonly Issue[], after: FrameS
 
 const sameKnobs = (a: Knobs, b: Knobs) => (Object.keys(a) as (keyof Knobs)[]).every((k) => a[k] === b[k]);
 
-const LABELS: Record<EnhanceStyle, string> = { natural: 'Natural', subject: 'Subject-focused', bold: 'Bolder', light: 'Light touch' };
-export const optionLabel = (s: EnhanceStyle) => LABELS[s];
+const LABELS: Record<EnhanceStyle, string> = { natural: 'Natural', subject: 'Subject-focused', bold: 'Bolder', light: 'Light touch', mood: 'Keep the dark mood', full: 'Full recovery' };
+export const optionLabel = (s: EnhanceStyle, ambiguous = false) => (ambiguous && s === 'light' ? 'Lift gently' : LABELS[s]);
 
 export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> {
   const { pixels, width, height } = input;
@@ -168,7 +191,12 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
   if (vision?.observe) { try { visionObservations = (await vision.observe(frame)) ?? []; } catch { visionObservations = []; } }
 
   // 2. GUIDE
-  const guidance = resolveGuidance(stats, visionObservations, input.style === undefined ? 'natural' : input.style);
+  const exposure = classifyExposureIntent(stats, input.meta ?? null, visionObservations, input.intent ?? null);
+  const extra: { observation: { dimension: 'lighting'; label: string; confidence: number }; evidence: string }[] = [];
+  const ref0 = stats.subject && stats.subject.confidence !== 'low' ? stats.subject.median : stats.p50;
+  if (exposure.reading === 'underexposed') extra.push({ observation: { dimension: 'lighting', label: 'underexposure', confidence: Math.max(0.8, exposure.confidence) }, evidence: `median lightness ${ref0.toFixed(2)}; ${exposure.reasons.join('; ')}` });
+  if (exposure.reading === 'low-key') extra.push({ observation: { dimension: 'lighting', label: 'low key', confidence: Math.max(0.8, exposure.confidence) }, evidence: exposure.reasons.join('; ') });
+  const guidance = resolveGuidance(stats, visionObservations, input.style === undefined ? 'natural' : input.style, extra);
   const sub = stats.subject && stats.subject.confidence !== 'low' ? stats.subject : null;
   const mask: SubjectMaskInput | null = sub ? { grid: weightsToGrid(sub.weights, width, height), confidence: sub.confidence, framingKey: input.framingKey ?? 'enhance' } : null;
   const segmentation = mask ? { grid: mask.grid, confidence: mask.confidence } : null;
@@ -187,12 +215,12 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
   const subjectOk = !!(mask && sub && (sub.confidence === 'high' || sub.confidence === 'medium') && !sub.touchesEdge);
 
   // 3-6. PROPOSE, RENDER, CHECK, TWEAK for each of three options.
-  const styles: EnhanceStyle[] = ['natural', subjectOk ? 'subject' : 'light', 'bold'];
+  const styles: EnhanceStyle[] = exposure.reading === 'ambiguous' ? ['mood', 'light', 'full'] : ['natural', subjectOk ? 'subject' : 'light', 'bold'];
   const options: OptionResult[] = [];
   let totalRounds = 0;
   let critiqueAnswered = false;
   for (const style of styles) {
-    const proposal = proposeKnobs(stats, guidance, style, subjectOk, seed);
+    const proposal = proposeKnobs(stats, guidance, style, subjectOk, seed, { reading: exposure.reading, iso: input.meta?.iso ?? input.iso ?? null });
     if (!proposal.steps.length) {
       options.push({
         style, outcome: 'nothing-needed', edit: base, reviewEdit: null, steps: [], held: proposal.held, rounds: [], bestRound: -1,
@@ -221,7 +249,8 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
           }
         } catch { /* a failed critique is "no answer", never agreement */ }
       }
-      const score = critique.score - issues.filter((i) => i.source === 'vision').length * 0.05;
+      const effort = (Object.values(knobs) as number[]).reduce((a, v) => a + Math.abs(v), 0) * 0.015; // over-editing costs
+      const score = critique.score - effort - issues.filter((i) => i.source === 'vision').length * 0.05;
       totalRounds += 1;
       const a = critique.after;
       rounds.push({
@@ -269,6 +298,28 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
     else { favourite = candidates.reduce((a, b) => (b.o.score > a.o.score ? b : a)).i; favouriteBy = 'measurements'; }
   }
 
+  // (A) Optional second opinion from the person's own provider. Advisory: only options that already passed every gate are shown to it.
+  let second: EnhanceResult['secondOpinion'] = null;
+  if (input.secondOpinion && candidates.length) {
+    try {
+      const answer = await Promise.race([
+        input.secondOpinion.ask(frame, candidates.map(({ o }) => ({ rgba: o.pixels, width, height }))),
+        new Promise<null>((resolve) => { setTimeout(() => resolve(null), SECOND_OPINION_TIMEOUT_MS).unref?.(); }),
+      ]);
+      if (answer && answer.concerns.length === candidates.length) {
+        const concerns: Record<number, AiReviewIssue[]> = {};
+        candidates.forEach(({ i }, k) => { const c = [...new Set(answer.concerns[k].filter((x) => x !== 'other'))]; if (c.length) concerns[i] = c; });
+        let moved = false;
+        if (favourite !== null) {
+          const count = (i: number) => concerns[i]?.length ?? 0;
+          const best = candidates.reduce((a, b) => (count(b.i) < count(a.i) ? b : a));
+          if (count(favourite) - count(best.i) >= 1) { favourite = best.i; favouriteBy = 'second-opinion'; moved = true; }
+        }
+        second = { concerns, movedFavourite: moved };
+      }
+    } catch { second = null; /* silent: the loop does not need it */ }
+  }
+
   // Verification chain: the device decides. No cloud in the per-photo loop.
   const chosen = favourite !== null ? options[favourite] : null;
   const device: ChainVerdict | undefined = !chosen ? undefined : vision?.critique && critiqueAnswered ? (chosen.remaining.some((i) => i.source === 'vision') ? 'disagree' : 'agree') : undefined;
@@ -279,7 +330,7 @@ export async function enhancePhoto(input: EnhanceInput): Promise<EnhanceResult> 
 
   const advice: string[] = [];
   if (stats.tilt && Math.abs(stats.tilt.degrees) >= 0.8 && stats.tilt.confidence >= 0.45) advice.push(`Strong straight edges lean about ${Math.abs(stats.tilt.degrees).toFixed(1)}°. Straightening changes the crop, so it is left to you.`);
-  return { stats, guidance, options, favourite, favouriteBy, visionKind: vision?.kind ?? 'none', visionObservations, chain, advice, rounds: totalRounds };
+  return { stats, guidance, options, favourite, favouriteBy, visionKind: vision?.kind ?? 'none', visionObservations, chain, advice, rounds: totalRounds, exposure, secondOpinion: second };
 }
 
 /** The proposal's steps, re-stated with the amounts the tweaks settled on (steps that were tweaked to zero are dropped). */
