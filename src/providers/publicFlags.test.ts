@@ -84,3 +84,50 @@ test('network failure, a server error, or being offline keeps the last verified 
   assert.equal(await offline.flags.refreshIfDue(), null);
   assert.equal(offline.calls.length, 0);
 });
+
+// ---- Owner switches (src/core/featureSwitches.ts) ride on the same signed document.
+test('owner switches: the fresh list is used, the last good copy is kept offline, and a failed or forged fetch never loses it', async () => {
+  const seen: unknown[] = [];
+  let reply: () => Response | Promise<Response> = () => json(envelope({ schema: 1, flags: GOOD, switches: { 'species-id': { device: false }, 'future-thing': { device: false } } }));
+  const values = new Map<string, string>();
+  const clock = { now: Date.UTC(2026, 10, 28) };
+  let online = true;
+  const make = () => new PublicFlags({
+    baseUrl: 'https://flags.example.test', keys, storage: { getItem: (k) => values.get(k) ?? null, setItem: (k, v) => { values.set(k, v); } },
+    fetch: (async () => reply()) as unknown as typeof fetch, now: () => clock.now, online: () => online, onSwitches: (d) => seen.push(d),
+  });
+  await make().refreshIfDue();
+  assert.deepEqual(seen.at(-1), { 'species-id': { device: false } }, 'unknown ids are dropped');
+
+  // Offline next launch: the kept copy still says off, and nothing is requested.
+  online = false; seen.length = 0;
+  await make().stored();
+  assert.deepEqual(seen.at(-1), { 'species-id': { device: false } });
+  clock.now += 2 * PUBLIC_FLAGS_REFRESH_MS;
+  await make().refreshIfDue();
+  assert.deepEqual(seen.at(-1), { 'species-id': { device: false } }, 'offline keeps the last good list');
+
+  // Online but the server fails or the answer is forged: still the last good list.
+  online = true; seen.length = 0;
+  reply = () => json({ error: 'down' }, 503);
+  await make().refreshIfDue();
+  const forged = crypto.generateKeyPairSync('ed25519');
+  reply = () => json(envelope({ schema: 1, flags: GOOD, switches: {} }, forged.privateKey));
+  await make().refreshIfDue();
+  assert.deepEqual(seen.at(-1), { 'species-id': { device: false } });
+
+  // The owner switches it back on: the next good document replaces the list.
+  reply = () => json(envelope({ schema: 1, flags: GOOD, switches: {} }));
+  await make().refreshIfDue();
+  assert.deepEqual(seen.at(-1), {});
+});
+
+test('an older server with no switches field means nothing is off', async () => {
+  const seen: unknown[] = [];
+  const env = new PublicFlags({
+    baseUrl: 'https://flags.example.test', keys, storage: { getItem: () => null, setItem: () => undefined },
+    fetch: (async () => json(doc(GOOD))) as unknown as typeof fetch, now: () => 1, onSwitches: (d) => seen.push(d),
+  });
+  await env.refreshIfDue();
+  assert.deepEqual(seen.at(-1), {});
+});

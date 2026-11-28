@@ -52,6 +52,7 @@ export const fr: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "L’assistant en ligne d’InFlight est réservé aux testeurs invités. Utilisez plutôt votre propre IA ou un modèle sur cet ordinateur.",
     signIn: "Connectez-vous à votre compte InFlight pour utiliser l’assistant en ligne d’InFlight.",
+    switchedOff: "Ce n’est pas disponible pour le moment. Rien n’a été modifié.",
     setup: 'Votre IA n’est pas encore configurée, ou l’accord manque.',
     key: 'Votre IA indique que la clé est incorrecte ou non autorisée. Vérifiez-la dans le compte de votre fournisseur.',
     offline: 'Vous êtes hors ligne. Le contrôle des couleurs d’InFlight fonctionne toujours.',

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { parseControlPlaneUrl, parsePinnedKeys } from '../core/licenceOnline';
 import type { FlagSet } from '../core/featureFlags';
+import { setOwnerSwitches } from '../core/featureSwitches';
 import { PublicFlags } from './publicFlags';
 
 const SIGNED_IN_KEY = 'kestrel.account-hint.v1';
@@ -18,6 +19,7 @@ const publicFlags = new PublicFlags({
   fetch: (...args) => fetch(...args),
   now: () => Date.now(),
   online: () => typeof navigator === 'undefined' || navigator.onLine !== false,
+  onSwitches: setOwnerSwitches,
 });
 
 let current: FlagSet | undefined;

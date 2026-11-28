@@ -1,4 +1,5 @@
 import type { Capabilities } from './commercialAccess';
+import { ownerSwitchOffForFeature } from './featureSwitches';
 import { evaluateFlag, type Audience, type Evaluation, type FlagSet } from './featureFlags';
 
 /**
@@ -111,6 +112,8 @@ export interface FeatureContext {
 }
 
 export function evaluateFeature(feature: Feature, capabilities: Capabilities, context: FeatureContext = {}): Evaluation {
+  // The owner's off switch (featureSwitches.ts) stops a feature on this device; it never overrides NEVER_GATED essentials.
+  if (!NEVER_GATED.has(feature) && ownerSwitchOffForFeature(feature)) return { on: false, reason: 'kill-switch', trial: false };
   const audience: Audience = context.audience ?? { plan: capabilities.fullEditor ? 'pro' : 'basic' };
   return evaluateFlag(feature, context.flags ?? {}, COMPILED_FLAGS, {
     audience, nowMs: context.nowMs ?? Date.now(), bucket: context.bucket, appVersion: context.appVersion, neverGated: NEVER_GATED,

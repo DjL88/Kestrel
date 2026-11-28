@@ -1,6 +1,7 @@
 /** The admin console routes (/v1/admin/*): allow-listed staff only. */
 import type { Route } from './http.ts';
 import crypto from 'node:crypto';
+import { SWITCHABLE_FEATURES, switchableFeature } from '../../../src/core/featureSwitches.ts';
 import { parseFlagSet, MAX_GRANT_FLAGS } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, sha256Hex, signSession } from './crypto.ts';
@@ -20,7 +21,7 @@ import { PublishRefusal, V2ProtoPublisher } from './v2protoPublish.ts';
 export const TECHNICAL_OVERVIEW_PATH = new URL('../../../docs/TECHNICAL-OVERVIEW.md', import.meta.url);
 
 export function adminRoutes(ctx: AppContext): Route[] {
-  const { options, config, commerce, store, now, paddleSandbox, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags } = ctx;
+  const { options, config, commerce, store, now, paddleSandbox, provider, authLimiter, googleKeys, adminEmailHashes, audit, createAccount, switchConfigured, switchOn, collab, settleStorage, cloudCfg, cloud, news, erasureCfg, erasing, gallery, complianceCfg, compliance, safetyCfg, safety, admin, adminDone, FLAGS_SETTING, loadFlags, ownedFlags, SWITCHES_SETTING, loadFeatureSwitches } = ctx;
   /**
    * A feature this server has not been set up for is a normal answer for the admin page's own look-ups, not an outage:
    * 200 with `configured: false` and the reason in words. 503 stays for real failures, so the "server errors" alert
@@ -458,6 +459,54 @@ export function adminRoutes(ctx: AppContext): Route[] {
       if (body.on && !switchConfigured(body.key)) throw new ApiError(409, 'SWITCH_NOT_CONFIGURED', 'That feature is not set up on this server yet, so it cannot be switched on.');
       await store.setSetting(body.key === 'managed-ai' ? 'ai_disabled' : `switch_${body.key}`, body.key === 'managed-ai' ? (body.on ? '0' : '1') : (body.on ? '1' : '0'));
       return adminDone(claims, 'switch.set', `${body.key} ${body.on ? 'on' : 'off'}`, { key: body.key, on: body.on });
+    },
+  },
+  // ---- Feature switches for model-backed features (src/core/featureSwitches.ts): device scope is advisory (installed
+  // apps follow the signed public list at their next refresh); cloud scope is enforced on every cloud request here.
+  // Owner-only, every change and every refusal audited. Nothing here can turn on something a person has not consented to.
+  {
+    method: 'GET', path: '/v1/admin/feature-switches', summary: 'Every switchable model-backed feature with its device and cloud state, default and last change', auth: 'admin',
+    handler: async (req) => {
+      const claims = await admin(req, 'feature-switches.read');
+      const record = await loadFeatureSwitches();
+      const features = SWITCHABLE_FEATURES.map((f) => ({
+        id: f.id, name: f.name, description: f.description, owner: f.owner, offEffect: f.offEffect, scopes: f.scopes,
+        device: { applies: f.scopes.includes('device'), on: record[f.id]?.device !== false, default: true },
+        cloud: { applies: f.scopes.includes('cloud'), on: record[f.id]?.cloud !== false, default: true },
+        changedBy: record[f.id]?.by ?? null, changedAtMs: record[f.id]?.atMs ?? null,
+      }));
+      return adminDone(claims, 'feature-switches.read', '', { features });
+    },
+  },
+  {
+    method: 'POST', path: '/v1/admin/feature-switches/set', summary: 'Switch one feature on or off for the device or cloud scope (audited)', auth: 'admin', body: Schemas.AdminFeatureSwitch,
+    handler: async (req) => {
+      const claims = await admin(req, 'feature-switch.set');
+      const body = parseJson(Schemas.AdminFeatureSwitch, req.rawBody);
+      const feature = switchableFeature(body.id);
+      if (!feature || !feature.scopes.includes(body.scope)) {
+        await audit(claims.sub, 'feature-switch.set', 'denied', `${body.id} ${body.scope} unknown`);
+        throw new ApiError(400, 'UNKNOWN_SWITCH', 'That switch does not exist for that scope.');
+      }
+      const record = await loadFeatureSwitches();
+      record[body.id] = { ...record[body.id], [body.scope]: body.on, by: claims.sub, atMs: now() };
+      await store.setSetting(SWITCHES_SETTING, JSON.stringify(record));
+      return adminDone(claims, 'feature-switch.set', `${body.id} ${body.scope} ${body.on ? 'on' : 'off'}`, { id: body.id, scope: body.scope, on: body.on });
+    },
+  },
+  {
+    method: 'POST', path: '/v1/admin/feature-switches/reset', summary: 'Put one feature back to its default (on for both scopes) (audited)', auth: 'admin', body: Schemas.AdminFeatureSwitchReset,
+    handler: async (req) => {
+      const claims = await admin(req, 'feature-switch.reset');
+      const body = parseJson(Schemas.AdminFeatureSwitchReset, req.rawBody);
+      if (!switchableFeature(body.id)) {
+        await audit(claims.sub, 'feature-switch.reset', 'denied', `${body.id} unknown`);
+        throw new ApiError(400, 'UNKNOWN_SWITCH', 'That switch does not exist.');
+      }
+      const record = await loadFeatureSwitches();
+      delete record[body.id];
+      await store.setSetting(SWITCHES_SETTING, JSON.stringify(record));
+      return adminDone(claims, 'feature-switch.reset', body.id, { id: body.id });
     },
   },
   {

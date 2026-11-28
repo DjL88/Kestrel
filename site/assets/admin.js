@@ -239,7 +239,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPricing(), loadPriceReview(), loadSafety(), loadCompliance(), loadV2Proto(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadPaddleKey(), loadAccounts(), loadMessages(), loadTax(), loadPricing(), loadPriceReview(), loadSafety(), loadCompliance(), loadV2Proto(), loadSwitches(), loadFeatureSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit(), loadRefunds()]);
   if (!token) return;
   renderNeeds();
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
@@ -1023,6 +1023,52 @@ async function loadSwitches() {
     state.append(action);
     li.append(text, state);
     return li;
+  }));
+}
+
+// ---- Model and AI feature switches (src/core/featureSwitches.ts) ------------------------------------------------
+
+const SCOPE_WORDS = { device: 'in-app', cloud: 'cloud' };
+async function loadFeatureSwitches() {
+  let list;
+  try { list = (await lookUp('admin/feature-switches')).features; } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('feature-switches-unavailable').hidden = false; $('feature-switches-table').tBodies[0].replaceChildren(); return;
+  }
+  $('feature-switches-unavailable').hidden = true;
+  $('feature-switches-table').tBodies[0].replaceChildren(...list.map(f => {
+    const row = el('tr');
+    const what = el('div'); what.append(el('strong', f.name), el('div', f.description, 'muted'), el('div', 'If off: ' + f.offEffect, 'muted'));
+    cell(row, what);
+    for (const scope of ['device', 'cloud']) {
+      const state = f[scope];
+      if (!state.applies) { cell(row, el('span', 'Not used', 'muted')); continue; }
+      const box = el('div');
+      box.append(badge(state.on ? 'On' : 'Off', state.on ? 'good' : 'bad'), ' ');
+      const turnOn = !state.on;
+      const label = (turnOn ? 'Turn on ' : 'Turn off ') + f.name + ' ' + SCOPE_WORDS[scope];
+      box.append(button(turnOn ? 'Turn on' : 'Turn off', label, turnOn ? '' : 'danger', async () => {
+        const sure = await ask((turnOn ? 'Turn on ' : 'Turn off ') + f.name + ' (' + SCOPE_WORDS[scope] + ')? ' +
+          (turnOn ? 'It goes back to working as shipped' : f.offEffect) + (scope === 'device' ? ' Installed apps follow this the next time they refresh.' : ' This takes effect on the server straight away.'),
+          { yes: turnOn ? 'Turn on' : 'Turn off', danger: !turnOn });
+        if (!sure) return;
+        await api('admin/feature-switches/set', { id: f.id, scope, on: turnOn });
+        await Promise.all([loadFeatureSwitches(), loadAudit()]);
+        say(f.name + ' (' + SCOPE_WORDS[scope] + ') is ' + (turnOn ? 'on.' : 'off.'));
+      }));
+      cell(row, box);
+    }
+    cell(row, el('span', f.changedAtMs ? when(f.changedAtMs) + ' by account ' + String(f.changedBy).slice(0, 8) : 'Never: default (on)', 'muted'));
+    const changed = ['device', 'cloud'].some(s => f[s].applies && !f[s].on) || f.changedAtMs;
+    const reset = button('Reset to default', 'Reset ' + f.name + ' to its default (on)', '', async () => {
+      if (!(await ask('Reset ' + f.name + ' to its default? Both switches go back to on, as shipped.', { yes: 'Reset to default' }))) return;
+      await api('admin/feature-switches/reset', { id: f.id });
+      await Promise.all([loadFeatureSwitches(), loadAudit()]);
+      say(f.name + ' is back to its default.');
+    });
+    reset.disabled = !changed;
+    cell(row, reset);
+    return row;
   }));
 }
 

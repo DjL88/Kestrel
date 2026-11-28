@@ -382,6 +382,8 @@ export const Schemas = {
     key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/),
     flag: z.object({ default: z.boolean(), kill: z.boolean().optional(), minAppVersion: z.string().max(20).optional(), rules: z.array(z.unknown()).max(50) }).strict(),
   }).strict(),
+  AdminFeatureSwitch: z.object({ id: z.string().min(1).max(64), scope: z.enum(['device', 'cloud']), on: z.boolean() }).strict(),
+  AdminFeatureSwitchReset: z.object({ id: z.string().min(1).max(64) }).strict(),
   AdminFlagDelete: z.object({ key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/) }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
   AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),

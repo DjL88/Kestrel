@@ -1,3 +1,4 @@
+import { assertModelAllowed } from '../core/featureSwitches';
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { createTimedSession } from './modelTiming';
 import { readModelReady, readModelResult, type ModelInput, type ModelTensor } from '../core/modelSessionProtocol';
@@ -46,6 +47,8 @@ const copyOf = (data: Float32Array | BigInt64Array) => (data instanceof BigInt64
 const defaultWorker = () => new Worker(new URL('./modelSessionWorker.ts', import.meta.url), { type: 'module' });
 
 export async function createOffThreadSession(id: string, bytes: Uint8Array, options: OffThreadOptions = {}): Promise<OffThreadSession> {
+  // The owner can switch a model off (src/core/featureSwitches.ts): it is then never started, and callers fall back as for any failed load.
+  assertModelAllowed(id);
   const startWorker = options.startWorker === undefined ? (typeof Worker === 'undefined' ? null : defaultWorker) : options.startWorker;
   if (startWorker) {
     try {

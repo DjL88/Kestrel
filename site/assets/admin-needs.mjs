@@ -65,7 +65,7 @@ export function needsYou(d, nowMs = Date.now()) {
  */
 export const VIEWS = {
   today: { label: 'Today', sections: ['today', 'needs'] },
-  switches: { label: 'Switches', sections: ['switches'] },
+  switches: { label: 'Switches', sections: ['switches', 'feature-switches'] },
   publish: { label: 'Publish to V2Proto', sections: ['v2proto'] },
   people: { label: 'People and licences', sections: ['grant', 'licensees', 'issue', 'revoke', 'usage'] },
   money: { label: 'Payments and money', sections: ['payments', 'refunds', 'accounts', 'pricing'] },

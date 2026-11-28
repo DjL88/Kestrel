@@ -52,6 +52,7 @@ export const de: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "Der Online-Helfer von InFlight steht nur eingeladenen Testern offen. Nutzen Sie stattdessen Ihre eigene KI oder ein Modell auf diesem Computer.",
     signIn: "Melden Sie sich bei Ihrem InFlight-Konto an, um den Online-Helfer von InFlight zu nutzen.",
+    switchedOff: "Das ist im Moment nicht verfügbar. Es wurde nichts geändert.",
     setup: 'Ihre KI ist noch nicht eingerichtet, oder die Zustimmung fehlt.',
     key: 'Ihre KI meldet, dass der Schlüssel falsch oder nicht erlaubt ist. Prüfen Sie ihn im Konto Ihres Anbieters.',
     offline: 'Sie sind offline. Die Farbprüfung von InFlight funktioniert trotzdem.',

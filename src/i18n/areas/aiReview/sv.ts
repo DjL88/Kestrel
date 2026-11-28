@@ -52,6 +52,7 @@ export const sv: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "InFlights onlinehjälp är bara öppen för inbjudna testare. Använd din egen AI eller en modell på den här datorn i stället.",
     signIn: "Logga in på ditt InFlight-konto för att använda InFlights onlinehjälp.",
+    switchedOff: "Det här är inte tillgängligt just nu. Inget har ändrats.",
     setup: 'Din AI är inte inställd än, eller så saknas samtycket.',
     key: 'Din AI säger att nyckeln är fel eller inte tillåten. Kontrollera den i ditt konto hos leverantören.',
     offline: 'Du är offline. InFlights egen färgkontroll fungerar ändå.',

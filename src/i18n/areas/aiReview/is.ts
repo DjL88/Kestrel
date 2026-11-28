@@ -52,6 +52,7 @@ export const is: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "Netaðstoð InFlight er aðeins opin boðnum prófendum. Notaðu frekar þína eigin gervigreind eða líkan á þessari tölvu.",
     signIn: "Skráðu þig inn á InFlight-reikninginn þinn til að nota netaðstoð InFlight.",
+    switchedOff: "Þetta er ekki í boði núna. Engu var breytt.",
     setup: 'Gervigreindin þín hefur ekki verið sett upp enn, eða samþykkið vantar.',
     key: 'Gervigreindin þín segir að lykillinn sé rangur eða ekki leyfður. Athugaðu hann á aðganginum þínum hjá þjónustuaðilanum.',
     offline: 'Engin nettenging. Litaskoðun InFlight virkar samt.',

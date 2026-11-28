@@ -52,6 +52,7 @@ export const cy: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "Dim ond i brofwyr gwahoddedig y mae cynorthwyydd ar-lein InFlight ar agor. Defnyddiwch eich AI eich hun neu fodel ar y cyfrifiadur hwn yn lle hynny.",
     signIn: "Mewngofnodwch i’ch cyfrif InFlight i ddefnyddio cynorthwyydd ar-lein InFlight.",
+    switchedOff: "Nid yw hyn ar gael ar hyn o bryd. Ni newidiwyd dim.",
     setup: 'Nid yw eich AI wedi’i osod eto, neu mae’r cytundeb ar goll.',
     key: 'Mae eich AI yn dweud bod yr allwedd yn anghywir neu heb ei chaniatáu. Gwiriwch hi yng nghyfrif eich darparwr.',
     offline: 'Rydych chi all-lein. Mae gwiriad lliw InFlight ei hun yn dal i weithio.',

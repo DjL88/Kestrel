@@ -52,6 +52,7 @@ export const gd: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "Chan eil neach-cuideachaidh air loidhne InFlight fosgailte ach do luchd-deuchainn le cuireadh. Cleachd an AI agad fhèin no modail air a’ choimpiutair seo na àite.",
     signIn: "Clàraich a-steach dhan chunntas InFlight agad gus neach-cuideachaidh air loidhne InFlight a chleachdadh.",
+    switchedOff: "Chan eil seo ri fhaighinn an-dràsta. Cha deach dad atharrachadh.",
     setup: 'Cha deach an AI agad a shuidheachadh fhathast, no tha an t-aonta a dhìth.',
     key: 'Tha an AI agad ag ràdh gu bheil an iuchair ceàrr no nach eil cead aice. Thoir sùil oirre sa chunntas aig an t-solaraiche agad.',
     offline: 'Chan eil thu air loidhne. Obraichidh sgrùdadh dhathan InFlight fhèin fhathast.',

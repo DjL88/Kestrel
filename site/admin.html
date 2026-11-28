@@ -69,6 +69,18 @@
     <p id="switches-empty" class="muted" hidden>No switches could be read.</p>
   </section>
 
+  <!-- ===== Model and AI feature switches ===== -->
+  <section id="feature-switches" class="card" aria-labelledby="feature-switches-title">
+    <h2 id="feature-switches-title">Model and AI features</h2>
+    <p class="muted">Switch a feature off quickly, for example if a licence check says a model must not ship. Every feature starts on, as shipped. <strong>In-app</strong> is advice that installed apps follow the next time they refresh (within hours; offline they keep their last copy, and editing is never blocked). <strong>Cloud</strong> is enforced by the server straight away. A switch can only stop or restore something InFlight already ships. People's own consent, plan and opt-ins still apply. Every change is recorded.</p>
+    <p id="feature-switches-unavailable" class="muted" hidden>The list could not be read just now. Nothing has changed.</p>
+    <div class="scroll"><table id="feature-switches-table">
+      <caption class="sr-only">Model and AI features, each with an in-app and a cloud switch</caption>
+      <thead><tr><th scope="col">Feature</th><th scope="col">In-app</th><th scope="col">Cloud</th><th scope="col">Last changed</th><th scope="col"><span class="sr-only">Reset</span></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
   <!-- ===== Publish to V2Proto ===== -->
   <section id="v2proto" class="card" aria-labelledby="v2proto-title">
     <h2 id="v2proto-title">Publish to V2Proto</h2>

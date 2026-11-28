@@ -52,6 +52,7 @@ export const nb: AreaTranslation<typeof source> = {
   errors: {
     notInvited: "InFlights netthjelper er bare åpen for inviterte testere. Bruk din egen KI eller en modell på denne datamaskinen i stedet.",
     signIn: "Logg inn på InFlight-kontoen din for å bruke InFlights netthjelper.",
+    switchedOff: "Dette er ikke tilgjengelig akkurat nå. Ingenting er endret.",
     setup: 'KI-en din er ikke satt opp ennå, eller samtykket mangler.',
     key: 'KI-en din sier at nøkkelen er feil eller ikke tillatt. Sjekk den i kontoen din hos leverandøren.',
     offline: 'Du er frakoblet. InFlights egen fargesjekk virker fortsatt.',

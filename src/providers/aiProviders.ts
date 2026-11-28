@@ -11,6 +11,7 @@
  * never supplied - a person who set it up with a normal Vertex key would always have got a 401. Plain Gemini
  * (`generativelanguage.googleapis.com`), which only ever needed an API key, covers the same models.
  */
+import { ownerSwitchOff } from '../core/featureSwitches';
 import { AI_REVIEW_SCHEMA, parseAiReview, type AiReview } from '../core/aiReview';
 import { offeredProviderKinds } from '../core/onlineHelperAccess';
 import { isDesktopApp } from './desktopShell';
@@ -64,7 +65,7 @@ const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 export const AI_REQUEST_TIMEOUT_MS = 45_000;
 
 export class AiReviewError extends Error {
-  constructor(readonly reason: 'setup' | 'key' | 'offline' | 'timeout' | 'refused' | 'unreadable' | 'notInvited' | 'signIn' | 'other', message = '') {
+  constructor(readonly reason: 'setup' | 'key' | 'offline' | 'timeout' | 'refused' | 'unreadable' | 'notInvited' | 'signIn' | 'switchedOff' | 'other', message = '') {
     super(message);
     this.name = 'AiReviewError';
   }
@@ -212,6 +213,8 @@ async function askClaude(settings: AiProviderSettings, prompt: string, jpegBase6
  * AiReviewError when it can't (no consent, bad key, offline, refused, or an answer that isn't the expected shape).
  */
 export async function askForReview(settings: AiProviderSettings, consentVersion: string, prompt: string, jpegBase64: string, signal?: AbortSignal, given?: typeof fetch): Promise<AiReview> {
+  // The owner can switch the second opinion off (src/core/featureSwitches.ts): no request is made, calmly.
+  if (ownerSwitchOff('own-ai-second-opinion')) throw new AiReviewError('switchedOff');
   if (settings.consent !== consentFor(consentVersion, settings)) throw new AiReviewError('setup');
   if (settings.kind === 'inflight') return askInFlight(prompt, jpegBase64, signal, given);
   if (settings.kind !== 'openai' && !settings.key.trim()) throw new AiReviewError('setup');
