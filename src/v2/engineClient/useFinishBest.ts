@@ -48,13 +48,25 @@ interface Inputs {
  */
 export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, projectId }: Inputs): FinishBestControl {
   const ticket = useRef<SchedulerTicket | null>(null);
+  const ownedRun = useRef<number | null>(null);
 
   // Leaving the project stops the batch and forgets its review: the results belong to the project they were made in.
   useEffect(() => {
     const open = finishBatchStore.getSnapshot();
-    if (open.projectId && open.projectId !== projectId) { ticket.current?.cancel(); finishBatchStore.reset(); }
+    if (open.projectId && open.projectId !== projectId) {
+      ticket.current?.cancel();
+      ticket.current = null;
+      ownedRun.current = null;
+      finishBatchStore.reset();
+    }
   }, [projectId]);
-  useEffect(() => () => { ticket.current?.cancel(); }, []);
+  useEffect(() => () => {
+    ticket.current?.cancel();
+    const runId = ownedRun.current;
+    if (runId !== null && finishBatchStore.isCurrent(runId)) finishBatchStore.reset();
+    ticket.current = null;
+    ownedRun.current = null;
+  }, []);
 
   const plan = useCallback((request: FinishRequest): FinishPlan<PhotoFrame> => {
     return planFinishForCatalogue(stateRef.current?.frames ?? [], request);
@@ -67,10 +79,14 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
     const chosen = plan(request);
     if (!chosen.items.length) { say(words.nothing); return; }
     const projectKey = state.shoot.id;
-    const frameNow = (id: string) => stateRef.current?.frames.find((frame) => frame.id === id);
+    const source = provider.current;
+    const runId = finishBatchStore.begin(projectKey, chosen.items.length);
+    ownedRun.current = runId;
+    const currentRun = () => finishBatchStore.isCurrent(runId) && stateRef.current?.shoot.id === projectKey;
+    const frameNow = (id: string) => currentRun() ? stateRef.current?.frames.find((frame) => frame.id === id) : undefined;
     const deps: FinishDeps = {
       frame: frameNow,
-      auto: (frame, signal) => runAuto(frame, provider.current!, signal, editStyleOn ? learnedLeanings(loadEditStyle()) : []),
+      auto: (frame, signal) => runAuto(frame, source, signal, editStyleOn ? learnedLeanings(loadEditStyle()) : []),
       // The same second opinion Auto-pilot asks: a clear no holds the photo. No on-device vision model, no opinion.
       holds: async (run) => {
         if (!hasLocalVision()) return false;
@@ -80,10 +96,10 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
         return guardResult('apply', opinion ? [opinion] : []).status !== 'apply';
       },
       // Local only: no cloud account is passed, so nothing is uploaded.
-      denoise: (frame, signal) => runV2Denoise(frame, provider.current!, null, signal),
+      denoise: (frame, signal) => runV2Denoise(frame, source, null, signal),
       commit: async (examined, edit, why, at) => {
         const current = stateRef.current;
-        if (!current) return false;
+        if (!current || !currentRun()) return false;
         const next = commitFinishEdit(current, projectKey, examined, edit, at, why);
         if (next === current) return false;
         stateRef.current = next;
@@ -92,11 +108,16 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
       },
       now: () => Date.now(),
     };
-    finishBatchStore.begin(projectKey, chosen.items.length);
     let handle: SchedulerTicket | null = null;
     let outcome: 'done' | 'failed' | 'cancelled' = 'failed';
     try {
-      handle = await submitFinishBatch({ plan: chosen, deps, onResult: (result) => finishBatchStore.add(result) });
+      handle = await submitFinishBatch({ plan: chosen, deps, onResult: (result) => {
+        if (currentRun()) finishBatchStore.add(runId, result);
+      } });
+      if (!currentRun()) {
+        handle.cancel();
+        return;
+      }
       ticket.current = handle;
       outcome = await handle.finished;
     } catch {
@@ -104,8 +125,9 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
     } finally {
       if (ticket.current === handle) ticket.current = null;
     }
+    if (!currentRun()) return;
     const results = finishBatchStore.getSnapshot().results;
-    finishBatchStore.finish(outcome !== 'done');
+    finishBatchStore.finish(runId, outcome !== 'done');
     const edited = results.filter((result) => result.state === 'applied').length;
     const held = results.filter((result) => result.state === 'held').length;
     // Never silent: a stop or a failure says how far it got, and the finished photos stay in Review.
@@ -114,19 +136,22 @@ export function useFinishBest({ stateRef, mutate, provider, editStyleOn, say, pr
   }, [stateRef, provider, plan, say, mutate, editStyleOn]);
 
   const undo = useCallback((photoId: string) => {
-    const result = finishBatchStore.getSnapshot().results.find((item) => item.photoId === photoId);
+    const snapshot = finishBatchStore.getSnapshot();
+    const result = snapshot.results.find((item) => item.photoId === photoId);
     const current = stateRef.current;
-    if (!result || !current || result.at === undefined || result.review === 'undone') return;
+    if (!result || !current || current.shoot.id !== snapshot.projectId || result.at === undefined || result.review === 'undone') return;
     const frame = current.frames.find((item) => item.id === photoId);
     if (!canUndoFinish(frame, result.at)) { finishBatchStore.mark(photoId, { changedSince: true }); return; }
     const next = undoFinish(current, photoId, result.at);
     stateRef.current = next;
-    mutate((latest) => undoFinish(latest, photoId, result.at!));
+    mutate((latest) => latest.shoot.id === snapshot.projectId ? undoFinish(latest, photoId, result.at!) : latest);
     finishBatchStore.mark(photoId, { review: 'undone', changedSince: false });
   }, [stateRef, mutate]);
 
   const preview = useCallback(async (photoId: string, side: 'before' | 'after', signal?: AbortSignal): Promise<string | null> => {
-    const frame = stateRef.current?.frames.find((item) => item.id === photoId && item.removedAt == null);
+    const current = stateRef.current;
+    if (!current || current.shoot.id !== finishBatchStore.getSnapshot().projectId) return null;
+    const frame = current.frames.find((item) => item.id === photoId && item.removedAt == null);
     if (!frame || !provider.current) return null;
     // Only photos with no edit and no history are finished, so "before" is the photo with no edit.
     const shown: PhotoFrame = side === 'before' ? { ...frame, edit: undefined } : frame;
