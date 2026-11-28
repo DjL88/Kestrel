@@ -5,20 +5,22 @@ are in Git. Machine-readable copy: `src/core/enhanceModels.ts` (`loopMayUse`). L
 (`models/README.md`, `docs/notices/`, `src/core/optionalModels.ts`) plus the author's knowledge of the training sets; I could not
 re-read upstream licence texts offline, so "verify" means the owner (or a licence check) must confirm before use.
 
-| Model | Version / source | Code and weights licence | Training data | Status in the loop |
-|---|---|---|---|---|
-| SmolVLM2-256M-Video-Instruct (vision AI) | HuggingFaceTB, rev 9cda5c16… | Apache-2.0 | mixed open sets, per model card | **open** |
-| YOLOX-Tiny (detector) | Megvii | Apache-2.0 | COCO | **open** |
-| RF-DETR Nano (second detector) | Roboflow, rev 9f201577… | Apache-2.0 (Nano only) | COCO | **open** |
-| DINOv2 ViT-S/14 (bursts) | facebook/dinov2-small | Apache-2.0 | LVD-142M | **open** |
-| CLIP ViT-B/32 (category gate, text search) | OpenAI; ONNX by Xenova | MIT | not published | **open** |
-| PP-OCRv5 mobile (markings) | PaddlePaddle | Apache-2.0 | n/a | **open**, not used for photo judgement |
-| U2-Netp (subject mask) | xuebinqin/U-2-Net | Apache-2.0 | DUTS (academic terms) | **verify** |
-| BiRefNet_lite (fine edges) | ZhengPeng7, rev aa62cd87… | MIT | DIS5K and others (academic) | **verify** |
-| EfficientSAM-Ti (tap to select) | yformer/EfficientSAM | Apache-2.0 | SA-1B (research licence) | **verify** |
-| NAFNet-SIDD-w32 (learned denoise) | megvii-research/NAFNet | MIT (code) | SIDD (terms not confirmed) | **verify** |
-| BioCLIP / BioCLIP 2 (species) | imageomics | MIT (weights) | TreeOfLife (includes non-commercial images) | **verify** |
-| Species names | IOC World Bird List | CC BY 4.0 | n/a | open |
+| Model | Version / revision | Code licence | Weights licence | Training data | Source URL | Loop status |
+|---|---|---|---|---|---|---|
+| SmolVLM2-256M-Video-Instruct (vision AI) | rev 9cda5c16… | Apache-2.0 | Apache-2.0 | mixed open sets (model card) | huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct | **open** |
+| YOLOX-Tiny (detector) | as in `models/README.md` | Apache-2.0 | Apache-2.0 | COCO | github.com/Megvii-BaseDetection/YOLOX | **open** |
+| RF-DETR Nano (second detector) | rev 9f201577… | Apache-2.0 | Apache-2.0 (Nano only) | COCO | huggingface.co/Roboflow/rf-detr-nano | **open** |
+| DINOv2 ViT-S/14 (bursts) | facebook/dinov2-small | Apache-2.0 | Apache-2.0 | LVD-142M | huggingface.co/facebook/dinov2-small | **open** |
+| CLIP ViT-B/32 (category gate, text search) | OpenAI; ONNX by Xenova | MIT | MIT | not published | huggingface.co/Xenova/clip-vit-base-patch32 | **open** |
+| PP-OCRv5 mobile (markings) | pinned in `markingReader.ts` | Apache-2.0 | Apache-2.0 | n/a | github.com/PaddlePaddle/PaddleOCR | **open**, not used for photo judgement |
+| U2-Netp (subject mask) | `src/assets/models/u2netp.onnx` | Apache-2.0 | Apache-2.0 as recorded | DUTS (academic terms) | github.com/xuebinqin/U-2-Net | **verify: off in the loop** |
+| BiRefNet_lite (fine edges) | rev aa62cd87… | MIT | MIT | DIS5K and other academic sets | huggingface.co/ZhengPeng7/BiRefNet_lite | **verify: off** |
+| EfficientSAM-Ti (tap to select) | commit d525f622… | Apache-2.0 | Apache-2.0 as recorded | SA-1B (research licence) | github.com/yformer/EfficientSAM | **verify: off** |
+| NAFNet-SIDD-w32 (learned denoise) | commit 2b4af71e… | MIT | MIT as recorded | SIDD (terms not confirmed) | github.com/megvii-research/NAFNet | **verify: off** |
+| BioCLIP (species) | imageomics/bioclip | MIT | MIT | TreeOfLife-10M (includes non-commercial images) | huggingface.co/imageomics/bioclip | **verify: off** |
+| BioCLIP 2 (species second opinion) | rev 2957b322… | MIT | MIT | TreeOfLife-200M (includes non-commercial images) | huggingface.co/imageomics/bioclip-2 | **verify: off** |
+| Species names | IOC World Bird List | CC BY 4.0 | n/a | n/a | worldbirdnames.org | open |
+| Enlarger | none: upscaling is the deterministic resampler, no model | n/a | n/a | n/a | n/a | not part of the loop |
 
 **Verify = not used by the enhance loop** until confirmed. Today the loop itself loads no model: the vision critic is an injected
 interface (the harness uses a labelled stand-in), and the Subject-focused option falls back to measured in-focus detail when
