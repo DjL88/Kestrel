@@ -16,7 +16,7 @@ export const cy: AreaTranslation<typeof source> = {
   onImageAdviceName: "Cyngor wedi'i dynnu ar y llun",
   onImageAdviceDesc: "Yn britho goleuadau a chysgodion wedi'u torri, yn nodi pwynt ffocws y camera ac yn dangos bathodyn Colour Sense ar y llun. Dim ond tynnu llun y mae'n ei wneud, ac nid yw'n newid unrhyw olygiadau.",
   finishBestName: "Gorffen fy rhai gorau",
-  finishBestDesc: "Dywedwch \"50 gorau\", \"10% gorau\" neu \"y cyfan\" ac mae'r ap yn golygu'r lluniau hynny, y gorau gyntaf, mewn un swp ar y ddyfais hon, yna'n dangos adolygiad lle byddwch yn cadw neu'n dadwneud pob un.",
+  finishBestDesc: "Dywedwch \"50 gorau\", \"10% gorau\" neu \"y cyfan\" ac mae'r ap yn golygu'r lluniau hynny ar y ddyfais hon, y gorau gyntaf, mewn un swp. Yna mae'n dangos adolygiad lle byddwch yn cadw neu'n dadwneud pob un.",
   flightBatchName: "Peilot awtomatig yn y cefndir",
   flightBatchDesc: "Ar ôl mewnforio, mae'r peilot awtomatig yn golygu'r lluniau newydd yn y cefndir, y gorau gyntaf, un cam dadwneud yr un. Ni chaiff eich gwreiddiolion byth eu newid.",
   cullRulesName: "Rheolau dewis",
@@ -42,7 +42,7 @@ export const cy: AreaTranslation<typeof source> = {
   brandKitsName: "Pecynnau brand",
   brandKitsDesc: "Yn rhoi logo, lliwiau ac arddull testun wedi'u cadw ar allforiad mewn un cam. Cedwir ar y ddyfais hon.",
   editStyleName: "Dysgu fy arddull golygu",
-  editStyleDesc: "Mae Auto yn pwyso tuag at y golygiadau rydych yn eu cadw, yn eu dadwneud neu'n eu cywiro, wedi'u dysgu ar y ddyfais hon yn unig a dim ond ar ôl pum enghraifft gyson.",
+  editStyleDesc: "Mae Auto yn pwyso tuag at y golygiadau rydych yn eu cadw, yn eu dadwneud neu'n eu cywiro, a ddysgir ar y ddyfais hon yn unig. Dim ond ar ôl pum enghraifft gyson y mae'n dechrau.",
   cullWarmupName: "Dewis cyflymach",
   cullWarmupDesc: "Yn paratoi'r llun nesaf a'r un blaenorol yn y cefndir wrth i chi ddewis. Nid yw'n ysgrifennu dim.",
 };

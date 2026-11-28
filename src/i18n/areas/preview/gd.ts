@@ -16,7 +16,7 @@ export const gd: AreaTranslation<typeof source> = {
   onImageAdviceName: "Comhairle air a tharraing air an dealbh",
   onImageAdviceDesc: "Dubhadh air soilleir is sgàil a chaidh a ghearradh, comharraich puing fòcais a' chamara agus seall bràiste Colour Sense air an dealbh. Chan eil e ach a' tarraing agus chan atharraich e deasachadh sam bith.",
   finishBestName: "Crìochnaich an fheadhainn as fheàrr",
-  finishBestDesc: "Abair \"an 50 as fheàrr\", \"an 10% as fheàrr\" no \"na h-uile\" agus deasaichidh an app na dealbhan sin, an fheadhainn as fheàrr an toiseach, ann an aon bhaidse air an inneal seo, agus seallaidh e lèirmheas far an cùm no an neo-dhèan thu gach fear.",
+  finishBestDesc: "Abair \"an 50 as fheàrr\", \"an 10% as fheàrr\" no \"na h-uile\" agus deasaichidh an app na dealbhan sin air an inneal seo, an fheadhainn as fheàrr an toiseach, ann an aon bhaidse. An uairsin seallaidh e lèirmheas far an cùm no an neo-dhèan thu gach fear.",
   flightBatchName: "Fèin-phìleat sa chùlaibh",
   flightBatchDesc: "Às dèidh in-mhalairt, bidh am fèin-phìleat a' deasachadh nan dealbhan ùra sa chùlaibh, an fheadhainn as fheàrr an toiseach, aon cheum neo-dhèanamh gach fear. Cha tèid na tùsan agad atharrachadh gu bràth.",
   cullRulesName: "Riaghailtean taghaidh",

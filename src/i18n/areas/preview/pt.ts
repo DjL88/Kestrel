@@ -16,7 +16,7 @@ export const pt: AreaTranslation<typeof source> = {
   onImageAdviceName: "Conselhos desenhados na foto",
   onImageAdviceDesc: "Hachura as luzes e sombras cortadas, marca o ponto de foco da câmara e mostra um emblema Colour Sense na foto. Só desenha e não altera nenhuma edição.",
   finishBestName: "Terminar as minhas melhores",
-  finishBestDesc: "Diga \"as 50 melhores\", \"os 10% melhores\" ou \"todas\" e a aplicação edita essas fotos, as melhores primeiro, num só lote neste dispositivo e depois mostra uma revisão onde mantém ou anula cada uma.",
+  finishBestDesc: "Diga \"as 50 melhores\", \"os 10% melhores\" ou \"todas\" e a aplicação edita essas fotos neste dispositivo, as melhores primeiro, num só lote. Depois mostra uma revisão onde mantém ou anula cada uma.",
   flightBatchName: "Piloto automático em segundo plano",
   flightBatchDesc: "Depois de uma importação, o piloto automático edita as fotos novas em segundo plano, as melhores primeiro, com um passo de anular cada uma. Os seus originais nunca são alterados.",
   cullRulesName: "Regras de seleção",

@@ -16,7 +16,7 @@ export const fr: AreaTranslation<typeof source> = {
   onImageAdviceName: "Conseils dessinés sur la photo",
   onImageAdviceDesc: "Hachure les hautes lumières et les ombres écrêtées, marque le point de mise au point de l'appareil et affiche un badge Colour Sense sur la photo. Il ne fait que dessiner et ne modifie aucune retouche.",
   finishBestName: "Terminer mes meilleures",
-  finishBestDesc: "Dites « les 50 meilleures », « les 10 % meilleures » ou « toutes » et l'application retouche ces photos, les meilleures d'abord, en un seul lot sur cet appareil, puis affiche une revue où vous gardez ou annulez chacune.",
+  finishBestDesc: "Dites « les 50 meilleures », « les 10 % meilleures » ou « toutes » et l'application retouche ces photos sur cet appareil, les meilleures d'abord, en un seul lot. Elle affiche ensuite une revue où vous gardez ou annulez chacune.",
   flightBatchName: "Pilote automatique en arrière-plan",
   flightBatchDesc: "Après un import, le pilote automatique retouche les nouvelles photos en arrière-plan, les meilleures d'abord, avec une étape d'annulation chacune. Vos originaux ne sont jamais modifiés.",
   cullRulesName: "Règles de tri",

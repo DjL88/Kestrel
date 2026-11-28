@@ -16,7 +16,7 @@ export const da: AreaTranslation<typeof source> = {
   onImageAdviceName: "Råd tegnet på billedet",
   onImageAdviceDesc: "Skraverer afskårne højlys og skygger, markerer kameraets fokuspunkt og viser et Colour Sense-mærke på billedet. Den tegner kun og ændrer ingen redigeringer.",
   finishBestName: "Gør mine bedste færdige",
-  finishBestDesc: "Sig \"bedste 50\", \"bedste 10 %\" eller \"alle\", og appen redigerer de billeder, de bedste først, i ét parti på denne enhed og viser derefter en gennemgang, hvor du beholder eller fortryder hvert enkelt.",
+  finishBestDesc: "Sig \"bedste 50\", \"bedste 10 %\" eller \"alle\", og appen redigerer de billeder på denne enhed, de bedste først, i ét parti. Derefter viser den en gennemgang, hvor du beholder eller fortryder hvert enkelt.",
   flightBatchName: "Autopilot i baggrunden",
   flightBatchDesc: "Efter en import redigerer autopiloten de nye billeder i baggrunden, de bedste først, hver med ét fortryd-trin. Dine originaler ændres aldrig.",
   cullRulesName: "Udvælgelsesregler",

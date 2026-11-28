@@ -16,7 +16,7 @@ export const ga: AreaTranslation<typeof source> = {
   onImageAdviceName: "Comhairle tarraingthe ar an ngrianghraf",
   onImageAdviceDesc: "Scáthaíonn sé buaicphointí agus scáthanna gearrtha, marcálann sé pointe fócais an cheamara agus taispeánann sé suaitheantas Colour Sense ar an ngrianghraf. Ní dhéanann sé ach tarraingt agus ní athraíonn sé aon eagarthóireacht.",
   finishBestName: "Críochnaigh na cinn is fearr",
-  finishBestDesc: "Abair \"an 50 is fearr\", \"an 10% is fearr\" nó \"gach ceann\" agus cuireann an aip eagar ar na grianghraif sin, na cinn is fearr ar dtús, i mbaisc amháin ar an ngléas seo, ansin taispeánann sí athbhreithniú inar féidir leat gach ceann a choinneáil nó a chealú.",
+  finishBestDesc: "Abair \"an 50 is fearr\", \"an 10% is fearr\" nó \"gach ceann\" agus cuireann an aip eagar ar na grianghraif sin ar an ngléas seo, na cinn is fearr ar dtús, i mbaisc amháin. Ansin taispeánann sí athbhreithniú inar féidir leat gach ceann a choinneáil nó a chealú.",
   flightBatchName: "Féin-phíolóta sa chúlra",
   flightBatchDesc: "Tar éis iompórtála, cuireann an fèin-phíolóta eagar ar na grianghraif nua sa chúlra, na cinn is fearr ar dtús, céim chealaithe amháin an ceann. Ní athraítear do bhunchóipeanna go deo.",
   cullRulesName: "Rialacha roghnúcháin",
