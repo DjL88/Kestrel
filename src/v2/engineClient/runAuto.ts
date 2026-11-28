@@ -24,6 +24,8 @@ import type { SubjectDetail, SubjectGrid } from '../../core/maskTypes';
 import type { PhotoFrame } from '../../core/types';
 import { describePlan, planAuto, settleAfterRender, type AutoPlan } from '../../core/unifiedAuto';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
+import { measureCastCurve, type CastCurve } from '../../core/castCurve';
+import { subjectWeights } from '../../core/naturalAuto';
 import type { SpeciesGuess } from '../../core/speciesPalette';
 import { expectationForSpecies } from '../../core/colourMatch';
 import { newId } from '../../core/ids';
@@ -49,6 +51,8 @@ export interface AutoRun {
   source: Pick<PhotoFrame, 'stableKey' | 'originalSha256' | 'framing'>;
   /** The colour check of the same framed, unedited preview that Auto measured (the same pixels as its colour warnings). */
   colour?: ColourReport;
+  /** The neutral areas' lean measured at a ladder of Temperature and Tint steps, so the cast advice is re-measured as the recipe changes (src/core/castCurve.ts). */
+  castCurve?: CastCurve;
   /** The person's learnt leanings this suggestion was leaned by (personal style preview, off by default). Empty when none. */
   leanings?: Leaning[];
   /**
@@ -291,6 +295,9 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   // Auto's previous layer was taken out above; if the fresh recipe equals what the photo has now, nothing is stacked.
   const alreadyEnhanced = layer.stripped && sameRecipe(plan.proposal, current) && recipes.length > 0;
   plan = { ...plan, base: current };
+  // The neutral reference excludes the subject (an orange kingfisher is not a cast) and expects warm light in golden hour.
+  const subjectMap = segmentation && segmentation.confidence !== 'low' ? subjectWeights(segmentation.grid, analysis.width, analysis.height) ?? undefined : undefined;
+  const castCurve = measureCastCurve({ pixels: analysis.data, width: analysis.width, height: analysis.height, subject: subjectMap, expectWarm: sceneHints.preserveLight === true }) ?? undefined;
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = !alreadyEnhanced && rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
@@ -304,7 +311,8 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     headline: alreadyEnhanced ? engineText.auto.alreadyEnhanced : rendered.candidates.length ? engineText.auto.ready
       : recipes.length ? (rendered.rejected.length ? (reasonWords(rendered.rejected[0]) ?? engineText.auto.noneDifferent) : engineText.auto.noneDifferent) : headlineFor(plan, heldDark),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
-    colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
+    colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height }, ...(subjectMap ? { subject: subjectMap } : {}) }),
+    ...(castCurve ? { castCurve } : {}),
     leanings: leaned.applied,
     ...cropSuggestionFor(segmentation, analysis.width, analysis.height),
   };

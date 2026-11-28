@@ -1334,6 +1334,8 @@ export const ga: AreaTranslation<typeof source> = {
       tooCool: "Tá cuma rófhuar ar na dathanna (gorm)",
       greenTint: "Tá imir uaine ar na dathanna",
       magentaTint: "Tá imir mhaigeanta ar na dathanna",
+      castLeft: 'Tá ardú éadrom datha fós sna limistéir neodracha. Ní athrófaí aon rud infheicthe dá gceartófaí níos mó é, mar sin fágtar é.',
+      castNatural: 'Tá an ton te nádúrtha don solas seo, mar sin fágtar mar atá sé.',
       redGreenAlike: "D’fhéadfadh sé a bheith deacair limistéir dhearga agus ghlasa a aithint óna chéile",
       unsure: "Níltear cinnte faoi dhathanna an ghrianghraif seo",
     },

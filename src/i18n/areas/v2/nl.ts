@@ -1331,6 +1331,8 @@ export const nl: AreaTranslation<typeof source> = {
       tooCool: "Kleuren lijken te koel (blauw)",
       greenTint: "Kleuren hebben een groene zweem",
       magentaTint: "Kleuren hebben een magenta zweem",
+      castLeft: 'Er blijft een lichte kleurzweem in de neutrale delen. Verder corrigeren verandert niets zichtbaars, dus hij blijft.',
+      castNatural: 'De warme toon past bij dit licht en blijft zoals hij is.',
       redGreenAlike: "Rode en groene vlakken zijn misschien moeilijk te onderscheiden",
       unsure: "Niet zeker over de kleuren in deze foto",
     },

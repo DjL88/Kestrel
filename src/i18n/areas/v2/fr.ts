@@ -1331,6 +1331,8 @@ export const fr: AreaTranslation<typeof source> = {
       tooCool: "Les couleurs semblent trop froides (bleu)",
       greenTint: "Les couleurs tirent sur le vert",
       magentaTint: "Les couleurs tirent sur le magenta",
+      castLeft: 'Une légère dominante de couleur reste dans les zones neutres. La corriger davantage ne changerait rien de visible, elle est donc laissée.',
+      castNatural: 'Le ton chaud est naturel pour cette lumière, il est donc laissé tel quel.',
       redGreenAlike: "Les zones rouges et vertes peuvent être difficiles à distinguer",
       unsure: "Pas de certitude sur les couleurs de cette photo",
     },
