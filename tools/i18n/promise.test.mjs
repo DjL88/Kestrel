@@ -93,7 +93,7 @@ const SITE_CODE = { 'en-GB': 'en-GB', 'en-US': 'en-US' };
 test('the promise reads the same on the home page and in the app, in every language the site has', () => {
   const v2 = AUDIT_AREAS.find((a) => a.name === 'v2');
   const strings = siteStrings();
-  assert.ok(v2.source.promise.body.length > 200);
+  assert.ok(v2.source.promise.body.length > 100);
   assert.equal(strings['en-GB'].promiseAiBody, v2.source.promise.body);
   const html = read('site/index.html');
   assert.ok(html.includes(`data-i18n="promiseAiBody">${v2.source.promise.body}<`), 'the home page’s built-in English is the promise');
@@ -113,4 +113,18 @@ test('the promise is shown in Settings › Privacy and under Export › Advanced
   }
   const exportDialog = read('src/v2/ui/dialogs/ExportDialog.tsx');
   assert.ok(exportDialog.indexOf('STRINGS.promise.body') > exportDialog.indexOf('data-testid="export-advanced"'), 'inside Advanced');
+});
+
+test('the promise is honest about trained models, and Enhance says it is the tab that edits pixels', () => {
+  const v2 = AUDIT_AREAS.find((a) => a.name === 'v2');
+  assert.match(v2.source.promise.body, /no invented detail/);
+  assert.match(v2.source.promise.body, /trained model/);
+  assert.doesNotMatch(v2.source.promise.body, /only sliders/i);
+  assert.equal(v2.source.enhance.trainedModelNote, 'Uses a trained model. Never adds new content.');
+  const panel = read('src/v2/ui/panels/EnhancePanel.tsx');
+  for (const key of ['pixelsNote', 'trainedModelNote']) assert.ok(panel.includes(`STRINGS.enhance.${key}`), key);
+  for (const [code, words] of Object.entries(v2.translations)) {
+    if (!words.enhance || code.startsWith('en')) continue;
+    for (const key of ['pixelsNote', 'trainedModelNote']) assert.ok(words.enhance[key], `${code}: ${key}`);
+  }
 });

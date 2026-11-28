@@ -1208,6 +1208,8 @@ export const gd: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Leasaich',
     refinementsHeading: "Grinneachadh",
+    trainedModelNote: "Cleachdaidh e modal air a thrèanadh. Cha chuir e susbaint ùr ris gu bràth.",
+    pixelsNote: "’S e Leasaich an aon taba a dh’atharraicheas pioclaidean, dìreach far an tagh thu agus cho mòr ’s a thagh thu, agus gabhaidh a chur air ais an-còmhnaidh.",
     denoiseHeading: "Lùghdachadh gràinne TrueDetail",
     denoiseNow: "Ruith TrueDetail air an dealbh seo",
     trueDetailRunning: (percent) => `Tha TrueDetail ag obair air an dealbh seo: ${percent}%`,
@@ -2460,7 +2462,7 @@ export const gd: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Gealladh InFlight",
-    body: "Cha bhi InFlight a-chaoidh a’ cruthachadh no a’ cur rud eile an àite na tha nad dhealbh, agus cha sgrìobh e a-chaoidh susbaint bho mhodail ann am meata-dàta nam faidhlichean agad. Chan atharraichear na tùsan agad gu bràth. Bidh modailean a’ tomhas is a’ moladh (cuspair, fòcas, gnè, gràinne). Bidh lùghdachadh gràinne is geurachadh ag obair bho phiogsailean an deilbh agad fhèin; cha dèan an lùghdachadh gràinne ionnsaichte roghainneil ach na piogsailean a tha ann mu thràth a ghlanadh, agus cha tèid a chleachdadh ach nuair a sheallas sgrùdadh gun do mhair am fìor mhion-fhiosrachadh. ’S e Càradh spotan an aon eisgeachd: nì e lethbhreac bho àite eile nad dhealbh fhèin, agus dìreach far an cuir thu fhèin e.",
+    body: "Gun lìonadh gineadail, gun nithean a bharrachd, gun mion-fhiosrachadh air a dhealbhadh. Far am bi modal air a thrèanadh a’ cuideachadh le gràinne no meud, bidh e ag obair o na pioclaidean agad fhèin. Tha thu fhèin a’ suidheachadh an neart, agus cha dèid am bunait atharrachadh gu bràth.",
   },
 
   setup: {

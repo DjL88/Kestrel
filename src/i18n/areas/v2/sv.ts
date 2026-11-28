@@ -1207,6 +1207,8 @@ export const sv: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Förbättra',
     refinementsHeading: "Finputs",
+    trainedModelNote: "Använder en tränad modell. Lägger aldrig till nytt innehåll.",
+    pixelsNote: "Förbättra är den enda fliken som redigerar pixlar, bara där och så mycket du väljer, och det går alltid att ångra.",
     denoiseHeading: "TrueDetail-brusreducering",
     denoiseNow: "Kör TrueDetail på den här bilden",
     trueDetailRunning: (percent) => `TrueDetail arbetar med den här bilden: ${percent} %`,
@@ -2459,7 +2461,7 @@ export const sv: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "Det här lovar InFlight",
-    body: "InFlight hittar aldrig på eller ersätter det som finns i din bild, och skriver aldrig innehåll gjort av en modell i dina filers metadata. Dina original ändras aldrig. Modeller mäter och föreslår (motiv, fokus, art, brus). Brusreducering och skärpning utgår från bildens egna pixlar; den valfria inlärda brusreduceringen rengör bara de pixlar som redan finns, och används bara när en kontroll visar att verkliga detaljer finns kvar. Det enda undantaget är Fläckborttagning, som kopierar från ett annat ställe i din egen bild, och bara där du själv sätter den.",
+    body: "Ingen generativ fyllning, inga tillagda objekt, inga påhittade detaljer. Där en tränad modell hjälper till med brus eller storlek arbetar den utifrån dina egna pixlar, du bestämmer styrkan och originalet ändras aldrig.",
   },
 
   setup: {

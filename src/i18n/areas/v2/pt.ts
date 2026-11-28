@@ -1207,6 +1207,8 @@ export const pt: AreaTranslation<typeof source> = {
   enhance: {
     heading: 'Melhorar',
     refinementsHeading: "Retoques",
+    trainedModelNote: "Usa um modelo treinado. Nunca acrescenta conteúdo novo.",
+    pixelsNote: "Melhorar é o único separador que edita pixels, só onde e quanto você escolher, e pode sempre ser desfeito.",
     denoiseHeading: "Redução de ruído TrueDetail",
     denoiseNow: "Aplicar TrueDetail a esta fotografia",
     trueDetailRunning: (percent) => `O TrueDetail está a processar esta fotografia: ${percent}%`,
@@ -2459,7 +2461,7 @@ export const pt: AreaTranslation<typeof source> = {
 
   promise: {
     heading: "O que a InFlight promete",
-    body: "A InFlight nunca inventa nem substitui o que está na sua fotografia, e nunca escreve conteúdo feito por um modelo nos metadados dos seus ficheiros. Os seus originais nunca são alterados. Os modelos medem e sugerem (motivo, foco, espécie, ruído). A redução de ruído e a nitidez trabalham com os próprios píxeis da sua fotografia; a redução de ruído aprendida, opcional, só limpa os píxeis que já lá estão, e só é usada se uma verificação mostrar que o detalhe real se mantém. A única exceção é a Correção de manchas, que copia de outro ponto da sua própria fotografia, e só onde a coloca.",
+    body: "Sem preenchimento generativo, sem objetos acrescentados, sem detalhes inventados. Quando um modelo treinado ajuda com o ruído ou o tamanho, trabalha a partir dos seus pixels, você define a intensidade e o original nunca é alterado.",
   },
 
   setup: {

@@ -65,6 +65,8 @@ export default function EnhancePanel({
 
   return (
     <div className="space-y-5">
+      {/* Owner, 28 Nov: say plainly that Enhance is where pixels are edited, and that a trained model never adds content. */}
+      <p data-testid="enhance-pixels-note" className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">{STRINGS.enhance.pixelsNote}</p>
       {/* Noise Reduction */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -117,6 +119,7 @@ export default function EnhancePanel({
             <p className="text-[0.6875rem] text-[var(--text-muted)]">
               {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
             </p>
+            <p data-testid="trained-model-note" className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.enhance.trainedModelNote}</p>
             {/* The allowance the server gives (services/control-plane wiring.ts; src/core/cloudPlan.ts), only where cloud is offered. */}
             {cloudEnabled && (
               <p className="text-[0.6875rem] text-[var(--text-muted)]" data-testid="denoise-cloud-allowance">
@@ -128,7 +131,7 @@ export default function EnhancePanel({
 
         {recipe.aiDenoise && (
           <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.enhance.aiDenoiseInUse}</p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.enhance.aiDenoiseInUse} {STRINGS.enhance.trainedModelNote}</p>
             <button
               type="button"
               onClick={() => onUpdateRecipe(photo.id, { aiDenoise: false })}
@@ -238,6 +241,7 @@ export default function EnhancePanel({
               </button>
             ))}
           </div>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.enhance.trainedModelNote}</p>
           {onPreviewEnlargement && recipe.upscaleFactor !== 1 && (
             <button type="button" data-testid="v2-preview-enlargement" onClick={onPreviewEnlargement}
               className="mt-1 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
