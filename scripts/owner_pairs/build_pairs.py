@@ -28,6 +28,31 @@ def main():
     print('confident by class', dict(c(r['class'] for r in conf)))
     print('confident by crop', dict(c(r['crop'] for r in conf)))
     print('confident by model', dict(c(r['model'] for r in conf)))
+    print('per-raw', per_raw_summary(idx, rows))
     print('distinct raws in confident edited pairs', len({r['raw_hash'] for r in conf if r['class'] == 'edited'}))
+
+
+def per_raw_summary(idx, rows):
+    """How many RAWs have: no JPEG, camera JPEG only, edited final found, multiple edited candidates."""
+    raws = {r['hash'] for r in P.dedupe_raws([r for r in idx if r.get('kind') == 'raw'])}
+    by = {}
+    for r in rows:
+        by.setdefault(r['raw_hash'], []).append(r)
+    out = {'no_jpeg': 0, 'camera_jpeg_only': 0, 'edited_final_single': 0, 'multiple_edited_candidates': 0}
+    for h in raws:
+        c = by.get(h)
+        if not c:
+            out['no_jpeg'] += 1
+            continue
+        ed = [x for x in c if x['class'] in ('edited', 'unknown')]
+        if not ed:
+            out['camera_jpeg_only'] += 1
+        elif len(ed) == 1:
+            out['edited_final_single'] += 1
+        else:
+            out['multiple_edited_candidates'] += 1
+    return out
+
+
 if __name__ == '__main__':
     main()
