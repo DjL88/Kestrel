@@ -20,6 +20,7 @@ import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
+import { workflowPreviewOn } from '../engineClient/workflowPreview';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { readCaptionTemplate } from '../../core/captionTemplate';
 import { usePresence } from './shell/usePresence';
@@ -1718,6 +1719,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         displayName={signedInName}
         renderPreview={actions.renderGalleryPreview}
+        readOriginal={workflowPreviewOn('cloudOriginals') ? actions.readVerifiedOriginal : undefined}
         usage={accountCloud}
         onTopUp={() => { setStoreCloudOpen(false); actions.setSettingsOpen(true, 'account'); }}
         onChanged={() => setShareVersion((n) => n + 1)}

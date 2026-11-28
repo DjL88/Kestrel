@@ -16,6 +16,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: 'kestrel.preview.finish-best.v1',
+  /** Store the full original in the cloud with each chosen photo (lossless on another device), until proven with a real account. */
+  cloudOriginals: 'kestrel.preview.cloud-originals.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',

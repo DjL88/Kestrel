@@ -84,3 +84,43 @@ test('a full cloud is never silent: how many went up, how many did not, and Top 
   await dialog.getByTestId('store-cloud-top-up').click();
   await expect(page.getByTestId('top-up')).toHaveText('top-up opened');
 });
+
+test('by tag or by rating; a blank tag stores nothing; the full original goes up unchanged and the choice is remembered', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page, '?originals');
+  const dialog = page.getByTestId('store-cloud-dialog');
+  await expect(dialog).toContainText('the full original goes up unchanged');
+  await expect(dialog.getByTestId('store-cloud-originals')).toBeChecked();
+  // Before anything is sent: how many, about how much (12 previews and 12 originals of 20 MB), and that nothing has gone yet.
+  await expect(dialog.getByTestId('store-cloud-plain')).toContainText('Photos: 12, about 252 MB. Nothing is sent until you press Store.');
+  const filter = dialog.getByTestId('store-cloud-filter');
+  await filter.getByRole('radio', { name: 'Rated', exact: true }).check();
+  await expect(dialog.getByTestId('store-cloud-store')).toHaveText('Store 4 photos');
+  await dialog.getByTestId('store-cloud-rated').selectOption('2');
+  await expect(dialog.getByTestId('store-cloud-store')).toHaveText('Store 8 photos');
+  await filter.getByRole('radio', { name: 'Tag', exact: true }).check();
+  await expect(dialog.getByTestId('store-cloud-store'), 'a blank tag covers nothing').toBeDisabled();
+  await dialog.getByTestId('store-cloud-tag').fill('puffin');
+  await expect(dialog.getByTestId('store-cloud-store')).toHaveText('Store 5 photos');
+  expect((await cloud(page)).calls, 'choosing sends nothing').toEqual([]);
+
+  await dialog.getByTestId('store-cloud-store').click();
+  await expect(dialog.getByTestId('store-cloud-message')).toHaveText('5/5 stored in the cloud', { timeout: 30_000 });
+  const done = await cloud(page);
+  expect(done.stored.sort()).toEqual(['key-0', 'key-1', 'key-2', 'key-3', 'key-4']);
+  expect(done.calls.filter((call) => call.startsWith('upload original')).length, 'one original each').toBe(5);
+
+  // After a restart the same choice is there, ready to retry.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Store in the cloud' })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('store-cloud-filter').getByRole('radio', { name: 'Tag', exact: true })).toBeChecked();
+  await expect(page.getByTestId('store-cloud-tag')).toHaveValue('puffin');
+});
+
+test('without the originals preview, the dialog says only previews go up and sends no original', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page);
+  const dialog = page.getByTestId('store-cloud-dialog');
+  await expect(dialog.getByTestId('store-cloud-originals')).toHaveCount(0);
+  await expect(dialog).toContainText('your originals stay on this device');
+});
