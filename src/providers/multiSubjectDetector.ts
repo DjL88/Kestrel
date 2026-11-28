@@ -3,6 +3,7 @@ import { detectSubjectInArea } from './subjectDetector';
 import { createSubjectMask, type Mask } from '../core/maskTypes';
 import { guideRegion } from '../core/subjectGuide';
 import { sampledRegion } from '../core/subjectRegion';
+import { distinctSubjectIndices } from '../core/subjectUnion';
 
 export interface InstanceFinding {
   label: string;
@@ -42,5 +43,7 @@ export async function detectSubjectInstances(framed: HTMLCanvasElement, key: str
       piece.height = 0;
     }
   }
-  return result;
+  // One animal can be found twice (a tile seam, or its body and head). Keep each animal once, so 1 bird is 1 subject.
+  const keep = distinctSubjectIndices(result.map(r => r.mask), result.map(r => r.score), framed.height / framed.width);
+  return keep.map(i => result[i]);
 }
