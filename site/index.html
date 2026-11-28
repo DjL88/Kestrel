@@ -31,6 +31,8 @@
     "offers": [
       { "@type": "Offer", "name": "Basic", "price": "0", "priceCurrency": "GBP" },
       { "@type": "Offer", "name": "InFlight Pro, monthly", "price": "2.99", "priceCurrency": "GBP", "category": "subscription" },
+      { "@type": "Offer", "name": "InFlight Pro Plus, monthly", "price": "9.99", "priceCurrency": "GBP", "category": "subscription" },
+      { "@type": "Offer", "name": "InFlight Pro Plus, yearly", "price": "99.99", "priceCurrency": "GBP", "category": "subscription" },
       { "@type": "Offer", "name": "InFlight Pro, yearly", "price": "29", "priceCurrency": "GBP", "category": "subscription" }
     ],
     "accessibilityFeature": ["colorblindFriendly", "highContrastDisplay", "fullKeyboardControl", "reducedMotion", "noColorOnlyIndicators"],
@@ -793,6 +795,7 @@
       <article class="card"><h3 data-i18n="chooseProTitle">Subscribe to Pro</h3>
         <p class="promo" id="promo-banner" role="note" hidden data-i18n="promoBanner">Black Friday offer: Pro costs less when you sign in and buy by the end of {lastDay}. The checkout shows the reduced price before you pay.</p>
         <p><strong data-pro-price="pro.monthly">£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong data-pro-price="pro.annual">£29.99</strong> <span data-i18n="priceAnnual">a year</span></p>
+        <p><strong data-pro-price="plus.monthly">£9.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong data-pro-price="plus.annual">£99.99</strong> <span data-i18n="priceAnnual">a year</span> · <span data-i18n="plusTitle">Pro Plus</span></p>
         <p data-i18n="chooseSubBody">Pay monthly or yearly and cancel at any time. If you stop, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
         <p class="note" data-i18n="choosePricePromise">Price promise: your subscription price never goes up without at least 30 days’ notice by email, and a new price only starts at a renewal after that notice. You can cancel before then.</p>
         <p data-i18n="chooseBuyHow">To subscribe, sign in from the InFlight app and choose Subscribe to Pro. Paddle, our reseller, runs the checkout.</p>
@@ -813,17 +816,25 @@
           <li data-i18n-html="basicOwn"><strong>Download it and it's yours.</strong> Basic never expires and needs no account</li>
           <li data-i18n="basicOffline">Import, cull, edit and export, fully offline</li>
           <li data-i18n="basicModels">Every on-device model and tool, including species ID and smart culling</li>
-          <li data-i18n="basicCloud">Cloud edits: 500 photos a month when signed in</li>
         </ul>
       </article>
-      <article class="card featured"><p class="pro-hook">More than 500 photos a month through the cloud? <strong>Switch to Pro: 5,000 a month.</strong></p><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="40" height="40"><span data-i18n="proTitle">Pro</span> </h3>
+      <article class="card featured"><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="40" height="40"><span data-i18n="proTitle">Pro</span> </h3>
         <p class="price"><strong id="pro-price-annual">£29.99</strong> <span data-i18n="priceYear">a year</span></p>
         <p class="muted"><span data-i18n="priceOr">or</span> <strong id="pro-price-monthly">£2.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
         <p class="price-tax" data-i18n="priceTax">UK prices, including VAT. Paddle shows the price in your currency, with any tax for your country, before you pay.</p>
         <ul class="ticks">
           <li data-i18n="proEverything">Everything in Basic</li>
-          <li data-i18n="proCloud">Cloud edits: 5,000 photos a month</li>
+          <li data-i18n="proCloud">Cloud edits: 500 photos a month</li>
           <li data-i18n="proStorage">2.5 GB of cloud storage, to open and edit chosen photos on your other devices</li>
+        </ul>
+      </article>
+      <article class="card"><h3><img class="plan-icon" src="assets/brand/inflight/app-icons/app-icon-pro-night-192.png" alt="" width="40" height="40"><span data-i18n="plusTitle">Pro Plus</span></h3>
+        <p class="price"><strong id="plus-price-annual" data-pro-price="plus.annual">£99.99</strong> <span data-i18n="priceYear">a year</span></p>
+        <p class="muted"><span data-i18n="priceOr">or</span> <strong id="plus-price-monthly" data-pro-price="plus.monthly">£9.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
+        <ul class="ticks">
+          <li data-i18n="plusEverything">Everything in Pro</li>
+          <li data-i18n="plusCloud">Cloud edits: 5,000 photos a month</li>
+          <li data-i18n="plusStorage">10 GB of cloud storage, to open and edit chosen photos on your other devices</li>
         </ul>
       </article>
       <article class="card"><h3><span class="plan-icon plan-icon-svg" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 28h17a6 6 0 0 0 .6-12A9 9 0 0 0 12.4 18 5 5 0 0 0 12 28z" fill="none" stroke="#f4efe8" stroke-width="2.2" stroke-linejoin="round"/><path d="M20.5 19v8M16.5 23h8" stroke="#e8743c" stroke-width="2.4" stroke-linecap="round"/></svg></span><span data-i18n="creditTitle">Pay as you go Cloud Storage</span></h3>
@@ -1017,10 +1028,11 @@
     if (local) {
       for (const node of slotsNow()) {
         const item = node.dataset.proPrice || (node.id === 'pro-price-monthly' ? 'pro.monthly' : 'pro.annual');
+        if (item.startsWith('plus.')) { const text = item === 'plus.monthly' ? local.plus : local.plusAnnual; if (text) { node.textContent = text; node.dataset.currency = local.currency; } continue; }
         node.textContent = item === 'pro.monthly' ? local.monthly : local.annual;
         node.dataset.currency = local.currency;
       }
-      return;
+      if (local.plus && local.plusAnnual) return;
     }
     const pricing = await loadPricing();
     let region = null;
@@ -1034,6 +1046,8 @@
       const slots = [...document.querySelectorAll('#pro-price-monthly, #pro-price-annual, [data-pro-price]')];
       for (const node of slots) {
         const item = node.dataset.proPrice || (node.id === 'pro-price-monthly' ? 'pro.monthly' : 'pro.annual');
+        if (local && !item.startsWith('plus.')) continue; // Paddle's own prices for the country are already shown
+        if (item.startsWith('plus.') && !(pricing.currencies[currency] || pricing.currencies.GBP)[item]) continue;
         node.textContent = priceText(pricing, currency, item, locale);
         node.dataset.currency = currency;
       }

@@ -318,6 +318,8 @@ resource "google_cloud_run_v2_service" "control_plane" {
           var.phase5_paddle_promo_discount_id != "" ? { KCP_PADDLE_PROMO_DISCOUNT_ID = var.phase5_paddle_promo_discount_id } : {},
           var.phase5_paddle_monthly_price_id != "" ? { KCP_PADDLE_MONTHLY_PRICE_ID = var.phase5_paddle_monthly_price_id } : {},
           var.phase5_paddle_annual_price_id != "" ? { KCP_PADDLE_ANNUAL_PRICE_ID = var.phase5_paddle_annual_price_id } : {},
+          var.phase5_paddle_plus_price_id != "" ? { KCP_PADDLE_PLUS_PRICE_ID = var.phase5_paddle_plus_price_id } : {},
+          var.phase5_paddle_plus_annual_price_id != "" ? { KCP_PADDLE_PLUS_ANNUAL_PRICE_ID = var.phase5_paddle_plus_annual_price_id } : {},
           length(var.phase5_paddle_topup_price_ids) > 0 ? { KCP_PADDLE_TOPUP_PRICE_IDS = jsonencode(var.phase5_paddle_topup_price_ids) } : {},
           length(var.phase5_paddle_sandbox_testers) > 0 ? { KCP_SANDBOX_TESTERS = join(",", var.phase5_paddle_sandbox_testers) } : {},
         ) : {}

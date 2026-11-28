@@ -41,7 +41,7 @@ export const ADMIN_DATA: Record<string, unknown> = {
     { messageId: 'm1', name: 'Sam Example', email: 'sam@example.test', message: 'Does InFlight read Fuji RAF files?', status: 'new', receivedAtMs: T - 90 * min },
   ] },
   '/v1/admin/pricing/review': { review: null },
-  '/v1/admin/pricing': { matrix: { version: 1, base: { 'pro.monthly': 299, 'pro.annual': 2999 }, rates: { date: null, perGbp: {} }, currencies: {}, updatedAt: null }, prices: [], paddle: null },
+  '/v1/admin/pricing': { matrix: { version: 1, base: { 'pro.monthly': 299, 'pro.annual': 2999, 'plus.monthly': 999, 'plus.annual': 9999 }, rates: { date: null, perGbp: {} }, currencies: {}, updatedAt: null }, prices: [], paddle: null },
   '/v1/admin/audit': { entries: [
     ...Array.from({ length: 6 }, (_, i) => ({ at_ms: T - i * 2 * min, actor: 'acc_owner01', action: 'user.signin', outcome: 'allowed', detail: 'firebase' })),
     { at_ms: T - 20 * min, actor: 'acc_owner01', action: 'switch.set', outcome: 'allowed', detail: 'push on' },

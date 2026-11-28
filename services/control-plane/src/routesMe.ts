@@ -15,7 +15,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.t
 import type { AppContext } from './appContext.ts';
 
 export function meRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, mayBuy, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
+  const { options, config, store, now, mayBuy, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, accountCloudPlan, accountCloudPhotos, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
   return [
   // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
   // originals are never on this service, so nothing here can reach them.
@@ -370,13 +370,13 @@ export function meRoutes(ctx: AppContext): Route[] {
       const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
       // The Account screen's meters: plan, cloud photos this period and the prepaid balance, when those are set up.
       const cloud = options.cloud;
-      const pro = await accountIsPro(claims.sub);
+      const plan = await accountCloudPlan(claims.sub);
       const carried = cloud ? (await cloud.ledger.periodCarried?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0 : 0;
-      const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: (pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0)) + carried, photosCarried: carried } : {};
+      const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: (await accountCloudPhotos(claims.sub, cloud)) + carried, photosCarried: carried } : {};
       await settleStorage(claims.sub);
       const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
       const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
-      return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
+      return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan, ...photos, ...balance, ...storedBytes } };
     },
   },
   // ---- The gallery owner's side: actions taken on my galleries after a report, with the reasons (EU DSA Art. 17).

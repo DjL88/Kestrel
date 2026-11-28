@@ -1,5 +1,5 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
-import { MONTHLY_PHOTO_ALLOWANCE, usageFromServer, type CloudUsage } from '../../core/cloudPlan';
+import { MONTHLY_PHOTO_ALLOWANCE, planHasCloud, usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { CloudStatus, type CloudStatusState } from './shell/CloudStatus';
 import { projectsText } from '../../i18n/areas/projects';
@@ -1251,7 +1251,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             // nothing is lost; its invite form is gone (ShareDialog). The offline portfolio moved to File.
             onShare={!store.collage && (COLLABORATION_UI || alreadyShared) ? () => { setSharePortfolioOnly(false); setShareOpen(true); } : undefined}
             onPortfolio={!store.collage && !COLLABORATION_UI ? () => { setSharePortfolioOnly(true); setShareOpen(true); } : undefined}
-            storeInCloud={!store.collage && accountCloud?.plan === 'pro' ? {
+            storeInCloud={!store.collage && accountCloud && planHasCloud(accountCloud.plan) ? {
               onOpen: () => setStoreCloudOpen(true),
               onTopUp: () => actions.setSettingsOpen(true, 'account'),
               limit: cloudLimitNote(accountCloud),
@@ -1740,6 +1740,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
+        previewOnlyCount={(store.selectedPhotoIds.length ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : []).filter((id) => store.photos.find((p) => p.id === id)?.cloudPreview).length}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
         brandKits={store.brandKits}
