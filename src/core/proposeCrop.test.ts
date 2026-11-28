@@ -64,3 +64,23 @@ test('an already well framed or very large subject gives no suggestion', () => {
 test('a subject too wide for the frame shape gives no suggestion rather than a cut subject', () => {
   assert.equal(proposeCrop({ box: { x0: 0.0, y0: 0.4, x1: 1, y1: 0.6 }, imageWidth: W, imageHeight: H, aspect: 1 }), null);
 });
+
+test('a small subject in the bottom-right corner is never left jammed in the corner of the suggestion', () => {
+  const kingfisher = { x0: 0.82, y0: 0.8, x1: 0.94, y1: 0.93 };
+  const crop = proposeCrop({ box: kingfisher, imageWidth: W, imageHeight: H });
+  if (crop) {
+    const cx = (kingfisher.x0 + kingfisher.x1) / 2, cy = (kingfisher.y0 + kingfisher.y1) / 2;
+    const rx = (cx - crop.x0) / (crop.x1 - crop.x0), ry = (cy - crop.y0) / (crop.y1 - crop.y0);
+    assert.ok(rx >= 0.22 && rx <= 0.78 && ry >= 0.22 && ry <= 0.78);
+  }
+});
+
+test('every suggestion keeps the subject centre away from the edges of the crop', () => {
+  for (let x = 0.05; x < 0.95; x += 0.1) for (let y = 0.05; y < 0.95; y += 0.1) {
+    const box = { x0: Math.max(0, x - 0.05), y0: Math.max(0, y - 0.05), x1: Math.min(1, x + 0.05), y1: Math.min(1, y + 0.05) };
+    const crop = proposeCrop({ box, imageWidth: W, imageHeight: H });
+    if (!crop) continue;
+    const rx = (x - crop.x0) / (crop.x1 - crop.x0), ry = (y - crop.y0) / (crop.y1 - crop.y0);
+    assert.ok(rx >= 0.22 && rx <= 0.78 && ry >= 0.22 && ry <= 0.78, `${x},${y}`);
+  }
+});
