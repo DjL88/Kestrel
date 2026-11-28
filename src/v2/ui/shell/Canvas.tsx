@@ -2341,11 +2341,11 @@ export default function Canvas({
                 aria-pressed={action.pressed}
                 disabled={action.disabled}
                 onClick={action.run}
-                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11"
+                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] lg:px-2 max-md:h-11 max-md:min-w-11 max-md:px-2"
               >
                 <BrandIcon name={action.icon} size={16} />
                 {/* Words beside the icons where there is room (Windows beta: the icons alone were unclear). */}
-                <span aria-hidden="true" className="hidden text-xs lg:inline">{action.short}</span>
+                <span aria-hidden="true" className="hidden text-xs max-md:inline lg:inline">{action.short}</span>
               </button>
             ))}
           </div>

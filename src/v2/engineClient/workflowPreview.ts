@@ -19,6 +19,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   /** Store the full original in the cloud with each chosen photo (lossless on another device), until proven with a real account. */
   cloudOriginals: 'kestrel.preview.cloud-originals.v1',
   usbTether: 'kestrel.preview.usb-tether.v1',
+  /** The phone's two pages (photo grid, then one-photo editor, no filmstrip). Always on in the phone app shell; here for a browser. */
+  phoneTwoPages: 'kestrel.preview.phone-two-pages.v1',
   /** Hatched clipping, focus point and the Colour Sense badge drawn on the canvas (read-only advice). */
   onImageAdvice: 'kestrel.preview.on-image-advice.v1',
   /** Verification chain: specialist proposes, this device confirms, cloud is a quiet third opinion on previews (src/core/verificationTrail.ts). */

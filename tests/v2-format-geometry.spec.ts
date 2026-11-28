@@ -33,7 +33,7 @@ test('a zoomed, flipped and turned format is framed the same in the single view 
   const root = page.locator('.inflight-v2');
   await openFormats(page, root);
   await page.locator('#format-zoom-slider').fill('2');
-  const close = root.getByRole('button', { name: 'Close Formats panel' });
+  const close = root.getByRole('button', { name: /^Close (Formats panel|mobile drawer)$/ });
   if (await close.isVisible()) await close.click();
 
   const singleFrame = root.getByTestId('canvas-frame').getByTestId('image-inset-clip').first();
