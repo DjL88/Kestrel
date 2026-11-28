@@ -8,6 +8,7 @@ import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, ty
 import { footerKiteLogo } from '../footerKiteLogo';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import WelcomeCard from './WelcomeCard';
+import HubMenu from './HubMenu';
 import FlightModePicker from '../panels/FlightModePicker';
 import { CloudEditsChoicePicker } from '../panels/CloudEditsProjectCard';
 import type { CloudEditsChoice } from '../../../core/cloudEditsChoice';
@@ -83,6 +84,8 @@ export default function ProjectsHub({
   const [projectCloudEdits, setProjectCloudEdits] = useState<CloudEditsChoice>('none');
   const openCreate = () => { setProjectMode(defaultAssistMode); setModalOpen(true); };
 
+  // The phone's side menu (Settings, Back up, Privacy, Terms, theme) behind the ⋯ button.
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [view, setView] = useState<'projects' | 'archived' | 'deleted'>('projects');
   const showArchived = view === 'archived';
   const showDeleted = view === 'deleted';
@@ -125,21 +128,25 @@ export default function ProjectsHub({
               <input ref={backupInputRef} type="file" accept=".json,application/json" hidden data-testid="restore-backup-input"
                 onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onRestoreBackup(file); }} />
               <button type="button" onClick={() => backupInputRef.current?.click()} title={STRINGS.backup.restore} aria-label={STRINGS.backup.restore}
-                className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
+                className="max-md:hidden inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
                 <BrandIcon name="restore" size={17} /><span className="hidden sm:inline">{STRINGS.backup.restore}</span>
               </button>
             </>
           )}
           <button type="button" aria-label={STRINGS.settings.heading} onClick={onOpenSettings}
-            className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
+            className="max-md:hidden inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
             <BrandIcon name="settings" size={17} /><span className="hidden sm:inline">{STRINGS.settings.heading}</span>
           </button>
           {account}
+          <button type="button" data-testid="hub-menu-button" aria-label={STRINGS.mobile.more} aria-haspopup="dialog" onClick={() => setSideMenuOpen(true)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] md:hidden">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+          </button>
         </nav>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto inflight-scroll px-6 py-8 md:px-10">
+      <main className="flex-1 overflow-y-auto inflight-scroll px-6 py-8 max-md:px-4 max-md:pb-28 md:px-10">
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -151,7 +158,7 @@ export default function ProjectsHub({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 max-md:flex-nowrap">
               <div className="relative min-w-0 flex-1 sm:flex-none">
                 <BrandIcon
                   name="search"
@@ -170,7 +177,7 @@ export default function ProjectsHub({
               <SortMenu value={sortBy} onChange={setSortBy} />
               <LayoutToggle value={layout} onChange={chooseLayout} />
               <button type="button" onClick={openCreate}
-                className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
+                className="max-md:hidden inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
                 <BrandIcon name="plus" size={15}/>{STRINGS.hub.newProject}
               </button>
             </div>
@@ -221,7 +228,7 @@ export default function ProjectsHub({
               <button
                 type="button"
                 onClick={openCreate}
-                className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]"
+                className="max-md:hidden mt-5 inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]"
               >
                 <BrandIcon name="plus" size={14} />
                 <span>{STRINGS.hub.newProject}</span>
@@ -306,7 +313,7 @@ export default function ProjectsHub({
           )}
         </div>
       </main>
-      <footer className="flex min-h-[56px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
+      <footer className="max-md:hidden flex min-h-[56px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
         <div className="flex flex-wrap items-center gap-3">
           <img
             src={footerLogo}
@@ -328,6 +335,19 @@ export default function ProjectsHub({
         </button>
       </footer>
 
+      {/* Phone: New project is one full-width button fixed to the bottom, with the projects sliding behind it. */}
+      <div data-testid="hub-new-project-bar"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-[var(--bg-app)] via-[var(--bg-app)]/90 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 md:hidden">
+        <button type="button" onClick={openCreate}
+          className="pointer-events-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-[var(--brand-accent)] text-sm font-semibold text-[var(--text-on-accent)] shadow-[var(--shadow-popover)] hover:bg-[var(--brand-accent-hover)]">
+          <BrandIcon name="plus" size={17} />{STRINGS.hub.newProject}
+        </button>
+      </div>
+      {sideMenuOpen && (
+        <HubMenu onClose={() => setSideMenuOpen(false)} theme={theme} onToggleTheme={onToggleTheme}
+          onOpenSettings={onOpenSettings} onRestoreBackup={onRestoreBackup ? () => backupInputRef.current?.click() : undefined} />
+      )}
+
       {/* Create Project Modal */}
       {modalOpen && (
         <div
@@ -335,7 +355,7 @@ export default function ProjectsHub({
           aria-modal="true"
           aria-labelledby="create-proj-title"
           onKeyDown={onCreateDialogKeyDown}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-2 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-3 sm:p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setModalOpen(false);
           }}
@@ -350,7 +370,7 @@ export default function ProjectsHub({
             <h2 id="create-proj-title" className="shrink-0 px-4 py-3 text-base font-bold text-[var(--text-primary)] sm:px-6">
               {STRINGS.hub.modalTitle}
             </h2>
-            <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
+            <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 max-md:flex max-md:flex-col sm:px-6">
               <fieldset className="space-y-2">
                 <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
                 {/* Photo shoot is the main choice: a full-width card first (and first in keyboard order); Collage or album and
@@ -394,8 +414,9 @@ export default function ProjectsHub({
                   <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.cloudEdits.changeLater}</p>
                 </div>
               )}
-              <div className="space-y-4 md:grid md:grid-cols-2 md:items-start md:gap-4 md:space-y-0">
-              <div className="space-y-1.5">
+              <div className="space-y-4 max-md:contents md:grid md:grid-cols-2 md:items-start md:gap-4 md:space-y-0">
+              {/* On a phone the name comes first: it is the one thing every project needs. */}
+              <div className="space-y-1.5 max-md:order-first">
                 <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
                   {STRINGS.hub.modalNameLabel}
                 </label>
@@ -409,7 +430,7 @@ export default function ProjectsHub({
                   className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-base text-[var(--text-primary)] sm:text-sm"
                 />
               </div>
-              <div className="space-y-1.5 md:pt-[1.375rem]">
+              <div className="space-y-1.5 max-md:hidden md:pt-[1.375rem]">
               <button
                 type="button"
                 onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
@@ -423,7 +444,7 @@ export default function ProjectsHub({
               </div>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2 sm:px-6">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2 max-md:grid max-md:grid-cols-2 max-md:gap-3 max-md:px-4 max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:pt-3 sm:px-6">
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
@@ -593,11 +614,11 @@ function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: P
           if (open) onListKey(event);
           else if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) { event.preventDefault(); show(); }
         }}
-        className={`inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface)] pl-3 pr-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] ${open ? 'border-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}
+        className={`inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface)] pl-3 pr-2 max-md:w-11 max-md:justify-center max-md:px-0 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] ${open ? 'border-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}
       >
         <BrandIcon name="sort" size={14} />
-        <span id={`${id}-value`} className="whitespace-nowrap">{options[selectedIndex][1]}</span>
-        <BrandIcon name="chevron-down" size={14} />
+        <span id={`${id}-value`} className="whitespace-nowrap max-md:sr-only">{options[selectedIndex][1]}</span>
+        <BrandIcon name="chevron-down" size={14} className="max-md:hidden" />
       </button>
       {open && (
         <ul

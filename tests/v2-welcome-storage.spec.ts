@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openHubSettings } from './hubSettings';
 
 /**
  * PRODUCT-SPEC §3.1 and §6: a first-run welcome shown once, and, on the web, asking the browser to keep InFlight's
@@ -50,7 +51,7 @@ test('Settings → Storage says what the browser keeps and can forget, and asks 
   await page.addInitScript(() => localStorage.setItem('inflight.welcome.seen', '1'));
   await page.goto('/?v2');
   await expect(page.getByTestId('v2-welcome')).toHaveCount(0);
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openHubSettings(page);
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('tab', { name: 'Storage' }).click();
 

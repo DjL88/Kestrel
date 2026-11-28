@@ -257,3 +257,19 @@ test('Cancel mid-batch stops after the photo in hand: that result is kept, the r
   assert.deepEqual(seen.map((r) => r.photoId), ['a'], 'the photo finished before Cancel is kept; the one in hand is not recorded');
   assert.equal(calls.commits.length, 1, 'only the first photo was saved: a photo cancelled mid-way commits nothing');
 });
+
+
+test('a rejection or externally edited look acquired while queued prevents Finish Best processing and commit', async () => {
+  const initial = frame('a');
+  for (const changed of [
+    frame('a', { decision: 'reject' }),
+    frame('a', { exif: { rejectedByMetadata: true } }),
+    frame('a', { exif: { editStatus: { kind: 'edited-elsewhere', evidence: [{ kind: 'editing-app', app: 'GIMP 2.10' }] } } }),
+  ]) {
+    const { deps: d, calls } = deps(changed);
+    assert.equal((await finishOne('a', 'a.jpg', d, signal())).state, 'skipped');
+    assert.equal(calls.auto, 0);
+    const state = project(changed);
+    assert.equal(commitFinishEdit(state, 'project', initial, proposal, 3000), state);
+  }
+});
