@@ -27,6 +27,7 @@ import type {
   WatermarkPreset,
 } from '../contract';
 import { STRINGS } from '../strings';
+import SplitMenu from './SplitMenu';
 import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
@@ -2090,17 +2091,15 @@ export default function Canvas({
             {!compareMode && renderOverlaysInsideFrame(activeSize, true)}
           </div>
 
-          {/* "+" Split-Frame canvas affordance directly beside the frame */}
+          {/* Split: one labelled menu (Split this frame, Duplicate this frame, Resize this frame) beside the frame */}
           {features.splitFrames && (
-            <button
-              type="button"
-              onClick={() => changeSplitCount(activeSize.id, 2)}
-              title={STRINGS.canvas.splitFrameAdd}
-              aria-label={STRINGS.canvas.splitFrameAdd}
-              className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
-            >
-              <BrandIcon name="frame-add" size={18} />
-            </button>
+            <div className="hidden sm:block">
+              <SplitMenu
+                onSplit={splitCountFor(activeSize.id) < MAX_SPLIT_FRAMES ? () => changeSplitCount(activeSize.id, Math.max(2, splitCountFor(activeSize.id) + 1)) : undefined}
+                onDuplicate={onDuplicateSize ? () => onDuplicateSize(activeSize.id) : undefined}
+                onResize={onOpenFormats}
+              />
+            </div>
           )}
         </div>
       </div>
