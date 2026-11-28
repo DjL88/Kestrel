@@ -27,11 +27,16 @@ interface (the harness uses a labelled stand-in), and the Subject-focused option
 no subject mask is allowed. Consequence to decide: U2-Netp is what the editor's subject mask uses today, so with the strict rule
 the loop would not use it either. The existing editor features that ship these models are unchanged by this work.
 
-## Cloud
-The per-photo loop never calls the cloud and has no cloud input. Cloud use belongs to bulk processing for paid Pro users (separate
-work). Gemini is not in the per-photo critique path.
-
-## Opt-in rules-maintenance channel (design only, nothing built)
-Separate explicit consent, off by default. Shares only recipes, measured features and ratings (accepted, rejected, undone): no EXIF,
-paths or identifiers; images only if the person opts in again per batch. A hosted model may review whether a rule's advice held up
-across opted-in results, to help maintain `photographyKnowledge.ts`. Failure is silent and never blocks editing.
+## Cloud (owner clarifications, 28 Nov 2026)
+- **Cloud processing exists for speed on bulk work** (for example 1,000 imported photos). It must do what the device does: same loop,
+  same rules, same recipes, equivalent results, faster and in parallel. The loop core (`src/core/enhance*.ts`) is therefore pure and
+  deterministic with no DOM or network use, and `src/core/enhanceParity.test.ts` guards that the device path and a runner path give
+  identical recipes and pixels. The cloud returns recipes and previews, never replaces originals. Routing is not built here, and it
+  stays behind the owner's gates (device at capacity, online, signed in, credits remain, best photos first, paid Pro plans only).
+- **What the existing runner can run today** (`services/cloud-runner`): deterministic maths only: the same noise-reduction and mask code
+  the device runs, the Lanczos-3 resampler, and the cloud-recipe computation. No neural model runs there yet; any later "smarter" step
+  would use openly licensed models only.
+- **Cloud storage is a separate feature** (backing up and sharing photos). It is not coupled to cloud processing in code or wording.
+- **Gemini and Vertex are private to the owner:** used only for invited beta testers and contributors under a direct agreement, enabled
+  server-side by the owner (allowlist). There is no in-app opt-in, no user-facing copy and no per-photo use. Any future rules-base
+  maintenance hook is server-side only and off by default; nothing is built here.
