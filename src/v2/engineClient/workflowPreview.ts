@@ -11,6 +11,8 @@ export const WORKFLOW_PREVIEW_KEYS = {
   brandKits: 'kestrel.preview.brand-kits.v1',
   /** Auto leans towards the edits this person keeps, undoes or corrects, learnt on this device (x-spec-personal-style). */
   editStyle: 'kestrel.preview.edit-style.v1',
+  /** Auto-pilot edits the photos of a new import in the background, best first (src/core/flightModes.ts planAutoBatch). */
+  flightBatch: 'kestrel.preview.flight-batch.v1',
   /** Tethered shooting over USB in the desktop app (PTP), until it is proven on real cameras. */
   /** Finish my best: one batch that edits the best photos first, then a review (Finish best…, top of the photo strip). */
   finishBest: 'kestrel.preview.finish-best.v1',

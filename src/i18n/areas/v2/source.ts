@@ -156,9 +156,9 @@ export const source = {
     },
     /** One plain line per Flight mode, shown wherever the mode is chosen. Co-pilot is InFlight's own helper, not another company's assistant. */
     assistModeHints: {
-      solo: 'InFlight does nothing until you ask. You pick and edit your photos yourself.',
-      copilot: "InFlight suggests which photos to keep and how to edit them. Nothing changes until you say yes.",
-      autopilot: 'InFlight makes the picks and edits it is sure of. Anything it is unsure of waits for you.',
+      solo: "You do the work. InFlight never changes your photo and gives advice when you ask.",
+      copilot: "InFlight makes small, safe changes itself and leaves the edit decisions to you. Everything else is a suggestion.",
+      autopilot: "InFlight does it for you and says why. Anything it is unsure of waits for you, and Undo takes any change back.",
     },
     fileActions: {
       newProject: 'New project',
@@ -659,7 +659,7 @@ export const source = {
     nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
       solo: 'Solo: you are in control. InFlight only gives advice when you ask for it.',
-      copilot: 'Co-pilot: InFlight does some of the work and leaves the decision to you. Nothing changes until you say yes.',
+      copilot: 'Co-pilot: InFlight makes small, safe changes itself and leaves the edit decisions to you. Everything else is a suggestion.',
       autopilot: 'Auto-pilot: InFlight does the work and tells you why. Undo takes any edit back.',
     },
     runReviewButton: 'Check with my connected helper',
@@ -1484,6 +1484,21 @@ export const source = {
     states: { working: "Looking at this photo…", applied: "Auto applied.", unchanged: "Nothing changed.", unavailable: "Auto could not run." },
     beforeAfter: "Before / After",
     undo: "Undo",
+  },
+  flight: {
+    chipLabel: "Flight mode",
+    bannerLabel: "What Auto changed",
+    changed: (who: string, list: string) => `${who} changed: ${list}.`,
+    smallChange: "a small adjustment",
+    why: (reason: string) => `Why: ${reason}`,
+    allReasons: "All the reasons",
+    copilotRest: "Co-pilot makes only small, safe changes by itself. Its other suggestions are in Flight, waiting for your yes.",
+    dismiss: "Dismiss",
+    leftAlone: "Looked good, left alone.",
+    batchTitle: "Auto-pilot: editing the new photos",
+    batchStage: "Checking this photo",
+    batchDone: (edited: number, left: number, elsewhere: number, held: number) => `Auto-pilot finished. Edited: ${edited}. Left alone: ${left}. Edited in another app, left alone: ${elsewhere}. Held for your review: ${held}.`,
+    batchStopped: (edited: number) => `Auto-pilot stopped. Edited so far: ${edited}. The rest are as they were.`,
   },
   history: {
     byAuto: "Auto",
