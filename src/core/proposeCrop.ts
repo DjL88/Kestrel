@@ -25,6 +25,9 @@ const NOT_WORTH_IT = 0.93;
 /** The subject must be small enough to sit inside the frame with its margin. */
 const MIN_BOX = 0.02;
 
+/** The subject's centre must sit at least this far in from every edge of the suggested crop (a third is 0.33). */
+export const EDGE_ZONE = 0.22;
+
 const finite = (value: number) => Number.isFinite(value);
 
 export function proposeCrop(input: {
@@ -73,6 +76,10 @@ export function proposeCrop(input: {
   left = Math.min(W - width, Math.max(0, left));
   top = Math.min(H - height, Math.max(0, top));
   if (left > x0 * W + 1e-6 || left + width < x1 * W - 1e-6 || top > y0 * H + 1e-6 || top + height < y1 * H - 1e-6) return null;
+
+  // Never jam the subject into an edge or corner of the suggested frame: if the picture's own edges forced it there, suggest nothing.
+  const relX = (cx - left) / width, relY = (cy - top) / height;
+  if (relX < EDGE_ZONE || relX > 1 - EDGE_ZONE || relY < EDGE_ZONE || relY > 1 - EDGE_ZONE) return null;
 
   if (width / maxW >= NOT_WORTH_IT) return null; // nearly the whole picture: already well framed
   return { x0: left / W, y0: top / H, x1: (left + width) / W, y1: (top + height) / H, enlargement: maxW / width };
