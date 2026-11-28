@@ -153,6 +153,7 @@ export const ga: AreaTranslation<typeof source> = {
     editMenu: 'Eagar',
     viewMenu: 'Amharc',
     exportButton: 'Easpórtáil',
+    exportAgainShort: 'Arís',
     assistModes: { solo: 'Aonair', copilot: 'Comhphíolóta', autopilot: 'Uathphíolóta' },
     assistModeHints: { solo: "Cuireann tú féin in eagar. Ní athraíonn InFlight do ghrianghraf choíche agus tugann sé comhairle nuair a iarrann tú.", copilot: "Déanann InFlight athruithe beaga, sábháilte leis féin agus fágann sé na cinntí eagarthóireachta agatsa. Moladh is ea gach rud eile.", autopilot: "Déanann InFlight é duit agus insíonn sé cén fáth. Fanann aon rud éiginnte leatsa, agus cealaíonn Cealaigh aon athrú." },
     fileActions: {

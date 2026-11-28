@@ -151,6 +151,7 @@ export const fi: AreaTranslation<typeof source> = {
     editMenu: 'Muokkaa',
     viewMenu: 'Näytä',
     exportButton: 'Vie',
+    exportAgainShort: 'Uudelleen',
     assistModes: { solo: 'Soolo', copilot: 'Perämies', autopilot: 'Autopilotti' },
     assistModeHints: { solo: "Muokkaat itse. InFlight ei koskaan muuta kuvaasi ja antaa neuvoja, kun pyydät.", copilot: "InFlight tekee pienet, turvalliset muutokset itse ja jättää muokkauspäätökset sinulle. Kaikki muu on ehdotus.", autopilot: "InFlight tekee sen puolestasi ja kertoo miksi. Mistä se ei ole varma, odottaa sinua, ja Kumoa peruu minkä tahansa muutoksen." },
     fileActions: {

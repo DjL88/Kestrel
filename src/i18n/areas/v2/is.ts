@@ -150,6 +150,7 @@ export const is: AreaTranslation<typeof source> = {
     editMenu: 'Breyta',
     viewMenu: 'Skoða',
     exportButton: 'Flytja út',
+    exportAgainShort: 'Aftur',
     assistModes: { solo: 'Einn', copilot: 'Aðstoðarflugmaður', autopilot: 'Sjálfstýring' },
     assistModeHints: { solo: "Þú breytir sjálf/ur. InFlight breytir aldrei myndinni þinni og gefur ráð þegar þú biður um það.", copilot: "InFlight gerir litlar, öruggar breytingar sjálft og lætur þig um ákvarðanirnar. Allt annað er tillaga.", autopilot: "InFlight gerir þetta fyrir þig og segir hvers vegna. Það sem það er óvisst um bíður þín, og Afturkalla tekur hverja breytingu til baka." },
     fileActions: {

@@ -151,6 +151,7 @@ export const gd: AreaTranslation<typeof source> = {
     editMenu: 'Deasaich',
     viewMenu: 'Sealladh',
     exportButton: 'Às-phortaich',
+    exportAgainShort: 'A-rithist',
     assistModes: { solo: 'Leat fhèin', copilot: 'Co-phìleat', autopilot: 'Fèin-phìleat' },
     assistModeHints: { solo: "Deasaichidh tu fhèin. Cha atharraich InFlight an dealbh agad a-chaoidh agus bheir e comhairle nuair a dh’iarras tu.", copilot: "Nì InFlight atharraichean beaga sàbhailte leis fhèin agus fàgaidh e na co-dhùnaidhean deasachaidh agadsa. Is e moladh a th’ anns a h-uile rud eile.", autopilot: "Nì InFlight e dhut agus innsidh e carson. Fuirichidh rud sam bith mì-chinnteach riut, agus bheir Neo-dhèan air ais atharrachadh sam bith." },
     fileActions: {
