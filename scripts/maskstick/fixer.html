@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mask fixer</title>
+<style>
+  :root { --bg:#14161a; --panel:#1e2127; --ink:#eef0f3; --muted:#aab0ba; --line:#4a505c; --accent:#ffd24a; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f2f3f5; --panel:#fff; --ink:#15171a; --muted:#505763; --line:#9aa1ad; --accent:#8a5a00; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 system-ui, sans-serif; display:flex; flex-direction:column; height:100vh; }
+  header, footer { background:var(--panel); border-bottom:1px solid var(--line); padding:8px 12px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; }
+  footer { border-top:1px solid var(--line); border-bottom:0; color:var(--muted); font-size:13px; }
+  button, select { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 10px; cursor:pointer; }
+  button:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:1px; }
+  button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); font-weight:600; }
+  button[aria-pressed="true"]::before { content:"\2713\00a0"; }
+  fieldset { border:1px solid var(--line); border-radius:6px; margin:0; padding:4px 8px; display:flex; gap:6px; align-items:center; }
+  legend { color:var(--muted); font-size:12px; padding:0 4px; }
+  #stage { flex:1; overflow:hidden; position:relative; touch-action:none; background:#000; }
+  #view { position:absolute; left:0; top:0; transform-origin:0 0; }
+  #view canvas, #view img { position:absolute; left:0; top:0; image-rendering:auto; }
+  #cursor { position:fixed; pointer-events:none; border:2px solid #fff; outline:1px solid #000; border-radius:50%; display:none; }
+  .count { color:var(--muted); }
+  kbd { border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <strong id="title">Mask fixer</strong><span class="count" id="count"></span>
+  <button id="prev">Previous</button><button id="next">Next</button>
+  <fieldset><legend>Brush</legend>
+    <button id="t-subject" data-tool="255" aria-pressed="true">1 Subject</button>
+    <button id="t-back" data-tool="0" aria-pressed="false">2 Background</button>
+    <button id="t-cant" data-tool="128" aria-pressed="false">3 Can't tell (edge band)</button>
+    <button id="t-fill" data-tool="fill" aria-pressed="false">4 Fill region</button>
+  </fieldset>
+  <label>Size <input id="size" type="range" min="1" max="120" value="14"> <span id="sizev">14</span> px</label>
+  <label>Overlay <input id="opacity" type="range" min="0" max="100" value="45"></label>
+  <button id="outline" aria-pressed="false">O Outline only</button>
+  <button id="undo">Z Undo</button>
+  <button id="reset">Reset to start</button>
+  <button id="blank">Clear all</button>
+  <button id="save">S Save and next</button>
+  <button id="skip">Skip: can't judge this photo</button>
+</header>
+<div id="stage"><div id="view"><img id="photo" alt="photograph to outline"><canvas id="over"></canvas></div></div>
+<div id="cursor"></div>
+<footer>
+  <span>Paint the bird (or other main subject) as <b>Subject</b>, everything else as <b>Background</b>. Where you truly cannot tell (feather tips, fur), paint <b>Can't tell</b>: it is hatched on screen and ignored when scoring.</span>
+  <span>Wheel zooms, space+drag or right-drag pans, <kbd>[</kbd> <kbd>]</kbd> size, hold <kbd>P</kbd> to see the photo alone.</span>
+  <span id="status" role="status" aria-live="polite"></span>
+</footer>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const photo = $('photo'), over = $('over'), view = $('view'), stage = $('stage'), cursor = $('cursor');
+const ctx = over.getContext('2d', { willReadFrequently: true });
+let queue = [], index = 0, W = 0, H = 0, L = null, D = null, undo = [], tool = 255, size = 14, strokes = 0;
+let start = null, activeMs = 0, lastEvent = 0, outline = false, dirty = false, hold = false;
+let zoom = 1, panX = 0, panY = 0, panning = null, painting = false, last = null;
+
+const say = (t) => { $('status').textContent = t; };
+async function api(path) { const r = await fetch(path); if (!r.ok) throw new Error(path); return r; }
+
+function tick() { const now = performance.now(); if (lastEvent && now - lastEvent < 30000) activeMs += now - lastEvent; lastEvent = now; }
+function applyTransform() { view.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`; }
+function fit() { const r = stage.getBoundingClientRect(); zoom = Math.min(r.width / W, r.height / H); panX = (r.width - W * zoom) / 2; panY = (r.height - H * zoom) / 2; applyTransform(); }
+
+function paintPixel(i, v, o) {
+  const p = i * 4;
+  if (v === 255) { D[p] = 255; D[p+1] = 70; D[p+2] = 70; D[p+3] = o * 255; }
+  else if (v === 128) { const x = i % W, y = (i / W) | 0; const hatch = ((x + y) % 8) < 3; D[p] = hatch ? 255 : 30; D[p+1] = hatch ? 230 : 30; D[p+2] = hatch ? 60 : 30; D[p+3] = hatch ? 235 : 90; }
+  else { D[p+3] = 0; }
+}
+function redraw(x0 = 0, y0 = 0, x1 = W, y1 = H) {
+  const o = $('opacity').value / 100;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * W + x; paintPixel(i, L[i], o); }
+  if (outline) drawOutline();
+  ctx.putImageData(new ImageData(D, W, H), 0, 0);
+}
+function drawOutline() {
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x; if (L[i] !== 255) { D[i*4+3] = L[i] === 128 ? D[i*4+3] : 0; continue; }
+    const edge = L[i-1] !== 255 || L[i+1] !== 255 || L[i-W] !== 255 || L[i+W] !== 255;
+    if (edge) { D[i*4] = 255; D[i*4+1] = 255; D[i*4+2] = 0; D[i*4+3] = 255; } else D[i*4+3] = 0;
+  }
+}
+function disc(cx, cy, r, v) {
+  const x0 = Math.max(0, Math.floor(cx - r)), x1 = Math.min(W, Math.ceil(cx + r) + 1), y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(H, Math.ceil(cy + r) + 1);
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) L[y * W + x] = v;
+  return [x0, y0, x1, y1];
+}
+function line(a, b, v) {
+  const r = size / 2, n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, r / 2)));
+  let box = [W, H, 0, 0];
+  for (let k = 0; k <= n; k++) { const t = k / n, d = disc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, r, v); box = [Math.min(box[0], d[0]), Math.min(box[1], d[1]), Math.max(box[2], d[2]), Math.max(box[3], d[3])]; }
+  redraw(...box);
+}
+function flood(x, y, v) {
+  const target = L[y * W + x]; if (target === v) return;
+  const stack = [[x, y]];
+  while (stack.length) {
+    let [sx, sy] = stack.pop(); if (L[sy * W + sx] !== target) continue;
+    let xl = sx, xr = sx;
+    while (xl > 0 && L[sy * W + xl - 1] === target) xl--;
+    while (xr < W - 1 && L[sy * W + xr + 1] === target) xr++;
+    for (let i = xl; i <= xr; i++) { L[sy * W + i] = v; }
+    for (const ny of [sy - 1, sy + 1]) if (ny >= 0 && ny < H) {
+      let inRun = false;
+      for (let i = xl; i <= xr; i++) { const m = L[ny * W + i] === target; if (m && !inRun) { stack.push([i, ny]); inRun = true; } else if (!m) inRun = false; }
+    }
+  }
+  redraw();
+}
+function pushUndo() { undo.push(L.slice()); if (undo.length > 25) undo.shift(); }
+function toImage(e) { const r = stage.getBoundingClientRect(); return { x: (e.clientX - r.left - panX) / zoom, y: (e.clientY - r.top - panY) / zoom }; }
+
+stage.addEventListener('pointerdown', (e) => {
+  tick();
+  if (e.button === 2 || e.shiftKey && false || spaceDown) { panning = { x: e.clientX - panX, y: e.clientY - panY }; stage.setPointerCapture(e.pointerId); return; }
+  if (e.button !== 0 || !L) return;
+  const p = toImage(e); if (p.x < 0 || p.y < 0 || p.x >= W || p.y >= H) return;
+  pushUndo(); strokes++; dirty = true;
+  if (tool === 'fill') { flood(Math.floor(p.x), Math.floor(p.y), current()); return; }
+  painting = true; last = p; stage.setPointerCapture(e.pointerId); line(p, p, current());
+});
+let spaceDown = false;
+const current = () => (tool === 'fill' ? fillValue : tool);
+let fillValue = 255;
+stage.addEventListener('pointermove', (e) => {
+  const r = size * zoom; cursor.style.display = 'block'; cursor.style.width = cursor.style.height = r + 'px'; cursor.style.left = e.clientX - r / 2 + 'px'; cursor.style.top = e.clientY - r / 2 + 'px';
+  if (panning) { panX = e.clientX - panning.x; panY = e.clientY - panning.y; applyTransform(); return; }
+  if (!painting) return; tick(); const p = toImage(e); line(last, p, current()); last = p;
+});
+stage.addEventListener('pointerup', () => { painting = false; panning = null; });
+stage.addEventListener('pointerleave', () => { cursor.style.display = 'none'; });
+stage.addEventListener('contextmenu', (e) => e.preventDefault());
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault(); const r = stage.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const f = Math.exp(-e.deltaY * 0.0015), nz = Math.min(12, Math.max(0.2, zoom * f));
+  panX = mx - (mx - panX) * (nz / zoom); panY = my - (my - panY) * (nz / zoom); zoom = nz; applyTransform();
+}, { passive: false });
+
+function setTool(t) {
+  tool = t === 'fill' ? 'fill' : Number(t);
+  for (const b of document.querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === String(t)));
+}
+for (const b of document.querySelectorAll('[data-tool]')) b.addEventListener('click', () => { if (b.dataset.tool !== 'fill') fillValue = Number(b.dataset.tool); setTool(b.dataset.tool); if (b.dataset.tool === 'fill') say('Fill region: click inside an area to fill it with the last brush value (' + ({255:'Subject',0:'Background',128:"Can't tell"}[fillValue]) + ').'); });
+$('size').addEventListener('input', () => { size = Number($('size').value); $('sizev').textContent = size; });
+$('opacity').addEventListener('input', () => L && redraw());
+$('outline').addEventListener('click', () => { outline = !outline; $('outline').setAttribute('aria-pressed', String(outline)); if (L) redraw(); });
+$('undo').addEventListener('click', doUndo);
+function doUndo() { if (!undo.length) return; L = undo.pop(); redraw(); }
+$('reset').addEventListener('click', () => loadPhoto(index, true));
+$('blank').addEventListener('click', () => { pushUndo(); L.fill(0); strokes++; dirty = true; redraw(); });
+$('prev').addEventListener('click', () => go(index - 1));
+$('next').addEventListener('click', () => go(index + 1));
+$('save').addEventListener('click', () => save('ok'));
+$('skip').addEventListener('click', () => { if (confirm("Mark this photo as one you can't judge? It is left out of the scores.")) save('skip'); });
+
+async function save(status) {
+  if (!L) return; tick();
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const cx = c.getContext('2d'); const id = cx.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = status === 'skip' ? 0 : L[i]; id.data[i*4+3] = 255; }
+  cx.putImageData(id, 0, 0);
+  const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+  const key = queue[index].key;
+  const r = await fetch(`/save/${key}?status=${status}&seconds=${(activeMs / 1000).toFixed(1)}&strokes=${strokes}`, { method: 'POST', body: blob });
+  if (!r.ok) { say('Save failed: ' + await r.text()); return; }
+  queue[index].done = true; queue[index].status = status; dirty = false; say(status === 'skip' ? 'Skipped.' : 'Saved.');
+  await go(index + 1);
+}
+async function go(i) {
+  if (i < 0 || i >= queue.length) { say(i >= queue.length ? 'That was the last photo.' : ''); return; }
+  if (dirty && !confirm('You have unsaved changes on this photo. Leave without saving?')) return;
+  await loadPhoto(i, false);
+}
+async function loadPhoto(i, forceStart) {
+  index = i; const key = queue[i].key; dirty = false; undo = []; strokes = 0; activeMs = 0; lastEvent = 0;
+  $('count').textContent = `${i + 1} of ${queue.length}, ${queue.filter((q) => q.done).length} done${queue[i].done ? ', saved before' : ''}`;
+  await new Promise((res, rej) => { photo.onload = res; photo.onerror = rej; photo.src = `/photo/${key}?t=${Date.now()}`; });
+  W = photo.naturalWidth; H = photo.naturalHeight; over.width = W; over.height = H; view.style.width = W + 'px'; view.style.height = H + 'px';
+  L = new Uint8Array(W * H); D = new Uint8ClampedArray(W * H * 4);
+  for (let p = 0; p < W * H; p++) { D[p*4] = D[p*4+1] = D[p*4+2] = 0; }
+  const src = (!forceStart && queue[i].done) ? `/gt/${key}` : `/proposal/${key}`;
+  try {
+    const img = new Image(); await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, W, H); const px = cx.getImageData(0, 0, W, H).data;
+    const isGt = src.startsWith('/gt');
+    for (let p = 0; p < W * H; p++) { const v = px[p * 4]; L[p] = isGt ? (v >= 192 ? 255 : v >= 65 ? 128 : 0) : (v >= 128 ? 255 : 0); }
+    say(isGt ? 'Loaded your saved mask.' : 'Starting from a suggested mask. Correct it, then Save.');
+  } catch { say('No suggested mask for this photo: paint it from scratch.'); }
+  redraw(); fit();
+}
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return; tick();
+  if (e.code === 'Space') { spaceDown = true; e.preventDefault(); }
+  if (e.key === '1') { fillValue = 255; setTool(255); } else if (e.key === '2') { fillValue = 0; setTool(0); } else if (e.key === '3') { fillValue = 128; setTool(128); } else if (e.key === '4') setTool('fill');
+  else if (e.key === '[') { size = Math.max(1, size - Math.ceil(size / 6)); $('size').value = size; $('sizev').textContent = size; }
+  else if (e.key === ']') { size = Math.min(120, size + Math.ceil(size / 6)); $('size').value = size; $('sizev').textContent = size; }
+  else if (e.key.toLowerCase() === 'z') doUndo();
+  else if (e.key.toLowerCase() === 'o') $('outline').click();
+  else if (e.key.toLowerCase() === 's') save('ok');
+  else if (e.key.toLowerCase() === 'p' && !hold) { hold = true; over.style.visibility = 'hidden'; }
+});
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceDown = false; if (e.key.toLowerCase() === 'p') { hold = false; over.style.visibility = 'visible'; } });
+window.addEventListener('resize', () => L && fit());
+window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+(async () => {
+  queue = await (await api('/api/queue')).json();
+  const first = queue.findIndex((q) => !q.done);
+  await loadPhoto(first < 0 ? 0 : first, false);
+})().catch((e) => say('Could not start: ' + e.message));
+</script>
+</body>
+</html>
