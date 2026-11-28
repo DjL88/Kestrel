@@ -102,12 +102,13 @@ class FixerTests(unittest.TestCase):
         grey[:, 20:30, :3] = 128
         grey[:, 30:40, :3] = 140   # near-grey still counts as "can't tell"
         buf = io.BytesIO()
-        Image.fromarray(grey, "RGBA").save(buf, "PNG")
+        Image.fromarray(grey).save(buf, "PNG")
         req = urllib.request.Request(self.url(f"/save/{self.key}?status=ok&seconds=12.5&strokes=3"), data=buf.getvalue(), method="POST")
         self.assertEqual(urllib.request.urlopen(req).status, 200)
         saved = np.asarray(Image.open(os.path.join(self.state.gt_dir, self.key + ".png")))
         self.assertEqual(sorted(np.unique(saved).tolist()), [0, 128, 255])
-        meta = json.load(open(os.path.join(self.state.gt_dir, self.key + ".json")))
+        with open(os.path.join(self.state.gt_dir, self.key + ".json")) as f:
+            meta = json.load(f)
         self.assertEqual((meta["status"], meta["start_source"], meta["seconds"], meta["strokes"]), ("ok", "p1", 12.5, 3))
         self.assertTrue(json.loads(urllib.request.urlopen(self.url("/api/queue")).read())[0]["done"])
 

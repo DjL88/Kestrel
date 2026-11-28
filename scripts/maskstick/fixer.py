@@ -86,7 +86,7 @@ class State:
             grey = np.asarray(im.convert("RGBA"))[..., 0]
         # Three labels only: anything near 255 is subject, near 128 is "can't tell", the rest background.
         label = np.where(grey >= 192, 255, np.where(grey >= 65, 128, 0)).astype(np.uint8)
-        Image.fromarray(label, "L").save(os.path.join(self.gt_dir, key + ".png"))
+        Image.fromarray(label).save(os.path.join(self.gt_dir, key + ".png"))
         meta = {"status": status, "start_source": self.start_source(key), "seconds": round(seconds, 1), "strokes": strokes,
                 "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "tool": "maskstick-fixer-1"}
         with open(os.path.join(self.gt_dir, key + ".json"), "w") as f:
