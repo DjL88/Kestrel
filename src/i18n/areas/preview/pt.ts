@@ -23,6 +23,8 @@ export const pt: AreaTranslation<typeof source> = {
   cullRulesDesc: "O assistente de seleção trabalha com medições guardadas de cada foto e dá-lhe controlos deslizantes de regras. Sugere e você decide.",
   cullMaskSharpnessName: "Nitidez dentro do motivo",
   cullMaskSharpnessDesc: "Ao selecionar, mede a nitidez apenas dentro do contorno do motivo em vez da sua caixa. Sem um contorno utilizável, mantém-se a medição da caixa.",
+  enhanceLoopName: "Melhorar com verificações",
+  enhanceLoopDesc: "O Auto mede a foto, segue as orientações de edição citadas, gera a sua própria edição, verifica o resultado real e ajusta-o até cinco vezes. Depois oferece três opções com uma favorita. Tudo fica neste dispositivo e o original nunca é alterado.",
   cloudRecipeName: "Definições de edição na nuvem",
   cloudRecipeDesc: "Envia para a nuvem uma pré-visualização inteligente de 2560 px de uma foto e recebe definições de edição que pode anular. Precisa de ligação e envia dados da foto, por isso deixe-o desligado para manter tudo neste dispositivo.",
   usbTetherName: "Ligação USB à câmara",

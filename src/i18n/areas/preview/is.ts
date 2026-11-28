@@ -23,6 +23,8 @@ export const is: AreaTranslation<typeof source> = {
   cullRulesDesc: "Valaðstoðin vinnur út frá vistuðum mælingum á hverri mynd og gefur þér rennistikur fyrir reglur. Hún stingur upp á og þú ákveður.",
   cullMaskSharpnessName: "Skerpa inni í myndefninu",
   cullMaskSharpnessDesc: "Mælir við val skerpuna aðeins innan útlínu myndefnisins í stað rammans. Án nothæfrar útlínu helst mæling rammans.",
+  enhanceLoopName: "Bæta með athugunum",
+  enhanceLoopDesc: "Auto mælir myndina, fylgir heimildatilvitnuðum klippileiðbeiningum, býr til eigin breytingu, athugar raunverulega niðurstöðu og lagar hana í mesta lagi fimm sinnum. Síðan býður það þrjá valkosti með uppáhaldi. Allt helst á þessu tæki og upprunalega myndin breytist aldrei.",
   cloudRecipeName: "Vinnslustillingar í skýinu",
   cloudRecipeDesc: "Sendir 2.560 px snjallforskoðun af mynd í skýið og fær til baka vinnslustillingar sem hægt er að afturkalla. Hún þarf tengingu og sendir myndgögn, svo hafðu hana slökkta til að halda öllu á þessu tæki.",
   usbTetherName: "USB-tenging myndavélar",

@@ -23,6 +23,8 @@ export const source = {
   cullRulesDesc: "The Culling Assistant works from stored measurements of each photo and gives you rule sliders. It suggests and you decide.",
   cullMaskSharpnessName: "Sharpness inside the subject",
   cullMaskSharpnessDesc: "When culling, measures sharpness only inside the subject's outline instead of its box. Without a usable outline the box measure is kept.",
+  enhanceLoopName: "Enhance with checks",
+  enhanceLoopDesc: "Auto measures the photo, follows the cited editing guidance, renders its own edit, checks the actual result and adjusts it, at most five times. It then offers three options with a favourite. Everything stays on this device and the original is never changed.",
   cloudRecipeName: "Cloud edit settings",
   cloudRecipeDesc: "Sends a 2,560 px smart preview of a photo to the cloud and gets back undoable edit settings. It needs a connection and sends photo data, so leave it off to keep everything on this device.",
   verificationChainName: "Verification chain",

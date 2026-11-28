@@ -23,6 +23,8 @@ export const gd: AreaTranslation<typeof source> = {
   cullRulesDesc: "Bidh neach-cuideachaidh an taghaidh ag obair o mheasaidhean a shàbhail e de gach dealbh agus a' toirt sleamhnagan riaghailtean dhut. Mholas e agus cho-dhùin thusa.",
   cullMaskSharpnessName: "Geuraichead am broinn a' chuspair",
   cullMaskSharpnessDesc: "Aig àm taghaidh, tomhaisidh e a' gheuraichead am broinn oir a' chuspair a-mhàin an àite a bhogsa. Às aonais oir a ghabhas cleachdadh, cumar tomhas a' bhogsa.",
+  enhanceLoopName: "Leasaich le dearbhaidhean",
+  enhanceLoopDesc: "Bidh Auto a’ tomhas na dealbh, a’ leantainn an stiùiridh deasachaidh, a’ dèanamh deasachadh dheth fhèin, a’ dearbhadh an toraidh fhìor agus ga atharrachadh suas gu còig tursan. An uairsin tha e a’ tabhann trì roghainnean le fear as fheàrr. Fuiridh a h-uile càil air an uidheam seo agus chan atharraich an tùs gu bràth.",
   cloudRecipeName: "Roghainnean deasachaidh sa neul",
   cloudRecipeDesc: "Cuiridh e ro-shealladh sgoinneil 2,560 px de dhealbh dhan neul agus gheibh e roghainnean deasachaidh air ais a ghabhas neo-dhèanamh. Feumaidh e ceangal agus cuiridh e dàta an deilbh, mar sin fàg dheth e gus a h-uile càil a chumail air an inneal seo.",
   usbTetherName: "Ceangal USB",

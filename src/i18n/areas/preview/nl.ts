@@ -23,6 +23,8 @@ export const nl: AreaTranslation<typeof source> = {
   cullRulesDesc: "De selectieassistent werkt met opgeslagen metingen van elke foto en geeft u schuifregelaars voor regels. Hij stelt voor en u beslist.",
   cullMaskSharpnessName: "Scherpte binnen het onderwerp",
   cullMaskSharpnessDesc: "Meet bij het selecteren de scherpte alleen binnen de omtrek van het onderwerp in plaats van binnen het kader. Zonder bruikbare omtrek blijft de kadermeting.",
+  enhanceLoopName: "Verbeteren met controles",
+  enhanceLoopDesc: "Auto meet de foto, volgt de bronvermelde bewerkingsrichtlijnen, maakt een eigen bewerking, controleert het echte resultaat en past het hooguit vijf keer aan. Daarna biedt het drie opties met een favoriet. Alles blijft op dit apparaat en het origineel wordt nooit gewijzigd.",
   cloudRecipeName: "Bewerkinstellingen uit de cloud",
   cloudRecipeDesc: "Stuurt een slim voorbeeld van 2.560 px van een foto naar de cloud en krijgt ongedaan te maken bewerkinstellingen terug. Het heeft een verbinding nodig en verstuurt fotogegevens, dus laat het uit om alles op dit apparaat te houden.",
   usbTetherName: "USB-tethering",

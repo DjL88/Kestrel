@@ -22,6 +22,8 @@
     "desktop:build": "node scripts/build-desktop.mjs",
     "mcp": "tsx tools/mcp/kestrel-mcp.ts",
     "compare:auto": "tsx scripts/natural-auto-compare.ts",
+    "enhance-eval": "tsx scripts/enhance-eval/run.ts",
+    "enhance-eval:debug": "tsx scripts/enhance-eval/debug.ts",
     "journey:local": "tsx scripts/journey-local.ts",
     "golden-path": "node scripts/golden-path.mjs",
     "raw:wasm": "node scripts/build-raw-wasm.mjs",

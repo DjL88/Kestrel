@@ -23,6 +23,8 @@ export const fr: AreaTranslation<typeof source> = {
   cullRulesDesc: "L'assistant de tri s'appuie sur des mesures enregistrées de chaque photo et vous donne des curseurs de règles. Il propose, vous décidez.",
   cullMaskSharpnessName: "Netteté dans le sujet",
   cullMaskSharpnessDesc: "Lors du tri, mesure la netteté uniquement à l'intérieur du contour du sujet plutôt que de son cadre. Sans contour exploitable, la mesure du cadre est conservée.",
+  enhanceLoopName: "Améliorer avec contrôles",
+  enhanceLoopDesc: "Auto mesure la photo, suit les conseils de retouche cités, produit sa propre retouche, contrôle le résultat réel et l'ajuste jusqu'à cinq fois. Il propose ensuite trois options avec un favori. Tout reste sur cet appareil et l'original n'est jamais modifié.",
   cloudRecipeName: "Réglages de retouche dans le cloud",
   cloudRecipeDesc: "Envoie un aperçu intelligent de 2 560 px d'une photo vers le cloud et reçoit en retour des réglages de retouche annulables. Cela demande une connexion et envoie des données de photo : laissez-le désactivé pour tout garder sur cet appareil.",
   usbTetherName: "Connexion USB à l'appareil photo",

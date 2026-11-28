@@ -23,6 +23,8 @@ export const sv: AreaTranslation<typeof source> = {
   cullRulesDesc: "Urvalsassistenten arbetar utifrån sparade mätningar av varje bild och ger dig reglage för regler. Den föreslår och du bestämmer.",
   cullMaskSharpnessName: "Skärpa inne i motivet",
   cullMaskSharpnessDesc: "Mäter vid urval skärpan bara inne i motivets kontur i stället för dess ruta. Utan en användbar kontur behålls rutans mått.",
+  enhanceLoopName: "Förbättra med kontroller",
+  enhanceLoopDesc: "Auto mäter fotot, följer de källhänvisade redigeringsråden, renderar sin egen redigering, kontrollerar det verkliga resultatet och justerar det högst fem gånger. Sedan erbjuder den tre alternativ med en favorit. Allt stannar på den här enheten och originalet ändras aldrig.",
   cloudRecipeName: "Redigeringsinställningar i molnet",
   cloudRecipeDesc: "Skickar en smart förhandsbild på 2 560 px av en bild till molnet och får tillbaka redigeringsinställningar som går att ångra. Det kräver en anslutning och skickar bilddata, så låt det vara av för att behålla allt på den här enheten.",
   usbTetherName: "USB-tethering",
