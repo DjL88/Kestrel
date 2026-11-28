@@ -2327,7 +2327,7 @@ export default function Canvas({
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
-              { icon: 'split', label: 'Split before and after', short: 'Split', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
+              { icon: 'split', label: 'Compare', short: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
               { icon: 'image-plus', label: 'Add format', short: 'Add', run: () => onOpenFormats?.(), disabled: !onOpenFormats, pressed: false },
               { icon: 'copy', label: 'Duplicate format', short: 'Duplicate', run: () => onDuplicateSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onDuplicateSize, pressed: false },
               { icon: 'crop', label: 'Crop / reposition', short: 'Crop', run: () => {
